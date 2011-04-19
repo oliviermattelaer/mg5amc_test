@@ -8,6 +8,7 @@ c
 c     Constants
 c
       include 'genps.inc'
+      include 'maxconfigs.inc'
       include 'nexternal.inc'
       include '../../Source/run_config.inc'
       include 'maxamps.inc'
@@ -82,7 +83,7 @@ c
       close(25)
 
       call write_input(j)
-      call write_bash(mapconfig,use_config,pwidth,icomp,iforest)
+      call write_bash(mapconfig,use_config,pwidth,icomp,iforest,sprop)
       end
 
       subroutine write_input(nconfigs)
@@ -195,7 +196,8 @@ c-----
  15   format(a)
       end
 
-      subroutine write_bash(mapconfig,use_config, pwidth, jcomp,iforest)
+      subroutine write_bash(mapconfig,use_config, pwidth, jcomp,iforest,
+     $     sprop)
 c***************************************************************************
 c     Writes out bash commands to run integration over all of the various
 c     configurations, but only for "non-identical" configurations.
@@ -206,6 +208,7 @@ c
 c     Constants
 c
       include 'genps.inc'
+      include 'maxconfigs.inc'
       include 'nexternal.inc'
       include '../../Source/run_config.inc'
       integer    imax,   ibase
@@ -216,6 +219,7 @@ c
       integer mapconfig(0:lmaxconfigs),use_config(0:lmaxconfigs)
       double precision pwidth(-max_branch:-1,lmaxconfigs)  !Propagotor width
       integer iforest(2,-max_branch:-1,lmaxconfigs)
+      integer sprop(-max_branch:-1,lmaxconfigs)
       integer jcomp
 
 c
@@ -235,7 +239,8 @@ c-----
       ic = 0      
       do i=1,mapconfig(0)
          if (use_config(i) .gt. 0) then
-            call bw_conflict(i,iforest(1,-max_branch,i),lconflict)
+            call bw_conflict(i,iforest(1,-max_branch,i),lconflict,
+     $           sprop(-max_branch,i), gForceBW(-max_branch,i))
             nbw=0               !Look for B.W. resonances
             if (jcomp .eq. 0 .or. jcomp .eq. 1 .or. .true.) then
                do j=1,imax
@@ -244,7 +249,7 @@ c-----
                do j=1,nexternal-3
 c                  write(*,*) 'Width',pwidth(-j,i),j,i
                   nbw=nbw+1
-                  if (pwidth(-j,i) .gt. 1d-20) then
+                  if (pwidth(-j,i) .gt. 1d-20 .and. sprop(-j,i).ne.0) then
                      write(*,*) 'Got bw',-nbw,j
                      if(lconflict(-j).or.gForceBW(-j,i)) then
                         if(lconflict(-j)) write(*,*) 'Got conflict ',-nbw,j
@@ -308,7 +313,8 @@ c
 c        Need to write appropriate number of BW sets this is
 c        same thing as above for the bash file
 c
-            call bw_conflict(i,iforest(1,-max_branch,i),lconflict)
+            call bw_conflict(i,iforest(1,-max_branch,i),lconflict,
+     $           sprop(-max_branch,i), gForceBW(-max_branch,i))
             nbw=0               !Look for B.W. resonances
             if (jcomp .eq. 0 .or. jcomp .eq. 1 .or. .true.) then
                do j=1,imax
@@ -316,7 +322,7 @@ c
                enddo
                do j=1,nexternal-3
                   nbw=nbw+1
-                  if (pwidth(-j,i) .gt. 1d-20) then
+                  if (pwidth(-j,i) .gt. 1d-20  .and. sprop(-j,i).ne.0) then
                      write(*,*) 'Got bw',nbw,j
                      if(lconflict(-j).or.gForceBW(-j,i)) then
                         iarray(nbw)=1 !Cuts on BW
@@ -345,7 +351,7 @@ c
       end
 
 
-      subroutine BW_Conflict(iconfig,itree,lconflict)
+      subroutine BW_Conflict(iconfig,itree,lconflict,sprop,forcebw)
 c***************************************************************************
 c     Determines which BW conflict
 c***************************************************************************
@@ -354,6 +360,7 @@ c
 c     Constants
 c
       include 'genps.inc'
+      include 'maxconfigs.inc'
       include 'nexternal.inc'
       double precision zero
       parameter       (zero=0d0)
@@ -363,19 +370,27 @@ c     Arguments
 c
       integer itree(2,-max_branch:-1),iconfig
       logical lconflict(-max_branch:nexternal)
-
+      integer sprop(-max_branch:-1)  ! Propagator id
+      logical forcebw(-max_branch:-1)  ! Forced BW
 c
 c     local
 c
       integer i,j
+      integer iden_part(-max_branch:-1)
       double precision pwidth(-max_branch:-1,lmaxconfigs)  !Propagator width
       double precision pmass(-max_branch:-1,lmaxconfigs)   !Propagator mass
       double precision pow(-max_branch:-1,lmaxconfigs)    !Not used, in props.inc
       double precision xmass(-max_branch:nexternal)
+      include 'maxamps.inc'
+      integer idup(nexternal,maxproc,maxsproc)
+      integer mothup(2,nexternal)
+      integer icolup(2,nexternal,maxflow,maxsproc)
+      include 'leshouche.inc'
 c
 c     Global
 c
       include 'coupl.inc'                     !Mass and width info
+
 c-----
 c  Begin Code
 c-----
@@ -387,6 +402,7 @@ c
       do i=1,nexternal
          xmass(i) = 0d0
          lconflict(-i) = .false.
+         iden_part(-i)=0
       enddo
 c
 c     Start by determining which propagators are part of the same 
@@ -396,7 +412,24 @@ c
       do while (i .lt. nexternal-2 .and. itree(1,-i) .ne. 1)
          xmass(-i) = xmass(itree(1,-i))+xmass(itree(2,-i))
          if (pwidth(-i,iconfig) .gt. 0d0) then
-            if (xmass(-i) .gt. pmass(-i,iconfig)) then  !Can't be on shell
+c     JA 3/31/11 Keep track of identical particles (i.e., radiation vertices)
+c     by tracing the particle identity from the external particle.
+            if(itree(1,-i).gt.0.and.
+     $           sprop(-i).eq.idup(itree(1,-i),1,1).or.
+     $         itree(2,-i).gt.0.and.
+     $           sprop(-i).eq.idup(itree(2,-i),1,1).or.
+     $         itree(1,-i).lt.0.and.(iden_part(itree(1,-i)).ne.0.and.
+     $           sprop(-i).eq.iden_part(itree(1,-i)) .or.
+     $         forcebw(itree(1,-i)).and.
+     $           sprop(-i).eq.sprop(itree(1,-i))).or.
+     $         itree(2,-i).lt.0.and.(iden_part(itree(2,-i)).ne.0.and.
+     $           sprop(-i).eq.iden_part(itree(2,-i)).or.
+     $         forcebw(itree(2,-i)).and.
+     $           sprop(-i).eq.sprop(itree(2,-i))))then
+               iden_part(-i) = sprop(-i)
+            endif
+            if (xmass(-i) .gt. pmass(-i,iconfig) .and.
+     $           iden_part(-i).eq.0) then !Can't be on shell, and not radiation
                lconflict(-i)=.true.
                write(*,*) "Found Conflict", iconfig,i,
      $              pmass(-i,iconfig),xmass(-i)
@@ -416,11 +449,11 @@ c
          endif
       enddo
 c
-c     Only include BW props as conflicting
+c     Only include BW props as conflicting, but not if radiation
 c
       do j=i,1,-1
          if (lconflict(-j)) then 
-            if (pwidth(-j,iconfig) .le. 0) then 
+            if (pwidth(-j,iconfig) .le. 0 .or. iden_part(-j).gt.0) then 
                lconflict(-j) = .false.
                write(*,*) 'No conflict BW',iconfig,j
             else
@@ -477,15 +510,10 @@ c
       write(lun,20) 'rm -f $k'
       write(lun,20) 'cat ../input_app.txt >& input_app.txt'
       write(lun,20) 'echo $i >> input_app.txt'
-      if (.false.) then
-         write(lun,20) 'cp ../../public.sh .'
-         write(lun,20) 'qsub -N $1$i public.sh'
-      else
-         write(lun,20) 'time ../madevent > $k <input_app.txt'
-         write(lun,20) 'rm -f ftn25 ftn99'
-         if(.not.gridpack) write(lun,20) 'rm -f ftn26'
-         write(lun,20) 'cp $k log.txt'
-      endif
+      write(lun,20) 'time ../madevent > $k <input_app.txt'
+      write(lun,20) 'rm -f ftn25 ftn99'
+      if(.not.gridpack) write(lun,20) 'rm -f ftn26'
+      write(lun,20) 'cp $k log.txt'
       write(lun,20) 'cd ../'
       write(lun,15) 'done'
       write(lun,15) 'rm -f run.$script'

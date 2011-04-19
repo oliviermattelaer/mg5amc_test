@@ -20,6 +20,7 @@ C
 C CONSTANTS
 C  
       include 'genps.inc'
+      include 'maxconfigs.inc'
       include 'nexternal.inc'
       include 'maxamps.inc'
       REAL*8     PI
@@ -74,6 +75,7 @@ C   ICONFIG has this config number
 C     IPROC has the present process number
       INTEGER IPROC
       COMMON/TO_IPROC/IPROC
+      COMMON/TO_MIRROR/ IMIRROR
 C ----------
 C BEGIN CODE
 C ----------
@@ -221,6 +223,7 @@ C     ****************************************************
       IMPLICIT NONE
       
       INCLUDE 'genps.inc'
+      include 'maxconfigs.inc'
       INCLUDE 'nexternal.inc'
       INCLUDE 'maxamps.inc'
       INCLUDE 'coupl.inc'

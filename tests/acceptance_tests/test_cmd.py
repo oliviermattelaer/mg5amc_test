@@ -97,7 +97,14 @@ class TestCmdShell1(unittest.TestCase):
         self.do('draw .')
         self.assertTrue(os.path.exists('diagrams_0_gg_gg.eps'))
         os.remove('diagrams_0_gg_gg.eps')
+        
+    def test_config(self):
+        """check that configuration file is at default value"""
+        
+        config = self.cmd.set_configuration(MG5DIR+'/input/mg5_configuration.txt')
+        expected = {'pythia8_path': './pythia8'}
 
+        self.assertEqual(config, expected)
 
 class TestCmdShell2(unittest.TestCase,
                     test_file_writers.CheckFileCreate):
@@ -144,6 +151,13 @@ class TestCmdShell2(unittest.TestCase,
         self.assertFalse(os.path.exists(os.path.join(self.out_dir,
                                                     'Cards',
                                                     'ident_card.dat')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                                    'Source',
+                                                    'maxconfigs.inc')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                                    'SubProcesses',
+                                                    'P0_epem_epem',
+                                                    'maxconfigs.inc')))
         self.assertFalse(os.path.exists(os.path.join(self.out_dir,
                                                     'SubProcesses',
                                                     'P0_epem_epem',
@@ -558,6 +572,14 @@ class TestCmdShell2(unittest.TestCase,
                                        'generate_events')).read()
         self.assertTrue(generate_events.find(\
                                             "$dirbin/refine $a $mode $n 1 $t"))
+        # Check that the maxconfigs.inc file has been created properly
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                                    'Source',
+                                                    'maxconfigs.inc')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                                    'SubProcesses',
+                                                    'P2_gg_qq',
+                                                    'maxconfigs.inc')))
         # Check that the Source directory compiles
         status = subprocess.call(['make'],
                                  stdout=devnull, 

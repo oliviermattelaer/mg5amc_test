@@ -113,7 +113,7 @@ class ExtLauncher(object):
                         question += "%s" % data
                     question += ', '
                 if len(choices) > 9:
-                    question += ', ... , ' 
+                    question += '... , ' 
                 question = question[:-2]+']'
                 
             if path_info:
@@ -160,6 +160,8 @@ class ExtLauncher(object):
         else:
             path = os.path.join(self.card_dir, filename)
             files.cp(ans, path)
+            
+   
                 
                     
 class SALauncher(ExtLauncher):
@@ -288,7 +290,14 @@ class MELauncher(ExtLauncher):
             subprocess.call([self.executable, mode, self.name, self.name], 
                                                            cwd=self.running_dir)
         elif mode == "2":
-            nb_node = self.ask('How many core do you want to use?', '2')
+            import multiprocessing
+            max_node = multiprocessing.cpu_count()
+            if max_node == 1:
+                logger.warning('Only one core is detected on your computer! Pass in single machine')
+                self.cluster = 0
+                self.launch_program()
+                return
+            nb_node = self.ask('How many core do you want to use?', max_node, range(max_node+1))
             subprocess.call([self.executable, mode, nb_node, self.name], 
                                                            cwd=self.running_dir)
         
@@ -407,11 +416,13 @@ class Pythia8Launcher(ExtLauncher):
             raise MadGraph5Error, "make failed for %s" % self.executable
         
         print "Running " + self.executable
-
+        
         output = open(os.path.join(self.running_dir, self.name), 'w')
+        if not self.executable.startswith('./'):
+            self.executable = os.path.join(".", self.executable)
         subprocess.call([self.executable], stdout = output, stderr = output,
                         cwd=self.running_dir)
-
+        
         # Display the cross-section to the screen
         path = os.path.join(self.running_dir, self.name) 
         pydoc.pager(open(path).read())

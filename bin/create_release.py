@@ -55,7 +55,7 @@ root_path = path.split(path.dirname(path.realpath( __file__ )))[0]
 sys.path.append(root_path)
 
 import madgraph.iolibs.misc as misc
-from madgraph import MG4DIR, MG5DIR
+from madgraph import MG5DIR
 
 # Write out nice usage message if called with -h or --help
 usage = "usage: %prog [options] [FILE] "
@@ -122,11 +122,13 @@ if status1:
                  status)
     exit()
 
-# 3. Remove the .bzr directory and the create_release.py file,
+# 3. Remove the .bzr directory and clean bin directory file,
 #    take care of README files.
 
 shutil.rmtree(path.join(filepath, '.bzr'))
-os.remove(path.join(filepath, 'bin', 'create_release.py'))
+for data in path.join(filepath, 'bin'):
+    if data != 'mg5':
+        os.remove(path.join(filepath, 'bin', data))
 os.remove(path.join(filepath, 'README.developer'))
 shutil.move(path.join(filepath, 'README.release'), path.join(filepath, 'README'))
 
@@ -163,13 +165,6 @@ reload(madgraph.iolibs)
 import madgraph.iolibs.misc
 reload(madgraph.iolibs.misc)
 
-## Need a __init__ file to run tests
-##if not os.path.exists(os.path.join(filepath,'__init__.py')):
-##    open(os.path.join(filepath,'__init__.py'), 'w').close()
-
-## For acceptance tests, make sure to use filepath as MG4DIR
-##madgraph.MG4DIR = os.path.realpath(filepath)
-#madgraph.MG5DIR = os.path.realpath(filepath)
 
 test_results = test_manager.run(package=os.path.join('tests',
                                                      'unit_tests'))
@@ -194,6 +189,11 @@ if a_test_results.errors or test_results.errors:
     logging.error("Removing %s and quitting..." % filename)
     os.remove(filename)
     exit()
+
+try:
+    os.remove("%s.asc" % filename)
+except:
+    pass
 
 try:
     status1 = subprocess.call(['gpg', '--armor', '--sign', '--detach-sig',

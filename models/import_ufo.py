@@ -92,7 +92,7 @@ def import_model(model_name):
     
     #restrict it if needed       
     if restrict_file:
-        logger.info('Restrict model %s with file %s.' % (model_name, restrict_file))
+        logger.info('Restrict model %s with file %s .' % (model_name, os.path.relpath(restrict_file)))
         if logger_mod.getEffectiveLevel() > 10:
             logger.info('Run \"set stdout_level DEBUG\" before import for more information.')
             
@@ -620,6 +620,16 @@ class RestrictModel(model_reader.ModelReader):
         iden_parameters = self.detect_identical_parameters()
         for iden_param in iden_parameters:
             self.merge_iden_parameters(iden_param)
+            
+        # change value of default parameter if they have special value:
+        # 9.999999e-1 -> 1.0
+        # 0.000001e-99 -> 0 Those value are used to avoid restriction
+        for name, value in self['parameter_dict'].items():
+            if value == 9.999999e-1:
+                self['parameter_dict'][name] = 1
+            elif value == 0.000001e-99:
+                self['parameter_dict'][name] = 0
+
 
 
     def locate_coupling(self):
