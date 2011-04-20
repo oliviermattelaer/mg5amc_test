@@ -178,6 +178,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
         # Extract all unique permutations of legs
         leg_perms = []
+        good_perm_ids = []
+        same_flavor_perms = {}
         if anti_triplet_legs:
             first_leg = [anti_triplet_legs.pop(0)]
         else:
@@ -187,11 +189,16 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                                   triplet_legs + \
                                                   octet_legs,
                                                   lambda l1, l2: l1[0] - l2[0])):
-            # Permutations with same flavor ordering are thrown out
-            if [p[1] for p in perm] in \
-               [[p[1] for p in leg_perm] for leg_perm in leg_perms]:
+            # Permutations with same flavor ordering as existing perm
+            # are kept in same_flavor_perms
+            perm_ids = array.array('i', [p[1] for p in perm])
+            try:
+                ind = good_perm_ids.index(perm_ids)
+                same_flavor_perms[ind].append([p[0] for p in perm])
                 continue
-
+            except ValueError:
+                pass
+            
             # trip is a list of [position, (number, id, color)] for
             # triplet and antitriplet legs
             trip = [(i,p) for (i,p) in enumerate(first_leg + list(perm)) \
@@ -208,8 +215,13 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
             if failed:
                 continue
 
+            # Initiate list of permutations for this leglist
+            same_flavor_perms[len(leg_perms)] = [[p[0] for p in perm]]
+            # Add permutation ids for comparison above
+            good_perm_ids.append(perm_ids)
+            # Add permutation to accepted permutations
             leg_perms.append(perm)
-
+            
         # Create color flow amplitudes corresponding to all resulting
         # permutations
         color_flows = ColorOrderedFlowList()
@@ -225,7 +237,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
         used_flows = []
 
-        for perm in leg_perms:
+        for iperm, perm in enumerate(leg_perms):
             colegs = base_objects.LegList([ColorOrderedLeg(l) for l in legs])
             # Keep track of number of triplets
             ichain = 0
@@ -277,6 +289,9 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 coprocess.get('orders')['singlet_QCD'] = 2*iflow
                 flow = ColorOrderedFlow(coprocess)
                 if flow.get('diagrams'):
+                    # Set perm information for this flow
+                    flow.set('permutations', same_flavor_perms[iperm])
+                    # Add flow to list
                     color_flows.append(flow)
 
         self.set('color_flows', color_flows)
@@ -312,10 +327,11 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
             super(ColorOrderedFlow, self).__init__()
 
     def default_setup(self):
-        """Add number of gluon flag to Amplitude members"""
+        """Add number of color orderings and permutations to Amplitude members"""
         
         super(ColorOrderedFlow, self).default_setup()
         self['max_color_orders'] = {}
+        self['permutations'] = []
 
     def get_combined_legs(self, legs, leg_vert_ids, number, state):
         """Determine if the combination of legs is valid with color
@@ -407,18 +423,19 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
                 else:
                     ileg += 1
             elif abs(new_leg_colors[leg_id]) == 8:
-                # Color octets should have no completed groups unless
-                # it has 2 valid orderings, and 1 or 2 valid orderings
+                # Color octets should have 1 or 2 valid orderings, and
+                # no completed groups unless it has 2 valid orderings
                 valid_orderings = [group for group in groups if \
                                    color_orderings[leg_id][group] != \
                                    (1, self.get('max_color_orders')[group])]
-                if (len(valid_orderings) != len(color_orderings[leg_id]) and \
-                    len(valid_orderings) < 2) or \
-                    len(valid_orderings) < 1 or \
-                    len(valid_orderings) > 2:
+                if (len(valid_orderings) < 1 or \
+                    len(valid_orderings) > 2 or
+                    len(valid_orderings) != len(color_orderings[leg_id]) and \
+                    len(valid_orderings) < 2):
                     leg_vert_ids.remove((leg_id, vert_id))
                 else:
                     ileg += 1
+                # Remove completed groups
                 for group in groups:
                     if group not in valid_orderings:
                         del color_orderings[leg_id][group]
@@ -813,7 +830,7 @@ class BGHelasCurrent(COHelasWavefunction):
         
     def get_call_key(self):
         """Generate the ('sum', spins) tuple used as key for
-        the helas call dictionaries in HelasModel"""
+        the helas call dictionaries in HelasCallWriter"""
 
         res = [m.get('spin') for m in self.get('mothers')]
 
@@ -821,10 +838,10 @@ class BGHelasCurrent(COHelasWavefunction):
 
     
 #===============================================================================
-# BGHelasMatrixElement
+# COHelasMatrixElement
 #===============================================================================
-class BGHelasMatrixElement(helas_objects.HelasMatrixElement):
-    """BGHelasMatrixElement: Behrends-Giele version of a
+class COHelasMatrixElement(helas_objects.HelasMatrixElement):
+    """COHelasMatrixElement: Behrends-Giele version of a
     HelasMatrixElement, starting from a ColorOrderedFlow.
 
     After regular helas diagram generation, performs the following:
@@ -855,7 +872,7 @@ class BGHelasMatrixElement(helas_objects.HelasMatrixElement):
                     "Missing or erraneous arguments for generate_helas_diagrams"
         
         # First generate full set of wavefunctions and amplitudes
-        super(BGHelasMatrixElement, self).generate_helas_diagrams(amplitude,
+        super(COHelasMatrixElement, self).generate_helas_diagrams(amplitude,
                                                                   optimization,
                                                                   decay_ids)
         # Go through and change wavefunctions into COHelasWavefunction

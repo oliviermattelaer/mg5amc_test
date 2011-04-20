@@ -25,7 +25,7 @@ import unittest
 import madgraph.core.base_objects as base_objects
 import madgraph.core.diagram_generation as diagram_generation
 import madgraph.core.color_algebra as color
-import madgraph.core.color_ordered_amplitudes as color_ordered_amplitudes
+import madgraph.color_ordering.color_ordered_amplitudes as color_ordered_amplitudes
 import madgraph.iolibs.drawing_eps as draw
 import madgraph.iolibs.helas_call_writers as helas_call_writers
 import madgraph.iolibs.export_v4 as export_v4
@@ -316,7 +316,8 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_color_ordered_gluons(self):
         """Test the number of color ordered diagrams gg>ng with n up to 4"""
 
-        goal_ndiags = [3, 10, 38, 154, 654, 2871, 12925]
+        goal_ndiags = [3, 10, 38,  154, 654,  2871,  12925]
+        goal_nperms = [6, 24, 120, 720, 5040, 40320, 362880]
 
         # Time for 7 gluons: 46 s
 
@@ -362,6 +363,9 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             #                                                        goal_ndiags[ngluon-2])
             #print self.myamplitude.get('diagrams').nice_string()
 
+            self.assertEqual(len(mycolorflow.get('permutations')),
+                             goal_nperms[ngluon-2])
+
             self.assertEqual(ndiags, goal_ndiags[ngluon - 2])
 
     def test_color_ordered_uux_nglue(self):
@@ -370,6 +374,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
         goal_nflows = [1, 1, 1, 1]
         goal_ndiagrams = [2, 6, 21, 81]
+        goal_nperms = [2, 6, 24, 120]
 
         # Test 2, 3, 4 and 5 gluons in the final state
         for ngluon in range (2, 6):
@@ -395,8 +400,12 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.assertEqual(len(self.myamplitude.get('color_flows')),
                              goal_nflows[ngluon-2])
-            self.assertEqual(len(self.myamplitude.get('color_flows')[0].\
+            mycolorflow = self.myamplitude.get('color_flows')[0]
+            self.assertEqual(len(mycolorflow.\
                                  get('diagrams')), goal_ndiagrams[ngluon-2])
+            self.assertEqual(len(mycolorflow.get('permutations')),
+                             goal_nperms[ngluon-2])
+
                              
 
             
@@ -405,6 +414,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         """
         goal_ndiags = [[1, 1], [3, 2, 3, 2], [10, 5, 11, 4, 10, 5],[35, 16, 41, 10, 41, 10, 35, 16]]
         goal_nflows = [2, 4, 6, 8]
+        goal_nperms = [[2, 2], [2] * 4, [4] * 6, [12] * 8]
 
         for ngluons in range(0, 3):
 
@@ -436,8 +446,10 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             self.assertEqual(len(self.myamplitude.get('color_flows')),
                              goal_nflows[ngluons])
             for iflow, flow in enumerate(self.myamplitude.get('color_flows')):
-                self.assertEqual(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')),
+                self.assertEqual(len(flow.get('diagrams')),
                              goal_ndiags[ngluons][iflow])
+                self.assertEqual(len(flow.get('permutations')),
+                                 goal_nperms[ngluons][iflow])
 
     def test_color_ordered_uux_ddxng(self):
         """Test the number of color flows and diagrams for uu~>dd~+ng
@@ -445,6 +457,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         goal_ndiags = [[1, 1], [3, 3, 2, 2], [10, 11, 10, 5, 4, 5],
                        [35, 41, 41, 35, 16, 10, 10, 16]]
         goal_nflows = [2, 4, 6, 8]
+        goal_nperms = [[1]*2, [1]*4, [2]*6, [6]*8]
 
         for ngluons in range(0, 3):
 
@@ -476,8 +489,10 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             self.assertEqual(len(self.myamplitude.get('color_flows')),
                              goal_nflows[ngluons])
             for iflow, flow in enumerate(self.myamplitude.get('color_flows')):
-                self.assertEqual(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')),
-                             goal_ndiags[ngluons][iflow])
+                self.assertEqual(len(flow.get('diagrams')),
+                                 goal_ndiags[ngluons][iflow])
+                self.assertEqual(len(flow.get('permutations')),
+                                 goal_nperms[ngluons][iflow])
 
     def test_color_ordered_uux_ddxssxngd(self):
         """Test the number of color flows and diagrams for uu~>dd~ssx+ng
@@ -825,9 +840,9 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             self.assertEqual(ndiags, goal_ndiags[ngluon])
 
 #===============================================================================
-# BGHelasMatrixElementTest
+# COHelasMatrixElementTest
 #===============================================================================
-class BGHelasMatrixElementTest(unittest.TestCase):
+class COHelasMatrixElementTest(unittest.TestCase):
     """Test class for functions related to the B-G matrix elements"""
 
     mypartlist = base_objects.ParticleList()
@@ -1122,7 +1137,7 @@ class BGHelasMatrixElementTest(unittest.TestCase):
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
-            matrix_element = color_ordered_amplitudes.BGHelasMatrixElement(\
+            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                 mycolorflow, gen_color=False, optimization=3)
 
             #print "\n".join(\
@@ -1187,7 +1202,7 @@ class BGHelasMatrixElementTest(unittest.TestCase):
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
-            matrix_element = color_ordered_amplitudes.BGHelasMatrixElement(\
+            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                 mycolorflow, gen_color=False, optimization=1)
 
             #print "\n".join(\
@@ -1237,7 +1252,7 @@ class BGHelasMatrixElementTest(unittest.TestCase):
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
-            matrix_element = color_ordered_amplitudes.BGHelasMatrixElement(\
+            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                 mycolorflow, gen_color=False, optimization = 3)
 
             #print "\n".join(\
@@ -1306,7 +1321,7 @@ class BGHelasMatrixElementTest(unittest.TestCase):
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
-            matrix_element = color_ordered_amplitudes.BGHelasMatrixElement(\
+            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                 mycolorflow, gen_color=False, optimization = 1)
 
             #print "\n".join(\
@@ -1353,7 +1368,7 @@ class BGHelasMatrixElementTest(unittest.TestCase):
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
-            matrix_element = color_ordered_amplitudes.BGHelasMatrixElement(\
+            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                 mycolorflow, gen_color=False, optimization = 3)
 
             #print "\n".join(\
@@ -1430,7 +1445,7 @@ class BGHelasMatrixElementTest(unittest.TestCase):
             for iflow, mycolorflow in \
                 enumerate(self.myamplitude.get('color_flows')):
 
-                matrix_element = color_ordered_amplitudes.BGHelasMatrixElement(\
+                matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                     mycolorflow, gen_color=False, optimization = 3)
 
                 #print "\n".join(\
@@ -1512,7 +1527,7 @@ class BGHelasMatrixElementTest(unittest.TestCase):
             for iflow, mycolorflow in \
                 enumerate(self.myamplitude.get('color_flows')):
 
-                matrix_element = color_ordered_amplitudes.BGHelasMatrixElement(\
+                matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                     mycolorflow, gen_color=False, optimization = 1)
 
                 #print "\n".join(\
@@ -1599,7 +1614,7 @@ class BGHelasMatrixElementTest(unittest.TestCase):
                 enumerate(self.myamplitude.get('color_flows')):
                 #print mycolorflow.nice_string()
                 
-                matrix_element = color_ordered_amplitudes.BGHelasMatrixElement(\
+                matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                     mycolorflow, gen_color=False, optimization = 3)
 
                 #print "\n".join(\
