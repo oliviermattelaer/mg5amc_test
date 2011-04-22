@@ -677,7 +677,7 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
             self.set('compare_array', [[m.get('current_array') for \
                                         m in self.get('mothers')],
                                        self.get('interaction_id'),
-                                       self.get('coupl_key')])
+                                       self.get('color_key')])
 
     def set_color_and_fermion_factor(self):
         """Set the color and fermion factor for this wavefunction. The
@@ -766,7 +766,7 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
         self.set('compare_array', [sorted([list(m.get('current_array')) \
                                               for m in self.get('mothers')]),
                                       self.get('interaction_id'),
-                                      self.get('coupl_key')])
+                                      self.get('color_key')])
 
     def set_color_and_fermion_factor(self):
         """Set the color and fermion factor for this wavefunction"""
@@ -1113,7 +1113,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                                                      {}, {},
                                                      self.lastleg_number - 1)
         # Pick out only the relevant color string for arg
-        color_string = color_dict[(arg.get('coupl_key')[0],)]
+        color_string = color_dict[(arg.get('color_key'),)]
         # Add the color strings of all mothers
         for mother in arg.get('mothers'):
             if mother.get('color_string'):
