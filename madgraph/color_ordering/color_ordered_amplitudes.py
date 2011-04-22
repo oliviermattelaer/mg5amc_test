@@ -863,6 +863,27 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
     # Keep unique number for color substitution
     lastleg_number = 0
 
+    def default_setup(self):
+        """Add list of leg permutations for HelasMatrixElement"""
+
+        super(COHelasMatrixElement, self).default_setup()
+
+        # Permutations of external legs which give valid color flows.
+        # The first permutation corresponds to the this color flow.
+        self['permutations'] = []    
+
+    def filter(self, name, value):
+        """Filter for valid amplitude property values."""
+
+        if name == 'permutations':
+            if not isinstance(value, list):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid list object" % str(value)
+        else:
+            super(COHelasMatrixElement, self).filter(name, value)
+
+        return True
+    
     def generate_helas_diagrams(self, amplitude, optimization=3,
                                 decay_ids=[]):
         """Generate Behrends-Giele diagrams for a color ordered amplitude
@@ -870,6 +891,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         
         assert  isinstance(amplitude, ColorOrderedFlow), \
                     "Missing or erraneous arguments for generate_helas_diagrams"
+
+        self.set('permutations', amplitude.get('permutations'))
         
         # First generate full set of wavefunctions and amplitudes
         super(COHelasMatrixElement, self).generate_helas_diagrams(amplitude,

@@ -35,7 +35,7 @@ import madgraph.iolibs.file_writers as writers
 import madgraph.iolibs.gen_infohtml as gen_infohtml
 import madgraph.iolibs.template_files as iolibs_template_files
 import madgraph.color_ordering.template_files as template_files
-import madgraph.iolibs.ufo_expression_parsers as parsers
+fimport madgraph.iolibs.ufo_expression_parsers as parsers
 import madgraph.various.diagram_symmetry as diagram_symmetry
 
 import aloha.create_aloha as create_aloha
@@ -44,6 +44,189 @@ from madgraph import MadGraph5Error, MG5DIR
 from madgraph.iolibs.files import cp, ln, mv
 _file_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0] + '/'
 logger = logging.getLogger('madgraph.export_v4')
+
+#===============================================================================
+# ProcessExporterFortranCOSA
+#===============================================================================
+class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA):
+    """Class to take care of exporting a set of matrix elements to
+    MadGraph v4 StandAlone format."""
+
+    #===========================================================================
+    # generate_subprocess_directory_v4
+    #===========================================================================
+    def generate_subprocess_directory_v4(self, matrix_element,
+                                                    fortran_model):
+        """Generate the Pxxxxx directory for a subprocess in MG4 standalone,
+        including the necessary matrix.f and nexternal.inc files"""
+
+        cwd = os.getcwd()
+
+        # Create the directory PN_xx_xxxxx in the specified path
+        dirpath = os.path.join(self.dir_path, 'SubProcesses', \
+                       "P%s" % matrix_element.get('processes')[0].shell_string())
+
+        try:
+            os.mkdir(dirpath)
+        except os.error as error:
+            logger.warning(error.strerror + " " + dirpath)
+
+        try:
+            os.chdir(dirpath)
+        except os.error:
+            logger.error('Could not cd to directory %s' % dirpath)
+            return 0
+
+        logger.info('Creating files in directory %s' % dirpath)
+
+        # Extract number of external particles
+        (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
+
+        # Create the matrix.f file and the nexternal.inc file
+        filename = 'matrix.f'
+        calls = self.write_matrix_element_v4(
+            writers.FortranWriter(filename),
+            matrix_element,
+            fortran_model)
+
+        filename = 'nexternal.inc'
+        self.write_nexternal_file(writers.FortranWriter(filename),
+                             nexternal, ninitial)
+
+        filename = 'pmass.inc'
+        self.write_pmass_file(writers.FortranWriter(filename),
+                         matrix_element)
+
+        filename = 'ngraphs.inc'
+        self.write_ngraphs_file(writers.FortranWriter(filename),
+                           len(matrix_element.get_all_amplitudes()))
+
+        # Generate diagrams
+        filename = "matrix.ps"
+        plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
+                                             get('diagrams'),
+                                          filename,
+                                          model=matrix_element.get('processes')[0].\
+                                             get('model'),
+                                          amplitude='')
+        logger.info("Generating Feynman diagrams for " + \
+                     matrix_element.get('processes')[0].nice_string())
+        plot.draw()
+
+        # Generate diagrams
+        filename = "matrix.ps"
+        plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
+                                             get('diagrams'),
+                                          filename,
+                                          model=matrix_element.get('processes')[0].\
+                                             get('model'),
+                                          amplitude='')
+        logger.info("Generating Feynman diagrams for " + \
+                     matrix_element.get('processes')[0].nice_string())
+        plot.draw()
+
+        # Generate diagrams
+        filename = "matrix.ps"
+        plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
+                                             get('diagrams'),
+                                          filename,
+                                          model=matrix_element.get('processes')[0].\
+                                             get('model'),
+                                          amplitude='')
+        logger.info("Generating Feynman diagrams for " + \
+                     matrix_element.get('processes')[0].nice_string())
+        plot.draw()
+
+        linkfiles = ['check_sa.f', 'coupl.inc', 'makefile']
+
+
+        for file in linkfiles:
+            ln('../%s' % file)
+
+        # Return to original PWD
+        os.chdir(cwd)
+
+        if not calls:
+            calls = 0
+        return calls
+
+    #===========================================================================
+    # write_matrix_element_v4
+    #===========================================================================
+    def write_matrix_element_v4(self, writer, matrix_element, fortran_model):
+        """Export a matrix element to a matrix.f file in MG4 standalone format"""
+
+        if not matrix_element.get('processes') or \
+               not matrix_element.get('diagrams'):
+            return 0
+
+        if not isinstance(writer, writers.FortranWriter):
+            raise writers.FortranWriter.FortranWriterError(\
+                "writer not FortranWriter")
+
+        # Set lowercase/uppercase Fortran code
+        writers.FortranWriter.downcase = False
+
+        replace_dict = {}
+
+        # Extract version number and date from VERSION file
+        info_lines = self.get_mg5_info_lines()
+        replace_dict['info_lines'] = info_lines
+
+        # Extract process info lines
+        process_lines = self.get_process_info_lines(matrix_element)
+        replace_dict['process_lines'] = process_lines
+
+        # Extract number of external particles
+        (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
+        replace_dict['nexternal'] = nexternal
+
+        # Extract ncomb
+        ncomb = matrix_element.get_helicity_combinations()
+        replace_dict['ncomb'] = ncomb
+
+        # Extract helicity lines
+        helicity_lines = self.get_helicity_lines(matrix_element)
+        replace_dict['helicity_lines'] = helicity_lines
+
+        # Extract overall denominator
+        # Averaging initial state color, spin, and identical FS particles
+        den_factor_line = self.get_den_factor_line(matrix_element)
+        replace_dict['den_factor_line'] = den_factor_line
+
+        # Extract ngraphs
+        ngraphs = matrix_element.get_number_of_amplitudes()
+        replace_dict['ngraphs'] = ngraphs
+
+        # Extract nwavefuncs
+        nwavefuncs = matrix_element.get_number_of_wavefunctions()
+        replace_dict['nwavefuncs'] = nwavefuncs
+
+        # Extract ncolor
+        ncolor = max(1, len(matrix_element.get('color_basis')))
+        replace_dict['ncolor'] = ncolor
+
+        # Extract color data lines
+        color_data_lines = self.get_color_data_lines(matrix_element)
+        replace_dict['color_data_lines'] = "\n".join(color_data_lines)
+
+        # Extract helas calls
+        helas_calls = fortran_model.get_matrix_element_calls(\
+                    matrix_element)
+        replace_dict['helas_calls'] = "\n".join(helas_calls)
+
+        # Extract JAMP lines
+        jamp_lines = self.get_JAMP_lines(matrix_element)
+        replace_dict['jamp_lines'] = '\n'.join(jamp_lines)
+
+        file = open(os.path.join(_file_path, \
+                          'iolibs/template_files/matrix_standalone_v4.inc')).read()
+        file = file % replace_dict
+
+        # Write the file
+        writer.writelines(file)
+
+        return len(filter(lambda call: call.find('#') != 0, helas_calls))
 
 #===============================================================================
 # ProcessExporterFortranCO
