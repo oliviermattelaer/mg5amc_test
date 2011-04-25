@@ -143,6 +143,8 @@ class Amplitude(base_objects.PhysicsObject):
 
         7. Repeat from 3 (recursion done by reduce_leglist)
 
+        8. Replace final p=p vertex
+        
         Be aware that the resulting vertices have all particles outgoing,
         so need to flip for incoming particles when used.
 
@@ -330,15 +332,32 @@ class Amplitude(base_objects.PhysicsObject):
         # Set diagrams to res
         self['diagrams'] = res
 
-        # Trim down number of legs and vertices used to save memory
-        self.trim_diagrams()
-
         # Set actual coupling orders for each diagram
         for diagram in self['diagrams']:
             diagram.calculate_orders(model)
 
+        # Replace final id=0 vertex if necessary
+        if not process.get('is_decay_chain'):
+            for diagram in self['diagrams']:
+                vertices = diagram.get('vertices')
+                if len(vertices) > 1 and vertices[-1].get('id') == 0:
+                    # Need to "glue together" last and next-to-last
+                    # vertex, by replacing the (incoming) last leg of the
+                    # next-to-last vertex with the (outgoing) leg in the
+                    # last vertex
+                    lastvx = vertices.pop()
+                    nexttolastvertex = vertices[-1]
+                    legs = nexttolastvertex.get('legs')
+                    ntlnumber = legs[-1].get('number')
+                    lastleg = filter(lambda leg: leg.get('number') != ntlnumber,
+                                     lastvx.get('legs'))[0]
+                    # Replace the last leg of nexttolastvertex
+                    legs[-1] = lastleg
         if res:
             logger.info("Process has %d diagrams" % len(res))
+
+        # Trim down number of legs and vertices used to save memory
+        self.trim_diagrams()
 
         # Sort process legs according to leg number
         self.get('process').get('legs').sort()

@@ -2223,21 +2223,6 @@ class HelasMatrixElement(base_objects.PhysicsObject):
             # Single out last vertex, since this will give amplitude
             lastvx = vertices.pop()
 
-            # Check if last vertex is identity vertex
-            if not process.get('is_decay_chain') and lastvx.get('id') == 0:
-                # Need to "glue together" last and next-to-last
-                # vertext, by replacing the (incoming) last leg of the
-                # next-to-last vertex with the (outgoing) leg in the
-                # last vertex
-                nexttolastvertex = copy.deepcopy(vertices.pop())
-                legs = nexttolastvertex.get('legs')
-                ntlnumber = legs[-1].get('number')
-                lastleg = filter(lambda leg: leg.get('number') != ntlnumber,
-                                 lastvx.get('legs'))[0]
-                # Replace the last leg of nexttolastvertex
-                legs[-1] = lastleg
-                lastvx = nexttolastvertex
-
             # Go through all vertices except the last and create
             # wavefunctions
             for vertex in vertices:
