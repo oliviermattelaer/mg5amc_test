@@ -38,7 +38,7 @@ _file_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0]
 # TestModelReader
 #===============================================================================
 class TestDiagramSymmetry(unittest.TestCase):
-    """Test class for the MatrixElementChecker and get_momenta"""
+    """Test class for the DiagramSymmetry class"""
 
 
     def setUp(self):
@@ -190,3 +190,52 @@ class TestDiagramSymmetry(unittest.TestCase):
             self.assertAlmostEqual(amp, new_amp, 12)
             
         
+#===============================================================================
+# TestModelReader
+#===============================================================================
+class TestDiagramTag(unittest.TestCase):
+    """Test class for the DiagramTag class"""
+
+
+    def setUp(self):
+        self.base_model = import_ufo.import_model('sm')
+        self.evaluator = process_checks.MatrixElementEvaluator(self.base_model)
+    
+    def test_diagram_tag_gg_ggg(self):
+        """Test the find_symmetry function"""
+
+        myleglist = base_objects.LegList()
+
+        myleglist.append(base_objects.Leg({'id':21,
+                                           'state':False}))
+        myleglist.append(base_objects.Leg({'id':21,
+                                           'state':False}))
+        myleglist.append(base_objects.Leg({'id':21,
+                                           'state':True}))
+        myleglist.append(base_objects.Leg({'id':21,
+                                           'state':True}))
+        myleglist.append(base_objects.Leg({'id':21,
+                                           'state':True}))
+        myleglist.append(base_objects.Leg({'id':21,
+                                           'state':True}))
+
+        myproc = base_objects.Process({'legs':myleglist,
+                                       'model':self.base_model})
+
+        myamplitude = diagram_generation.Amplitude(myproc)
+
+        tags = []
+        diagram_classes = []
+        print "Start generating symmetric diagrams"
+        for idiag, diagram in enumerate(myamplitude.get('diagrams')):
+            tag = diagram_symmetry.DiagramTag(diagram)
+            try:
+                diagram_classes[tags.index(tag)].append(idiag + 1)
+            except:
+                diagram_classes.append([idiag + 1])
+                tags.append(tag)
+        print "done"
+
+        for tag, diagrams in zip(tags, diagram_classes):
+            print "Diagram class for ", tag, ": "
+            print diagrams
