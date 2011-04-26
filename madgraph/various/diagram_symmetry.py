@@ -63,7 +63,113 @@ logger = logging.getLogger('madgraph.various.diagram_symmetry')
 # find_symmetry
 #===============================================================================
 
-def find_symmetry(matrix_element, evaluator, max_time = 600):
+def find_symmetry(matrix_element):
+    """Find symmetries between amplitudes by comparing diagram tags
+    for all the digrams in the process. Identical diagram tags
+    correspond to different external particle permutations of the same
+    diagram.
+    
+    Return list of positive number corresponding to number of
+    symmetric diagrams and negative numbers corresponding to the
+    equivalent diagram (for e+e->3a, get [6, -1, -1, -1, -1, -1]),
+    list of the corresponding permutations needed, and list of all
+    permutations of identical particles."""
+
+    if isinstance(matrix_element, group_subprocs.SubProcessGroup):
+        return find_symmetry_subproc_group(matrix_element)
+
+    nexternal, ninitial = matrix_element.get_nexternal_ninitial()
+
+    # diagram_numbers is a list of all relevant diagram numbers
+    diagram_numbers = []
+    # Prepare the symmetry vector with non-used amp2s (due to
+    # multiparticle vertices)
+    symmetry = []
+    permutations = []
+    ident_perms = []
+    for diag in matrix_element.get('diagrams'):
+        diagram_numbers.append(diag.get('number'))
+        permutations.append(range(nexternal))
+        if max(diag.get_vertex_leg_numbers()) > 3:
+            # Ignore any diagrams with 4-particle vertices
+            symmetry.append(0)
+        else:
+            symmetry.append(1)
+
+    # Check for matrix elements with no identical particles
+    if matrix_element.get("identical_particle_factor") == 1:
+        return symmetry, \
+               permutations,\
+               [range(nexternal)]
+
+    logger.info("Finding symmetric diagrams for process %s" % \
+                 matrix_element.get('processes')[0].nice_string().\
+                 replace("Process: ", ""))
+
+    process = matrix_element.get('processes')[0]
+    base_model = process.get('model')
+    equivalent_process = base_objects.Process({\
+                     'legs': base_objects.LegList([base_objects.Leg({
+                               'id': wf.get('pdg_code'),
+                               'state': wf.get('leg_state')}) \
+                       for wf in matrix_element.get_external_wavefunctions()]),
+                     'model': base_model})
+
+    nperm = 0
+    perms = []
+
+    diagrams = matrix_element.get('diagrams')
+    base_diagrams = matrix_element.get_base_amplitude().get('diagrams')
+    model = matrix_element.get('processes')[0].get('model')
+    minvert = min([max(diag.get_vertex_leg_numbers()) for diag in diagrams])
+    # diagram_tags is a list of unique tags
+    diagram_tags = []
+    # diagram_classes is a list of lists of diagram numbers belonging
+    # to the different classes
+    diagram_classes = []
+    perms = []
+    try:
+        for diag, base_diagram in zip(diagrams, base_diagrams):
+            if any([vert > minvert for vert in
+                    diag.get_vertex_leg_numbers()]):
+                # Only 3-vertices allowed in configs.inc
+                continue
+            tag = DiagramTag(base_diagram)
+            try:
+                ind = diagram_tags.index(tag)
+            except ValueError:
+                diagram_classes.append([diag.get('number')])
+                perms.append([tag.get_permutation()])
+                diagram_tags.append(tag)
+            else:
+                diagram_classes[ind].append(diag.get('number'))
+                perms[ind].append(tag.get_permutation())
+    except TimeOutError:
+        # Symmetry canceled due to time limit
+        logger.warning("Cancel diagram symmetry - time exceeded")
+
+    for inum, diag_number in enumerate(diagram_numbers):
+        if symmetry[inum] == 0:
+            continue
+        idx1 = [i for i, d in enumerate(diagram_classes) if \
+                diag_number in d][0]
+        idx2 = diagram_classes[idx1].index(diag_number)
+        if idx2 == 0:
+            symmetry[inum] = len(diagram_classes[idx1])
+        else:
+            symmetry[inum] = -diagram_classes[idx1][0]
+        # Order permutations according to how to reach the first perm
+        permutations[inum] = DiagramTag.reorder_permutation(perms[idx1][idx2],
+                                                            perms[idx1][0])
+        # ident_perms ordered according to order of external momenta
+        perm = DiagramTag.reorder_permutation(perms[idx1][0],
+                                                           perms[idx1][idx2])
+        if not perm in ident_perms:
+            ident_perms.append(perm)
+
+    return (symmetry, permutations, ident_perms)
+
+def find_symmetry_by_evaluation(matrix_element, evaluator, max_time = 600):
     """Find symmetries between amplitudes by comparing the squared
     amplitudes for all permutations of identical particles.
     
@@ -72,12 +178,12 @@ def find_symmetry(matrix_element, evaluator, max_time = 600):
     equivalent diagram (for e+e->3a, get [6, -1, -1, -1, -1, -1]),
     list of the corresponding permutations needed, and list of all
     permutations of identical particles.
-    For amp2s which are 0 (e.g. multiparticle vertices), return 0 in
-    symmetry list.
     max_time gives a cutoff time for finding symmetries (in s)."""
 
-    if isinstance(matrix_element, group_subprocs.SubProcessGroup):
-        return find_symmetry_subproc_group(matrix_element, evaluator, max_time)
+    #if isinstance(matrix_element, group_subprocs.SubProcessGroup):
+    #    return find_symmetry_subproc_group(matrix_element, evaluator, max_time)
+
+    assert isinstance(matrix_element, helas_objects.HelasMatrixElement)
 
     # Exception class and routine to handle timeout
     class TimeOutError(Exception):
@@ -191,7 +297,7 @@ def find_symmetry(matrix_element, evaluator, max_time = 600):
 
     return (symmetry, perms, ident_perms)
 
-def find_symmetry_subproc_group(subproc_group, evaluator, max_time = 600):
+def find_symmetry_subproc_group(subproc_group):
     """Find symmetries between the configs in the subprocess group.
     For each config, find all matrix elements with maximum identical
     particle factor. Then take minimal set of these matrix elements,
@@ -214,8 +320,7 @@ def find_symmetry_subproc_group(subproc_group, evaluator, max_time = 600):
         diagram_config_map = dict([(i,n) for i,n in \
                        enumerate(subproc_group.get('diagram_maps')[me_number]) \
                                    if n > 0])
-        symmetry, perms, ident_perms = find_symmetry(matrix_elements[me_number],
-                                                     evaluator, max_time)
+        symmetry, perms, ident_perms = find_symmetry(matrix_elements[me_number])
 
         # Go through symmetries and remove those for any diagrams
         # where this ME is not supposed to contribute
@@ -316,10 +421,9 @@ def find_matrix_elements_for_configs(subproc_group):
 
 class DiagramTag(object):
     """Class to tag diagrams based on objects with some __lt__ measure, e.g.
-    PDG code/interaction id (for comparing diagrams from the same amplitude,
-    possibly with some extra tag for IS particles),
+    PDG code/interaction id (for comparing diagrams from the same amplitude),
     or Lorentz/coupling/mass/width (for comparing AMPs from different MEs).
-    Idea: Create chains starting from external particles:
+    Algorithm: Create chains starting from external particles:
     1 \        / 6
     2 /\______/\ 7
     3_ /  |   \_ 8
@@ -331,24 +435,16 @@ class DiagramTag(object):
     where idN is the id of the corresponding interaction. The ordering within
     chains is based on chain length (depth; here, 1234 has depth 2, 910867 has
     depth 3, 5 has depht 0), and if equal on the ordering of the chain elements.
-    The determination of central vertex is based on minimizing difference of
-    chain length between the two longest chains. For identical depth for two
-    central vertices, use the comparison between the "largest" of the subchains.
-    This should give a unique tag which can be used to identify diagrams
+    The determination of central vertex is based on minimizing the chain length
+    for the longest subchain. 
+    This gives a unique tag which can be used to identify diagrams
     (instead of symmetry), as well as identify identical matrix elements from
     different processes."""
 
 
-    def __init__(self, diagram,
-                 add_link = None,
-                 add_vertex_id = None):
-        """Initialize with a digram. Create DiagramTagChainLinks according to
+    def __init__(self, diagram):
+        """Initialize with a diagram. Create DiagramTagChainLinks according to
         the diagram, and figure out if we need to shift the central vertex."""
-
-        if add_link == None:
-            add_link = DiagramTag.add_link
-        if add_vertex_id == None:
-            add_vertex_id = DiagramTag.add_vertex_id
 
         # wf_dict keeps track of the intermediate particles
         leg_dict = {}
@@ -361,9 +457,9 @@ class DiagramTag(object):
                 legs = vertex.get('legs')
             # Add links corresponding to the relevant legs
             link = DiagramTagChainLink([leg_dict.setdefault(leg.get('number'),
-                                        DiagramTagChainLink(add_link(leg))) \
+                                        DiagramTagChainLink(self.add_link(leg))) \
                                         for leg in legs],
-                                        add_vertex_id(vertex))
+                                        self.add_vertex_id(vertex))
             # Add vertex to leg_dict if not last one
             if vertex != vertex.get('legs')[-1]:
                 leg_dict[vertex.get('legs')[-1].get('number')] = link
@@ -392,10 +488,29 @@ class DiagramTag(object):
                 # We have found the central vertex
                 done = True
 
+    def get_permutation(self):
+        """Get the order of external particles in this tag"""
+
+        return self.tag.get_permutation()
+
+    @staticmethod
+    def reorder_permutation(perm, start_perm):
+        """Reorder a permutation with respect to start_perm"""
+        order = [i for (p,i) in \
+                 sorted([(p,i) for (i,p) in enumerate(perm)])]
+        return [start_perm[i]-1 for i in order]
+
     @classmethod
     def add_link(cls, leg):
-        """Returns the default end link for a leg: ((id, state), number)"""
-        return [((leg.get('id'), leg.get('state')), leg.get('number'))]
+        """Returns the default end link for a leg: ((id, state), number).
+        Note that the number is not taken into account if tag comparison,
+        but is used only to extract leg permutations."""
+        if leg.get('state'):
+            # Identify identical final state particles
+            return [((leg.get('id'), 0), leg.get('number'))]
+        else:
+            # Distinguish identical initial state particles
+            return [((leg.get('id'), leg.get('number')), leg.get('number'))]
 
     @classmethod
     def add_vertex_id(cls, vertex):
@@ -435,6 +550,15 @@ class DiagramTagChainLink(object):
         self.vertex_id = vertex_id
         self.depth = sum([l.depth for l in self.links], 1)
         self.end_chain = False
+
+    def get_permutation(self):
+        """Get the permutation of external numbers (assumed to be the
+        second entry in the end_chains"""
+
+        if self.end_chain:
+            return [self.links[0][1]]
+
+        return sum([l.get_permutation() for l in self.links], [])
 
     def __lt__(self, other):
         """Compare self with other:
