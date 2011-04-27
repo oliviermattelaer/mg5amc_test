@@ -42,7 +42,7 @@ import itertools
 import logging
 
 import madgraph.core.base_objects as base_objects
-import madgraph.core.color_algebra as color_algebra
+import madgraph.core.color_algebra as color
 import madgraph.core.color_amp as color_amp
 import madgraph.core.diagram_generation as diagram_generation
 import madgraph.core.helas_objects as helas_objects
@@ -141,7 +141,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         
         # Add color negative singlets to model corresponding to all
         # color octets, with only 3-3bar-8 interactions.
-        # Color factor: -1/6 * Id(1,2)
+        # Color factor: -1/(2*Nc) * Id(1,2)
 
         # Set leg numbers for the process
         for i, leg in enumerate(legs):
@@ -181,9 +181,9 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         good_perm_ids = []
         same_flavor_perms = {}
         if anti_triplet_legs:
-            first_leg = [anti_triplet_legs.pop(0)]
+            last_leg = [anti_triplet_legs.pop(0)]
         else:
-            first_leg = [octet_legs.pop(-1)]
+            last_leg = [octet_legs.pop(-1)]
 
         for perm in itertools.permutations(sorted(anti_triplet_legs + \
                                                   triplet_legs + \
@@ -194,14 +194,15 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
             perm_ids = array.array('i', [p[1] for p in perm])
             try:
                 ind = good_perm_ids.index(perm_ids)
-                same_flavor_perms[ind].append([p[0] for p in perm])
+                same_flavor_perms[ind].append([p[0] for p in perm] + \
+                                              [last_leg[0][0]])
                 continue
             except ValueError:
                 pass
             
             # trip is a list of [position, (number, id, color)] for
             # triplet and antitriplet legs
-            trip = [(i,p) for (i,p) in enumerate(first_leg + list(perm)) \
+            trip = [(i,p) for (i,p) in enumerate(last_leg + list(perm)) \
                     if abs(p[2])==3]
             # Remove permutations where a triplet and
             # anti-triplet are not next to each other and ordered as 
@@ -216,7 +217,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 continue
 
             # Initiate list of permutations for this leglist
-            same_flavor_perms[len(leg_perms)] = [[p[0] for p in perm]]
+            same_flavor_perms[len(leg_perms)] = [[p[0] for p in perm] + \
+                                                 [last_leg[0][0]]]
             # Add permutation ids for comparison above
             good_perm_ids.append(perm_ids)
             # Add permutation to accepted permutations
@@ -243,7 +245,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
             ichain = 0
             ileg = 0
             # Set color ordering flags for all colored legs
-            for perm_leg in list(perm) + first_leg:
+            for perm_leg in list(perm) + last_leg:
                 leg = colegs[perm_leg[0]-1]
                 if perm_leg[2] == 3:
                     ichain += 1
@@ -506,7 +508,7 @@ class ColorOrderedModel(base_objects.Model):
     def add_color_singlets(self):
         """Go through model and add color singlets for all color
         octets, with couplings only to triplet pairs. These couplings
-        are multiplied by SFACT = sqrt(-1/6) = i/sqrt(6)."""
+        are multiplied by SFACT = sqrt(-Nc/2) = i*sqrt(3/2)."""
 
         particles = copy.copy(self.get('particles'))
         interactions = copy.copy(self.get('interactions'))
@@ -555,10 +557,11 @@ class ColorOrderedModel(base_objects.Model):
                              octet_singlet_dict[parts[oct_ind].get_pdg_code()])
             inter.set('particles', parts)
             # Set color string to T(3, 3bar)
-            col_str = color_algebra.ColorString([color_algebra.T(trip_ind,
+            col_str = color.ColorString([color.T(trip_ind,
                                                                  antitrip_ind)])
+            col_str.Nc_power = -1
             inter.set('color', [col_str])
-            # Multiply couplings with -1/6 for singlet color factor
+            # Multiply couplings with sqrt(-Nc/2) for singlet color factor
             couplings = copy.copy(inter.get('couplings'))
             for key in couplings.keys():
                 couplings[key] = 'SFACT*' + couplings[key]
@@ -596,7 +599,7 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         # external wavefunction numbers
         self['external_numbers'] = array.array('I')
         # Information for color calculation
-        self['color_string'] = color_algebra.ColorString()
+        self['color_string'] = color.ColorString()
         self['lastleg_number'] = 0
         # Factor for wavefunction in wf summation in form
         # (fraction, is_imaginary?)
@@ -615,7 +618,7 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid array object" % str(value)
         elif name == 'color_string':
-            if not isinstance(value, color_algebra.ColorString):
+            if not isinstance(value, color.ColorString):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid ColorString object" % str(value)
         elif name == 'factor':
@@ -719,7 +722,7 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
         # external wavefunction numbers
         self['compare_array'] = []
         # Color string
-        self['color_string'] = color_algebra.ColorString()
+        self['color_string'] = color.ColorString()
         # Factor for amplitude in JAMP summation in form
         # (fraction, is_imaginary?)
         self['factor'] = (1, fractions.Fraction(1,1), False)
@@ -732,7 +735,7 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid list object" % str(value)
         elif name == 'color_string':
-            if not isinstance(value, color_algebra.ColorString):
+            if not isinstance(value, color.ColorString):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid ColorString object" % str(value)
         elif name == 'factor':
@@ -827,6 +830,14 @@ class BGHelasCurrent(COHelasWavefunction):
         # Since color and fermion factors are already included for
         # each wavefunction, we should set the factor to 1 for current
         self.set('factor', (1, fractions.Fraction(1,1), False))
+        # Set Nc power for the combined wavefunction based on max Nc
+        # power of wfs
+        common_Nc_power = max([wf.get('color_string').Nc_power for wf \
+                              in self.get('mothers')])
+        self.get('color_string').Nc_power = common_Nc_power
+        for wf in self.get('mothers'):
+            wf.get('color_string').Nc_power -= common_Nc_power
+
         
     def get_call_key(self):
         """Generate the ('sum', spins) tuple used as key for
@@ -838,10 +849,10 @@ class BGHelasCurrent(COHelasWavefunction):
 
     
 #===============================================================================
-# COHelasMatrixElement
+# COHelasFlow
 #===============================================================================
-class COHelasMatrixElement(helas_objects.HelasMatrixElement):
-    """COHelasMatrixElement: Behrends-Giele version of a
+class COHelasFlow(helas_objects.HelasMatrixElement):
+    """COHelasFlow: Color ordered version of a
     HelasMatrixElement, starting from a ColorOrderedFlow.
 
     After regular helas diagram generation, performs the following:
@@ -864,13 +875,16 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
     lastleg_number = 0
 
     def default_setup(self):
-        """Add list of leg permutations for HelasMatrixElement"""
+        """Add list of leg permutations and color string to HelasMatrixElement"""
 
-        super(COHelasMatrixElement, self).default_setup()
+        super(COHelasFlow, self).default_setup()
 
         # Permutations of external legs which give valid color flows.
         # The first permutation corresponds to the this color flow.
-        self['permutations'] = []    
+        self['permutations'] = []
+
+        # Color string corresponding to this color flow
+        self['color_string'] = color.ColorString()
 
     def filter(self, name, value):
         """Filter for valid amplitude property values."""
@@ -879,8 +893,12 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             if not isinstance(value, list):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid list object" % str(value)
+        elif name == 'color_string':
+            if not isinstance(value, color.ColorString):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid color string" % str(value)
         else:
-            super(COHelasMatrixElement, self).filter(name, value)
+            super(COHelasFlow, self).filter(name, value)
 
         return True
     
@@ -892,10 +910,15 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         assert  isinstance(amplitude, ColorOrderedFlow), \
                     "Missing or erraneous arguments for generate_helas_diagrams"
 
+        # Set permutations
         self.set('permutations', amplitude.get('permutations'))
         
+        # Set color string
+        self.set('color_string', self.get_color_string(range(1,
+                                 len(amplitude.get('process').get('legs'))+1)))
+
         # First generate full set of wavefunctions and amplitudes
-        super(COHelasMatrixElement, self).generate_helas_diagrams(amplitude,
+        super(COHelasFlow, self).generate_helas_diagrams(amplitude,
                                                                   optimization,
                                                                   decay_ids)
         # Go through and change wavefunctions into COHelasWavefunction
@@ -972,6 +995,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 for wf in combine_wf.get('mothers'):
                     wf_current_dict[wf.get('number')] = combine_wf
 
+        # left_diagrams is the diagrams that are left after BG
+        # combinations
         left_diagrams = helas_objects.HelasDiagramList()
         diagrams = self.get('diagrams')
         idiag = 0
@@ -1033,8 +1058,17 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # Set amplitude number for all amplitudes
         for i, amp in enumerate(self.get_all_amplitudes()):
             amp.set('number', i+1)
-        
-        left_diagrams[0].set('wavefunctions', combined_wavefunctions)
+
+        # Set wavefunctions in first diagram
+        self.get('diagrams')[0].set('wavefunctions', combined_wavefunctions)
+
+        # Set Nc power for the overall color string instead of every
+        # amplitude
+        common_Nc_power = max([amp.get('color_string').Nc_power for amp \
+                               in self.get_all_amplitudes()])
+        self.get('color_string').Nc_power = common_Nc_power
+        for amp in self.get_all_amplitudes():
+            amp.get('color_string').Nc_power -= common_Nc_power
 
     def get_color_amplitudes(self):
         """Return a list of (coefficient, amplitude number) lists,
@@ -1095,12 +1129,12 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             base_vertex.get('legs').insert(0, lastleg)
             arg.set('lastleg_number', self.lastleg_number)
             color_indices = list(arg.get('external_numbers'))
+            # Get the color string that we need to compare to
+            comp_color_string = self.get_color_string(color_indices,
+                                                      lastleg)
         else:
-            color_indices = range(1,len(process.get('legs'))+1)
+            comp_color_string = self.get('color_string')
             
-        # Get the color string that we need to compare to
-        comp_color_string = self.get_color_string(color_indices,
-                                                  lastleg)
         # Prepare for extracting the color dict for this vertex using
         # ColorBasis.add_vertex
         base_diagram = base_objects.Diagram({"vertices": \
@@ -1121,7 +1155,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         # Now simplify color string, and check if we have a
         # contribution corresponding to comp_color_string
-        col_fact = color_algebra.ColorFactor([color_string])
+        col_fact = color.ColorFactor([color_string])
         col_fact = col_fact.full_simplify()
         similar_strings = [cs for cs in col_fact if \
                            cs.to_canonical() == comp_color_string.to_canonical()]
@@ -1171,7 +1205,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 else:
                     chain_types[co] = leg_color//3
 
-        color_string = color_algebra.ColorString()
+        color_string = color.ColorString()
         # Insert last leg in appropriate place
         if lastleg:
             lastleg_color = model.get_particle(lastleg.get('id')).get_color()
@@ -1249,7 +1283,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 # Move triplet from first to next-to-last position
                 color_chains[cckey].insert(-1,color_chains[cckey].pop(0))
                 # A 88...33bar chain is a T
-                color_string.append(color_algebra.T(*color_chains[cckey]))
+                color_string.append(color.T(*color_chains[cckey]))
             else:
                 # Fix ordering to have lastleg first (since ordered
                 # with minimum leg number first, and lastleg has
@@ -1260,7 +1294,139 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                     color_chains[cckey] = chain[chain.index(number):] + \
                                           chain[:chain.index(number)]
                 # A 88..8 chain is a Tr
-                color_string.append(color_algebra.Tr(*color_chains[cckey]))
+                color_string.append(color.Tr(*color_chains[cckey]))
                 
         return color_string
     
+#===============================================================================
+# COHelasFlowList
+#===============================================================================
+class COHelasFlowList(base_objects.PhysicsObjectList):
+    """List of COHelasFlow objects
+    """
+
+    def is_valid_element(self, obj):
+        """Test if object obj is a valid COHelasFlow for the list."""
+
+        return isinstance(obj, COHelasFlow)
+
+#===============================================================================
+# COHelasMatrixElement
+#===============================================================================
+class COHelasMatrixElement(helas_objects.HelasMatrixElement):
+    """COHelasMatrixElement: Holds a set of COHelasFlows and takes care
+    of the color matrix calculation"""
+
+    
+    def default_setup(self):
+        """COHelasMatrixElement has a list of COHelasFlows.
+
+        Note that the color matrix is redefined so that it has rows
+        corresponding to each flow, and columns corresponding to all
+        permutations of all flows."""
+
+
+        super(COHelasMatrixElement, self).default_setup()
+
+        self['color_flows'] = COHelasFlowList()
+
+    def filter(self, name, value):
+        """Filter for valid diagram property values."""
+
+        if name == 'color_flows':
+            if not isinstance(value, COHelasFlowList):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid COHelasFlowList object" % str(value)
+        
+    def __init__(self, amplitude = None, optimization = 3, decay_ids = [],
+                 gen_color = 2):
+        """Initialize a COHelasMatrixElement with a ColorOrderedAmplitude"""
+        
+        if amplitude != None:
+            if isinstance(amplitude, ColorOrderedAmplitude):
+                super(COHelasMatrixElement, self).__init__()
+                self.get('processes').append(amplitude.get('process'))
+                self.set('has_mirror_process',
+                         amplitude.get('has_mirror_process'))
+                for flow in amplitude.get('color_flows'):
+                    self.get('color_flows').append(COHelasFlow(flow,
+                                                   optimization, decay_ids,
+                                                   gen_color = False))
+                if gen_color and not self.get('color_matrix'):
+                    self.build_color_matrix(gen_color)
+            else:
+                # In this case, try to use amplitude as a dictionary
+                super(COHelasMatrixElement, self).__init__(amplitude)
+        else:
+            super(COHelasMatrixElement, self).__init__()
+        
+
+    def build_color_matrix(self, gen_color):
+        """Build the relevant lines of the color matrix, to the order
+        in color given in gen_color (0 = none, 1 = leading, 
+        2 = next-to-leading, etc)"""
+        
+        if not gen_color:
+            return
+
+        # Build a color matrix line for each color flow,
+        # with the columns corresponding to the permutations of all flows
+
+        # Build the color_basis corresponding to all permutations of all flows
+        col_basis = self.get('color_basis')
+        dummy_basis = color_amp.ColorBasis()        
+        if not col_basis:
+            for iflow, color_flow in enumerate(self.get('color_flows')):
+                for iperm, perm in enumerate(color_flow.get('permutations')):
+                    # 1,2,3,4,5 -> 1,2,4,5,3 e.g.
+                    perm_replace_dict = \
+                              dict(zip(color_flow.get('permutations')[0], perm))
+                    col_str = color_flow.get('color_string').create_copy()
+                    col_str.replace_indices(perm_replace_dict)
+                    # Create the immutable string
+                    immutable_col_str = col_str.to_immutable()
+                    basis_entry = (iflow,
+                                   (iperm,),
+                                   col_str.coeff,
+                                   col_str.is_imaginary,
+                                   col_str.Nc_power)
+                    try:
+                        # if the color structure is already present in
+                        # the present basis update it
+                        col_basis[immutable_col_str].append(basis_entry)
+                    except KeyError:
+                        col_basis[immutable_col_str] = [basis_entry]
+                    # For the first permutation for each flow, fill
+                    # also dummy_basis
+                    if iperm == 0:
+                        try:
+                            dummy_basis[immutable_col_str].append(basis_entry)
+                        except KeyError:
+                            dummy_basis[immutable_col_str] = [basis_entry]
+
+        # Figure out maximum Nc power from the color strings
+        Nc_powers = []
+        for color_flow in self.get('color_flows'):
+            col_str = color_flow.get('color_string').create_copy()
+            col_str2 = col_str.create_copy()
+            # Multiply color string with its complex conjugate
+            col_str.product(col_str2.complex_conjugate())
+            # Create a color factor to store the result and simplify it
+            col_fact = color.ColorFactor([col_str])
+            result = col_fact.full_simplify()
+            # result now has all Nc powers
+            Nc_powers.extend([cs.Nc_power for cs in result])
+        
+        # Set min Nc power to max(Nc_powers) - (gen_color - 1),
+        # i.e., Nc^Nmax for leading, Nc^(Nmax-1) to subleading, etc.
+        min_Nc_power = max(Nc_powers) - (gen_color - 1)
+        
+        # Generate color matrix based on the color basis and the dummy
+        # color basis with only the unpermuted momenta
+
+        self.set('color_matrix',
+                 color_amp.ColorMatrix(dummy_basis, col_basis,
+                                       Nc_power_min = min_Nc_power))
+
+        
+        

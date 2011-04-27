@@ -208,7 +208,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                             [self.mypartlist[1], \
                                              antiu, \
                                              self.mypartlist[0]]),
-                      'color': [],
+                      'color': [color.ColorString([color.T(2,0,1)])],
                       'lorentz':['L1'],
                       'couplings':{(0, 0):'GQQ'},
                       'orders':{'QCD':1}}))
@@ -230,7 +230,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                             [self.mypartlist[2], \
                                              antid, \
                                              self.mypartlist[0]]),
-                      'color': [],
+                      'color': [color.ColorString([color.T(2,0,1)])],
                       'lorentz':['L1'],
                       'couplings':{(0, 0):'GQQ'},
                       'orders':{'QCD':1}}))
@@ -252,7 +252,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                             [s, 
                                              antis,
                                              self.mypartlist[0]]),
-                      'color': [],
+                      'color': [color.ColorString([color.T(2,0,1)])],
                       'lorentz':['L1'],
                       'couplings':{(0, 0):'GQQ'},
                       'orders':{'QCD':1}}))
@@ -312,6 +312,60 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
         self.ref_dict_to0 = self.myinterlist.generate_ref_dict()[0]
         self.ref_dict_to1 = self.myinterlist.generate_ref_dict()[1]
+
+    def test_color_ordered_model(self):
+        """Test the ColorOrderedModel based on this model"""
+        co_model = color_ordered_amplitudes.ColorOrderedModel(self.mymodel)
+        singlet = base_objects.Particle({'name': 'g',
+                                         'antiname': 'g',
+                                         'spin': 3,
+                                         'color': 1,
+                                         'charge': 0.00,
+                                         'mass': 'zero',
+                                         'width': 'zero',
+                                         'pdg_code': 4,
+                                         'texname': 'g',
+                                         'antitexname': 'g',
+                                         'line': 'curly',
+                                         'propagating': True,
+                                         'is_part': True,
+                                         'self_antipart': True})
+        self.assertTrue(singlet in co_model.get('particles'))
+
+        color_string = color.ColorString([color.T(0,1)])
+        color_string.Nc_power = -1
+
+        singlet_interaction1 = base_objects.Interaction(\
+            {'id': 12,
+             'particles': base_objects.ParticleList([co_model.get_particle(2),
+                                                     co_model.get_particle(-2),
+                                                     singlet]),
+             'color': [color_string],
+             'lorentz': ['L1'],
+             'couplings': {(0, 0): 'SFACT*GQQ'},
+             'orders': {'singlet_QCD': 1}})
+        self.assertTrue(singlet_interaction1 in co_model.get('interactions'))
+
+        singlet_interaction2 = base_objects.Interaction(\
+            {'id': 13,
+             'particles': base_objects.ParticleList([co_model.get_particle(1),
+                                                     co_model.get_particle(-1),
+                                                     singlet]),
+             'color': [color_string],
+             'lorentz': ['L1'],
+             'couplings': {(0, 0): 'SFACT*GQQ'},
+             'orders': {'singlet_QCD': 1}})
+        self.assertTrue(singlet_interaction2 in co_model.get('interactions'))
+        singlet_interaction3 = base_objects.Interaction(\
+            {'id': 14,
+             'particles': base_objects.ParticleList([co_model.get_particle(3),
+                                                     co_model.get_particle(-3),
+                                                     singlet]),
+             'color': [color_string],
+             'lorentz': ['L1'],
+             'couplings': {(0, 0): 'SFACT*GQQ'},
+             'orders': {'singlet_QCD': 1}})
+        self.assertTrue(singlet_interaction3 in co_model.get('interactions'))
 
     def test_color_ordered_gluons(self):
         """Test the number of color ordered diagrams gg>ng with n up to 4"""
@@ -1135,46 +1189,49 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             self.myamplitude.setup_process()
 
-            mycolorflow = self.myamplitude.get('color_flows')[0]
-
             matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
-                mycolorflow, gen_color=False, optimization=3)
+                self.myamplitude, gen_color=3, optimization=3)
+
+            helas_flow = matrix_element.get('color_flows')[0]
+            #print "permutations: ",helas_flow.get('permutations')
+            #print "Color matrix: ",matrix_element.get('color_matrix')
+
 
             #print "\n".join(\
             #    helas_call_writers.FortranUFOHelasCallWriter(self.mymodel).\
             #    get_matrix_element_calls(matrix_element))
             #print "For ",ngluon," FS gluons, there are ",\
-            #      len(matrix_element.get_all_amplitudes()),' amplitudes and ',\
-            #      len(matrix_element.get_all_wavefunctions()),\
+            #      len(helas_flow.get_all_amplitudes()),' amplitudes and ',\
+            #      len(helas_flow.get_all_wavefunctions()),\
             #      ' wavefunctions for ', len(mycolorflow.get('diagrams')),\
             #      ' diagrams'
 
             # Test that wavefunctions that have been combined are
             # not in any amplitudes
             comb_wfs = set(sum([[m.get('number') for m in w.get('mothers')] \
-                            for w in matrix_element.get_all_wavefunctions()\
+                            for w in helas_flow.get_all_wavefunctions()\
                             if isinstance(w, color_ordered_amplitudes.BGHelasCurrent)], []))
             amp_wfs = set(sum([[m.get('number') for m in amp.get('mothers')] \
-                           for amp in matrix_element.get_all_amplitudes()],\
+                           for amp in helas_flow.get_all_amplitudes()],\
                           []))
             self.assertFalse(any([num in amp_wfs for num in comb_wfs]))
 
             # Test that all wavefunctions are used
             wf_numbers = [w.get('number') for w in \
-                          matrix_element.get_all_wavefunctions()]
+                          helas_flow.get_all_wavefunctions()]
             mother_numbers = set(sum([[m.get('number') for m in a.get('mothers')] \
-                           for a in matrix_element.get_all_amplitudes() + \
-                                     matrix_element.get_all_wavefunctions()],\
+                           for a in helas_flow.get_all_amplitudes() + \
+                                     helas_flow.get_all_wavefunctions()],\
                           []))
             self.assertTrue(all([num in mother_numbers for num in wf_numbers]))
 
-            self.assertEqual(len(matrix_element.get_all_wavefunctions()),
+            self.assertEqual(len(helas_flow.get_all_wavefunctions()),
                              goal_wavefunctions[ngluon-2])
-            self.assertEqual(len(matrix_element.get_all_amplitudes()),
+            self.assertEqual(len(helas_flow.get_all_amplitudes()),
                              goal_amplitudes[ngluon-2])
             
             # Test JAMP (color amplitude) output
-            #print '\n'.join(export_v4.get_JAMP_lines(matrix_element))
+            #print '\n'.join(export_v4.get_JAMP_lines(helas_flow))
 
     def test_matrix_element_gluons_non_optimized(self):
         """Test the matrix element for all-gluon (non-optimized)"""
@@ -1200,27 +1257,27 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             self.myamplitude.setup_process()
 
-            mycolorflow = self.myamplitude.get('color_flows')[0]
-
             matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
-                mycolorflow, gen_color=False, optimization=1)
+                self.myamplitude, gen_color=False, optimization=1)
+
+            mycolorflow = matrix_element.get('color_flows')[0]
 
             #print "\n".join(\
             #    helas_call_writers.FortranUFOHelasCallWriter(self.mymodel).\
-            #    get_matrix_element_calls(matrix_element))
+            #    get_matrix_element_calls(mycolorflow))
             #print "For ",ngluon," FS gluons, there are ",\
-            #      len(matrix_element.get_all_amplitudes()),' amplitudes and ',\
-            #      len(matrix_element.get_all_wavefunctions()),\
+            #      len(mycolorflow.get_all_amplitudes()),' amplitudes and ',\
+            #      len(mycolorflow.get_all_wavefunctions()),\
             #      ' wavefunctions for ', len(mycolorflow.get('diagrams')),\
             #      ' diagrams'
 
-            self.assertEqual(len(matrix_element.get_all_wavefunctions()),
+            self.assertEqual(len(mycolorflow.get_all_wavefunctions()),
                              goal_wavefunctions[ngluon-2])
-            self.assertEqual(len(matrix_element.get_all_amplitudes()),
+            self.assertEqual(len(mycolorflow.get_all_amplitudes()),
                              goal_amplitudes[ngluon-2])
             
             # Test JAMP (color amplitude) output
-            #print '\n'.join(export_v4.get_JAMP_lines(matrix_element))
+            #print '\n'.join(export_v4.get_JAMP_lines(mycolorflow))
 
     def test_matrix_element_photons(self):
         """Test the matrix element for uu~>na"""
@@ -1252,7 +1309,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
-            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+            matrix_element = color_ordered_amplitudes.COHelasFlow(\
                 mycolorflow, gen_color=False, optimization = 3)
 
             #print "\n".join(\
@@ -1321,7 +1378,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
-            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+            matrix_element = color_ordered_amplitudes.COHelasFlow(\
                 mycolorflow, gen_color=False, optimization = 1)
 
             #print "\n".join(\
@@ -1366,50 +1423,54 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
-            mycolorflow = self.myamplitude.get('color_flows')[0]
-
             matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
-                mycolorflow, gen_color=False, optimization = 3)
+                self.myamplitude, gen_color=False, optimization=3)
+
+            mycolorflow = matrix_element.get('color_flows')[0]
+
+            for cf in matrix_element.get('color_flows')[1:]:
+                self.assertEqual(cf.get('permutations'),
+                                 mycolorflow.get('permutations'))
 
             #print "\n".join(\
             #    helas_call_writers.FortranUFOHelasCallWriter(self.mymodel).\
             #    get_matrix_element_calls(matrix_element))
 
-            for d in matrix_element.get('diagrams'):
+            for d in mycolorflow.get('diagrams'):
                 self.assertTrue(len(d.get('amplitudes')) > 0)
 
             # Test that wavefunctions that have been combined are
             # not in any amplitudes
             comb_wfs = set(sum([[m.get('number') for m in w.get('mothers')] \
-                            for w in matrix_element.get_all_wavefunctions()\
+                            for w in mycolorflow.get_all_wavefunctions()\
                             if isinstance(w, color_ordered_amplitudes.BGHelasCurrent)], []))
             amp_wfs = set(sum([[m.get('number') for m in amp.get('mothers')] \
-                           for amp in matrix_element.get_all_amplitudes()],\
+                           for amp in mycolorflow.get_all_amplitudes()],\
                           []))
             self.assertFalse(any([num in amp_wfs for num in comb_wfs]))
 
             # Test that all wavefunctions are used
             wf_numbers = [w.get('number') for w in \
-                          matrix_element.get_all_wavefunctions()]
+                          mycolorflow.get_all_wavefunctions()]
             mother_numbers = set(sum([[m.get('number') for m in a.get('mothers')] \
-                           for a in matrix_element.get_all_amplitudes() + \
-                                     matrix_element.get_all_wavefunctions()],\
+                           for a in mycolorflow.get_all_amplitudes() + \
+                                     mycolorflow.get_all_wavefunctions()],\
                           []))
             self.assertTrue(all([num in mother_numbers for num in wf_numbers]))
 
             #print "For ",ngluon," FS gluons, there are ",\
-            #      len(matrix_element.get_all_amplitudes()),' amplitudes and ',\
-            #      len(matrix_element.get_all_wavefunctions()),\
+            #      len(mycolorflow.get_all_amplitudes()),' amplitudes and ',\
+            #      len(mycolorflow.get_all_wavefunctions()),\
             #      ' wavefunctions for ', len(mycolorflow.get('diagrams')),\
             #      ' diagrams'
 
-            self.assertEqual(len(matrix_element.get_all_amplitudes()),
+            self.assertEqual(len(mycolorflow.get_all_amplitudes()),
                              goal_amplitudes[ngluon-2])
-            self.assertEqual(len(matrix_element.get_all_wavefunctions()),
+            self.assertEqual(len(mycolorflow.get_all_wavefunctions()),
                              goal_wavefunctions[ngluon-2])
 
             # Test JAMP (color amplitude) output
-            #print '\n'.join(export_v4.get_JAMP_lines(matrix_element))
+            #print '\n'.join(export_v4.get_JAMP_lines(mycolorflow))
 
     def test_matrix_element_uux_ddxng(self):
         """Test color flow matrix elements for uu~>dd~ng
@@ -1442,10 +1503,16 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
+            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+                self.myamplitude, gen_color=3, optimization=1)
+
+            #print "color basis: ", matrix_element.get('color_basis')
+            #print "color matrix: ", matrix_element.get('color_matrix')
+
             for iflow, mycolorflow in \
                 enumerate(self.myamplitude.get('color_flows')):
 
-                matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+                matrix_element = color_ordered_amplitudes.COHelasFlow(\
                     mycolorflow, gen_color=False, optimization = 3)
 
                 #print "\n".join(\
@@ -1527,7 +1594,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             for iflow, mycolorflow in \
                 enumerate(self.myamplitude.get('color_flows')):
 
-                matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+                matrix_element = color_ordered_amplitudes.COHelasFlow(\
                     mycolorflow, gen_color=False, optimization = 1)
 
                 #print "\n".join(\
@@ -1614,7 +1681,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
                 enumerate(self.myamplitude.get('color_flows')):
                 #print mycolorflow.nice_string()
                 
-                matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+                matrix_element = color_ordered_amplitudes.COHelasFlow(\
                     mycolorflow, gen_color=False, optimization = 3)
 
                 #print "\n".join(\
