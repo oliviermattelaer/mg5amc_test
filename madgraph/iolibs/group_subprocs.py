@@ -151,7 +151,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
         amplitudes = copy.copy(self.get('amplitudes'))
 
         self.set('matrix_elements',
-                 helas_objects.HelasMatrixElementList.\
+                 helas_objects.HelasMultiProcess.\
                                    generate_matrix_elements(amplitudes))
 
         self.rearrange_diagram_maps()
@@ -478,7 +478,7 @@ class DecayChainSubProcessGroup(SubProcessGroup):
 
         # Combine decays
         matrix_elements = \
-                helas_objects.HelasMatrixElementList.generate_matrix_elements(\
+                helas_objects.HelasMultiProcess.generate_matrix_elements(\
                                    diagram_generation.AmplitudeList(\
                                           [self.get('decay_chain_amplitude')]))
 

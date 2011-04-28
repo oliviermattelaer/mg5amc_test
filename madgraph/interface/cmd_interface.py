@@ -55,6 +55,11 @@ import madgraph.iolibs.import_v4 as import_v4
 import madgraph.iolibs.misc as misc
 import madgraph.iolibs.save_load_object as save_load_object
 
+import madgraph.color_ordering.color_ordered_amplitudes as \
+       color_ordered_amplitudes
+import madgraph.color_ordering.color_ordered_export_v4 as \
+       color_ordered_export_v4
+
 import madgraph.interface.extended_cmd as cmd
 import madgraph.interface.tutorial_text as tutorial_text
 import madgraph.interface.launch_ext_program as launch_ext
@@ -1442,7 +1447,8 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
     _export_formats = _v4_export_formats + ['standalone_cpp', 'pythia8']
     _set_options = ['group_subprocesses',
                     'ignore_six_quark_processes',
-                    'stdout_level']
+                    'stdout_level',
+                    'color_ordering']
     # Variables to store object information
     _curr_model = None  #base_objects.Model()
     _curr_amps = diagram_generation.AmplitudeList()
@@ -1529,7 +1535,15 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                            "ignore_six_quark_processes" in self._options \
                            else []
 
-            myproc = diagram_generation.MultiProcess(myprocdef,
+            if self._options['color_ordering']:
+                myproc = color_ordered_amplitudes.ColorOrderedMultiProcess(\
+                                          myprocdef,
+                                          collect_mirror_procs =\
+                                          collect_mirror_procs,
+                                          ignore_six_quark_processes = \
+                                          ignore_six_quark_processes)
+            else:
+                myproc = diagram_generation.MultiProcess(myprocdef,
                                           collect_mirror_procs =\
                                           collect_mirror_procs,
                                           ignore_six_quark_processes = \
@@ -2528,6 +2542,10 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                     logger.warning("Option %s from config file not understood" \
                                    % key)
 
+        # Ensure that all set options are present, default to False
+        for opt in self._set_options:
+            if opt not in self._options:
+                self._options[opt] = False
           
         return self.configuration
      
@@ -2704,15 +2722,15 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                             self._curr_model.get_particle(q).get('name') \
                             for q in self._options[args[0]]]))
             
-        elif args[0] == 'group_subprocesses':
-            self._options[args[0]] = eval(args[1])
-            logger.info('Set group_subprocesses to %s' % \
-                        str(self._options[args[0]]))
-            
         elif args[0] == "stdout_level":
             logging.root.setLevel(eval('logging.' + args[1]))
             logging.getLogger('madgraph').setLevel(eval('logging.' + args[1]))
             logger.info('set output information to level: %s' % args[1])
+
+        else:
+            self._options[args[0]] = eval(args[1])
+            logger.info('Set %s to %s' % \
+                        (args[0], str(self._options[args[0]])))
     
     def do_open(self, line):
         """Open a text file/ eps file / html file"""
@@ -2765,7 +2783,12 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                                       self._mgme_dir, self._export_dir,
                                       not noclean)
         elif self._export_format in ['standalone', 'matrix']:
-            self._curr_exporter = export_v4.ProcessExporterFortranSA(\
+            if self._options['color_ordering']:
+                self._curr_exporter = \
+                         color_ordered_export_v4.ProcessExporterFortranCOSA(\
+                                  self._mgme_dir, self._export_dir,not noclean)
+            else:
+                self._curr_exporter = export_v4.ProcessExporterFortranSA(\
                                   self._mgme_dir, self._export_dir,not noclean)
         elif self._export_format == 'standalone_cpp':
             export_cpp.setup_cpp_standalone_dir(self._export_dir, self._curr_model)
@@ -2806,7 +2829,8 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
             cpu_time1 = time.time()
             ndiags = 0
             if not self._curr_matrix_elements.get_matrix_elements():
-                if self._options['group_subprocesses']:
+                if self._options['group_subprocesses'] and \
+                       self._export_format == 'madevent':
                     cpu_time1 = time.time()
                     dc_amps = [amp for amp in self._curr_amps if isinstance(amp, \
                                         diagram_generation.DecayChainAmplitude)]
@@ -2837,7 +2861,12 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                         for me in group.get('matrix_elements'):
                             me.get('processes')[0].set('uid', uid)
                 else:
-                    self._curr_matrix_elements = \
+                    if self._options['color_ordering']:
+                        self._curr_matrix_elements = \
+                            color_ordered_amplitudes.COHelasMultiProcess(\
+                                                     self._curr_amps)
+                    else:
+                        self._curr_matrix_elements = \
                                  helas_objects.HelasMultiProcess(\
                                                self._curr_amps)
                     ndiags = sum([len(me.get('diagrams')) for \

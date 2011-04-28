@@ -299,6 +299,14 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         self.set('color_flows', color_flows)
 
 #===============================================================================
+# ColorOrderedMultiProcess
+#===============================================================================
+class ColorOrderedMultiProcess(diagram_generation.MultiProcess):
+    """Version of MultiProcess which generates ColorOrderedAmplitudes"""
+
+    amplitude_class = ColorOrderedAmplitude
+
+#===============================================================================
 # ColorOrderedFlow
 #===============================================================================
 class ColorOrderedFlow(diagram_generation.Amplitude):
@@ -1463,7 +1471,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         
         # Set min Nc power to max(Nc_powers) - (gen_color - 1),
         # i.e., Nc^Nmax for leading, Nc^(Nmax-1) to subleading, etc.
-        self.set('min_Nc_power', max(Nc_powers) - (gen_color - 1))
+        if Nc_powers:
+            self.set('min_Nc_power', max(Nc_powers) - (gen_color - 1))
         
         # Generate color matrix based on the color basis and the dummy
         # color basis with only the unpermuted momenta
@@ -1471,10 +1480,76 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         self.set('color_matrix',
                  color_amp.ColorMatrix(dummy_basis, col_basis,
                                        Nc_power_min = self.get('min_Nc_power')))
-
-        
         
     def get_external_wavefunctions(self):
         """Redefine HelasMatrixElement.get_external_wavefunctions"""
 
         return self.get('color_flows')[0].get_external_wavefunctions()
+
+#===============================================================================
+# COHelasMultiProcess
+#===============================================================================
+class COHelasMultiProcess(helas_objects.HelasMultiProcess):
+    """Version of HelasMultiProcess which generates COHelasMatrixElements"""
+
+    matrix_element_class = COHelasMatrixElement
+
+    #===========================================================================
+    # generate_matrix_elements
+    #===========================================================================
+    @classmethod
+    def generate_matrix_elements(cls, amplitudes, gen_color = True,
+                                 decay_ids = []):
+        """Generate the HelasMatrixElements for the amplitudes,
+        identifying processes with identical matrix elements, as
+        defined by HelasMatrixElement.__eq__. Returns a
+        HelasMatrixElementList and an amplitude map (used by the
+        SubprocessGroup functionality). decay_ids is a list of decayed
+        particle ids, since those should not be combined even if
+        matrix element is identical."""
+
+        assert isinstance(amplitudes, diagram_generation.AmplitudeList), \
+                  "%s is not valid AmplitudeList" % repr(amplitudes)
+
+        # Keep track of already generated color objects, to reuse as
+        # much as possible
+        list_colorize = []
+        list_color_basis = []
+        list_color_matrices = []
+
+        matrix_elements = helas_objects.HelasMatrixElementList()
+
+        while amplitudes:
+            # Pop the amplitude to save memory space
+            amplitude = amplitudes.pop(0)
+            if isinstance(amplitude, diagram_generation.DecayChainAmplitude):
+                matrix_element_list = helas_objects.HelasDecayChainProcess(amplitude).\
+                                      combine_decay_chain_processes()
+            else:
+                logger.info("Generating Helas calls for %s" % \
+                         amplitude.get('process').nice_string().\
+                                           replace('Process', 'process'))
+                matrix_element_list = [cls.matrix_element_class(amplitude,
+                                                          decay_ids=decay_ids,
+                                                          gen_color=gen_color)]
+            for matrix_element in matrix_element_list:
+                assert isinstance(matrix_element, helas_objects.HelasMatrixElement), \
+                          "Not a HelasMatrixElement: %s" % matrix_element
+
+                try:
+                    # If an identical matrix element is already in the list,
+                    # then simply add this process to the list of
+                    # processes for that matrix element
+                    me_index = matrix_elements.index(matrix_element)
+                    other_processes = matrix_elements[me_index].get('processes')
+                    logger.info("Combining process with %s" % \
+                      other_processes[0].nice_string().replace('Process: ', ''))
+                    other_processes.extend(matrix_element.get('processes'))
+                except ValueError:
+                    # Otherwise, if the matrix element has any diagrams,
+                    # add this matrix element.
+                    if matrix_element.get('processes') and \
+                           matrix_element.get('diagrams'):
+                        matrix_elements.append(matrix_element)
+            
+        return matrix_elements

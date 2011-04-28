@@ -927,7 +927,7 @@ class MultiProcess(base_objects.PhysicsObject):
                                        self.get('ignore_six_quark_processes')))
                 else:
                     self['amplitudes'].extend(\
-                       MultiProcess.generate_multi_amplitudes(process_def,
+                       self.generate_multi_amplitudes(process_def,
                                        self.get('collect_mirror_procs'),
                                        self.get('ignore_six_quark_processes')))
 
@@ -938,8 +938,10 @@ class MultiProcess(base_objects.PhysicsObject):
 
         return ['process_definitions', 'amplitudes']
 
-    @staticmethod
-    def generate_multi_amplitudes(process_definition,
+    amplitude_class = Amplitude
+
+    @classmethod
+    def generate_multi_amplitudes(cls, process_definition,
                                   collect_mirror_procs = False,
                                   ignore_six_quark_processes = []):
         """Generate amplitudes in a semi-efficient way.
@@ -1049,8 +1051,8 @@ class MultiProcess(base_objects.PhysicsObject):
                         continue
                     except:
                         pass
-
-                amplitude = Amplitude({"process": process})
+                    
+                amplitude = cls.amplitude_class({"process": process})
                 
                 try:
                     result = amplitude.generate_diagrams()
@@ -1077,8 +1079,8 @@ class MultiProcess(base_objects.PhysicsObject):
         # Return the produced amplitudes
         return amplitudes
             
-    @staticmethod
-    def find_maximal_non_qcd_order(process_definition):
+    @classmethod
+    def find_maximal_non_qcd_order(cls, process_definition):
         """Find the maximal QCD order for this set of processes.
         The algorithm:
 
@@ -1232,7 +1234,7 @@ class MultiProcess(base_objects.PhysicsObject):
                     if tuple(sorted_legs) in failed_procs:
                         continue
 
-                    amplitude = Amplitude({"process": process})
+                    amplitude = cls.amplitude_class({"process": process})
                     try:
                         amplitude.generate_diagrams()
                     except InvalidCmd:
