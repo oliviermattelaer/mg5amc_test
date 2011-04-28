@@ -832,11 +832,11 @@ class BGHelasCurrent(COHelasWavefunction):
         self.set('factor', (1, fractions.Fraction(1,1), False))
         # Set Nc power for the combined wavefunction based on max Nc
         # power of wfs
-        common_Nc_power = max([wf.get('color_string').Nc_power for wf \
-                              in self.get('mothers')])
-        self.get('color_string').Nc_power = common_Nc_power
-        for wf in self.get('mothers'):
-            wf.get('color_string').Nc_power -= common_Nc_power
+        #common_Nc_power = max([wf.get('color_string').Nc_power for wf \
+        #                      in self.get('mothers')])
+        #self.get('color_string').Nc_power = common_Nc_power
+        #for wf in self.get('mothers'):
+        #    wf.get('color_string').Nc_power -= common_Nc_power
 
         
     def get_call_key(self):
@@ -1083,11 +1083,11 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
 
         # Set Nc power for the overall color string instead of every
         # amplitude
-        common_Nc_power = max([amp.get('color_string').Nc_power for amp \
-                               in self.get_all_amplitudes()])
-        self.get('color_string').Nc_power = common_Nc_power
-        for amp in self.get_all_amplitudes():
-            amp.get('color_string').Nc_power -= common_Nc_power
+        #common_Nc_power = max([amp.get('color_string').Nc_power for amp \
+        #                       in self.get_all_amplitudes()])
+        #self.get('color_string').Nc_power = common_Nc_power
+        #for amp in self.get_all_amplitudes():
+        #    amp.get('color_string').Nc_power -= common_Nc_power
 
     def get_color_amplitudes(self):
         """Return a list of (coefficient, amplitude number) lists,

@@ -25,6 +25,7 @@ import subprocess
 
 import madgraph.core.base_objects as base_objects
 import madgraph.core.color_algebra as color
+import madgraph.core.color_amp as color_amp
 import madgraph.core.helas_objects as helas_objects
 import madgraph.iolibs.drawing_eps as draw
 import madgraph.iolibs.export_v4 as export_v4
@@ -242,10 +243,13 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         replace_dict['ncolor'] = ncolor
 
         # Extract permutation data lines
-        iperms_data_lines, nperms = self.get_iperms_data_lines(matrix_element)
+        perms_data_lines, nperms = self.get_perms_data_lines(matrix_element)
         replace_dict['nperms'] = nperms
-        replace_dict['iperms_data_lines'] = "\n".join(iperms_data_lines)
+        replace_dict['perms_data_lines'] = "\n".join(perms_data_lines)
         
+        # Extract flow function definition lines
+        flow_functions_lines = self.get_flow_functions_lines(matrix_element)
+        replace_dict['flow_functions_lines'] = flow_functions_lines
 
         # Extract flow call lines
         flow_call_lines = self.get_flow_call_lines(matrix_element)
@@ -266,28 +270,75 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         return 0
 
 
-    def get_iperms_data_lines(self, matrix_element):
+    def get_perms_data_lines(self, matrix_element):
         """Write out the data lines defining the permutations"""
 
         iperm_line_list = []
         i = 0
-        for perm in matrix_element.get('color_flows')[0].get('permutations'):
+        for perm in matrix_element.get('permutations'):
             i = i + 1
             int_list = [i, len(perm)]
             int_list.extend(perm)
             iperm_line_list.append(\
-                ("DATA (NHEL(I,%4r),I=1,%d) /" + \
+                ("DATA (PERMS(I,%4r),I=1,%d) /" + \
                  ",".join(['%2r'] * len(perm)) + "/") % tuple(int_list))
 
         return iperm_line_list, len(iperm_line_list), 
         
+    def get_flow_functions_lines(self, matrix_element):
+        """Write out function definition lines"""
+
+        flow_functions = ",".join(["FLOW%d" % flow.get('number') for flow in \
+                                   matrix_element.get('color_flows')])
+
+        return "COMPLEX*16 %(ff)s\nEXTERNAL %(ff)s" % {"ff": flow_functions}
+        
     def get_flow_call_lines(self, matrix_element):
         """Write out the calls to all color flows"""
-        return ""
+
+        return_lines = []
+
+        nperms = len(matrix_element.get('permutations'))
+        for iperm in range(nperms):
+            return_lines.extend([\
+                "C     Set momenta according to permutation %d" % (iperm + 1),
+                "CALL SWITCHMOM(P,P1,PERMS(1,%d),JC,NEXTERNAL)" % (iperm + 1)])
+            for iflow, flow in enumerate(matrix_element.get('color_flows')):
+                return_lines.append("JAMP(%d) = FLOW%d(P1,NHEL,IC)" % \
+                                    (1 + iperm + iflow * nperms, iflow + 1))
+
+        return return_lines
 
     def get_color_sum_lines(self, matrix_element):
         """Write out the data lines defining the permutations"""
-        return ""
+
+        # First calculate the color matrix, since we want to use the full
+        # color matrix for the standalone version
+        col_mat = color_amp.ColorMatrix(matrix_element.get('color_basis'),
+                                        Nc_power_min = \
+                                        matrix_element.get('min_Nc_power'))
+        denoms = col_mat.get_line_denominators()
+
+        res_lines = []
+
+        # Now go row by row in the color matrix, and collect all
+        # non-zero entries with Nc_power >= min_Nc_power
+
+        ncolor = len(matrix_element.get('color_basis'))
+        for icol in range(ncolor):
+            numerators = col_mat.get_line_numerators(icol, denoms[icol])
+            if not any([n for n in numerators]):
+                continue
+            flow = matrix_element.get('color_flows')[icol // ncolor]
+            res_lines.append(\
+                'MATRIX = MATRIX + %(den)s*%(flow)s*DCONJG(%(flows)s)' % \
+                {'den': "1d0/" + str(denoms[icol]),
+                 'flow': 'JAMP(%d)' % (icol + 1),
+                 'flows': "+".join(['%s*JAMP(%d)' % (str(numerators[i]),i + 1) \
+                                    for i in range(ncolor) if numerators[i]])})
+            res_lines[-1] = res_lines[-1].replace('+-', '-')
+
+        return res_lines
 
 
 #===============================================================================
