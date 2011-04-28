@@ -886,6 +886,9 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         # Color string corresponding to this color flow
         self['color_string'] = color.ColorString()
 
+        # Identifier for this color flow
+        self['number'] = 0
+
     def filter(self, name, value):
         """Filter for valid amplitude property values."""
 
@@ -897,11 +900,27 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             if not isinstance(value, color.ColorString):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid color string" % str(value)
+        elif name == 'number':
+            if not isinstance(value, int):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid integer" % str(value)
         else:
             super(COHelasFlow, self).filter(name, value)
 
         return True
     
+    # Customized constructor
+    def __init__(self, *arguments, **opts):
+        """Add number to arguments of HelasMatrixElement
+        """
+
+        number = 0
+        if 'number' in opts:
+            number = opts['number']
+            del opts['number']
+        super(COHelasFlow, self).__init__(*arguments, **opts)        
+        self.set('number', number)
+
     def generate_helas_diagrams(self, amplitude, optimization=3,
                                 decay_ids=[]):
         """Generate Behrends-Giele diagrams for a color ordered amplitude
@@ -1329,6 +1348,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         super(COHelasMatrixElement, self).default_setup()
 
         self['color_flows'] = COHelasFlowList()
+        self['min_Nc_power'] = 0
+        self['permutations'] = []
 
     def filter(self, name, value):
         """Filter for valid diagram property values."""
@@ -1338,6 +1359,20 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid COHelasFlowList object" % str(value)
         
+        elif name == 'min_Nc_power':
+            if not isinstance(value, int):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid integer" % str(value)
+
+        elif name == 'permutations':
+            if not isinstance(value, list):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid list" % str(value)
+        
+        else:
+            super(COHelasMatrixElement, self).filter(name, value)
+
+        return True
     def __init__(self, amplitude = None, optimization = 3, decay_ids = [],
                  gen_color = 2):
         """Initialize a COHelasMatrixElement with a ColorOrderedAmplitude"""
@@ -1348,10 +1383,19 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 self.get('processes').append(amplitude.get('process'))
                 self.set('has_mirror_process',
                          amplitude.get('has_mirror_process'))
-                for flow in amplitude.get('color_flows'):
+                for iflow, flow in enumerate(amplitude.get('color_flows')):
                     self.get('color_flows').append(COHelasFlow(flow,
                                                    optimization, decay_ids,
-                                                   gen_color = False))
+                                                   gen_color = False,
+                                                   number = iflow + 1))
+                if self.get('color_flows'):
+                    perms = self.get('color_flows')[0].get('permutations')
+                    # Reorder permutations so first permutation
+                    # is 1,2,3,... and others are with respect to this
+                    self.set('permutations',
+                             [base_objects.reorder_permutation(perms[0],
+                                                               perm) for \
+                              perm in perms])
                 if gen_color and not self.get('color_matrix'):
                     self.build_color_matrix(gen_color)
             else:
@@ -1377,10 +1421,10 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         dummy_basis = color_amp.ColorBasis()        
         if not col_basis:
             for iflow, color_flow in enumerate(self.get('color_flows')):
-                for iperm, perm in enumerate(color_flow.get('permutations')):
+                for iperm, perm in enumerate(self.get('permutations')):
                     # 1,2,3,4,5 -> 1,2,4,5,3 e.g.
                     perm_replace_dict = \
-                              dict(zip(color_flow.get('permutations')[0], perm))
+                              dict(zip(self.get('permutations')[0], perm))
                     col_str = color_flow.get('color_string').create_copy()
                     col_str.replace_indices(perm_replace_dict)
                     # Create the immutable string
@@ -1419,14 +1463,18 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         
         # Set min Nc power to max(Nc_powers) - (gen_color - 1),
         # i.e., Nc^Nmax for leading, Nc^(Nmax-1) to subleading, etc.
-        min_Nc_power = max(Nc_powers) - (gen_color - 1)
+        self.set('min_Nc_power', max(Nc_powers) - (gen_color - 1))
         
         # Generate color matrix based on the color basis and the dummy
         # color basis with only the unpermuted momenta
 
         self.set('color_matrix',
                  color_amp.ColorMatrix(dummy_basis, col_basis,
-                                       Nc_power_min = min_Nc_power))
+                                       Nc_power_min = self.get('min_Nc_power')))
 
         
         
+    def get_external_wavefunctions(self):
+        """Redefine HelasMatrixElement.get_external_wavefunctions"""
+
+        return self.get('color_flows')[0].get_external_wavefunctions()

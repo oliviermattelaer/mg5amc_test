@@ -159,13 +159,14 @@ def find_symmetry(matrix_element):
         else:
             symmetry[inum] = -diagram_classes[idx1][0]
         # Order permutations according to how to reach the first perm
-        permutations[inum] = DiagramTag.reorder_permutation(perms[idx1][idx2],
-                                                            perms[idx1][0])
+        permutations[inum] = base_objects.reorder_permutation(perms[idx1][idx2],
+                                                              perms[idx1][0])
+        permutations[inum] = [p - 1 for p in permutations[inum]]
         # ident_perms ordered according to order of external momenta
-        perm = DiagramTag.reorder_permutation(perms[idx1][0],
-                                                           perms[idx1][idx2])
+        perm = base_objects.reorder_permutation(perms[idx1][0],
+                                                perms[idx1][idx2])
         if not perm in ident_perms:
-            ident_perms.append(perm)
+            ident_perms.append([p-1 for p in perm])
 
     return (symmetry, permutations, ident_perms)
 
@@ -492,13 +493,6 @@ class DiagramTag(object):
         """Get the order of external particles in this tag"""
 
         return self.tag.get_permutation()
-
-    @staticmethod
-    def reorder_permutation(perm, start_perm):
-        """Reorder a permutation with respect to start_perm"""
-        order = [i for (p,i) in \
-                 sorted([(p,i) for (i,p) in enumerate(perm)])]
-        return [start_perm[i]-1 for i in order]
 
     @classmethod
     def add_link(cls, leg):

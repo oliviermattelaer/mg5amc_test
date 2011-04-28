@@ -1963,3 +1963,11 @@ def make_unique(doubletlist):
             uniquelist.append(elem)
 
     doubletlist[:] = uniquelist[:]
+
+
+def reorder_permutation(perm, start_perm):
+    """Reorder a permutation with respect to start_perm"""
+    order = [i for (p,i) in \
+             sorted([(p,i) for (i,p) in enumerate(perm)])]
+    return [start_perm[i] for i in order]
+

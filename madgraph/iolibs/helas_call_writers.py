@@ -16,7 +16,7 @@
 
 import madgraph.core.base_objects as base_objects
 import madgraph.core.helas_objects as helas_objects
-import madgraph.core.color_ordered_amplitudes as color_ordered_amplitudes
+import madgraph.color_ordering.color_ordered_amplitudes as color_ordered_amplitudes
 import aloha.aloha_writers as aloha_writers
 from madgraph import MadGraph5Error
 
@@ -811,6 +811,7 @@ class UFOHelasCallWriter(HelasCallWriter):
     generates the Fortran Helas call based on the Lorentz structure of
     the interaction."""
 
+    spin_dict = {1:'S', 2:'F', 3:'V', 4:'T'}
 
     def get_wavefunction_call(self, wavefunction, **opt):
         """Return the function for writing the wavefunction
@@ -880,8 +881,9 @@ class FortranUFOHelasCallWriter(UFOHelasCallWriter):
 
         if isinstance(argument, color_ordered_amplitudes.BGHelasCurrent):
             # Create call for wavefunction
-            call += "sumwfs%s(" % "".join([str(m.get('spin')) for \
-                                           m in argument.get('mothers')])
+            call += "sum%s%d(" % \
+                    (self.spin_dict[argument.get('mothers')[0].get('spin')],
+                                    len(argument.get('mothers')))
             call += "W(1,%d),%s," * len(argument.get('mothers')) + \
                     "W(1,%d))"
             call_function = lambda wf: call % \

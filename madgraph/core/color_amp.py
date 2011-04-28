@@ -618,12 +618,16 @@ class ColorMatrix(dict):
         result = col_fact.full_simplify()
 
         # Keep only terms with Nc_max >= Nc power >= Nc_min
-        if Nc_power_min is not None:
-            result[:] = [col_str for col_str in result \
-                         if col_str.Nc_power >= Nc_power_min]
-        if Nc_power_max is not None:
-            result[:] = [col_str for col_str in result \
-                         if col_str.Nc_power <= Nc_power_max]
+        if result:
+            max_power = max([col_str.Nc_power for col_str in result])
+            if Nc_power_min and max_power < Nc_power_min:
+                result[:] = []
+            #if Nc_power_min:
+            #    result[:] = [col_str for col_str in result \
+            #                 if col_str.Nc_power >= Nc_power_min]
+            if Nc_power_max:
+                result[:] = [col_str for col_str in result \
+                             if col_str.Nc_power <= Nc_power_max]
 
         # Calculate the fixed Nc representation
         result_fixed_Nc = result.set_Nc(Nc)
