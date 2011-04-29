@@ -811,8 +811,6 @@ class UFOHelasCallWriter(HelasCallWriter):
     generates the Fortran Helas call based on the Lorentz structure of
     the interaction."""
 
-    spin_dict = {1:'S', 2:'F', 3:'V', 4:'T'}
-
     def get_wavefunction_call(self, wavefunction, **opt):
         """Return the function for writing the wavefunction
         corresponding to the key. If the function doesn't exist,

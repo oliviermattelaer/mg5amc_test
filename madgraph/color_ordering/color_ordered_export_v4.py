@@ -745,7 +745,8 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
         if isinstance(argument, color_ordered_amplitudes.BGHelasCurrent):
             # Create call for wavefunction
             call += "sum%s%d(" % \
-                    (self.spin_dict[argument.get('mothers')[0].get('spin')],
+                    (color_ordered_amplitudes.spin_dict[\
+                                    argument.get('mothers')[0].get('spin')],
                                     len(argument.get('mothers')))
             call += "W(1,%d),%s," * len(argument.get('mothers')) + \
                     "W(1,%d))"

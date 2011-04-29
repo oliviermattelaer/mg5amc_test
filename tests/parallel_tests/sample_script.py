@@ -51,7 +51,7 @@ if '__main__' == __name__:
     my_proc_list = ['g g > g g', 'g u > g u', 'u u~ > g g','u u~ > d d~', 'u u~ > u u~']
     my_proc_list += ['g g > g g g', 'g u > g u g', 'u u~ > g g g', 'u u~ > d d~ g', 'u u~ > u u~ g g']
     my_proc_list += ['g g > g g g g', 'u u~ > g g g g', 'u u~ > u u~ d d~']
-    my_proc_list += ['u u~ > u u~ d d~ g']#, 'u u~ > u u~ d d~ d d~']
+    my_proc_list = ['u u~ > u u~ d d~ d d~','u u~ > u u~ u u~', 'd d~ > u u~ u u~', 'g g > u u~ u u~']
     #my_proc_list = ['g g > g g g g g']
     #my_proc_list = me_comparator.create_proc_list_enhanced(
     #    fermion, fermion, boson,

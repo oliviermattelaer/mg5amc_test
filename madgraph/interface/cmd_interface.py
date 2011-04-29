@@ -2870,7 +2870,7 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                             color_ordered_amplitudes.COHelasMultiProcess(\
                                     self._curr_amps,
                                     gen_color = self._options['color_ordering'],
-                                    optimization = 1)
+                                    optimization = 3)
                     else:
                         self._curr_matrix_elements = \
                                  helas_objects.HelasMultiProcess(\

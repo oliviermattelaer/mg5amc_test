@@ -209,7 +209,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
             #Should be a list of string
             if not isinstance(value, list):
                     raise self.PhysicsObjectError, \
-                        "%s is not a valid tuple" % str(value)
+                        "%s is not a valid list" % str(value)
             for name in value:
                 if not isinstance(name, str):
                     raise self.PhysicsObjectError, \

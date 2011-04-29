@@ -422,7 +422,7 @@ class MG5_CO_Runner(MG5_UFO_Runner):
         """Create a proc_card.dat string following v5 conventions."""
 
         v5_string = "import model %s \n" % model
-        v5_string += "set color_ordering 3 \n"
+        v5_string += "set color_ordering 3\n"
 
         couplings = ' '.join(["%s=%i" % (k, v) for k, v in orders.items()])
 

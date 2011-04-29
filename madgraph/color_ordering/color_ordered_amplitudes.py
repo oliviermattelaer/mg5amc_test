@@ -51,6 +51,8 @@ from madgraph import MadGraph5Error
 
 logger = logging.getLogger('madgraph.color_ordered_amplitudes')
 
+# Dictionary from spin number to name used in the wavefunction sum functions
+spin_dict = {1:'S', 2:'F', 3:'V', 4:'T'}
 
 #===============================================================================
 # ColorOrderedLeg
@@ -273,10 +275,11 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                           for leg in colegs if i in \
                                           leg.get('color_ordering')] for \
                                          i in range(len(p))], []))
+                    
                     if this_flow in used_flows:
                         failed = True
                         break
-                    used_flows.append(this_flow)
+                used_flows.append(this_flow)
                 if failed:
                     continue
             # Restore initial state leg identities
@@ -879,6 +882,15 @@ class BGHelasCurrent(COHelasWavefunction):
                 super(BGHelasCurrent, self).__init__(*arguments)
         else:
             super(BGHelasCurrent, self).__init__(*arguments)
+
+    def get(self, name):
+        """Special get for lorentz"""
+
+        if name == 'lorentz':
+            self.set('lorentz', ['sum%s%d' % \
+                     (spin_dict[self.get('mothers')[0].get('spin')],
+                      len(self.get('mothers')))])
+        return super(BGHelasCurrent, self).get(name)
 
     def set_color_string(self):
         """Set color string based on the first mother"""

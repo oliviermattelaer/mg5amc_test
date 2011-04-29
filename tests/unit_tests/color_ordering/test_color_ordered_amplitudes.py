@@ -556,7 +556,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                 self.assertEqual(len(flow.get('permutations')),
                                  goal_nperms[ngluons][iflow])
 
-    def test_color_ordered_uux_ddxssxngd(self):
+    def test_color_ordered_uux_ddxssxng(self):
         """Test the number of color flows and diagrams for uu~>dd~ssx+ng
         """
         goal_ndiags = [[4, 4, 4, 4, 6, 4],
@@ -648,6 +648,64 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             myleglist.append(base_objects.Leg({'id':1,
                                              'state':True}))
             myleglist.append(base_objects.Leg({'id':-1,
+                                             'state':True}))
+            myleglist.extend([base_objects.Leg({'id':21,
+                                                 'state':True})] * ngluons)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'model':self.mymodel,
+                                           'orders':{'QCD':ngluons+4, 'QED': 0}})
+
+            self.myamplitude.set('process', myproc)
+
+            self.myamplitude.generate_diagrams()
+            #for c in self.myamplitude.get('color_flows'):
+            #    print "color flow process: ",[(l.get('number'), l.get('color_ordering')) for \
+            #                                   l in c.get('process').get('legs')]
+            #    print c.nice_string()
+
+            #goal_nflows.append(len(self.myamplitude.get('color_flows')))
+            self.assertEqual(len(self.myamplitude.get('color_flows')),
+                             goal_nflows[ngluons])
+            #diags = []
+            for iflow, flow in enumerate(self.myamplitude.get('color_flows')):
+                #diags.append(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')))
+                self.assertEqual(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')),
+                             goal_ndiags[ngluons][iflow])
+            #goal_ndiags.append(diags)
+            #print goal_nflows
+            #print goal_ndiags
+
+    def test_color_ordered_ddx_uuxuuxng(self):
+        """Test number of color flows and diagrams for dd~>uu~uu~+ng
+        """
+        goal_ndiags = [[4, 4, 4, 6, 4, 4],
+                       [16, 14, 16, 14, 14, 14, 8, 14, 16, 8, 16, 8,
+                        16, 14, 14, 14, 16, 14],
+                       [63, 50, 69, 56, 63, 50, 50, 38, 28, 32, 20,
+                        38, 69, 28, 63, 20, 63, 20, 69, 28, 63, 50, 69,
+                        28, 56, 32, 28, 32, 69, 28, 69, 56, 50, 38, 63,
+                        50]]
+        
+        goal_nflows = [6, 18, 36]
+        #goal_nflows = []
+        #goal_ndiags = []
+
+        for ngluons in range(0, 2):
+
+            myleglist = base_objects.LegList()
+
+            myleglist.append(base_objects.Leg({'id':1,
+                                             'state':False}))
+            myleglist.append(base_objects.Leg({'id':-1,
+                                             'state':False}))
+            myleglist.append(base_objects.Leg({'id':2,
+                                             'state':True}))
+            myleglist.append(base_objects.Leg({'id':-2,
+                                             'state':True}))
+            myleglist.append(base_objects.Leg({'id':2,
+                                             'state':True}))
+            myleglist.append(base_objects.Leg({'id':-2,
                                              'state':True}))
             myleglist.extend([base_objects.Leg({'id':21,
                                                  'state':True})] * ngluons)
