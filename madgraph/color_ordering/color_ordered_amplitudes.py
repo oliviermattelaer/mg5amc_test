@@ -291,7 +291,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 coprocess = copy.copy(process)
                 coprocess.set('orders', copy.copy(process.get('orders')))
                 coprocess.set('legs', colegs)
-                if iflow > 0:
+                if 'QCD' in process.get('orders'):
                     coprocess.get('orders')['QCD'] = \
                                         process.get('orders')['QCD'] - 2*iflow
                     if coprocess.get('orders')['QCD'] < 0:
@@ -303,11 +303,12 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     flow.set('permutations', same_flavor_perms[iperm])
                     # Add flow to list
                     color_flows.append(flow)
-                else:
-                    break
-                if iflow == 0:
-                    # Set coupling orders for the process
-                    process.set('orders', coprocess.get('orders'))
+                    if not 'QCD' in process.get('orders'):
+                        # Set coupling orders for the process
+                        process.set('orders', coprocess.get('orders'))
+                        process.get('orders')['QCD'] = \
+                                          process.get('orders')['QCD'] + 2*iflow
+                        process.get('orders')['singlet_QCD'] = 0
 
         self.set('color_flows', color_flows)
         return self.get('diagrams')
@@ -856,6 +857,8 @@ class BGHelasCurrent(COHelasWavefunction):
                 self.set('mothers', helas_objects.HelasWavefunctionList())
                 self.set('compare_array', [])
                 self.set('external_numbers', array.array('I'))
+                self.set('fermion_number_external',
+                         arguments[0].get('fermion_number_external'))
             else:
                 super(BGHelasCurrent, self).__init__(*arguments)
         else:
@@ -872,11 +875,11 @@ class BGHelasCurrent(COHelasWavefunction):
         self.set('factor', (1, fractions.Fraction(1,1), False))
         # Set Nc power for the combined wavefunction based on max Nc
         # power of wfs
-        #common_Nc_power = max([wf.get('color_string').Nc_power for wf \
-        #                      in self.get('mothers')])
-        #self.get('color_string').Nc_power = common_Nc_power
-        #for wf in self.get('mothers'):
-        #    wf.get('color_string').Nc_power -= common_Nc_power
+        common_Nc_power = max([wf.get('color_string').Nc_power for wf \
+                              in self.get('mothers')])
+        self.get('color_string').Nc_power = common_Nc_power
+        for wf in self.get('mothers'):
+            wf.get('color_string').Nc_power -= common_Nc_power
 
         
     def get_call_key(self):
@@ -1123,11 +1126,11 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
 
         # Set Nc power for the overall color string instead of every
         # amplitude
-        #common_Nc_power = max([amp.get('color_string').Nc_power for amp \
-        #                       in self.get_all_amplitudes()])
-        #self.get('color_string').Nc_power = common_Nc_power
-        #for amp in self.get_all_amplitudes():
-        #    amp.get('color_string').Nc_power -= common_Nc_power
+        common_Nc_power = max([amp.get('color_string').Nc_power for amp \
+                               in self.get_all_amplitudes()])
+        self.get('color_string').Nc_power = common_Nc_power
+        for amp in self.get_all_amplitudes():
+            amp.get('color_string').Nc_power -= common_Nc_power
 
     def get_color_amplitudes(self):
         """Return a list of (coefficient, amplitude number) lists,

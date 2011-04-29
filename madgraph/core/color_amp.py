@@ -617,17 +617,19 @@ class ColorMatrix(dict):
         col_fact = color_algebra.ColorFactor([col_str])
         result = col_fact.full_simplify()
 
+        # Sort result according to falling Nc_power
+        result.sort(key=lambda c1: c1.Nc_power, reverse=True)
+
         # Keep only terms with Nc_max >= Nc power >= Nc_min
         if result:
-            max_power = max([col_str.Nc_power for col_str in result])
+            max_power = result[0].Nc_power
             if Nc_power_min and max_power < Nc_power_min:
                 result[:] = []
             #if Nc_power_min:
             #    result[:] = [col_str for col_str in result \
             #                 if col_str.Nc_power >= Nc_power_min]
-            if Nc_power_max:
-                result[:] = [col_str for col_str in result \
-                             if col_str.Nc_power <= Nc_power_max]
+            if Nc_power_max and max_power > Nc_power_max:
+                result[:] = []
 
         # Calculate the fixed Nc representation
         result_fixed_Nc = result.set_Nc(Nc)

@@ -48,8 +48,10 @@ if '__main__' == __name__:
     #              'e+ e- > e+ e- e+ e-', ' g g > t t~ g', 't t~ > h > t t~']
     #my_proc_list = me_comparator.create_proc_list(['u', 'u~','t','t~','g'],
     #                                              initial=2, final=2)
-    my_proc_list = ['g g > g g', 'g u > g u', 'u u~ > g g','u u~ > d d~']
-    my_proc_list += ['g g > g g g', 'g u > g u g', 'u u~ > g g g']
+    my_proc_list = ['g g > g g', 'g u > g u', 'u u~ > g g','u u~ > d d~', 'u u~ > u u~']
+    my_proc_list += ['g g > g g g', 'g u > g u g', 'u u~ > g g g', 'u u~ > u u~ g']
+    #my_proc_list += ['g g > g g g g', 'g u > g u g g', 'u u~ > g g g g g']
+    #my_proc_list = ['g g > g g g g g']
     #my_proc_list = me_comparator.create_proc_list_enhanced(
     #    fermion, fermion, boson,
     #    initial=2, final_1=2, final_2 = 1)
@@ -65,8 +67,8 @@ if '__main__' == __name__:
 
 
     # Create a MERunner object for MG4
-    my_mg4 = me_comparator.MG4Runner()
-    my_mg4.setup(mg4_path)
+    #my_mg4 = me_comparator.MG4Runner()
+    #my_mg4.setup(mg4_path)
 
     # Create a MERunner object for MG5
     my_mg5 = me_comparator.MG5Runner()
@@ -91,7 +93,7 @@ if '__main__' == __name__:
     # Run the actual comparison
     my_comp.run_comparison(my_proc_list,
                            model='sm',
-                           orders={'QED':99, 'QCD':99, 'QTD':4}, energy=2000)
+                           orders={}, energy=2000)
 
     # Do some cleanup
     #my_comp.cleanup()
