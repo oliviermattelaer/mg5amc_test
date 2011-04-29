@@ -287,31 +287,46 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
             # Create the color ordered flows for all combinations
             # numbers of octet and singlet gluon
-            for iflow in range(max(1, ichain)):
-                coprocess = copy.copy(process)
-                coprocess.set('orders', copy.copy(process.get('orders')))
-                coprocess.set('legs', colegs)
-                if 'QCD' in process.get('orders'):
-                    coprocess.get('orders')['QCD'] = \
-                                        process.get('orders')['QCD'] - 2*iflow
-                    if coprocess.get('orders')['QCD'] < 0:
-                        continue
-                coprocess.get('orders')['singlet_QCD'] = 2*iflow
-                flow = ColorOrderedFlow(coprocess)
-                if flow.get('diagrams'):
-                    # Set perm information for this flow
-                    flow.set('permutations', same_flavor_perms[iperm])
-                    # Add flow to list
-                    color_flows.append(flow)
-                    if not 'QCD' in process.get('orders'):
-                        # Set coupling orders for the process
-                        process.set('orders', coprocess.get('orders'))
-                        process.get('orders')['QCD'] = \
-                                          process.get('orders')['QCD'] + 2*iflow
-                        process.get('orders')['singlet_QCD'] = 0
+            #for iflow in range(max(1, ichain)):
+            coprocess = copy.copy(process)
+            coprocess.set('orders', copy.copy(process.get('orders')))
+            coprocess.set('legs', colegs)
+            #if 'QCD' in process.get('orders'):
+            #    coprocess.get('orders')['QCD'] = \
+            #                        process.get('orders')['QCD'] - 2*iflow
+            #    if coprocess.get('orders')['QCD'] < 0:
+            #        continue
+            coprocess.get('orders')['singlet_QCD'] = 2*ichain
+            flow = ColorOrderedFlow(coprocess)
+            if flow.get('diagrams'):
+                # Set perm information for this flow
+                flow.set('permutations', same_flavor_perms[iperm])
+                flow.set('fermion_perm_factor',
+                         self.get_fermion_perm_factor(coprocess,
+                                       [p[0]-1 for p in list(perm)+last_leg]))
+                # Add flow to list
+                color_flows.append(flow)
+                #if not 'QCD' in process.get('orders'):
+                #    # Set coupling orders for the process
+                #    process.set('orders', coprocess.get('orders'))
+                #    process.get('orders')['QCD'] = \
+                #                      process.get('orders')['QCD'] + 2*iflow
+                #    process.get('orders')['singlet_QCD'] = 0
 
         self.set('color_flows', color_flows)
         return self.get('diagrams')
+
+    @staticmethod
+    def get_fermion_perm_factor(process, perm):
+        """Get the factor based on permutations of fermions for this
+        color flow"""
+
+        model = process.get('model')
+        legs = process.get('legs')
+        external_fermions = [legs[i].get('number') for i in perm if \
+                             model.get_particle(legs[i].get('id')).is_fermion()]
+        return helas_objects.HelasAmplitude.sign_flips_to_order(\
+                external_fermions)
 
 #===============================================================================
 # ColorOrderedMultiProcess
@@ -357,6 +372,7 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
         super(ColorOrderedFlow, self).default_setup()
         self['max_color_orders'] = {}
         self['permutations'] = []
+        self['fermion_perm_factor'] = 1
 
     def get_combined_legs(self, legs, leg_vert_ids, number, state):
         """Determine if the combination of legs is valid with color
@@ -925,12 +941,12 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         # Permutations of external legs which give valid color flows.
         # The first permutation corresponds to the this color flow.
         self['permutations'] = []
-
         # Color string corresponding to this color flow
         self['color_string'] = color.ColorString()
-
         # Identifier for this color flow
         self['number'] = 0
+        # Factor due to fermion permutations in the color string
+        self['fermion_perm_factor'] = 1
 
     def filter(self, name, value):
         """Filter for valid amplitude property values."""
@@ -943,7 +959,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             if not isinstance(value, color.ColorString):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid color string" % str(value)
-        elif name == 'number':
+        elif name in ['number', 'fermion_perm_factor']:
             if not isinstance(value, int):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid integer" % str(value)
@@ -974,6 +990,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
 
         # Set permutations
         self.set('permutations', amplitude.get('permutations'))
+        self.set('fermion_perm_factor', amplitude.get('fermion_perm_factor'))
         
         # Set color string
         self.set('color_string', self.get_color_string(range(1,

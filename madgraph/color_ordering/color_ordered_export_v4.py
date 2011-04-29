@@ -264,6 +264,10 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         perms_data_lines, nperms = self.get_perms_data_lines(matrix_element)
         replace_dict['nperms'] = nperms
         replace_dict['perms_data_lines'] = "\n".join(perms_data_lines)
+
+        # Extract fermion signs due to permutations
+        iferm_data_line = self.get_iferm_data_line(matrix_element)
+        replace_dict['iferm_data_line'] = iferm_data_line
         
         # Extract nflows
         nflows = len(matrix_element.get('color_flows')) * nperms
@@ -307,6 +311,22 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         return iperm_line_list, len(iperm_line_list), 
         
+    def get_iferm_data_line(self, matrix_element):
+        """Write out the data lines defining the permutations"""
+        
+        iferm_list = []
+        external_fermions = [i for (i,w) in enumerate(matrix_element.\
+                             get_external_wavefunctions()) if w.is_fermion()]
+        for perm in matrix_element.get('permutations'):
+            fermion_numbers = [perm[i] for i in external_fermions]
+            iferm_list.append(helas_objects.HelasAmplitude.sign_flips_to_order(\
+                fermion_numbers))
+
+        iferm_line = "DATA IFERM/" + \
+                     ",".join(['%2r' % i for i in iferm_list]) + "/"
+
+        return iferm_line
+        
     def get_flow_functions_lines(self, matrix_element):
         """Write out function definition lines"""
 
@@ -316,16 +336,21 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         return "COMPLEX*16 %(ff)s\nEXTERNAL %(ff)s" % {"ff": flow_functions}
         
     def get_flow_call_lines(self, matrix_element):
-        """Write out the calls to all color flows"""
+        """Write out the calls to all color flows. Need to multiply by
+        fermion permutation factor for this color flow to get right
+        sign."""
 
         return_lines = []
 
         nperms = len(matrix_element.get('permutations'))
         for iperm in range(nperms):
             for iflow, flow in enumerate(matrix_element.get('color_flows')):
-                return_lines.append("JAMP(%d) = FLOW%d(P,NHEL,PERMS(1,%d))" \
-                           % (1 + iperm + iflow * nperms, iflow + 1, iperm + 1))
-
+                return_lines.append("JAMP(%d)=%d*FLOW%d(P,NHEL,PERMS(1,%d),IFERM(%d))" \
+                           % (1 + iperm + iflow * nperms,
+                              flow.get('fermion_perm_factor'),
+                              iflow + 1, iperm + 1,
+                              iperm + 1))
+                return_lines[-1] = return_lines[-1].replace('=1*', '=')
         return return_lines
     def get_color_sum_lines(self, matrix_element):
         """Write out the data lines defining the permutations"""
