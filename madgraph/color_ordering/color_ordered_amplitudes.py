@@ -267,12 +267,12 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 # the arrays of [(pdg, chain number, color_ordering)]
                 # for all permutations of the chain numbers.
                 failed = False
-                for perm in itertools.permutations(range(1, ichain+1), ichain): 
-                    this_flow = sorted(sum([[(leg.get('id'), perm[i],
+                for p in itertools.permutations(range(1, ichain+1), ichain): 
+                    this_flow = sorted(sum([[(leg.get('id'), p[i],
                                            leg.get('color_ordering')[i]) \
                                           for leg in colegs if i in \
                                           leg.get('color_ordering')] for \
-                                         i in range(len(perm))], []))
+                                         i in range(len(p))], []))
                     if this_flow in used_flows:
                         failed = True
                         break
@@ -287,31 +287,31 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
             # Create the color ordered flows for all combinations
             # numbers of octet and singlet gluon
-            #for iflow in range(max(1, ichain)):
-            coprocess = copy.copy(process)
-            coprocess.set('orders', copy.copy(process.get('orders')))
-            coprocess.set('legs', colegs)
-            #if 'QCD' in process.get('orders'):
-            #    coprocess.get('orders')['QCD'] = \
-            #                        process.get('orders')['QCD'] - 2*iflow
-            #    if coprocess.get('orders')['QCD'] < 0:
-            #        continue
-            coprocess.get('orders')['singlet_QCD'] = 2*ichain
-            flow = ColorOrderedFlow(coprocess)
-            if flow.get('diagrams'):
-                # Set perm information for this flow
-                flow.set('permutations', same_flavor_perms[iperm])
-                flow.set('fermion_perm_factor',
-                         self.get_fermion_perm_factor(coprocess,
-                                       [p[0]-1 for p in list(perm)+last_leg]))
-                # Add flow to list
-                color_flows.append(flow)
-                #if not 'QCD' in process.get('orders'):
-                #    # Set coupling orders for the process
-                #    process.set('orders', coprocess.get('orders'))
-                #    process.get('orders')['QCD'] = \
-                #                      process.get('orders')['QCD'] + 2*iflow
-                #    process.get('orders')['singlet_QCD'] = 0
+            for iflow in range(max(1, ichain)):
+                coprocess = copy.copy(process)
+                coprocess.set('orders', copy.copy(process.get('orders')))
+                coprocess.set('legs', colegs)
+                if 'QCD' in process.get('orders'):
+                    coprocess.get('orders')['QCD'] = \
+                                        process.get('orders')['QCD'] - 2*iflow
+                    if coprocess.get('orders')['QCD'] < 0:
+                        continue
+                coprocess.get('orders')['singlet_QCD'] = 2*iflow
+                flow = ColorOrderedFlow(coprocess)
+                if flow.get('diagrams'):
+                    # Set perm information for this flow
+                    flow.set('permutations', same_flavor_perms[iperm])
+                    flow.set('fermion_perm_factor',
+                             self.get_fermion_perm_factor(coprocess,
+                                           [p[0]-1 for p in list(perm)+last_leg]))
+                    # Add flow to list
+                    color_flows.append(flow)
+                    if not 'QCD' in process.get('orders'):
+                        # Set coupling orders for the process
+                        process.set('orders', coprocess.get('orders'))
+                        process.get('orders')['QCD'] = \
+                                          process.get('orders')['QCD'] + 2*iflow
+                        process.get('orders')['singlet_QCD'] = 0
 
         self.set('color_flows', color_flows)
         return self.get('diagrams')
@@ -1142,9 +1142,9 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         self.get('diagrams')[0].set('wavefunctions', combined_wavefunctions)
 
         # Set Nc power for the overall color string instead of every
-        # amplitude
-        common_Nc_power = max([amp.get('color_string').Nc_power for amp \
-                               in self.get_all_amplitudes()])
+        # amplitude, but only if it is negative
+        common_Nc_power = min(max([amp.get('color_string').Nc_power for amp \
+                                   in self.get_all_amplitudes()]), 0)
         self.get('color_string').Nc_power = common_Nc_power
         for amp in self.get_all_amplitudes():
             amp.get('color_string').Nc_power -= common_Nc_power

@@ -377,35 +377,72 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                 iperm = diag_tuple[1][0]
                 nflow = 1 + iflow*nperms + iperm
                 Nc_power = flows[iflow].get('color_string').Nc_power
-                allnums = []
                 # Find the factors for all JAMPs that should be included in
                 # this multiplication
-                for ic, cbe in enumerate(sorted(color_basis.keys())):
-                    for dt in color_basis[cbe]:
-                        tflow = 1 + dt[0]*nperms + dt[1][0]
-                        if numerators[ic]:
-                            # Only add if Nc_power large enough
-                            Nc_pow = self.Nc_power_to_fraction(\
-                                flows[dt[0]].get('color_string').Nc_power)
-                            allnums.append((self.fraction_to_string(\
-                                                 numerators[ic] * Nc_pow),
-                                            tflow))
+                allnums = self.get_jamp_factors_for_row(matrix_element,
+                                                        col_mat,
+                                                        icol, Nc_power,
+                                                        numerators)
                 if not allnums:
                     continue
+                allnums = self.combine_jamp_factors(allnums)
                 Nc_power = self.Nc_power_to_fraction(Nc_power)
                 res_lines.append(\
                     'ZTEMP = ZTEMP+%(fact)s*%(flow)s/%(den)s*DCONJG(%(flows)s)' % \
                     {'fact': self.fraction_to_string(Nc_power),
                      'flow': 'JAMP(%d)' % nflow,
                      'den': str(denoms[icol]),
-                     'flows': "+".join(['%s*JAMP(%d)' % allnums[i] for i in \
-                                        range(len(allnums))])})
+                     'flows': "+".join(['%s*(%s)' % \
+                                        (self.fraction_to_string(fact),\
+                                         "+".join(["JAMP(%d)" % i for i in \
+                                                   allnums[fact]])) for fact \
+                                         in sorted(allnums.keys(), reverse=True)])})
                 res_lines[-1] = res_lines[-1].replace('+-', '-')
                 res_lines[-1] = res_lines[-1].replace('+1D0*', '+')
                 res_lines[-1] = res_lines[-1].replace('/1*', '*')
 
         return res_lines
 
+    def get_jamp_factors_for_row(self, matrix_element, color_matrix, irow,
+                                 row_Nc_power, numerators):
+        """Get the series of (numerator, JAMP) for this flow number"""
+
+        color_basis = matrix_element.get('color_basis')
+        flows = matrix_element.get('color_flows')
+        nperms = len(matrix_element.get('permutations'))
+        allnums = []
+        for icol, col_bas_elem in enumerate(sorted(color_basis.keys())):
+            for diag_tuple in color_basis[col_bas_elem]:
+                iflow = diag_tuple[0]
+                iperm = diag_tuple[1][0]
+                nflow = 1 + iflow*nperms + iperm
+                column_Nc_power = flows[diag_tuple[0]].get('color_string').\
+                                  Nc_power
+                if numerators[icol]:
+                    # Only add if Nc_power large enough. Count only
+                    # half of negative Nc powers, since the singlet contribution
+                    # is put at -2 but should be -1
+                    Nc_power = color_matrix[(irow,icol)][0].Nc_power + \
+                           (row_Nc_power + column_Nc_power)//2
+                    if Nc_power >= matrix_element.get('min_Nc_power'):
+                        Nc_pow = self.Nc_power_to_fraction(column_Nc_power)
+                        allnums.append((numerators[icol] * Nc_pow,
+                                        nflow))
+        
+        return allnums
+
+    def combine_jamp_factors(self, allnums):
+        """Combine all JAMPs with the same factors"""
+
+        result = {}
+        for fact, i in allnums:
+            try:
+                result[fact].append(i)
+            except KeyError:
+                result[fact] = [i]
+
+        return result
+    
     @staticmethod
     def Nc_power_to_fraction(Nc_power):
         """Given an Nc power, return the corresponding fraction"""
