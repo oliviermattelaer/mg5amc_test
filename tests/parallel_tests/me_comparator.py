@@ -413,6 +413,27 @@ class MG5_UFO_Runner(MG5Runner):
 
         return v5_string
 
+class MG5_CO_Runner(MG5_UFO_Runner):
+    
+    name = 'CO-MG5'
+    type = 'co'
+    
+    def format_mg5_proc_card(self, proc_list, model, orders):
+        """Create a proc_card.dat string following v5 conventions."""
+
+        v5_string = "import model %s \n" % model
+        v5_string += "set color_ordering 3 \n"
+
+        couplings = ' '.join(["%s=%i" % (k, v) for k, v in orders.items()])
+
+        for i, proc in enumerate(proc_list):
+            v5_string += 'add process ' + proc + ' ' + couplings + \
+                         '@%i' % i + '\n'
+        v5_string += "output standalone %s -f\n" % \
+                     os.path.join(self.mg4_path, self.temp_dir_name)
+
+        return v5_string
+
 class MG5_CPP_Runner(MG5Runner):
     """Runner object for the MG5 C++ Standalone output."""
 

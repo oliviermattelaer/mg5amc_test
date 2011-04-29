@@ -635,6 +635,8 @@ class DiagramGenerationTest(unittest.TestCase):
 
         self.myamplitude.generate_diagrams()
         self.assertEqual(len(self.myamplitude.get('diagrams')), 3)
+        self.assertEqual(self.myamplitude.get('process').get('orders'),
+                         {'QCD': 2, 'QED': 0})
 
     def test_diagram_generation_uux_uuxng(self):
         """Test the number of diagram generated for uu~>uu~+ng with n up to 2

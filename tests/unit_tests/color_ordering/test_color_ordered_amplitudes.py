@@ -26,7 +26,10 @@ import unittest
 import madgraph.core.base_objects as base_objects
 import madgraph.core.diagram_generation as diagram_generation
 import madgraph.core.color_algebra as color
-import madgraph.color_ordering.color_ordered_amplitudes as color_ordered_amplitudes
+import madgraph.color_ordering.color_ordered_amplitudes as \
+       color_ordered_amplitudes
+import madgraph.color_ordering.color_ordered_export_v4 as \
+       color_ordered_export_v4
 import madgraph.iolibs.drawing_eps as draw
 import madgraph.iolibs.helas_call_writers as helas_call_writers
 import madgraph.iolibs.export_v4 as export_v4
@@ -387,12 +390,11 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                               'state':True})] * ngluon)
 
             myproc = base_objects.Process({'legs':myleglist,
-                                           'orders':{'QCD':ngluon},
                                            'model':self.mymodel})
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
 
             # Test the process after setup
             mycoleglist = base_objects.LegList([\
@@ -461,7 +463,6 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             self.assertEqual(len(mycolorflow.get('permutations')),
                              goal_nperms[ngluon-2])
 
-            
     def test_color_ordered_uux_uuxng(self):
         """Test the number of color flows and diagrams for uu~>uu~+ng
         """
@@ -490,7 +491,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
             #for c in self.myamplitude.get('color_flows'):
             #    print "color flow process: ",[(l.get('number'), l.get('color_ordering')) for \
             #                                   l in c.get('process').get('legs')]
@@ -541,7 +542,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
             #for c in self.myamplitude.get('color_flows'):
             #    print "color flow process: ",[(l.get('number'), l.get('color_ordering')) for \
             #                                  l in c.get('process').get('legs')]
@@ -594,7 +595,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
             #for c in self.myamplitude.get('color_flows'):
             #    print "color flow process: ",[(l.get('number'), l.get('id'),
             #                                   l.get('color_ordering')) for \
@@ -657,7 +658,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
             #for c in self.myamplitude.get('color_flows'):
             #    print "color flow process: ",[(l.get('number'), l.get('color_ordering')) for \
             #                                   l in c.get('process').get('legs')]
@@ -744,7 +745,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
             #for c in self.myamplitude.get('color_flows'):
             #    print "color flow process: ",[(l.get('number'), l.get('color_ordering')) for \
             #                                   l in c.get('process').get('legs')]
@@ -878,7 +879,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             myamplitude.set('process', myproc)
 
-            myamplitude.setup_process()
+            myamplitude.generate_diagrams()
 
             # Test the process after setup
             mycoleglist = base_objects.LegList([\
@@ -899,6 +900,42 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             #print myamplitude.get('diagrams').nice_string()
 
             self.assertEqual(ndiags, goal_ndiags[ngluon])
+
+    def test_color_ordered_multi_process(self):
+        """Test the number of color ordered diagrams gg>ng with n up to 4"""
+
+        goal_ndiags = [3, 10]
+
+        ngluon = 2
+
+        # Create the amplitude
+        myleglist = base_objects.MultiLegList([base_objects.MultiLeg({'ids':[21],
+                                          'state':False})] * 2)
+
+        myleglist.extend([base_objects.MultiLeg({'ids':[21],
+                                          'state':True})] * ngluon)
+
+        myproc = base_objects.ProcessDefinition({'legs':myleglist,
+                                       'orders':{'QCD':ngluon},
+                                       'model':self.mymodel})
+
+        mymultiproc = color_ordered_amplitudes.ColorOrderedMultiProcess(
+            myproc)
+
+        self.assertEqual(len(mymultiproc.get('amplitudes')), 1)
+
+        myamplitude = mymultiproc.get('amplitudes')[0]
+
+        self.assertEqual(len(myamplitude.get('color_flows')), 1)
+        
+        mycolorflow = myamplitude.get('color_flows')[0]
+
+        # Call generate_diagram and output number of diagrams
+        ndiags = len(mycolorflow.get('diagrams'))
+
+        self.assertEqual(ndiags, goal_ndiags[ngluon - 2])
+
+
 
 #===============================================================================
 # COHelasMatrixElementTest
@@ -1197,7 +1234,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
 
             matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                 self.myamplitude, gen_color=3, optimization=3)
@@ -1266,7 +1303,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
 
             matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
                 self.myamplitude, gen_color=False, optimization=1)
@@ -1316,7 +1353,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
@@ -1380,12 +1417,11 @@ class COHelasMatrixElementTest(unittest.TestCase):
                                               'state':True})] * nphoton)
 
             myproc = base_objects.Process({'legs':myleglist,
-                                           'orders':{'QCD':0},
                                            'model':self.mymodel})
 
             self.myamplitude.set('process', myproc)
 
-            self.myamplitude.setup_process()
+            self.myamplitude.generate_diagrams()
 
             mycolorflow = self.myamplitude.get('color_flows')[0]
 
@@ -1429,7 +1465,6 @@ class COHelasMatrixElementTest(unittest.TestCase):
                                               'state':True})] * ngluon)
 
             myproc = base_objects.Process({'legs':myleglist,
-                                           'orders':{'QCD':ngluon, 'QED': 0},
                                            'model':self.mymodel})
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
@@ -1502,7 +1537,6 @@ class COHelasMatrixElementTest(unittest.TestCase):
                                               'state':True})] * ngluon)
 
             myproc = base_objects.Process({'legs':myleglist,
-                                           'orders':{'QCD':ngluon, 'QED': 0},
                                            'model':self.mymodel})
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
@@ -1556,6 +1590,81 @@ class COHelasMatrixElementTest(unittest.TestCase):
             # Test JAMP (color amplitude) output
             #print '\n'.join(export_v4.get_JAMP_lines(mycolorflow))
 
+    def test_matrix_element_gu_gunglue(self):
+        """Test color ordered matrix elements for uu~>ng
+        """
+
+        goal_amplitudes = [2, 7, 18, 45]
+        goal_wavefunctions = [6, 10, 27, 56]
+
+        # Test 2, 3, 4 and 5 gluons in the final state
+        for ngluon in range (0, 1):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([\
+                base_objects.Leg({'id':21, 'state':False}),
+                base_objects.Leg({'id':2, 'state':False}),
+                base_objects.Leg({'id':21, 'state':True}),
+                base_objects.Leg({'id':2, 'state':True})])
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * ngluon)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'model':self.mymodel})
+
+            self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+
+            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+                self.myamplitude, gen_color=False, optimization=3)
+
+            mycolorflow = matrix_element.get('color_flows')[0]
+
+            for cf in matrix_element.get('color_flows')[1:]:
+                self.assertEqual(cf.get('permutations'),
+                                 mycolorflow.get('permutations'))
+
+            #print "\n".join(\
+            #    helas_call_writers.FortranUFOHelasCallWriter(self.mymodel).\
+            #    get_matrix_element_calls(matrix_element))
+
+            for d in mycolorflow.get('diagrams'):
+                self.assertTrue(len(d.get('amplitudes')) > 0)
+
+            # Test that wavefunctions that have been combined are
+            # not in any amplitudes
+            comb_wfs = set(sum([[m.get('number') for m in w.get('mothers')] \
+                            for w in mycolorflow.get_all_wavefunctions()\
+                            if isinstance(w, color_ordered_amplitudes.BGHelasCurrent)], []))
+            amp_wfs = set(sum([[m.get('number') for m in amp.get('mothers')] \
+                           for amp in mycolorflow.get_all_amplitudes()],\
+                          []))
+            self.assertFalse(any([num in amp_wfs for num in comb_wfs]))
+
+            # Test that all wavefunctions are used
+            wf_numbers = [w.get('number') for w in \
+                          mycolorflow.get_all_wavefunctions()]
+            mother_numbers = set(sum([[m.get('number') for m in a.get('mothers')] \
+                           for a in mycolorflow.get_all_amplitudes() + \
+                                     mycolorflow.get_all_wavefunctions()],\
+                          []))
+            self.assertTrue(all([num in mother_numbers for num in wf_numbers]))
+
+            #print "For ",ngluon," FS gluons, there are ",\
+            #      len(mycolorflow.get_all_amplitudes()),' amplitudes and ',\
+            #      len(mycolorflow.get_all_wavefunctions()),\
+            #      ' wavefunctions for ', len(mycolorflow.get('diagrams')),\
+            #      ' diagrams'
+
+            self.assertEqual(len(mycolorflow.get_all_amplitudes()),
+                             goal_amplitudes[ngluon])
+            self.assertEqual(len(mycolorflow.get_all_wavefunctions()),
+                             goal_wavefunctions[ngluon])
+
+            # Test JAMP (color amplitude) output
+            #exporter = color_ordered_export_v4.ProcessExporterFortranCO()
+            #print '\n'.join(exporter.get_JAMP_lines(mycolorflow))
+
     def test_matrix_element_uux_ddxng(self):
         """Test color flow matrix elements for uu~>dd~ng
         """
@@ -1582,7 +1691,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
                                               'state':True})] * ngluon)
 
             myproc = base_objects.Process({'legs':myleglist,
-                                           'orders':{'QCD':ngluon+2, 'QED': 0},
+                                           'orders':{'QED': 0},
                                            'model':self.mymodel})
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
@@ -1665,7 +1774,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
                                               'state':True})] * ngluon)
 
             myproc = base_objects.Process({'legs':myleglist,
-                                           'orders':{'QCD':ngluon+2, 'QED': 0},
+                                           'orders':{'QED': 0},
                                            'model':self.mymodel})
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
@@ -1753,7 +1862,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
                                               'state':True})] * ngluon)
 
             myproc = base_objects.Process({'legs':myleglist,
-                                           'orders':{'QCD':ngluon+4, 'QED': 0},
+                                           'orders':{'QED': 0},
                                            'model':self.mymodel})
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)

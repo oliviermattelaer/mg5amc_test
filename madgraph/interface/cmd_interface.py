@@ -2778,14 +2778,18 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                 self._curr_exporter = export_v4.ProcessExporterFortranMEGroup(\
                                       self._mgme_dir, self._export_dir,
                                       not noclean)
+                
             else:
                 self._curr_exporter = export_v4.ProcessExporterFortranME(\
                                       self._mgme_dir, self._export_dir,
                                       not noclean)
         elif self._export_format in ['standalone', 'matrix']:
             if self._options['color_ordering']:
+                self._curr_fortran_model = \
+                      color_ordered_export_v4.COFortranUFOHelasCallWriter(\
+                                                               self._curr_model)
                 self._curr_exporter = \
-                         color_ordered_export_v4.ProcessExporterFortranCOSA(\
+                      color_ordered_export_v4.ProcessExporterFortranCOSA(\
                                   self._mgme_dir, self._export_dir,not noclean)
             else:
                 self._curr_exporter = export_v4.ProcessExporterFortranSA(\
@@ -2864,7 +2868,9 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                     if self._options['color_ordering']:
                         self._curr_matrix_elements = \
                             color_ordered_amplitudes.COHelasMultiProcess(\
-                                                     self._curr_amps)
+                                    self._curr_amps,
+                                    gen_color = self._options['color_ordering'],
+                                    optimization = 1)
                     else:
                         self._curr_matrix_elements = \
                                  helas_objects.HelasMultiProcess(\

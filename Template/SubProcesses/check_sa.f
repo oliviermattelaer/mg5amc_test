@@ -19,8 +19,6 @@ C---  integer nexternal ! number particles (incoming+outgoing) in the me
       INCLUDE "nexternal.inc" 
 C---  particle masses
       REAL*8 PMASS(NEXTERNAL)	
-C---  integer    n_max_cg
-      INCLUDE "ngraphs.inc"     !how many diagrams (could be useful to know...)
 
 C     
 C     LOCAL

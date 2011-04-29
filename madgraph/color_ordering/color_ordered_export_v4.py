@@ -31,6 +31,7 @@ import madgraph.iolibs.drawing_eps as draw
 import madgraph.iolibs.export_v4 as export_v4
 import madgraph.iolibs.files as files
 import madgraph.iolibs.group_subprocs as group_subprocs
+import madgraph.iolibs.helas_call_writers as helas_call_writers
 import madgraph.iolibs.misc as misc
 import madgraph.iolibs.file_writers as writers
 import madgraph.iolibs.gen_infohtml as gen_infohtml
@@ -99,6 +100,10 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         nwavefuncs = flow.get_number_of_wavefunctions()
         replace_dict['nwavefuncs'] = nwavefuncs
 
+        # Extract IC data line
+        ic_data_line = self.get_ic_data_line(flow)
+        replace_dict['ic_data_line'] = ic_data_line
+
         # Extract helas calls
         helas_calls = fortran_model.get_matrix_element_calls(flow)
         replace_dict['helas_calls'] = "\n".join(helas_calls)
@@ -116,6 +121,23 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         writer.writelines(file)
 
         return len(filter(lambda call: call.find('#') != 0, helas_calls))
+
+    def get_ic_data_line(self, flow):
+        """Get the IC line, giving sign for external HELAS wavefunctions"""
+
+        ret_line = "DATA IC/"
+        for wf in flow.get_external_wavefunctions():
+            if wf.is_fermion():
+                # For fermions, need particle/antiparticle
+                ret_line += "%d" % (- (-1) ** wf.get('is_part'))
+            else:
+                # For boson, need initial/final
+                ret_line += "%d" % ((-1) ** (wf.get('state') == 'initial'))
+            ret_line += ','
+
+        ret_line = ret_line[:-1] + '/'
+        
+        return ret_line
 
 #===============================================================================
 # ProcessExporterFortranCOSA
@@ -300,15 +322,11 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         nperms = len(matrix_element.get('permutations'))
         for iperm in range(nperms):
-            return_lines.extend([\
-                "C     Set momenta according to permutation %d" % (iperm + 1),
-                "CALL SWITCHMOM(P,P1,PERMS(1,%d),JC,NEXTERNAL)" % (iperm + 1)])
             for iflow, flow in enumerate(matrix_element.get('color_flows')):
-                return_lines.append("JAMP(%d) = FLOW%d(P1,NHEL,IC)" % \
-                                    (1 + iperm + iflow * nperms, iflow + 1))
+                return_lines.append("JAMP(%d) = FLOW%d(P,NHEL,PERMS(1,%d))" \
+                           % (1 + iperm + iflow * nperms, iflow + 1, iperm + 1))
 
         return return_lines
-
     def get_color_sum_lines(self, matrix_element):
         """Write out the data lines defining the permutations"""
 
@@ -331,7 +349,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                 continue
             flow = matrix_element.get('color_flows')[icol // ncolor]
             res_lines.append(\
-                'MATRIX = MATRIX + %(den)s*%(flow)s*DCONJG(%(flows)s)' % \
+                'ZTEMP = ZTEMP + %(den)s*%(flow)s*DCONJG(%(flows)s)' % \
                 {'den': "1d0/" + str(denoms[icol]),
                  'flow': 'JAMP(%d)' % (icol + 1),
                  'flows': "+".join(['%s*JAMP(%d)' % (str(numerators[i]),i + 1) \
@@ -1265,3 +1283,81 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
 
         return True
 
+
+#===============================================================================
+# FortranUFOHelasCallWriter
+#===============================================================================
+class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
+    """The class for writing Helas calls in Fortran, starting from
+    HelasWavefunctions and HelasAmplitudes. Include permutations for
+    external wavefunctions, and BGHelasCurrent calls."""
+
+    def generate_helas_call(self, argument):
+        """Routine for automatic generation of Fortran Helas calls
+        according to just the spin structure of the interaction.
+        """
+
+        if not isinstance(argument, helas_objects.HelasWavefunction) and \
+           not isinstance(argument, helas_objects.HelasAmplitude):
+            raise self.PhysicsObjectError, \
+                  "get_helas_call must be called with wavefunction or amplitude"
+        
+        call = "CALL "
+
+        call_function = None
+
+        if isinstance(argument, color_ordered_amplitudes.BGHelasCurrent):
+            # Create call for wavefunction
+            call += "sum%s%d(" % \
+                    (self.spin_dict[argument.get('mothers')[0].get('spin')],
+                                    len(argument.get('mothers')))
+            call += "W(1,%d),%s," * len(argument.get('mothers')) + \
+                    "W(1,%d))"
+            call_function = lambda wf: call % \
+                (tuple(sum([[mother.get('number'),
+                             self.write_factor(mother.get('factor'))] for \
+                            mother in wf.get('mothers')], []) + \
+                [wf.get('number')]))
+            self.add_wavefunction(argument.get_call_key(), call_function)
+            return
+
+        if isinstance(argument, helas_objects.HelasWavefunction) and \
+               not argument.get('mothers'):
+            # String is just IXXXXX, OXXXXX, VXXXXX or SXXXXX
+            call = call + self.mother_dict[\
+                argument.get_spin_state_number()]
+            # Fill out with X up to 6 positions
+            call = call + 'X' * (11 - len(call))
+            call = call + "(P(0,IP(%d)),"
+            if argument.get('spin') != 1:
+                # For non-scalars, need mass and helicity
+                call = call + "%s,NHEL(IP(%d)),"
+            call = call + "%d*IC(IP(%d)),W(1,%d))"
+            if argument.get('spin') == 1:
+                call_function = lambda wf: call % \
+                                (wf.get('number_external'),
+                                 1,
+                                 wf.get('number_external'),
+                                 wf.get('number'))
+            elif argument.is_boson():
+                call_function = lambda wf: call % \
+                                (wf.get('number_external'),
+                                 wf.get('mass'),
+                                 wf.get('number_external'),
+                                 1,
+                                 wf.get('number_external'),
+                                 wf.get('number'))
+            else:
+                call_function = lambda wf: call % \
+                                (wf.get('number_external'),
+                                 wf.get('mass'),
+                                 wf.get('number_external'),
+                                 wf.get('fermionflow'),
+                                 wf.get('number_external'),
+                                 wf.get('number'))
+        # Add the constructed function to wavefunction or amplitude dictionary
+            self.add_wavefunction(argument.get_call_key(), call_function)
+            return
+
+        # By default, call mother function
+        super(COFortranUFOHelasCallWriter, self).generate_helas_call(argument)

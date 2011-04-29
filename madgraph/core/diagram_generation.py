@@ -336,6 +336,14 @@ class Amplitude(base_objects.PhysicsObject):
         for diagram in self['diagrams']:
             diagram.calculate_orders(model)
 
+        # Set the coupling orders of the process
+        if self['diagrams']:
+            coupling_orders = {}        
+            for key in model.get_coupling_orders():
+                coupling_orders[key] = max([d.get('orders')[key] for \
+                                            d in self.get('diagrams')])
+            process.set('orders', coupling_orders)
+
         # Replace final id=0 vertex if necessary
         if not process.get('is_decay_chain'):
             for diagram in self['diagrams']:
@@ -361,7 +369,7 @@ class Amplitude(base_objects.PhysicsObject):
 
         # Sort process legs according to leg number
         self.get('process').get('legs').sort()
-        
+
         return not failed_crossing
 
     def reduce_leglist(self, curr_leglist, max_multi_to1, ref_dict_to0,

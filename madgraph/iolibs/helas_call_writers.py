@@ -879,21 +879,6 @@ class FortranUFOHelasCallWriter(UFOHelasCallWriter):
 
         call_function = None
 
-        if isinstance(argument, color_ordered_amplitudes.BGHelasCurrent):
-            # Create call for wavefunction
-            call += "sum%s%d(" % \
-                    (self.spin_dict[argument.get('mothers')[0].get('spin')],
-                                    len(argument.get('mothers')))
-            call += "W(1,%d),%s," * len(argument.get('mothers')) + \
-                    "W(1,%d))"
-            call_function = lambda wf: call % \
-                (tuple(sum([[mother.get('number'),
-                             self.write_factor(mother.get('factor'))] for \
-                            mother in wf.get('mothers')], []) + \
-                [wf.get('number')]))
-            self.add_wavefunction(argument.get_call_key(), call_function)
-            return
-
         if isinstance(argument, helas_objects.HelasAmplitude) and \
            argument.get('interaction_id') == 0:
             call = "#"

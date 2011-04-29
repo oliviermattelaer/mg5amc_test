@@ -41,6 +41,7 @@ import fractions
 import itertools
 import logging
 
+import models.import_ufo as import_ufo
 import madgraph.core.base_objects as base_objects
 import madgraph.core.color_algebra as color
 import madgraph.core.color_amp as color_amp
@@ -107,7 +108,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         if isinstance(argument, base_objects.Process):
             super(ColorOrderedAmplitude, self).__init__()
             self.set('process', argument)
-            self.setup_process()
+            self.generate_diagrams()
         elif argument != None:
             # call the mother routine
             super(ColorOrderedAmplitude, self).__init__(argument)
@@ -121,7 +122,15 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         super(ColorOrderedAmplitude, self).default_setup()
         self['color_flows'] = ColorOrderedFlowList()
 
-    def setup_process(self):
+    def get(self, name):
+        """Special get for diagrams"""
+
+        if name == 'diagrams':
+            return base_objects.DiagramList(sum([cf.get('diagrams') \
+                                for cf in self.get('color_flows')],[]))
+        return super(ColorOrderedAmplitude, self).get(name)
+
+    def generate_diagrams(self):
         """Add singlets for each color octet in model. Setup
         ColorOrderedFlows corresponding to all color flows of this
         process. Each ordering of unique particles with color triplets
@@ -278,16 +287,15 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
             # Create the color ordered flows for all combinations
             # numbers of octet and singlet gluon
-            assert 'QCD' in process.get('orders')
-            assert process.get('orders')['QCD'] <= len(process.get('legs')) - 2
             for iflow in range(max(1, ichain)):
                 coprocess = copy.copy(process)
                 coprocess.set('orders', copy.copy(process.get('orders')))
                 coprocess.set('legs', colegs)
-                coprocess.get('orders')['QCD'] = \
+                if iflow > 0:
+                    coprocess.get('orders')['QCD'] = \
                                         process.get('orders')['QCD'] - 2*iflow
-                if coprocess.get('orders')['QCD'] < 0:
-                    continue
+                    if coprocess.get('orders')['QCD'] < 0:
+                        continue
                 coprocess.get('orders')['singlet_QCD'] = 2*iflow
                 flow = ColorOrderedFlow(coprocess)
                 if flow.get('diagrams'):
@@ -295,8 +303,14 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     flow.set('permutations', same_flavor_perms[iperm])
                     # Add flow to list
                     color_flows.append(flow)
+                else:
+                    break
+                if iflow == 0:
+                    # Set coupling orders for the process
+                    process.set('orders', coprocess.get('orders'))
 
         self.set('color_flows', color_flows)
+        return self.get('diagrams')
 
 #===============================================================================
 # ColorOrderedMultiProcess
@@ -499,7 +513,7 @@ class ColorOrderedFlowList(diagram_generation.AmplitudeList):
 #===============================================================================
 # ColorOrderedModel
 #===============================================================================
-class ColorOrderedModel(base_objects.Model):
+class ColorOrderedModel(import_ufo.RestrictModel):
     """When initiated with a Model, adds negative singlets for all octets."""
     
     # Customized constructor
@@ -612,6 +626,9 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         # Factor for wavefunction in wf summation in form
         # (fraction, is_imaginary?)
         self['factor'] = (1, fractions.Fraction(1,1), False)
+        # Fermion external number (for fermion exchange factor)
+        self['fermion_number_external'] = 0
+
 
     def filter(self, name, value):
         """Filter for valid amplitude property values."""
@@ -633,6 +650,10 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
             if not isinstance(value, tuple):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid tuple" % str(value)
+        elif name == 'fermion_number_external':
+            if not isinstance(value, int):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid int" % str(value)
         else:
             super(COHelasWavefunction, self).filter(name, value)
 
@@ -652,6 +673,8 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         if name in ['compare_array', 'current_array', 'external_numbers'] and \
                not self[name]:
             self.create_arrays()
+        if name == 'fermion_number_external' and not self[name]:
+            self.set_fermion_number_external()
             
         return super(COHelasWavefunction, self).get(name)        
 
@@ -700,13 +723,22 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
                               self.get('color_string').coeff,
                               self.get('color_string').is_imaginary)        
 
+    def set_fermion_number_external(self):
+        """Set the fermion number used for fermionfactor calculation"""
+
+        if self.is_fermion() and not self.get('mothers'):
+            self['fermion_number_external'] = self['number_external']
+        elif self.is_fermion():
+            self['fermion_number_external'] = \
+                     self.find_mother_fermion().get('fermion_number_external')
+
     def calculate_fermionfactor(self):
         """Calculate the fermion factor (needed sign flips for mother
         fermions, if this wavefunction has a pair of fermion mothers,
         times the product of fermion factors of the mothers)."""
 
         # Pick out fermion mothers
-        fermion_numbers = [wf.get('number_external') for wf in \
+        fermion_numbers = [wf.get('fermion_number_external') for wf in \
                            self.get('mothers') if wf.is_fermion()]
 
         return helas_objects.HelasAmplitude.sign_flips_to_order(\
@@ -793,10 +825,10 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
         times the product of fermion factors of the mothers)."""
 
         # Pick out fermion mothers
-        fermion_numbers = [wf.get('number_external') for wf in \
+        fermion_numbers = [wf.get('fermion_number_external') for wf in \
                            self.get('mothers') if wf.is_fermion()]
 
-        return helas_objects.HelasAmplitude.sign_flips_to_order(\
+        return self.sign_flips_to_order(\
             fermion_numbers) * \
             reduce(lambda x1, x2: x1*x2, [m.get('factor')[0] for m in \
                                           self.get('mothers')])
@@ -946,8 +978,8 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
 
         # First generate full set of wavefunctions and amplitudes
         super(COHelasFlow, self).generate_helas_diagrams(amplitude,
-                                                                  optimization,
-                                                                  decay_ids)
+                                                         optimization,
+                                                         decay_ids)
         # Go through and change wavefunctions into COHelasWavefunction
         all_wavefunctions = self.get_all_wavefunctions()
         co_wavefunctions = helas_objects.HelasWavefunctionList(\
@@ -1486,6 +1518,30 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         return self.get('color_flows')[0].get_external_wavefunctions()
 
+    def get_used_lorentz(self):
+        """Return a list of (lorentz_name, conjugate, outgoing) with
+        all lorentz structures used by this HelasMultiProcess."""
+
+        helas_list = []
+
+        for me in self.get('color_flows'):
+            helas_list.extend(me.get_used_lorentz())
+
+        return list(set(helas_list))
+
+    def get_nexternal_ninitial(self):
+        """Gives (number or external particles, number of
+        incoming particles)"""
+
+        return self.get('color_flows')[0].get_nexternal_ninitial()
+
+    def get_denominator_factor(self):
+        """Calculate the denominator factor due to:
+        Averaging initial state color and spin, and
+        identical final state particles"""
+        
+        return self.get('color_flows')[0].get_denominator_factor()
+        
 #===============================================================================
 # COHelasMultiProcess
 #===============================================================================
@@ -1494,12 +1550,32 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
 
     matrix_element_class = COHelasMatrixElement
 
+    def __init__(self, argument=None, gen_color = 3, optimization = 1):
+        """Allow initialization with AmplitudeList"""
+
+        if isinstance(argument, ColorOrderedMultiProcess):
+            super(COHelasMultiProcess, self).__init__()
+            self.set('matrix_elements',
+                     self.generate_matrix_elements(argument.get('amplitudes'),
+                                                   gen_color, optimization))
+        if isinstance(argument, diagram_generation.AmplitudeList):
+            super(COHelasMultiProcess, self).__init__()
+            self.set('matrix_elements',
+                     self.generate_matrix_elements(argument, gen_color,
+                                                   optimization))
+        elif argument:
+            # call the mother routine
+            super(COHelasMultiProcess, self).__init__(argument)
+        else:
+            # call the mother routine
+            super(COHelasMultiProcess, self).__init__()
+
     #===========================================================================
     # generate_matrix_elements
     #===========================================================================
     @classmethod
-    def generate_matrix_elements(cls, amplitudes, gen_color = True,
-                                 decay_ids = []):
+    def generate_matrix_elements(cls, amplitudes, gen_color = 3,
+                                 optimization = 1, decay_ids = []):
         """Generate the HelasMatrixElements for the amplitudes,
         identifying processes with identical matrix elements, as
         defined by HelasMatrixElement.__eq__. Returns a
@@ -1530,8 +1606,9 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                          amplitude.get('process').nice_string().\
                                            replace('Process', 'process'))
                 matrix_element_list = [cls.matrix_element_class(amplitude,
-                                                          decay_ids=decay_ids,
-                                                          gen_color=gen_color)]
+                                                   decay_ids=decay_ids,
+                                                   gen_color=gen_color,
+                                                   optimization = optimization)]
             for matrix_element in matrix_element_list:
                 assert isinstance(matrix_element, helas_objects.HelasMatrixElement), \
                           "Not a HelasMatrixElement: %s" % matrix_element
@@ -1549,7 +1626,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                     # Otherwise, if the matrix element has any diagrams,
                     # add this matrix element.
                     if matrix_element.get('processes') and \
-                           matrix_element.get('diagrams'):
+                           matrix_element.get('color_flows'):
                         matrix_elements.append(matrix_element)
-            
+
         return matrix_elements

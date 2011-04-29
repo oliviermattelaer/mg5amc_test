@@ -35,8 +35,6 @@ import me_comparator
 from madgraph import MG4DIR
 mg4_path = os.getcwd()
 
-
-
 if '__main__' == __name__: 
     # Get full logging info
     logging.config.fileConfig(os.path.join(mg5_path, 'tests', '.mg5_logging.conf'))
@@ -46,10 +44,12 @@ if '__main__' == __name__:
     logging.getLogger('tutorial').setLevel(logging.ERROR)
         
     logging.basicConfig(level=logging.INFO)
-    my_proc_list=['z z > z z','w+ w- > w+ w-','g g > g g', 'u u~ > g g g', 'u u~ > e+ e- z', 't t~ > g g'
-                  'e+ e- > e+ e- e+ e-', ' g g > t t~ g', 't t~ > h > t t~']
-    #my_proc_list1 = me_comparator.create_proc_list(['u', 'u~','t','t~','g','y','z','a'], initial=1,
-    #                                              final=2)
+    #my_proc_list=['z z > z z','w+ w- > w+ w-','g g > g g', 'u u~ > g g g', 'u u~ > e+ e- z', 't t~ > g g'
+    #              'e+ e- > e+ e- e+ e-', ' g g > t t~ g', 't t~ > h > t t~']
+    #my_proc_list = me_comparator.create_proc_list(['u', 'u~','t','t~','g'],
+    #                                              initial=2, final=2)
+    my_proc_list = ['g g > g g', 'g u > g u', 'u u~ > g g','u u~ > d d~']
+    my_proc_list += ['g g > g g g', 'g u > g u g', 'u u~ > g g g']
     #my_proc_list = me_comparator.create_proc_list_enhanced(
     #    fermion, fermion, boson,
     #    initial=2, final_1=2, final_2 = 1)
@@ -76,13 +76,17 @@ if '__main__' == __name__:
     my_mg5_ufo = me_comparator.MG5_UFO_Runner()
     my_mg5_ufo.setup(mg5_path, mg4_path)
 
+    # Create a MERunner object for UFO-ALOHA-MG5
+    my_mg5_co = me_comparator.MG5_CO_Runner()
+    my_mg5_co.setup(mg5_path, mg4_path)
+
     # Create a MERunner object for C++
     my_mg5_cpp = me_comparator.MG5_CPP_Runner()
     my_mg5_cpp.setup(mg5_path, mg4_path)
 
     # Create and setup a comparator
     my_comp = me_comparator.MEComparator()
-    my_comp.set_me_runners(my_mg5, my_mg5_ufo, my_mg5_cpp)
+    my_comp.set_me_runners(my_mg5_ufo, my_mg5_co)
 
     # Run the actual comparison
     my_comp.run_comparison(my_proc_list,

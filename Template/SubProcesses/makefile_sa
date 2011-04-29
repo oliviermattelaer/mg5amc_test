@@ -4,7 +4,8 @@ LIBDIR = ../../lib/
 PROG   = check
 LINKLIBS =  -L../../lib/ -ldhelas3 -lmodel 
 LIBS = $(LIBDIR)libdhelas3.a $(LIBDIR)libmodel.a 
-PROCESS=  check_sa.o matrix.o
+PROCESS=  check_sa.o matrix.o \
+         $(patsubst %.f,%.o,$(wildcard flow*.f))
  
 %.o : %.f
 	$(g77) $(FFLAGS) -c $<
