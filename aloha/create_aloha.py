@@ -355,7 +355,8 @@ class AbstractALOHAModel(dict):
         self.model_pos = os.path.dirname(self.model.__file__)
 
         # list the external routine
-        self.external_routines = [] 
+        self.external_routines = []
+        self.sum_routines = [] 
 
         # init the dictionary
         dict.__init__(self)
@@ -511,7 +512,11 @@ class AbstractALOHAModel(dict):
                         request[l_name] = {conjugate: [outgoing]}
                         
         # Loop on the structure to build exactly what is request
-        for l_name in request:
+        for l_name, outgoing_info in request.items():
+            if l_name.startswith('sum') and outgoing_info[()] == [-1]:
+                self.sum_routines.append((l_name[3], int(l_name[4:])))
+                continue
+            
             lorentz = eval('self.model.lorentz.%s' % l_name)
             if lorentz.structure == 'external':
                 if lorentz.name not in self.external_routines:
@@ -590,6 +595,10 @@ class AbstractALOHAModel(dict):
         
         for routine in self.external_routines:
             self.locate_external(routine, language, output_dir)
+        
+        for data in self.sum_routines:
+            writer = getattr(aloha_writers, 'ALOHAWriterFor%s' % language)
+            writer.write_sum(data[0], data[1], output_dir)
         
         #self.write_aloha_file_inc(output_dir)
     
@@ -768,7 +777,7 @@ def write_aloha_file_inc(aloha_dir,file_ext, comp_ext):
     aloha_files = []
     
     # Identify the valid files
-    alohafile_pattern = re.compile(r'''_\d%s''' % file_ext)
+    alohafile_pattern = re.compile(r'''%s''' % file_ext)
     for filename in os.listdir(aloha_dir):
         if os.path.isfile(os.path.join(aloha_dir, filename)):
             if alohafile_pattern.search(filename):
