@@ -918,6 +918,11 @@ class BGHelasCurrent(COHelasWavefunction):
 
         return ('sum', tuple(res))
 
+    def find_outgoing_number(self):
+        """Return -1, to indicate that this is a special wavefunction."""
+
+        return -1
+
     
 #===============================================================================
 # COHelasFlow

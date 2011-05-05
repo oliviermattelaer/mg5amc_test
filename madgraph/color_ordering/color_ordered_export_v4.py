@@ -352,8 +352,60 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                               iperm + 1))
                 return_lines[-1] = return_lines[-1].replace('=1*', '=')
         return return_lines
+    
     def get_color_sum_lines(self, matrix_element):
         """Write out the data lines defining the permutations"""
+
+        # First calculate the color matrix, since we want to use the full
+        # color matrix for the standalone version
+        col_mat = color_amp.ColorMatrix(matrix_element.get('color_basis'),
+                                        Nc_power_min = \
+                                        matrix_element.get('min_Nc_power'))
+        color_basis = matrix_element.get('color_basis')
+        denoms = col_mat.get_line_denominators()
+        flows = matrix_element.get('color_flows')
+        nperms = len(matrix_element.get('permutations'))
+        res_lines = []
+
+        # Now go row by row in the color matrix, and collect all
+        # non-zero entries with Nc_power >= min_Nc_power
+        for icol, col_basis_elem in enumerate(sorted(color_basis.keys())):
+            numerators = col_mat.get_line_numerators(icol, denoms[icol])
+            if not any([n for n in numerators]):
+                continue
+            for diag_tuple in color_basis[col_basis_elem]:
+                iflow = diag_tuple[0]
+                iperm = diag_tuple[1][0]
+                nflow = 1 + iflow*nperms + iperm
+                Nc_power = flows[iflow].get('color_string').Nc_power
+                # Find the factors for all JAMPs that should be included in
+                # this multiplication
+                allnums = self.get_jamp_factors_for_row(matrix_element,
+                                                        col_mat,
+                                                        icol, Nc_power,
+                                                        numerators)
+                if not allnums:
+                    continue
+                allnums = self.combine_jamp_factors(allnums)
+                Nc_power = self.Nc_power_to_fraction(Nc_power)
+                res_lines.append(\
+                    'ZTEMP = ZTEMP+%(fact)s*%(flow)s/%(den)s*DCONJG(%(flows)s)' % \
+                    {'fact': self.fraction_to_string(Nc_power),
+                     'flow': 'JAMP(%d)' % nflow,
+                     'den': str(denoms[icol]),
+                     'flows': "+".join(['%s*(%s)' % \
+                                        (self.fraction_to_string(fact),\
+                                         "+".join(["JAMP(%d)" % i for i in \
+                                                   allnums[fact]])) for fact \
+                                         in sorted(allnums.keys(), reverse=True)])})
+                res_lines[-1] = res_lines[-1].replace('+-', '-')
+                res_lines[-1] = res_lines[-1].replace('+1D0*', '+')
+                res_lines[-1] = res_lines[-1].replace('/1*', '*')
+
+        return res_lines
+
+    def get_color_sum_function(self, matrix_element):
+        """Write out the function giving the color sum"""
 
         # First calculate the color matrix, since we want to use the full
         # color matrix for the standalone version
