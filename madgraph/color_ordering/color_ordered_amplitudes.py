@@ -1155,8 +1155,10 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
 
         # Set Nc power for the overall color string instead of every
         # amplitude, but only if it is negative
-        common_Nc_power = min(max([amp.get('color_string').Nc_power for amp \
-                                   in self.get_all_amplitudes()]), 0)
+        common_Nc_power = 0
+        if self.get_all_amplitudes():
+            common_Nc_power = min(max([amp.get('color_string').Nc_power for \
+                                       amp in self.get_all_amplitudes()]), 0)
         self.get('color_string').Nc_power = common_Nc_power
         for amp in self.get_all_amplitudes():
             amp.get('color_string').Nc_power -= common_Nc_power
