@@ -598,7 +598,7 @@ class AbstractALOHAModel(dict):
         
         for data in self.sum_routines:
             writer = getattr(aloha_writers, 'ALOHAWriterFor%s' % language)
-            writer.write_sum(data[0], data[1], output_dir)
+            writer.write_sum(data[0], data[1], os.path.join(output_dir, 'DHELAS'))
         
         #self.write_aloha_file_inc(output_dir)
     
