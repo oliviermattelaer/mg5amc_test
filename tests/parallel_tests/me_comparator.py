@@ -48,15 +48,6 @@ class MERunner(object):
     produced with a specific ME generator. 
     """
 
-    temp_dir_name = ""
-
-    proc_list = []
-    res_list = []
-
-    setup_flag = False
-
-    name = 'None'
-
     class MERunnerException(Exception):
         """Default Exception class for MERunner objects"""
 
@@ -88,21 +79,21 @@ class MG4Runner(MERunner):
     """Runner object for the MG4 Matrix Element generator."""
 
     mg4_path = ""
-    
-    type='v4'
-    name = 'MadGraph v4'
     compilator ='f77'
     if misc.which('gfortran'):
         compilator = 'gfortran'
     model = ''
     orders = {}
     energy = ""
-
+    
     def setup(self, mg4_path, temp_dir=None):
         """Setup routine: create a temporary copy of Template and execute the
         proper script to use the standalone mode. the temp_dir variable
         can be given to specify the name of the process directory, otherwise
         a temporary one is created."""
+
+        self.type='v4'
+        self.name = 'MadGraph v4'
 
         self.proc_list = []
         self.res_list = []
@@ -317,11 +308,13 @@ class MG5Runner(MG4Runner):
 
     mg5_path = ""
 
-    name = 'MadGraph v5'
-    type = 'v5'
-
     def setup(self, mg5_path, mg4_path, temp_dir=None):
         """Wrapper for the mg4 setup, also initializing the mg5 path variable"""
+
+        if not hasattr(self, 'name'):
+            self.name = 'MadGraph v5'
+        if not hasattr(self, 'type'):
+            self.type = 'v5'
 
         self.mg4_path = os.path.abspath(mg4_path)
 
@@ -394,10 +387,16 @@ class MG5Runner(MG4Runner):
         return v5_string
 
 class MG5_UFO_Runner(MG5Runner):
-    
-    name = 'UFO-ALOHA-MG5'
-    type = 'ufo'
-    
+        
+    def setup(self, mg5_path, mg4_path, temp_dir=None):
+        """Wrapper for the mg4 setup, also initializing the mg5 path variable"""
+
+        if not hasattr(self, 'name'):
+            self.name = 'UFO-ALOHA-MG5'
+        if not hasattr(self, 'type'):
+            self.type = 'ufo'
+        super(MG5_UFO_Runner, self).setup(mg5_path, mg4_path, temp_dir)
+
     def format_mg5_proc_card(self, proc_list, model, orders):
         """Create a proc_card.dat string following v5 conventions."""
 
@@ -415,14 +414,26 @@ class MG5_UFO_Runner(MG5Runner):
 
 class MG5_CO_Runner(MG5_UFO_Runner):
     
-    name = 'CO-MG5'
-    type = 'co'
-    
+    def setup(self, mg5_path, mg4_path, optimization = 1, color_ordering = 5,
+              temp_dir=None):
+        """Wrapper for the mg4 setup, also initializing the mg5 path variable"""
+
+        self.optimization = optimization
+        self.color_ordering = color_ordering
+
+        if not hasattr(self, 'name'):
+            self.name = 'CO-MG5-%d-%d' % (self.optimization, self.color_ordering)
+        if not hasattr(self, 'type'):
+            self.type = 'co_%d%d' %  (self.optimization, self.color_ordering)
+
+        super(MG5_UFO_Runner, self).setup(mg5_path, mg4_path, temp_dir)
+
     def format_mg5_proc_card(self, proc_list, model, orders):
         """Create a proc_card.dat string following v5 conventions."""
 
         v5_string = "import model %s \n" % model
-        v5_string += "set color_ordering 3\n"
+        v5_string += "set color_ordering %d\n" % self.color_ordering
+        v5_string += "set optimization %d\n" % self.optimization
 
         couplings = ' '.join(["%s=%i" % (k, v) for k, v in orders.items()])
 

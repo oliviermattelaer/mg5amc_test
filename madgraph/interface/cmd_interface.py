@@ -413,6 +413,10 @@ class HelpToCmd(object):
         logger.info("     of the quarks given in multi_part_label.")
         logger.info("     These processes give negligible contribution to the")
         logger.info("     cross section but have subprocesses/channels.")
+        logger.info("   color_ordering number")
+        logger.info("     (default 0) set order in 1/Nc used in color ordered generation.")
+        logger.info("   optimization number")
+        logger.info("     (default 1) regular (1) or BG current (3) color ordered amps.")
         
     def help_shell(self):
         logger.info("syntax: shell CMD (or ! CMD)")
@@ -1448,7 +1452,8 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
     _set_options = ['group_subprocesses',
                     'ignore_six_quark_processes',
                     'stdout_level',
-                    'color_ordering']
+                    'color_ordering',
+                    'optimization']
     # Variables to store object information
     _curr_model = None  #base_objects.Model()
     _curr_amps = diagram_generation.AmplitudeList()
@@ -2446,7 +2451,9 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
         self.configuration = {'pythia8_path': './pythia8',
                               'web_browser':None,
                               'eps_viewer':None,
-                              'text_editor':None}
+                              'text_editor':None,
+                              'optimization': 1,
+                              'color_ordering': 0}
         
         if not config_path:
             try:
@@ -2870,7 +2877,7 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                             color_ordered_amplitudes.COHelasMultiProcess(\
                                     self._curr_amps,
                                     gen_color = self._options['color_ordering'],
-                                    optimization = 3)
+                                    optimization = self._options['optimization'])
                     else:
                         self._curr_matrix_elements = \
                                  helas_objects.HelasMultiProcess(\
