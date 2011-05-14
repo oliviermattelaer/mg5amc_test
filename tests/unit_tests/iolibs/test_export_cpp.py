@@ -255,6 +255,7 @@ class IOExportPythia8Test(unittest.TestCase,
 
         self.mymatrixelement = helas_objects.HelasMultiProcess(myamplitude)
 
+        myproc = copy.copy(myamplitude.get('process'))
         myleglist = base_objects.LegList()
 
         myleglist.append(base_objects.Leg({'id':4,
@@ -270,9 +271,7 @@ class IOExportPythia8Test(unittest.TestCase,
                                          'state':True,
                                            'number' : 4}))
 
-        myproc = base_objects.Process({'legs':myleglist,
-                                       'model':self.mymodel,
-                                       'orders':{'QSIX':0}})
+        myproc.set('legs', myleglist)
 
         self.mymatrixelement.get('matrix_elements')[0].\
                                                get('processes').append(myproc)
@@ -338,8 +337,8 @@ namespace Pythia8
 {
 //==========================================================================
 // A class for calculating the matrix elements for
-// Process: u u~ > u u~ QSIX=0
-// Process: c c~ > c c~ QSIX=0
+// Process: u u~ > u u~ QCD=2 QED=2 QSIX=0
+// Process: c c~ > c c~ QCD=2 QED=2 QSIX=0
 //--------------------------------------------------------------------------
 
 class Sigma_sm_qqx_qqx : public Sigma2Process 
@@ -433,8 +432,8 @@ namespace Pythia8
 
 //==========================================================================
 // Class member functions for calculating the matrix elements for
-// Process: u u~ > u u~ QSIX=0
-// Process: c c~ > c c~ QSIX=0
+// Process: u u~ > u u~ QCD=2 QED=2 QSIX=0
+// Process: c c~ > c c~ QCD=2 QED=2 QSIX=0
 
 //--------------------------------------------------------------------------
 // Initialize process.
@@ -767,7 +766,7 @@ namespace Pythia8
 
 //==========================================================================
 // Class member functions for calculating the matrix elements for
-// Process: u u > six
+// Process: u u > six QCD=0 QED=0 QSIX=1
 
 //--------------------------------------------------------------------------
 // Initialize process.
@@ -1060,7 +1059,7 @@ using namespace MG5_sm;
 
 //==========================================================================
 // Class member functions for calculating the matrix elements for
-// Process: u u~ > go go
+// Process: u u~ > go go QCD=2 QED=0 QSIX=0
 
 //--------------------------------------------------------------------------
 // Initialize process.

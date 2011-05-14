@@ -211,6 +211,7 @@ class TestDiagramTag(unittest.TestCase):
                                            'state':True}))
         myleglist.append(base_objects.Leg({'id':21,
                                            'state':True}))
+
         myproc = base_objects.Process({'legs':myleglist,
                                        'model':self.base_model})
 
@@ -225,17 +226,14 @@ class TestDiagramTag(unittest.TestCase):
                 ind = tags.index(tag)
             except:
                 diagram_classes.append([idiag + 1])
-                permutations.append([tag.get_permutation()])
+                permutations.append([tag.get_external_numbers()])
                 tags.append(tag)
             else:
                 diagram_classes[ind].append(idiag + 1)
-                permutations[ind].append(tag.get_permutation())
+                permutations[ind].append(tag.get_external_numbers())
 
-        permutations = [[diagram_symmetry.base_objects.reorder_permutation(p, perms[0])\
+        permutations = [[diagram_symmetry.DiagramTag.reorder_permutation(p, perms[0])\
                          for p in perms] for perms in permutations]        
-
-        permutations = [[[p-1 for p in perm] for perm in perms] \
-                        for perms in permutations]        
 
         goal_classes =  [[1, 2, 3],
                          [4],
@@ -289,16 +287,14 @@ class TestDiagramTag(unittest.TestCase):
                 ind = tags.index(tag)
             except:
                 diagram_classes.append([idiag + 1])
-                permutations.append([tag.get_permutation()])
+                permutations.append([tag.get_external_numbers()])
                 tags.append(tag)
             else:
                 diagram_classes[ind].append(idiag + 1)
-                permutations[ind].append(tag.get_permutation())
+                permutations[ind].append(tag.get_external_numbers())
 
-        permutations = [[diagram_symmetry.base_objects.reorder_permutation(p, perms[0])\
+        permutations = [[diagram_symmetry.DiagramTag.reorder_permutation(p, perms[0])\
                          for p in perms] for perms in permutations]        
-        permutations = [[[p-1 for p in perm] for perm in perms] \
-                        for perms in permutations]        
 
         goal_classes = [[1, 8], [2, 9], [3, 10], [4, 11], [5, 12], [6, 13],
                         [7, 14], [15, 18], [16, 19], [17, 20], [21, 24],

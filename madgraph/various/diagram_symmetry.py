@@ -128,25 +128,21 @@ def find_symmetry(matrix_element):
     # to the different classes
     diagram_classes = []
     perms = []
-    try:
-        for diag, base_diagram in zip(diagrams, base_diagrams):
-            if any([vert > minvert for vert in
-                    diag.get_vertex_leg_numbers()]):
-                # Only 3-vertices allowed in configs.inc
-                continue
-            tag = DiagramTag(base_diagram)
-            try:
-                ind = diagram_tags.index(tag)
-            except ValueError:
-                diagram_classes.append([diag.get('number')])
-                perms.append([tag.get_permutation()])
-                diagram_tags.append(tag)
-            else:
-                diagram_classes[ind].append(diag.get('number'))
-                perms[ind].append(tag.get_permutation())
-    except TimeOutError:
-        # Symmetry canceled due to time limit
-        logger.warning("Cancel diagram symmetry - time exceeded")
+    for diag, base_diagram in zip(diagrams, base_diagrams):
+        if any([vert > minvert for vert in
+                diag.get_vertex_leg_numbers()]):
+            # Only 3-vertices allowed in configs.inc
+            continue
+        tag = DiagramTag(base_diagram)
+        try:
+            ind = diagram_tags.index(tag)
+        except ValueError:
+            diagram_classes.append([diag.get('number')])
+            perms.append([tag.get_external_numbers()])
+            diagram_tags.append(tag)
+        else:
+            diagram_classes[ind].append(diag.get('number'))
+            perms[ind].append(tag.get_external_numbers())
 
     for inum, diag_number in enumerate(diagram_numbers):
         if symmetry[inum] == 0:
@@ -159,14 +155,13 @@ def find_symmetry(matrix_element):
         else:
             symmetry[inum] = -diagram_classes[idx1][0]
         # Order permutations according to how to reach the first perm
-        permutations[inum] = base_objects.reorder_permutation(perms[idx1][idx2],
-                                                              perms[idx1][0])
-        permutations[inum] = [p - 1 for p in permutations[inum]]
+        permutations[inum] = DiagramTag.reorder_permutation(perms[idx1][idx2],
+                                                            perms[idx1][0])
         # ident_perms ordered according to order of external momenta
-        perm = base_objects.reorder_permutation(perms[idx1][0],
-                                                perms[idx1][idx2])
+        perm = DiagramTag.reorder_permutation(perms[idx1][0],
+                                                           perms[idx1][idx2])
         if not perm in ident_perms:
-            ident_perms.append([p-1 for p in perm])
+            ident_perms.append(perm)
 
     return (symmetry, permutations, ident_perms)
 
@@ -458,9 +453,9 @@ class DiagramTag(object):
                 legs = vertex.get('legs')
             # Add links corresponding to the relevant legs
             link = DiagramTagChainLink([leg_dict.setdefault(leg.get('number'),
-                                        DiagramTagChainLink(self.add_link(leg))) \
+                                        DiagramTagChainLink(self.link_from_leg(leg))) \
                                         for leg in legs],
-                                        self.add_vertex_id(vertex))
+                                        self.vertex_id_from_vertex(vertex))
             # Add vertex to leg_dict if not last one
             if vertex != vertex.get('legs')[-1]:
                 leg_dict[vertex.get('legs')[-1].get('number')] = link
@@ -489,13 +484,20 @@ class DiagramTag(object):
                 # We have found the central vertex
                 done = True
 
-    def get_permutation(self):
+    def get_external_numbers(self):
         """Get the order of external particles in this tag"""
 
-        return self.tag.get_permutation()
+        return self.tag.get_external_numbers()
 
-    @classmethod
-    def add_link(cls, leg):
+    @staticmethod
+    def reorder_permutation(perm, start_perm):
+        """Reorder a permutation with respect to start_perm"""
+        order = [i for (p,i) in \
+                 sorted([(p,i) for (i,p) in enumerate(perm)])]
+        return [start_perm[i]-1 for i in order]
+
+    @staticmethod
+    def link_from_leg(leg):
         """Returns the default end link for a leg: ((id, state), number).
         Note that the number is not taken into account if tag comparison,
         but is used only to extract leg permutations."""
@@ -506,8 +508,8 @@ class DiagramTag(object):
             # Distinguish identical initial state particles
             return [((leg.get('id'), leg.get('number')), leg.get('number'))]
 
-    @classmethod
-    def add_vertex_id(cls, vertex):
+    @staticmethod
+    def vertex_id_from_vertex(vertex):
         """Returns the default vertex id: just the interaction id"""
         return vertex.get('id')
 
@@ -530,32 +532,35 @@ class DiagramTagChainLink(object):
     with a comparison operator defined"""
 
     def __init__(self, objects, vertex_id = None):
-        """Initialize, either with a tuple of DiagramTagChainLinks and a
-        vertex_id, or with an object (end of the chain)"""
+        """Initialize, either with a tuple of DiagramTagChainLinks and
+        a vertex_id (defined by DiagramTag.vertex_id_from_vertex), or
+        with an external leg object (end link) defined by
+        DiagramTag.link_from_leg"""
 
         if vertex_id == None:
+            # This is an end link, corresponding to an external leg
             self.links = tuple(objects)
             self.vertex_id = 0
             self.depth = 0
-            self.end_chain = True
+            self.end_link = True
             return
-
+        # This is an internal link, corresponding to an internal line
         self.links = tuple(sorted(list(tuple(objects)), reverse=True))
         self.vertex_id = vertex_id
         self.depth = sum([l.depth for l in self.links], 1)
-        self.end_chain = False
+        self.end_link = False
 
-    def get_permutation(self):
+    def get_external_numbers(self):
         """Get the permutation of external numbers (assumed to be the
-        second entry in the end_chains"""
+        second entry in the end link tuples)"""
 
-        if self.end_chain:
+        if self.end_link:
             return [self.links[0][1]]
 
-        return sum([l.get_permutation() for l in self.links], [])
+        return sum([l.get_external_numbers() for l in self.links], [])
 
     def __lt__(self, other):
-        """Compare self with other:
+        """Compare self with other in the order:
         1. depth 2. len(links) 3. vertex id 4. measure of links"""
 
         if self == other:
@@ -580,10 +585,11 @@ class DiagramTagChainLink(object):
         return self != other and not self.__lt__(other)
 
     def __eq__(self, other):
-        """For end link, i.e., len(self.links)==1,
-        consider equal only if self.links[0][0] == other.links[0][0]"""
+        """For end link,
+        consider equal if self.links[0][0] == other.links[0][0],
+        i.e., ignore the leg number (in links[0][1])."""
 
-        if self.end_chain and other.end_chain and  \
+        if self.end_link and other.end_link and  \
                self.depth == other.depth and self.vertex_id == other.vertex_id:
             return self.links[0][0] == other.links[0][0]
         
@@ -594,7 +600,7 @@ class DiagramTagChainLink(object):
 
 
     def __str__(self):
-        if self.end_chain:
+        if self.end_link:
             return str(self.links)
         return "%s, %s; %d" % (str(self.links),
                                str(self.vertex_id),

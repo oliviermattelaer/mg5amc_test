@@ -199,7 +199,7 @@ class Amplitude(base_objects.PhysicsObject):
                 part = model.get('particle_dict')[leg.get('id')]
                 try:
                     value = part.get(charge)
-                except AttributeError:
+                except AttributeError, PhysicsObjectError:
                     value = 0
                     
                 if (leg.get('id') != part['pdg_code']) != leg['state']:
@@ -353,14 +353,19 @@ class Amplitude(base_objects.PhysicsObject):
                     # vertex, by replacing the (incoming) last leg of the
                     # next-to-last vertex with the (outgoing) leg in the
                     # last vertex
+                    vertices = copy.copy(vertices)
                     lastvx = vertices.pop()
-                    nexttolastvertex = vertices[-1]
-                    legs = nexttolastvertex.get('legs')
+                    nexttolastvertex = copy.copy(vertices.pop())
+                    legs = copy.copy(nexttolastvertex.get('legs'))
                     ntlnumber = legs[-1].get('number')
                     lastleg = filter(lambda leg: leg.get('number') != ntlnumber,
                                      lastvx.get('legs'))[0]
                     # Replace the last leg of nexttolastvertex
                     legs[-1] = lastleg
+                    nexttolastvertex.set('legs', legs)
+                    vertices.append(nexttolastvertex)
+                    diagram.set('vertices', vertices)
+
         if res:
             logger.info("Process has %d diagrams" % len(res))
 

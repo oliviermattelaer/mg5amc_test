@@ -184,6 +184,8 @@ class IOExportPythonTest(unittest.TestCase):
 
         self.mymatrixelement = helas_objects.HelasMultiProcess(myamplitude)
 
+        myproc = copy.copy(myamplitude.get('process'))
+
         myleglist = base_objects.LegList()
 
         myleglist.append(base_objects.Leg({'id':4,
@@ -199,8 +201,7 @@ class IOExportPythonTest(unittest.TestCase):
                                          'state':True,
                                            'number' : 4}))
 
-        myproc = base_objects.Process({'legs':myleglist,
-                                       'model':self.mymodel})
+        myproc.set('legs', myleglist)
 
         self.mymatrixelement.get('matrix_elements')[0].\
                                                get('processes').append(myproc)
@@ -240,8 +241,8 @@ class IOExportPythonTest(unittest.TestCase):
         # and helicities
         # for the point in phase space P(0:3,NEXTERNAL)
         #  
-        # Process: u u~ > u u~
-        # Process: c c~ > c c~
+        # Process: u u~ > u u~ QED=2 QCD=2
+        # Process: c c~ > c c~ QED=2 QCD=2
         #  
         # Clean additional output
         #
@@ -293,8 +294,8 @@ class IOExportPythonTest(unittest.TestCase):
         # Returns amplitude squared summed/avg over colors
         # for the point with external lines W(0:6,NEXTERNAL)
         #
-        # Process: u u~ > u u~
-        # Process: c c~ > c c~
+        # Process: u u~ > u u~ QED=2 QCD=2
+        # Process: c c~ > c c~ QED=2 QCD=2
         #  
         #  
         # Process parameters

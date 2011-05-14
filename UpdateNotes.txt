@@ -1,5 +1,43 @@
 Update notes for MadGraph 5 (in reverse time order)
 
+1.2.3 (11/05/11): JA: Fixed problem with scale choice in processes with mixed 
+                      QED/QCD orders, e.g. p p > t t~ QED=2. Note that this fix
+                      doesn't work for p p > t t~ j j QED=4 which should still
+                      be avoided.
+		  JA: Added the ptllmin/max options in the default run_card.dat
+
+1.2.2 (09/05/11): OM: fix ALOHA symmetries creating not gauge invariant result 
+                      for scalar octet
+
+1.2.1 (08/05/11): OM: reduce the quantity of RAM use by matrix.f
+      	          OM: support speed of psyco if this python module is installed
+                  OM: fix a minor bug in the model parsing
+                  OM: add the check of valid model.pkl also for v4 model
+                  OM: add a check that UpdatesNotes is up-to-date when
+                      making a release
+                  JA: Fixed problem in phase space generation for
+                      s-channel mass > s_tot
+
+1.2.0 (05/05/11): OM: minor fixes on check charge conjugation
+                  OM: add a check on the path for the validity of the model.pkl
+                  JA: Fixed problem with combine_runs on certain compilers
+
+1.1.2 (03/05/11): OM+JA: Fixed problem for models with multiple
+                      interactions for the same set of particles,
+                      introduced in v. 1.1.1
+ 
+1.1.1 (02/05/11): JA: Replaced (slow) diagram symmetry determination by
+                      evaluation with fast identification based on diagram tags.
+                  JA: Replacing the "p=-p" id=0 vertex produced by diagram 
+                      generation algorithm already in the diagram generation,
+                      simplifying drawing, helas objects and color.
+                  JA: Fixed compiler warnings for unary operator.
+                  JA: Always set all coupling orders for diagrams
+                      (needed for NLO implementations).
+                  OM: Improved and more elegant "open" implementation for
+                      the user interface.
+                  OM: minor fixes related to checking the gauge
+
 1.1.0 (21/04/11): JA: Removed hard limit on number of external particles in 
                       MadEvent, allowing for unlimited length decay chains there
                       (up to 14 final state particles successfully integrated).

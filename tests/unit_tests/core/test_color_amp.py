@@ -716,9 +716,9 @@ class ColorSquareTest(unittest.TestCase):
     def test_color_matrix_Nc_restrictions(self):
         """Test the Nc power restriction during color basis building """
 
-        goal = [fractions.Fraction(3, 8),
-                fractions.Fraction(-9, 4),
-                fractions.Fraction(45, 16)]
+        goal = [fractions.Fraction(19, 6),
+                fractions.Fraction(0, 1),
+                fractions.Fraction(19, 6)]
 
         for n in range(3):
             myleglist = base_objects.LegList()
@@ -747,6 +747,7 @@ class ColorSquareTest(unittest.TestCase):
                                                   Nc_power_max=2 * n)
 
             for i in range(len(col_basis.items())):
+                #print col_matrix.col_matrix_fixed_Nc[(i, i)]
                 self.assertEqual(col_matrix.col_matrix_fixed_Nc[(i, i)],
                                  (goal[n], 0))
 

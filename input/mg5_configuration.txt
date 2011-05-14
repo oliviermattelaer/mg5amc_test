@@ -26,6 +26,7 @@ pythia8_path = ./pythia8
 # Prefered Text Editor
 #  Default: use the shell default Editor
 #           or try to find one available on the system
+#  Be careful: Only shell based editor are allowed
 text_editor = None
 
 # Prefered WebBrower
