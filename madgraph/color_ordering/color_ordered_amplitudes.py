@@ -47,6 +47,7 @@ import madgraph.core.color_algebra as color
 import madgraph.core.color_amp as color_amp
 import madgraph.core.diagram_generation as diagram_generation
 import madgraph.core.helas_objects as helas_objects
+import madgraph.various.diagram_symmetry as diagram_symmetry
 from madgraph import MadGraph5Error
 
 logger = logging.getLogger('madgraph.color_ordered_amplitudes')
@@ -766,6 +767,51 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
             reduce(lambda x1, x2: x1*x2, [m.get('factor')[0] for m in \
                                           self.get('mothers')])
         
+    def get_base_vertices(self, wf_dict, vx_list = [], optimization = 1):
+        """Recursive method to get a list of base_objects.VertexList,
+        corresponding to this wavefunction and its mothers."""
+
+        vertices = base_objects.VertexList()
+        vertex_lists = [vertices]
+        
+        mothers = self.get('mothers')
+
+        if not mothers:
+            return vertex_lists
+
+        # Add vertices for all mothers
+        for mother in mothers:
+            # This is where recursion happens
+            mother_vertices = mother.get_base_vertices(\
+                wf_dict, vx_list,optimization)
+            new_vertex_lists = []
+            for vertex in mother_vertices:
+                new_vertex_list = [copy.copy(v) for v in vertex_lists]
+                for v in new_vertex_list:
+                    v.extend(vertex)
+                new_vertex_lists.extend(new_vertex_list)
+            vertex_lists = new_vertex_lists
+
+        vertex = self.get_base_vertex(wf_dict, vx_list, optimization)
+
+        try:
+            index = vx_list.index(vertex)
+            vertex = vx_list[index]
+        except ValueError:
+            pass
+        
+        for vertices in vertex_lists:
+            vertices.append(vertex)
+
+        return vertex_lists
+
+    def get_wf_numbers(self):
+        """Recursive function returning the set of wavefunction
+        numbers that correspond to this wavefunction and its mothers."""
+
+        numbers = sum([list(m.get_wf_numbers()) for m in self.get('mothers')], [])
+        numbers.append(self.get('number'))
+        return set(numbers)
 
 #===============================================================================
 # COHelasAmplitude
@@ -853,6 +899,43 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
             reduce(lambda x1, x2: x1*x2, [m.get('factor')[0] for m in \
                                           self.get('mothers')])
         
+    def get_base_diagram(self, wf_dict, vx_list = [], optimization = 1):
+        """Return the list of base_objects.Diagram which corresponds to this
+        amplitude, using a recursive method for the wavefunctions."""
+
+        vertices = base_objects.VertexList()
+        vertex_lists = [vertices]
+
+        # Add vertices for all mothers
+        for mother in self.get('mothers'):
+            # This is where recursion happens
+            mother_vertices = mother.get_base_vertices(\
+                wf_dict, vx_list,optimization)
+            new_vertex_lists = []
+            for vertex in mother_vertices:
+                new_vertex_list = [copy.copy(v) for v in vertex_lists]
+                for v in new_vertex_list:
+                    v.extend(vertex)
+                new_vertex_lists.extend(new_vertex_list)
+            vertex_lists = new_vertex_lists
+
+        # Generate last vertex
+        vertex = self.get_base_vertex(wf_dict, vx_list, optimization)
+
+        diagrams = base_objects.DiagramList()
+        for vertices in vertex_lists:
+            vertices.append(vertex)
+            diagrams.append(base_objects.Diagram({'vertices': vertices}))
+
+        return diagrams
+
+    def get_wf_numbers(self):
+        """Recursive function returning the set of wavefunction
+        numbers that correspond to this wavefunction and its mothers."""
+
+        numbers = sum([list(m.get_wf_numbers()) for m in self.get('mothers')], [])
+        return set(numbers)
+
 #===============================================================================
 # BGHelasCurrent
 #===============================================================================
@@ -923,7 +1006,25 @@ class BGHelasCurrent(COHelasWavefunction):
 
         return -1
 
-    
+    def get_base_vertices(self, wf_dict, vx_list = [], optimization = 1):
+        """Returns a list of base_objects.VertexList,
+        corresponding to the wavefunctions of the mothers."""
+
+        mothers = self.get('mothers')
+
+        vertex_lists = []
+
+        # Add vertices for all mothers
+        for mother in mothers:
+            # This is where recursion happens
+            vertices = mother.get_base_vertices(\
+                wf_dict, vx_list,optimization)
+            for vertex in vertices:
+                if not vertex in vertex_lists:
+                    vertex_lists.append(vertex)
+
+        return vertex_lists
+
 #===============================================================================
 # COHelasFlow
 #===============================================================================
@@ -1142,6 +1243,11 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             diagram.set('amplitudes', left_amplitudes)
             diagram.set('wavefunctions', helas_objects.HelasWavefunctionList())
 
+        # Now filter diagrams to remove diagrams that have already
+        # been accounted for by BG currents (since it is possible to
+        # get double-counting due to this)
+        if optimization > 1:
+            self.filter_diagrams(left_diagrams, combined_wavefunctions)
         # Set diagram numbers
         for i,d in enumerate(left_diagrams):
             d.set('number', i+1)
@@ -1396,6 +1502,91 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                 
         return color_string
     
+    def get_base_amplitude(self):
+        """Generate a diagram_generation.Amplitude from a
+        HelasCOFlow. Note that this is not supposed to be used for
+        color generation."""
+
+        # Need to take care of diagram numbering for decay chains
+        # before this can be used for those!
+
+        optimization = 1
+        if len(filter(lambda wf: wf.get('number') == 1,
+                      self.get_all_wavefunctions())) > 1:
+            optimization = 0
+
+        model = self.get('processes')[0].get('model')
+
+        wf_dict = {}
+        vx_list = []
+        diagrams = base_objects.DiagramList()
+        for diag in self.get('diagrams'):
+            diagrams.extend(diag.get('amplitudes')[0].get_base_diagram(\
+                wf_dict, vx_list, optimization))
+
+        for diag in diagrams:
+            diag.calculate_orders(self.get('processes')[0].get('model'))
+            
+        return diagram_generation.Amplitude({\
+            'process': self.get('processes')[0],
+            'diagrams': diagrams})
+
+    def filter_diagrams(self, diagrams, wavefunctions):
+        """Filter diagrams to ensure that we don't have double
+        counting, which can happen if a BGHelasCurrent includes
+        wavefunctions that give diagrams that would otherwise not have
+        given currents.
+
+        Algorithm: Generate all base_diagrams, and sort according to
+        number of base_diagrams (i.e., diagrams with most BG currents
+        first). Create diagram tags, and ensure that we don't get
+        double counting."""
+
+        diagram_tags = []
+        final_diagrams = helas_objects.HelasDiagramList()
+        # We are using the diagram tag on base_diagrams generated from these diagrams
+
+        optimization = 0
+        wf_dict = {}
+        vx_list = []
+        base_diagrams = [(d.get('amplitudes')[0].get_base_diagram(\
+                wf_dict, vx_list, optimization), i) for (i,d) in \
+                         enumerate(diagrams)]
+
+        base_diagrams.sort(key=lambda d: len(d[0]), reverse=True)
+        for diagram in base_diagrams:
+            print "Diagram ",diagram[1]
+            for d in diagram[0]:
+                print d.nice_string()
+            this_diagram_tags = [FilterDiagramTag(d) for d in diagram[0]]
+            if not any([dt in diagram_tags for dt in this_diagram_tags]):
+                final_diagrams.append(diagrams[diagram[1]])
+                diagram_tags.extend(this_diagram_tags)
+                print "Diagram added"
+            else:
+                assert not any([dt not in diagram_tags for dt in \
+                                this_diagram_tags])
+                print "Diagram rejected"
+                
+        diagrams[:] = final_diagrams
+        diagrams.sort(key = lambda d: d.get('number'))
+        # Determine which wavefunctions are still needed
+        wf_numbers = set(sum([list(d.get('amplitudes')[0].get_wf_numbers()) \
+                              for d in diagrams], []))
+        wavefunctions[:] = [wf for wf in wavefunctions if wf.get('number') in \
+                            wf_numbers]
+        
+class FilterDiagramTag(diagram_symmetry.DiagramTag):
+    """Subclass of DiagramTag which identifies actual identical diagrams,
+    based on the external leg numbers."""
+    
+    @staticmethod
+    def link_from_leg(leg):
+        """Returns the default end link for a leg: ((id, state), number).
+        Note that the number is not taken into account if tag comparison,
+        but is used only to extract leg permutations."""
+        return [(leg.get('number'), leg.get('number'))]
+
 #===============================================================================
 # COHelasFlowList
 #===============================================================================

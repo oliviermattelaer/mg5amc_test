@@ -465,7 +465,7 @@ class DiagramTag(object):
 
         # Now make sure to find the central vertex in the diagram,
         # defined by the longest leg being as short as possible
-        done = False
+        done = max([l.depth for l in self.tag.links]) == 0
         while not done:
             # Identify the longest chain in the tag
             longest_chain = self.tag.links[0]
@@ -547,7 +547,10 @@ class DiagramTagChainLink(object):
         # This is an internal link, corresponding to an internal line
         self.links = tuple(sorted(list(tuple(objects)), reverse=True))
         self.vertex_id = vertex_id
-        self.depth = sum([l.depth for l in self.links], 1)
+        # depth = sum(depth for links) + max(1, len(self.links)-1)
+        # in order to get depth 2 for a 4-particle vertex
+        self.depth = sum([l.depth for l in self.links],
+                         max(1, len(self.links)-1))
         self.end_link = False
 
     def get_external_numbers(self):

@@ -16,7 +16,6 @@
 
 import madgraph.core.base_objects as base_objects
 import madgraph.core.helas_objects as helas_objects
-import madgraph.color_ordering.color_ordered_amplitudes as color_ordered_amplitudes
 import aloha.aloha_writers as aloha_writers
 from madgraph import MadGraph5Error
 
