@@ -2796,7 +2796,7 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
             ndiags = 0
             if not self._curr_matrix_elements.get_matrix_elements():
                 if self._options['group_subprocesses'] and \
-                       self._export_format == 'madevent':
+                       self._export_format in ['madevent', 'pythia8']:
                     cpu_time1 = time.time()
                     dc_amps = [amp for amp in self._curr_amps if isinstance(amp, \
                                         diagram_generation.DecayChainAmplitude)]
@@ -2865,7 +2865,7 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
         # distinguish between grouped and ungrouped subprocesses
 
         # MadEvent
-        if self._export_format == 'madevent':
+        if self._export_format in ['madevent']:
             if isinstance(self._curr_matrix_elements, group_subprocs.SubProcessGroupList):
                 for (group_number, me_group) in enumerate(self._curr_matrix_elements):
                     calls = calls + \
@@ -2907,10 +2907,8 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                             process_number = group_number, path = path)
                     process_names.append(exporter.process_name)
             else:
-                exporter = export_cpp.generate_process_files_pythia8(\
-                            self._curr_matrix_elements, self._curr_cpp_model,
-                            process_string = self._generate_info, path = path)
-                process_names.append(exporter.process_file_name)
+                raise MadGraph5Error, \
+                      "Pythia 8 output requires group_subprocesses = True"
 
             # Generate the main program file
             filename, make_filename = \
