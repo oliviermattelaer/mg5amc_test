@@ -74,7 +74,18 @@ class ProcessExporterFortran(object):
                       "No valid MG_ME path given for MG4 run directory creation."
             logger.info('initialize a new directory: %s' % \
                         os.path.basename(self.dir_path))
-            shutil.copytree(os.path.join(self.mgme_dir, 'Template'), self.dir_path, True)
+            shutil.copytree(os.path.join(self.mgme_dir, 'Template'),
+                            self.dir_path, True)
+            # Duplicate run_card and plot_card
+            for card in ['run_card', 'plot_card']:
+                try:
+                    shutil.copy(os.path.join(self.dir_path, 'Cards',
+                                             card + '.dat'),
+                               os.path.join(self.dir_path, 'Cards',
+                                            card + '_default.dat'))
+                except IOError:
+                    info.warning("Failed to copy " + card + ".dat to default")
+                    
         elif not os.path.isfile(os.path.join(self.dir_path, 'TemplateVersion.txt')):
             if not self.mgme_dir:
                 raise MadGraph5Error, \
@@ -667,6 +678,39 @@ class ProcessExporterFortran(object):
 
         return res_str + '*'
 
+    def set_compiler(self, default_compiler):
+        """Set compiler based on what's available on the system"""
+        
+        # Check for compiler
+        if misc.which('g77'):
+            compiler = 'g77'
+        elif misc.which('gfortran'):
+            compiler = 'gfortran'
+        elif misc.which('f77'):
+            compiler = 'f77'
+        else:
+            # Use g77 as default
+            compiler = 'g77'
+        logger.info('Use Fortran compiler ' + compiler)
+        self.replace_make_opt_compiler(compiler)
+        # Replace also for Template
+        self.replace_make_opt_compiler(compiler, os.path.join(MG5DIR, 'Template'))
+
+    def replace_make_opt_compiler(self, compiler, root_dir = ""):
+        """Set FC=compiler in Source/make_opts"""
+
+        if not root_dir:
+            root_dir = self.dir_path
+        make_opts = os.path.join(root_dir, 'Source', 'make_opts')
+        lines = open(make_opts).read().split('\n')
+        FC_re = re.compile('^(\s*)FC\s*=\s*.+\s*$')
+        for iline, line in enumerate(lines):
+            FC_result = FC_re.match(line)
+            if FC_result:
+                lines[iline] = FC_result.group(1) + "FC=" + compiler
+        outfile = open(make_opts, 'w')
+        outfile.write('\n'.join(lines))
+
 #===============================================================================
 # ProcessExporterFortranSA
 #===============================================================================
@@ -699,12 +743,9 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
 
         source_dir = os.path.join(self.dir_path, "Source")
         logger.info("Running make for Helas")
-        subprocess.call(['make', '../lib/libdhelas3.a'],
-                        stdout = open(os.devnull, 'w'), cwd=source_dir)
+        misc.compile(arg=['../lib/libdhelas.a'], cwd=source_dir, mode='fortran')
         logger.info("Running make for Model")
-        subprocess.call(['make', '../lib/libmodel.a'],
-                        stdout = open(os.devnull, 'w'), cwd=source_dir)
-
+        misc.compile(arg=['../lib/libmodel.a'], cwd=source_dir, mode='fortran')
 
     #===========================================================================
     # Create proc_card_mg5.dat for Standalone directory
@@ -713,11 +754,7 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
                               online = False):
         """Finalize Standalone MG4 directory by generation proc_card_mg5.dat"""
 
-        if not misc.which('g77'):
-            logger.info('Change makefiles to use gfortran')
-            subprocess.call(['python','./bin/Passto_gfortran.py'], cwd=self.dir_path, \
-                            stdout = open(os.devnull, 'w')) 
-
+        self.set_compiler('g77')
         self.make()
 
         # Write command history as proc_card_mg5
@@ -967,7 +1004,7 @@ class ProcessExporterFortranME(ProcessExporterFortran):
 
         filename = 'dname.mg'
         self.write_dname_file(writers.FortranWriter(filename),
-                         matrix_element.get('processes')[0].shell_string())
+                         "P"+matrix_element.get('processes')[0].shell_string())
 
         filename = 'iproc.dat'
         self.write_iproc_file(writers.FortranWriter(filename),
@@ -1104,10 +1141,8 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         # Touch "done" file
         os.system('touch %s/done' % os.path.join(self.dir_path,'SubProcesses'))
 
-        if not misc.which('g77'):
-            logger.info('Change makefiles to use gfortran')
-            subprocess.call(['python','./bin/Passto_gfortran.py'], cwd=self.dir_path, \
-                            stdout = open(os.devnull, 'w')) 
+        # Check for compiler
+        self.set_compiler('g77')
 
         old_pos = os.getcwd()
         os.chdir(os.path.join(self.dir_path, 'SubProcesses'))
@@ -1154,8 +1189,7 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         if os.path.exists(os.path.join('SubProcesses', 'subproc.mg')):
             if os.path.exists('madevent.tar.gz'):
                 os.remove('madevent.tar.gz')
-            subprocess.call(['make'], stdout = devnull)
-
+            misc.compile(mode='None')
 
         if online:
             # Touch "Online" file
@@ -2336,12 +2370,20 @@ class UFO_model_to_mg4(object):
         replace = lambda match_pattern: change[match_pattern.groups()[0]]
         
         rep_pattern = re.compile(re_expr % '|'.join(to_change))
+        
+        # change parameters
         for key in keys:
             if key == ('external',):
                 continue
             for param in self.model['parameters'][key]: 
                 param.expr = rep_pattern.sub(replace, param.expr)
             
+        # change couplings
+        for key in self.model['couplings'].keys():
+            for coup in self.model['couplings'][key]:
+                coup.expr = rep_pattern.sub(replace, coup.expr)
+
+
         
     def refactorize(self, wanted_couplings = []):    
         """modify the couplings to fit with MG4 convention """

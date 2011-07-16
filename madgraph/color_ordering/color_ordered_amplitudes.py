@@ -47,7 +47,6 @@ import madgraph.core.color_algebra as color
 import madgraph.core.color_amp as color_amp
 import madgraph.core.diagram_generation as diagram_generation
 import madgraph.core.helas_objects as helas_objects
-import madgraph.various.diagram_symmetry as diagram_symmetry
 from madgraph import MadGraph5Error
 
 logger = logging.getLogger('madgraph.color_ordered_amplitudes')
@@ -1576,12 +1575,12 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         wavefunctions[:] = [wf for wf in wavefunctions if wf.get('number') in \
                             wf_numbers]
         
-class FilterDiagramTag(diagram_symmetry.DiagramTag):
+class FilterDiagramTag(diagram_generation.DiagramTag):
     """Subclass of DiagramTag which identifies actual identical diagrams,
     based on the external leg numbers."""
     
     @staticmethod
-    def link_from_leg(leg):
+    def link_from_leg(leg, model):
         """Returns the default end link for a leg: ((id, state), number).
         Note that the number is not taken into account if tag comparison,
         but is used only to extract leg permutations."""

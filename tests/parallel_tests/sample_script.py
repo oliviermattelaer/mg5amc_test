@@ -44,11 +44,9 @@ if '__main__' == __name__:
     logging.getLogger('tutorial').setLevel(logging.ERROR)
         
     logging.basicConfig(level=logging.INFO)
-    #my_proc_list=['z z > z z','w+ w- > w+ w-','g g > g g', 'u u~ > g g g', 'u u~ > e+ e- z', 't t~ > g g'
-    #              'e+ e- > e+ e- e+ e-', ' g g > t t~ g', 't t~ > h > t t~']
-    #my_proc_list = me_comparator.create_proc_list(['u', 'u~','t','t~','g'],
-    #                                              initial=2, final=2)
-    #my_proc_list = ['g g > go go', 'g g > go go g', 'u u > ul ul','u u~ > go u ur~', 'u u~ > go u ur~ g']
+    #my_proc_list=['g g > h g', 'g g > h g g', 'g g > h g g g', 'g g > h g g g g']
+    my_proc_list = me_comparator.create_proc_list(['u', 'u~','t','t~','g','z','a', 'h'],
+                                                  initial=2, final=2)
     #my_proc_list = me_comparator.create_proc_list_enhanced(
     #    fermion, fermion, boson,
     #    initial=2, final_1=2, final_2 = 1)
@@ -57,6 +55,9 @@ if '__main__' == __name__:
     my_proc_list += ['g g > g g g g', 'u u~ > g g g g', 'u u~ > u u~ d d~']
     my_proc_list = ['u u~ > u u~ d d~ d d~','u u~ > u u~ u u~', 'd d~ > u u~ u u~', 'g g > u u~ u u~']
     my_proc_list = ['g g > g g g g']
+
+    # Set the model we are working with
+    model = 'sm'
 
     # Create a MERunner object for MG4
     #my_mg4 = me_comparator.MG4Runner()
@@ -93,12 +94,12 @@ if '__main__' == __name__:
 
     # Run the actual comparison
     my_comp.run_comparison(my_proc_list,
-                           model='sm',
+                           model=model,
                            orders={}, energy=2000)
 
     # Do some cleanup
     #my_comp.cleanup()
-    filename='mssm_results.log'
+    filename=model+'_results.log'
 
     # Print the output
     my_comp.output_result(filename=filename)
