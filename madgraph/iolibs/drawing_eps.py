@@ -239,7 +239,8 @@ class EpsDiagramDrawer(draw.DiagramDrawer):
                                                             #zero.
 
         mystr = " (%s)" % ", ".join(["%s=%d" % (key, self.diagram.diagram['orders'][key]) \
-                                        for key in self.diagram.diagram['orders'].keys()])
+                      for key in sorted(self.diagram.diagram['orders'].keys()) \
+                      if key != 'WEIGHTED'])
         
         x = 0.6
         y = -0.17
@@ -455,7 +456,7 @@ class MultiEpsDiagramDrawer(EpsDiagramDrawer):
         # Loop on all diagram
         for diagram in diagramlist:
             # Check if they need to be convert in correct format
-            diagram = self.convert_diagram(diagram, self.model, '', opt)
+            diagram = self.convert_diagram(diagram, self.model, self.amplitude, opt)
             # Write the code associate to this diagram
             self.draw_diagram(diagram)
 

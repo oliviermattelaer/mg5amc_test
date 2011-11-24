@@ -13,7 +13,7 @@ c
       integer    min_events_channel         !Minimum number of events
       parameter (min_events_channel = 1000) !per iteration in each channel
       integer    iter_survey                !Number of iterations for survey
-      parameter (iter_survey=3)
+      parameter (iter_survey=5)             ! JA 8/17/11
 c     The following sets the maximum number of parameters in the run_card.dat
       integer maxpara
       parameter (maxpara=1000)
@@ -52,4 +52,4 @@ c
       integer      npoints_wu,        itmax_wu !warmup # points/iterations
       parameter   (npoints_wu = 2000, itmax_wu = 8)
       integer      min_gevents_wu
-      parameter   (min_gevents_wu=1000)   !Minumum # unweighted events to generate from channel
+      parameter   (min_gevents_wu=200)   !Minumum # unweighted events to generate from channel

@@ -122,12 +122,12 @@ class TestCmdShell1(unittest.TestCase):
         if sys.platform == 'darwin':
             self.assertEqual(launch_ext.open_file.web_browser, None)
             self.assertEqual(launch_ext.open_file.text_editor, text_editor)
-            self.assertEqual(launch_ext.open_file.web_browser, None)
+            self.assertEqual(launch_ext.open_file.eps_viewer, None)
         else:
             self.assertEqual(launch_ext.open_file.web_browser, 'firefox')
             self.assertEqual(launch_ext.open_file.text_editor, text_editor)
-            self.assertEqual(launch_ext.open_file.web_browser, 'gv')            
-
+            self.assertEqual(launch_ext.open_file.eps_viewer, 'gv')
+                        
 class TestCmdShell2(unittest.TestCase,
                     test_file_writers.CheckFileCreate):
     """Test all command line related to MG_ME"""
@@ -185,6 +185,10 @@ class TestCmdShell2(unittest.TestCase,
                                                     'SubProcesses',
                                                     'P0_epem_epem',
                                                     'maxconfigs.inc')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                                    'SubProcesses',
+                                                    'P0_epem_epem',
+                                                    'get_color.f')))
         self.assertFalse(os.path.exists(os.path.join(self.out_dir,
                                                     'SubProcesses',
                                                     'P0_epem_epem',
@@ -671,6 +675,10 @@ class TestCmdShell2(unittest.TestCase,
                                                     'SubProcesses',
                                                     'P2_gg_qq',
                                                     'maxconfigs.inc')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                                    'SubProcesses',
+                                                    'P2_gg_qq',
+                                                    'get_color.f')))
         # Check that the Source directory compiles
         status = subprocess.call(['make'],
                                  stdout=devnull, 
@@ -799,15 +807,15 @@ class TestCmdShell2(unittest.TestCase,
                                            'SubProcesses',
                                            'P0_qq_gogo_go_qqn1_go_qqn1',
                                            'symfact.dat')).read(),
-                         """1.030     1
+                         """     1     1
      2    -1
      3    -1
      4    -1
-5.030     1
+     5     1
      6    -5
      7    -5
      8    -5
-9.030     1
+     9     1
     10    -9
     11    -9
     12    -9

@@ -469,53 +469,53 @@ class SubProcessGroupTest(unittest.TestCase):
         
         self.assertEqual(dc_subproc_group.nice_string(),
 """Group 1:
-  Process: d d~ > u u~ z QED=1 QCD=2
+  Process: d d~ > u u~ z QCD=2 QED=1 WEIGHTED=4
   4 diagrams:
-  1  ((1(-1),2(1)>1(21),id:5),(3(2),5(23)>3(2),id:8),(1(21),3(2),4(-2),id:3)) (QED=1,QCD=2)
-  2  ((1(-1),2(1)>1(21),id:5),(4(-2),5(23)>4(-2),id:8),(1(21),3(2),4(-2),id:3)) (QED=1,QCD=2)
-  3  ((1(-1),5(23)>1(-1),id:9),(3(2),4(-2)>3(21),id:3),(1(-1),2(1),3(21),id:5)) (QED=1,QCD=2)
-  4  ((2(1),5(23)>2(1),id:9),(3(2),4(-2)>3(21),id:3),(1(-1),2(1),3(21),id:5)) (QED=1,QCD=2)
-  Process: u u > u u z QED=1 QCD=2
+  1  ((1(-1),2(1)>1(21),id:5),(3(2),5(23)>3(2),id:8),(1(21),3(2),4(-2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  2  ((1(-1),2(1)>1(21),id:5),(4(-2),5(23)>4(-2),id:8),(1(21),3(2),4(-2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  3  ((1(-1),5(23)>1(-1),id:9),(3(2),4(-2)>3(21),id:3),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
+  4  ((2(1),5(23)>2(1),id:9),(3(2),4(-2)>3(21),id:3),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
+  Process: u u > u u z QCD=2 QED=1 WEIGHTED=4
   8 diagrams:
-  1  ((1(-2),3(2)>1(21),id:3),(2(-2),5(23)>2(-2),id:8),(1(21),2(-2),4(2),id:3)) (QED=1,QCD=2)
-  2  ((1(-2),3(2)>1(21),id:3),(4(2),5(23)>4(2),id:8),(1(21),2(-2),4(2),id:3)) (QED=1,QCD=2)
-  3  ((1(-2),4(2)>1(21),id:3),(2(-2),5(23)>2(-2),id:8),(1(21),2(-2),3(2),id:3)) (QED=1,QCD=2)
-  4  ((1(-2),4(2)>1(21),id:3),(3(2),5(23)>3(2),id:8),(1(21),2(-2),3(2),id:3)) (QED=1,QCD=2)
-  5  ((1(-2),5(23)>1(-2),id:8),(2(-2),3(2)>2(21),id:3),(1(-2),2(21),4(2),id:3)) (QED=1,QCD=2)
-  6  ((1(-2),5(23)>1(-2),id:8),(2(-2),4(2)>2(21),id:3),(1(-2),2(21),3(2),id:3)) (QED=1,QCD=2)
-  7  ((2(-2),3(2)>2(21),id:3),(4(2),5(23)>4(2),id:8),(1(-2),2(21),4(2),id:3)) (QED=1,QCD=2)
-  8  ((2(-2),4(2)>2(21),id:3),(3(2),5(23)>3(2),id:8),(1(-2),2(21),3(2),id:3)) (QED=1,QCD=2)
+  1  ((1(-2),3(2)>1(21),id:3),(2(-2),5(23)>2(-2),id:8),(1(21),2(-2),4(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  2  ((1(-2),3(2)>1(21),id:3),(4(2),5(23)>4(2),id:8),(1(21),2(-2),4(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  3  ((1(-2),4(2)>1(21),id:3),(2(-2),5(23)>2(-2),id:8),(1(21),2(-2),3(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  4  ((1(-2),4(2)>1(21),id:3),(3(2),5(23)>3(2),id:8),(1(21),2(-2),3(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  5  ((1(-2),5(23)>1(-2),id:8),(2(-2),3(2)>2(21),id:3),(1(-2),2(21),4(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  6  ((1(-2),5(23)>1(-2),id:8),(2(-2),4(2)>2(21),id:3),(1(-2),2(21),3(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  7  ((2(-2),3(2)>2(21),id:3),(4(2),5(23)>4(2),id:8),(1(-2),2(21),4(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  8  ((2(-2),4(2)>2(21),id:3),(3(2),5(23)>3(2),id:8),(1(-2),2(21),3(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
 Group 2:
-  Process: u u~ > g g z QED=1 QCD=2
+  Process: u u~ > g g z QCD=2 QED=1 WEIGHTED=4
   8 diagrams:
-  1  ((1(-2),3(21)>1(-2),id:3),(2(2),4(21)>2(2),id:3),(1(-2),2(2),5(23),id:8)) (QED=1,QCD=2)
-  2  ((1(-2),3(21)>1(-2),id:3),(2(2),5(23)>2(2),id:8),(1(-2),2(2),4(21),id:3)) (QED=1,QCD=2)
-  3  ((1(-2),4(21)>1(-2),id:3),(2(2),3(21)>2(2),id:3),(1(-2),2(2),5(23),id:8)) (QED=1,QCD=2)
-  4  ((1(-2),4(21)>1(-2),id:3),(2(2),5(23)>2(2),id:8),(1(-2),2(2),3(21),id:3)) (QED=1,QCD=2)
-  5  ((1(-2),5(23)>1(-2),id:8),(2(2),3(21)>2(2),id:3),(1(-2),2(2),4(21),id:3)) (QED=1,QCD=2)
-  6  ((1(-2),5(23)>1(-2),id:8),(2(2),4(21)>2(2),id:3),(1(-2),2(2),3(21),id:3)) (QED=1,QCD=2)
-  7  ((1(-2),5(23)>1(-2),id:8),(3(21),4(21)>3(21),id:1),(1(-2),2(2),3(21),id:3)) (QED=1,QCD=2)
-  8  ((2(2),5(23)>2(2),id:8),(3(21),4(21)>3(21),id:1),(1(-2),2(2),3(21),id:3)) (QED=1,QCD=2)
-  Process: d d~ > g g z QED=1 QCD=2
+  1  ((1(-2),3(21)>1(-2),id:3),(2(2),4(21)>2(2),id:3),(1(-2),2(2),5(23),id:8)) (QCD=2,QED=1,WEIGHTED=4)
+  2  ((1(-2),3(21)>1(-2),id:3),(2(2),5(23)>2(2),id:8),(1(-2),2(2),4(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  3  ((1(-2),4(21)>1(-2),id:3),(2(2),3(21)>2(2),id:3),(1(-2),2(2),5(23),id:8)) (QCD=2,QED=1,WEIGHTED=4)
+  4  ((1(-2),4(21)>1(-2),id:3),(2(2),5(23)>2(2),id:8),(1(-2),2(2),3(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  5  ((1(-2),5(23)>1(-2),id:8),(2(2),3(21)>2(2),id:3),(1(-2),2(2),4(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  6  ((1(-2),5(23)>1(-2),id:8),(2(2),4(21)>2(2),id:3),(1(-2),2(2),3(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  7  ((1(-2),5(23)>1(-2),id:8),(3(21),4(21)>3(21),id:1),(1(-2),2(2),3(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  8  ((2(2),5(23)>2(2),id:8),(3(21),4(21)>3(21),id:1),(1(-2),2(2),3(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
+  Process: d d~ > g g z QCD=2 QED=1 WEIGHTED=4
   8 diagrams:
-  1  ((1(-1),3(21)>1(-1),id:5),(2(1),4(21)>2(1),id:5),(1(-1),2(1),5(23),id:9)) (QED=1,QCD=2)
-  2  ((1(-1),3(21)>1(-1),id:5),(2(1),5(23)>2(1),id:9),(1(-1),2(1),4(21),id:5)) (QED=1,QCD=2)
-  3  ((1(-1),4(21)>1(-1),id:5),(2(1),3(21)>2(1),id:5),(1(-1),2(1),5(23),id:9)) (QED=1,QCD=2)
-  4  ((1(-1),4(21)>1(-1),id:5),(2(1),5(23)>2(1),id:9),(1(-1),2(1),3(21),id:5)) (QED=1,QCD=2)
-  5  ((1(-1),5(23)>1(-1),id:9),(2(1),3(21)>2(1),id:5),(1(-1),2(1),4(21),id:5)) (QED=1,QCD=2)
-  6  ((1(-1),5(23)>1(-1),id:9),(2(1),4(21)>2(1),id:5),(1(-1),2(1),3(21),id:5)) (QED=1,QCD=2)
-  7  ((1(-1),5(23)>1(-1),id:9),(3(21),4(21)>3(21),id:1),(1(-1),2(1),3(21),id:5)) (QED=1,QCD=2)
-  8  ((2(1),5(23)>2(1),id:9),(3(21),4(21)>3(21),id:1),(1(-1),2(1),3(21),id:5)) (QED=1,QCD=2)
+  1  ((1(-1),3(21)>1(-1),id:5),(2(1),4(21)>2(1),id:5),(1(-1),2(1),5(23),id:9)) (QCD=2,QED=1,WEIGHTED=4)
+  2  ((1(-1),3(21)>1(-1),id:5),(2(1),5(23)>2(1),id:9),(1(-1),2(1),4(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
+  3  ((1(-1),4(21)>1(-1),id:5),(2(1),3(21)>2(1),id:5),(1(-1),2(1),5(23),id:9)) (QCD=2,QED=1,WEIGHTED=4)
+  4  ((1(-1),4(21)>1(-1),id:5),(2(1),5(23)>2(1),id:9),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
+  5  ((1(-1),5(23)>1(-1),id:9),(2(1),3(21)>2(1),id:5),(1(-1),2(1),4(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
+  6  ((1(-1),5(23)>1(-1),id:9),(2(1),4(21)>2(1),id:5),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
+  7  ((1(-1),5(23)>1(-1),id:9),(3(21),4(21)>3(21),id:1),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
+  8  ((2(1),5(23)>2(1),id:9),(3(21),4(21)>3(21),id:1),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
 Decay groups:
   Group 1:
-    Process: z > d d~ g QED=1 QCD=1
+    Process: z > d d~ g QCD=1 QED=1 WEIGHTED=3
     2 diagrams:
-    1  ((2(1),4(21)>2(1),id:5),(2(1),3(-1)>2(23),id:9),(1(23),2(23),id:0)) (QED=1,QCD=1)
-    2  ((3(-1),4(21)>3(-1),id:5),(2(1),3(-1)>2(23),id:9),(1(23),2(23),id:0)) (QED=1,QCD=1)
+    1  ((2(1),4(21)>2(1),id:5),(2(1),3(-1)>2(23),id:9),(1(23),2(23),id:0)) (QCD=1,QED=1,WEIGHTED=3)
+    2  ((3(-1),4(21)>3(-1),id:5),(2(1),3(-1)>2(23),id:9),(1(23),2(23),id:0)) (QCD=1,QED=1,WEIGHTED=3)
   Group 2:
-    Process: z > e- e+ QED=1 QCD=0
+    Process: z > e- e+ QCD=0 QED=1 WEIGHTED=2
     1 diagrams:
-    1  ((2(11),3(-11)>2(23),id:10),(1(23),2(23),id:0)) (QED=1,QCD=0)""")
+    1  ((2(11),3(-11)>2(23),id:10),(1(23),2(23),id:0)) (QCD=0,QED=1,WEIGHTED=2)""")
 
         subproc_groups = \
                        dc_subproc_group.generate_helas_decay_chain_subproc_groups()
@@ -531,3 +531,236 @@ Decay groups:
             self.assertEqual(group.get('name'),
                              group_names[igroup])
 
+    def test_special_group_decay_chain(self):
+        """Test group_amplitudes for special decay chains."""
+
+        mypartlist = base_objects.ParticleList()
+        myinterlist = base_objects.InteractionList()
+
+        # A gluon
+        mypartlist.append(base_objects.Particle({'name':'g',
+                      'antiname':'g',
+                      'spin':3,
+                      'color':1,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'g',
+                      'antitexname':'g',
+                      'line':'curly',
+                      'charge':0.,
+                      'pdg_code':21,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':True}))
+        g = mypartlist[-1]
+
+        # A gluino
+        mypartlist.append(base_objects.Particle({'name':'go',
+                      'antiname':'go',
+                      'spin':2,
+                      'color':1,
+                      'mass':'MGO',
+                      'width':'WGO',
+                      'texname':'go',
+                      'antitexname':'go',
+                      'line':'curly',
+                      'charge':0.,
+                      'pdg_code':1000021,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':True}))
+        go = mypartlist[-1]
+
+        # A quark D and its antiparticle
+        mypartlist.append(base_objects.Particle({'name':'d',
+                      'antiname':'d~',
+                      'spin':2,
+                      'color':1,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'d',
+                      'antitexname':'\bar d',
+                      'line':'straight',
+                      'charge':-1. / 3.,
+                      'pdg_code':1,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        d = mypartlist[-1]
+        antid = copy.copy(d)
+        antid.set('is_part', False)
+
+        # A d squark and its antiparticle
+        mypartlist.append(base_objects.Particle({'name':'dl',
+                      'antiname':'dl~',
+                      'spin':0,
+                      'color':1,
+                      'mass':'MDL',
+                      'width':'WDL',
+                      'texname':'dl',
+                      'antitexname':'\bar dl',
+                      'line':'straight',
+                      'charge':-1. / 3.,
+                      'pdg_code':1000001,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        dl = mypartlist[-1]
+        antidl = copy.copy(dl)
+        antidl.set('is_part', False)
+
+        # A neutralino
+        mypartlist.append(base_objects.Particle({'name':'n1',
+                      'antiname':'n1',
+                      'spin':2,
+                      'color':1,
+                      'mass':'MN1',
+                      'width':'WN1',
+                      'texname':'n1',
+                      'antitexname':'n1',
+                      'line':'wavy',
+                      'charge':0.,
+                      'pdg_code':1000022,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':True}))
+        n1 = mypartlist[-1]
+
+        # 3 gluon vertiex
+        myinterlist.append(base_objects.Interaction({
+                      'id': 1,
+                      'particles': base_objects.ParticleList(\
+                                            [g] * 3),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'G'},
+                      'orders':{'QCD':1}}))
+
+        # Gluon couplings to gluinos
+        myinterlist.append(base_objects.Interaction({
+                      'id': 3,
+                      'particles': base_objects.ParticleList(\
+                                            [go, \
+                                             go, \
+                                             g]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QCD':1}}))
+
+        # Gluino and neutralino couplings to quarks and squarks
+        myinterlist.append(base_objects.Interaction({
+                      'id': 4,
+                      'particles': base_objects.ParticleList(\
+                                            [go,
+                                             d,
+                                             antidl]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QCD':1}}))
+
+        myinterlist.append(base_objects.Interaction({
+                      'id': 5,
+                      'particles': base_objects.ParticleList(\
+                                            [antid,
+                                             go,
+                                             dl]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QCD':1}}))
+
+        myinterlist.append(base_objects.Interaction({
+                      'id': 6,
+                      'particles': base_objects.ParticleList(\
+                                            [n1, \
+                                             d, \
+                                             antidl]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QED':1}}))
+
+        myinterlist.append(base_objects.Interaction({
+                      'id': 7,
+                      'particles': base_objects.ParticleList(\
+                                            [antid, \
+                                             n1, \
+                                             dl]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QED':1}}))
+
+
+        mymodel = base_objects.Model()
+        mymodel.set('particles', mypartlist)
+        mymodel.set('interactions', myinterlist)        
+        mymodel.set('name', 'sm')
+
+        # Multiparticle labels
+        ds = [1,-1]
+        dls = [1000001,-1000001]
+
+        proc = [21,21,1000021,1000021]
+
+        my_leglist = base_objects.MultiLegList([\
+                base_objects.MultiLeg({'ids': [id]}) for id in proc])
+        my_leglist[0].set('state', False)
+        my_leglist[1].set('state', False)
+
+        process = base_objects.ProcessDefinition({'legs':my_leglist,
+                                                  'model':mymodel})
+
+        decayproc1 = [[1000021],ds,dls]
+        my_leglist = base_objects.MultiLegList([\
+                base_objects.MultiLeg({'ids': id}) for id in decayproc1])
+        my_leglist[0].set('state', False)
+        decayprocess1 = base_objects.ProcessDefinition({'legs':my_leglist,
+                                                        'model':mymodel})
+
+        decayproc2 = [dls,ds,[1000022]]
+        my_leglist = base_objects.MultiLegList([\
+                base_objects.MultiLeg({'ids': id}) for id in decayproc2])
+        my_leglist[0].set('state', False)
+        decayprocess2 = base_objects.ProcessDefinition({'legs':my_leglist,
+                                                        'model':mymodel})
+
+        decayprocess1.get('decay_chains').append(decayprocess2)
+        process.get('decay_chains').append(decayprocess1)
+        process.get('decay_chains').append(decayprocess1)
+
+        my_amplitude = diagram_generation.DecayChainAmplitude(process)
+
+        dc_subproc_group = group_subprocs.DecayChainSubProcessGroup.\
+                          group_amplitudes(my_amplitude)
+
+        subproc_groups = \
+                       dc_subproc_group.generate_helas_decay_chain_subproc_groups()
+
+        self.assertEqual(len(subproc_groups), 1)
+
+        self.assertEqual(len(subproc_groups[0].get('matrix_elements')),3)
+
+        me_strings = ["""Process: g g > go go QCD=2 QED=0 WEIGHTED=2
+  Decay: go > d dl~ QCD=1 QED=0 WEIGHTED=1
+    Decay: dl~ > d~ n1 QCD=0 QED=1 WEIGHTED=2
+  Decay: go > d dl~ QCD=1 QED=0 WEIGHTED=1
+    Decay: dl~ > d~ n1 QCD=0 QED=1 WEIGHTED=2""",
+                      """Process: g g > go go QCD=2 QED=0 WEIGHTED=2
+  Decay: go > d dl~ QCD=1 QED=0 WEIGHTED=1
+    Decay: dl~ > d~ n1 QCD=0 QED=1 WEIGHTED=2
+  Decay: go > d~ dl QCD=1 QED=0 WEIGHTED=1
+    Decay: dl > d n1 QCD=0 QED=1 WEIGHTED=2""",
+                      """Process: g g > go go QCD=2 QED=0 WEIGHTED=2
+  Decay: go > d~ dl QCD=1 QED=0 WEIGHTED=1
+    Decay: dl > d n1 QCD=0 QED=1 WEIGHTED=2
+  Decay: go > d~ dl QCD=1 QED=0 WEIGHTED=1
+    Decay: dl > d n1 QCD=0 QED=1 WEIGHTED=2"""]
+        
+
+        for i,me in enumerate(subproc_groups[0].get('matrix_elements')):
+            self.assertEqual(me.get('processes')[0].nice_string(),
+                             me_strings[i])
+            

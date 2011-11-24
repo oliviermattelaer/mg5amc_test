@@ -59,7 +59,7 @@ class DiagramTag(object):
         """Exception for any problems in DiagramTags"""
         pass
 
-    def __init__(self, diagram, model = None):
+    def __init__(self, diagram, model = None, ninitial = 2):
         """Initialize with a diagram. Create DiagramTagChainLinks according to
         the diagram, and figure out if we need to shift the central vertex."""
 
@@ -79,7 +79,8 @@ class DiagramTag(object):
                                         for leg in legs],
                                         self.vertex_id_from_vertex(vertex,
                                                                    lastvx,
-                                                                   model))
+                                                                   model,
+                                                                   ninitial))
             # Add vertex to leg_dict if not last one
             if not lastvx:
                 leg_dict[vertex.get('legs')[-1].get('number')] = link
@@ -140,7 +141,7 @@ class DiagramTag(object):
             return [((leg.get('id'), leg.get('number')), leg.get('number'))]
 
     @staticmethod
-    def vertex_id_from_vertex(vertex, last_vertex, model):
+    def vertex_id_from_vertex(vertex, last_vertex, model, ninitial):
         """Returns the default vertex id: just the interaction id"""
         return vertex.get('id')
 
@@ -546,14 +547,18 @@ class Amplitude(base_objects.PhysicsObject):
         if process.get('forbidden_s_channels'):
             ninitial = len(filter(lambda leg: leg.get('state') == False,
                               process.get('legs')))
-            res = base_objects.DiagramList(\
-                filter(lambda diagram: \
-                       not any([vertex.get_s_channel_id(\
-                                process.get('model'), ninitial) \
-                                in process.get('forbidden_s_channels')
-                                for vertex in diagram.get('vertices')[:-1]]),
-                       res))
-
+            verts = base_objects.VertexList(sum([[vertex for vertex \
+                                                  in diagram.get('vertices')[:-1]
+                                           if vertex.get_s_channel_id(\
+                                               process.get('model'), ninitial) \
+                                           in process.get('forbidden_s_channels')] \
+                                               for diagram in res], []))
+            for vert in verts:
+                # Use onshell = False to indicate that this s-channel is forbidden
+                newleg = copy.copy(vert.get('legs').pop(-1))
+                newleg.set('onshell', False)
+                vert.get('legs').append(newleg)
+                
         # Set diagrams to res
         self['diagrams'] = res
 
@@ -564,7 +569,7 @@ class Amplitude(base_objects.PhysicsObject):
         # Set the coupling orders of the process
         if self['diagrams']:
             coupling_orders = {}        
-            for key in model.get_coupling_orders():
+            for key in sorted(list(model.get_coupling_orders())) + ['WEIGHTED']:
                 coupling_orders[key] = max([d.get('orders')[key] for \
                                             d in self.get('diagrams')])
             process.set('orders', coupling_orders)
@@ -585,6 +590,9 @@ class Amplitude(base_objects.PhysicsObject):
                     ntlnumber = legs[-1].get('number')
                     lastleg = filter(lambda leg: leg.get('number') != ntlnumber,
                                      lastvx.get('legs'))[0]
+                    # Reset onshell in case we have forbidden s-channels
+                    if lastleg.get('onshell') == False:
+                        lastleg.set('onshell', None)
                     # Replace the last leg of nexttolastvertex
                     legs[-1] = lastleg
                     nexttolastvertex.set('legs', legs)
@@ -694,7 +702,9 @@ class Amplitude(base_objects.PhysicsObject):
         """Return False if the coupling orders for any coupling is <
         0, otherwise return the new coupling orders with the vertex
         orders subtracted. If coupling_orders is not given, return
-        None (which counts as success)"""
+        None (which counts as success).
+        WEIGHTED is a special order, which corresponds to the sum of
+        order hierarchys for the couplings."""
 
         if not coupling_orders:
             return None
@@ -710,13 +720,20 @@ class Amplitude(base_objects.PhysicsObject):
                 # constraint
                 if coupling in present_couplings:
                     # Reduce the number of couplings that are left
-                    present_couplings[coupling] = \
-                             present_couplings[coupling] - \
+                    present_couplings[coupling] -= \
                              inter.get('orders')[coupling]
                     if present_couplings[coupling] < 0:
                         # We have too many couplings of this type
                         return False
-
+            # Now check for WEIGHTED, i.e. the sum of coupling hierarchy values
+            if 'WEIGHTED' in present_couplings:
+                weight = sum([model.get('order_hierarchy')[c]*n for \
+                              (c,n) in inter.get('orders').items()])
+                present_couplings['WEIGHTED'] -= weight
+                if present_couplings['WEIGHTED'] < 0:
+                        # Total coupling weight too large
+                        return False
+                
         return present_couplings
 
     def combine_legs(self, list_legs, ref_dict_to1, max_multi_to1):
@@ -907,15 +924,17 @@ class Amplitude(base_objects.PhysicsObject):
         vertices = []
 
         for diagram in self.get('diagrams'):
+            # Keep track of external legs (leg numbers already used)
+            leg_external = set()
             for ivx, vertex in enumerate(diagram.get('vertices')):
                 for ileg, leg in enumerate(vertex.get('legs')):
-                    if leg.get('state') and leg.get('id') in decay_ids:
-                        # Use from_group to indicate decaying legs,
+                    # Ensure that only external legs get decay flag
+                    if leg.get('state') and leg.get('id') in decay_ids and \
+                           leg.get('number') not in leg_external:
+                        # Use onshell to indicate decaying legs,
                         # i.e. legs that have decay chains
                         leg = copy.copy(leg)
-                        leg.set('from_group', True)
-                    else:
-                        leg.set('from_group', False)
+                        leg.set('onshell', True)
                     try:
                         index = legs.index(leg)
                     except ValueError:
@@ -923,6 +942,7 @@ class Amplitude(base_objects.PhysicsObject):
                         legs.append(leg)
                     else: # Found a leg
                         vertex.get('legs')[ileg] = legs[index]
+                    leg_external.add(leg.get('number'))
                 try:
                     index = vertices.index(vertex)
                     diagram.get('vertices')[ivx] = vertices[index]
@@ -985,7 +1005,7 @@ class DecayChainAmplitude(Amplitude):
                 self['decay_chains'].append(\
                     DecayChainAmplitude(process, collect_mirror_procs,
                                         ignore_six_quark_processes))
-            # Flag decaying legs in the core process by from_group = True
+            # Flag decaying legs in the core process by onshell = True
             decay_ids = sum([[a.get('process').get('legs')[0].get('id') \
                               for a in dec.get('amplitudes')] for dec in \
                              self['decay_chains']], [])
@@ -1209,8 +1229,10 @@ class MultiProcess(base_objects.PhysicsObject):
 
         # Set automatic coupling orders
         process_definition.set('orders', MultiProcess.\
-                               find_maximal_non_qcd_order(process_definition))
-        
+                               find_optimal_process_orders(process_definition))
+        # Check for maximum orders from the model
+        process_definition.check_expansion_orders()
+
         processes = base_objects.ProcessList()
         amplitudes = AmplitudeList()
 
@@ -1373,25 +1395,40 @@ class MultiProcess(base_objects.PhysicsObject):
         return amplitudes
             
     @classmethod
-    def find_maximal_non_qcd_order(cls, process_definition):
-        """Find the maximal QCD order for this set of processes.
+    def find_optimal_process_orders(cls, process_definition):
+        """Find the minimal WEIGHTED order for this set of processes.
+
         The algorithm:
 
-        1) Check that there is only one non-QCD coupling in model.
+        1) Check the coupling hierarchy of the model. Assign all
+        particles to the different coupling hierarchies so that a
+        particle is considered to be in the highest hierarchy (i.e.,
+        with lowest value) where it has an interaction.
         
-        2) Find number of non-QCD-charged legs. This is the starting
-        non-QCD order. If non-QCD required s-channel particles are
-        specified, use the maximum of non-QCD legs and 2*number of
-        non-QCD s-channel particles as starting non-QCD order.
+        2) Pick out the legs in the multiprocess according to the
+        highest hierarchy represented (so don't mix particles from
+        different hierarchy classes in the same multiparticles!)
 
-        3) Run process generation with the maximal non-QCD order with
-        all gluons removed from the final state, until we find a
-        process which passes. Return that order.
+        3) Find the starting maximum WEIGHTED order as the sum of the
+        highest n-2 weighted orders
 
-        4) If no processes pass with the given order, increase order
-        by one and repeat from 3) until we order #final - 1.
+        4) Pick out required s-channel particle hierarchies, and use
+        the highest of the maximum WEIGHTED order from the legs and
+        the minimum WEIGHTED order extracted from 2*s-channel
+        hierarchys plus the n-2-2*(number of s-channels) lowest
+        leg weighted orders.
 
-        5) If no processes found, return non-QCD order = #final.
+        5) Run process generation with the WEIGHTED order determined
+        in 3)-4) - # final state gluons, with all gluons removed from
+        the final state
+
+        6) If no process is found, increase WEIGHTED order by 1 and go
+        back to 5), until we find a process which passes. Return that
+        order.
+
+        7) Continue 5)-6) until we reach (n-2)*(highest hierarchy)-1.
+        If still no process has passed, return
+        WEIGHTED = (n-2)*(highest hierarchy)
         """
 
         assert isinstance(process_definition, base_objects.ProcessDefinition), \
@@ -1406,72 +1443,38 @@ class MultiProcess(base_objects.PhysicsObject):
                process_definition.get('overall_orders'):
             return process_definition.get('orders')
 
-        temp_process_definition = copy.copy(process_definition)
+        logger.info("Checking for minimal orders which gives processes.")
+        logger.info("Please specify coupling orders to bypass this step.")
 
-        model = process_definition['model']
+        # Calculate minimum starting guess for WEIGHTED order
+        max_order_now, particles, hierarchy = \
+                                       process_definition.get_minimum_WEIGHTED()
+        coupling = 'WEIGHTED'
+
+        model = process_definition.get('model')
         
+        # Extract the initial and final leg ids
         isids = [leg['ids'] for leg in \
                  filter(lambda leg: leg['state'] == False, process_definition['legs'])]
         fsids = [leg['ids'] for leg in \
                  filter(lambda leg: leg['state'] == True, process_definition['legs'])]
 
-        # Find coupling orders in model
-        orders = list(set(sum([i.get('orders').keys() for i in \
-                               model.get('interactions')], [])))
-        non_QCD_orders = [order for order in  orders if order != 'QCD']
-        if len(non_QCD_orders) != 1 or len(orders)-len(non_QCD_orders) != 1:
-            # Too many or few orders
-            logger.info("Automatic coupling order check not possible " + \
-                        "for this model.")
-            logger.info("Please specify coupling orders by hand.")
-            return {}
+        # Run diagram generation with increasing max_order_now until
+        # we manage to get diagrams
+        while max_order_now < len(fsids)*max(hierarchy):
 
-        coupling = non_QCD_orders[0]
-        
-        logger.info("Checking for minimal non-QCD order which gives processes.")
-        logger.info("Please specify coupling orders to bypass this step.")
+            logger.info("Trying coupling order WEIGHTED=%d" % max_order_now)
 
-        # Find number of non-QCD-charged legs
-        max_order_now = 0
-        for l in process_definition.get('legs'):
-            if any([model.get_particle(id).get('color') > 1 for id in \
-                    l.get('ids')]):
-                continue
-            max_order_now += 1
-
-        # Check for non-QCD-charged s-channel propagators
-        max_order_prop = []
-        for idlist in process_definition.get('required_s_channels'):
-            max_order_prop.append(0)
-            for id in idlist:
-                if model.get_particle(id).get('color') > 1:
-                    continue
-                max_order_prop[-1] += 2
-
-        if max_order_prop:
-            if len(max_order_prop) >1:
-                max_order_prop = min(*max_order_prop)
-            else:
-                max_order_prop = max_order_prop[0]
-
-            max_order_now = max(max_order_now, max_order_prop)
-
-        # Generate all combinations for the initial state
-        
-        while max_order_now < len(fsids):
-
-            logger.info("Trying coupling order %s=%d" % (coupling,
-                                                         max_order_now))
             oldloglevel = logger.getEffectiveLevel()
             logger.setLevel(logging.WARNING)
 
             # failed_procs are processes that have already failed
             # based on crossing symmetry
             failed_procs = []
-
+            
+            # Generate all combinations for the initial state        
             for prod in apply(itertools.product, isids):
-                islegs = [\
-                        base_objects.Leg({'id':id, 'state': False}) \
+                islegs = [ base_objects.Leg({'id':id, 'state': False}) \
                         for id in prod]
 
                 # Generate all combinations for the final state, and make
@@ -1487,8 +1490,12 @@ class MultiProcess(base_objects.PhysicsObject):
 
                     red_fsidlist.append(tuple(sorted(prod)));
 
-                    # Remove gluons from final state
-                    prod = [id for id in prod if id != 21]
+                    # Remove gluons from final state if QCD is among
+                    # the highest coupling hierarchy
+                    nglue = 0
+                    if 21 in particles[0]:
+                        nglue = len([id for id in prod if id == 21])
+                        prod = [id for id in prod if id != 21]
 
                     # Generate leg list for process
                     leg_list = [copy.copy(leg) for leg in islegs]
@@ -1499,13 +1506,15 @@ class MultiProcess(base_objects.PhysicsObject):
 
                     legs = base_objects.LegList(leg_list)
 
-                    # Set coupling order
-                    coupling_orders_now = {coupling: max_order_now}
+                    # Set summed coupling order according to max_order_now
+                    # subtracting the removed gluons
+                    coupling_orders_now = {coupling: max_order_now - \
+                                           nglue}
 
                     # Setup process
                     process = base_objects.Process({\
                               'legs':legs,
-                              'model':process_definition.get('model'),
+                              'model':model,
                               'id': process_definition.get('id'),
                               'orders': coupling_orders_now,
                               'required_s_channels': \
@@ -1518,6 +1527,9 @@ class MultiProcess(base_objects.PhysicsObject):
                                  process_definition.get('is_decay_chain'),
                               'overall_orders': \
                                  process_definition.get('overall_orders')})
+
+                    # Check for couplings with given expansion orders
+                    process.check_expansion_orders()
 
                     # Check for crossed processes
                     sorted_legs = sorted(legs.get_outgoing_id_list(model))
@@ -1543,8 +1555,8 @@ class MultiProcess(base_objects.PhysicsObject):
             max_order_now += 1
             logger.setLevel(oldloglevel)
 
-        # If no valid processes found with nfinal-1 couplings, return nfinal
-        return {coupling: len(fsids)}        
+        # If no valid processes found with nfinal-1 couplings, return maximal
+        return {coupling: len(fsids)*max(hierarchy)}
 
     @staticmethod
     def cross_amplitude(amplitude, process, org_perm, new_perm):
@@ -1564,6 +1576,10 @@ class MultiProcess(base_objects.PhysicsObject):
                                              d in new_amp.get('diagrams')])
         new_amp.set('diagrams', diagrams)
         new_amp.trim_diagrams()
+
+        # Make sure to reset mirror process
+        new_amp.set('has_mirror_process', False)
+        
         return new_amp
         
 #===============================================================================
