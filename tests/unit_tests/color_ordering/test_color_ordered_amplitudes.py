@@ -40,18 +40,18 @@ import madgraph.iolibs.export_v4 as export_v4
 class ColorOrderedAmplitudeTest(unittest.TestCase):
     """Test class for all functions related to the diagram generation"""
 
-    mypartlist = base_objects.ParticleList()
-    myinterlist = base_objects.InteractionList()
-    mymodel = base_objects.Model()
-    myprocess = base_objects.Process()
-
-    ref_dict_to0 = {}
-    ref_dict_to1 = {}
-
-    mycolorflow = color_ordered_amplitudes.ColorOrderedFlow()
-    myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude()
-
     def setUp(self):
+
+        self.mypartlist = base_objects.ParticleList()
+        self.myinterlist = base_objects.InteractionList()
+        self.mymodel = base_objects.Model()
+        self.myprocess = base_objects.Process()
+
+        self.ref_dict_to0 = {}
+        self.ref_dict_to1 = {}
+
+        self.mycolorflow = color_ordered_amplitudes.ColorOrderedFlow()
+        self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude()
 
         # A gluon
         self.mypartlist.append(base_objects.Particle({'name':'g',
@@ -993,7 +993,318 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
         self.assertEqual(ndiags, goal_ndiags[ngluon - 2])
 
+#===============================================================================
+# OrderDiagramTagTest
+#===============================================================================
+class OrderDiagramTagTest(unittest.TestCase):
+    """Test class for functions related to the B-G matrix elements"""
 
+    def setUp(self):
+
+        self.mypartlist = base_objects.ParticleList()
+        self.myinterlist = base_objects.InteractionList()
+        self.mymodel = base_objects.Model()
+        self.myprocess = base_objects.Process()
+
+        self.mycolorflow = color_ordered_amplitudes.ColorOrderedFlow()
+        self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude()
+
+        # A gluon
+        self.mypartlist.append(base_objects.Particle({'name':'g',
+                      'antiname':'g',
+                      'spin':3,
+                      'color':8,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'g',
+                      'antitexname':'g',
+                      'line':'curly',
+                      'charge':0.,
+                      'pdg_code':21,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':True}))
+
+        # A quark U and its antiparticle
+        self.mypartlist.append(base_objects.Particle({'name':'u',
+                      'antiname':'u~',
+                      'spin':2,
+                      'color':3,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'u',
+                      'antitexname':'\bar u',
+                      'line':'straight',
+                      'charge':2. / 3.,
+                      'pdg_code':2,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        antiu = copy.copy(self.mypartlist[1])
+        antiu.set('is_part', False)
+
+        # A quark D and its antiparticle
+        self.mypartlist.append(base_objects.Particle({'name':'d',
+                      'antiname':'d~',
+                      'spin':2,
+                      'color':3,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'d',
+                      'antitexname':'\bar d',
+                      'line':'straight',
+                      'charge':-1. / 3.,
+                      'pdg_code':1,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        antid = copy.copy(self.mypartlist[2])
+        antid.set('is_part', False)
+
+        # A quark S and its antiparticle
+        self.mypartlist.append(base_objects.Particle({'name':'s',
+                      'antiname':'s~',
+                      'spin':2,
+                      'color':3,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'s',
+                      'antitexname':'\bar s',
+                      'line':'straight',
+                      'charge':-1. / 3.,
+                      'pdg_code':3,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        s = self.mypartlist[len(self.mypartlist) - 1]
+        antis = copy.copy(s)
+        antis.set('is_part', False)
+
+        # A photon
+        self.mypartlist.append(base_objects.Particle({'name':'a',
+                      'antiname':'a',
+                      'spin':3,
+                      'color':1,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'\gamma',
+                      'antitexname':'\gamma',
+                      'line':'wavy',
+                      'charge':0.,
+                      'pdg_code':22,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':True}))
+        gamma = self.mypartlist[len(self.mypartlist) - 1]
+
+        # A electron and positron
+        self.mypartlist.append(base_objects.Particle({'name':'e+',
+                      'antiname':'e-',
+                      'spin':2,
+                      'color':1,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'e^+',
+                      'antitexname':'e^-',
+                      'line':'straight',
+                      'charge':-1.,
+                      'pdg_code':11,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        e = self.mypartlist[len(self.mypartlist) - 1]
+        antie = copy.copy(e)
+        antie.set('is_part', False)
+
+        # W
+        self.mypartlist.append(base_objects.Particle({'name':'w+',
+                      'antiname':'w-',
+                      'spin':3,
+                      'color':0,
+                      'mass':'WMASS',
+                      'width':'WWIDTH',
+                      'texname':'W^+',
+                      'antitexname':'W^-',
+                      'line':'wavy',
+                      'charge':1.,
+                      'pdg_code':24,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+
+        wplus = self.mypartlist[len(self.mypartlist) - 1]
+        wminus = copy.copy(wplus)
+        wminus.set('is_part', False)
+
+        # 3 gluon vertex
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 1,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[0]] * 3),
+                      'color': [color.ColorString([color.f(0,1,2)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'G'},
+                      'orders':{'QCD':1}}))
+
+        # 4 gluon vertex
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 2,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[0]] * 4),
+                      'color': [color.ColorString([color.f(0, 1, -1),
+                                                   color.f(2, 3, -1)]),
+                                color.ColorString([color.f(2, 0, -1),
+                                                   color.f(1, 3, -1)]),
+                                color.ColorString([color.f(1, 2, -1),
+                                                   color.f(0, 3, -1)])],
+                      'lorentz':['gggg1', 'gggg2', 'gggg3'],
+                      'couplings':{(0, 0):'GG', (1, 1):'GG', (2, 2):'GG'},
+                      'orders':{'QCD':2}}))
+
+        # Gluon and photon couplings to quarks
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 3,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[1], \
+                                             antiu, \
+                                             self.mypartlist[0]]),
+                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QCD':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 4,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[1], \
+                                             antiu, \
+                                             gamma]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 5,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[2], \
+                                             antid, \
+                                             self.mypartlist[0]]),
+                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QCD':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 6,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[2], \
+                                             antid, \
+                                             gamma]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 7,
+                      'particles': base_objects.ParticleList(\
+                                            [s, 
+                                             antis,
+                                             self.mypartlist[0]]),
+                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QCD':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 8,
+                      'particles': base_objects.ParticleList(\
+                                            [s,
+                                             antis, \
+                                             gamma]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        # Coupling of e to gamma
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 9,
+                      'particles': base_objects.ParticleList(\
+                                            [e, \
+                                             antie, \
+                                             gamma]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        # Coupling of u and d to W
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 10,
+                      'particles': base_objects.ParticleList(\
+                                            [antid, \
+                                             self.mypartlist[1], \
+                                             wminus]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        # Coupling of d and u to W
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 11,
+                      'particles': base_objects.ParticleList(\
+                                            [antiu, \
+                                             self.mypartlist[2], \
+                                             wplus]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        self.mymodel.set('particles', self.mypartlist)
+        self.mymodel.set('interactions', self.myinterlist)
+
+    def test_order_diagram_tag_uux_nglue(self):
+        """Test the OrderDiagramTag for u u~ > n g
+        """
+
+        # Test 2, 3, 4 and 5 gluons in the final state
+        for ngluon in range (2, 6):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([\
+                base_objects.Leg({'id':2, 'state':False}),
+                base_objects.Leg({'id':-2, 'state':False})])
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * ngluon)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'orders':{'QCD':ngluon, 'QED': 0},
+                                           'model':self.mymodel})
+
+            self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+            mycolorflow = self.myamplitude.get('color_flows')[0]
+            diagrams = mycolorflow.get('diagrams')
+            diagram_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                            for d in diagrams]
+
+            print mycolorflow.get('process').nice_string()
+            
+            for i,(d,dtag) in enumerate(zip(diagrams, diagram_tags)):
+                print '%3r: ' % (i+1),d.nice_string()
+                print 'new: ',dtag.diagram_from_tag(self.mymodel).nice_string()
+                # Check that the resulting diagram is recreated in the same way
+                # from the diagram tag (by checking the diagram tag)
+                self.assertEqual(dtag,
+                                 color_ordered_amplitudes.OrderDiagramTag(\
+                                     dtag.diagram_from_tag(self.mymodel)))
 
 #===============================================================================
 # COHelasMatrixElementTest

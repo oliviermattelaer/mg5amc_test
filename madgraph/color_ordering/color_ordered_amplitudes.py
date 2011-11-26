@@ -55,6 +55,38 @@ logger = logging.getLogger('madgraph.color_ordered_amplitudes')
 spin_dict = {1:'S', 2:'F', 3:'V', 4:'T'}
 
 #===============================================================================
+# DiagramTag class to identify matrix elements
+#===============================================================================
+
+class OrderDiagramTag(diagram_generation.DiagramTag):
+    """DiagramTag daughter class to order the vertices in all diagrams
+    to ensure that all diagrams are correctly combined into BG
+    currents."""
+
+    @staticmethod
+    def link_from_leg(leg, model):
+        """Returns the info needed to recreate a leg."""
+
+        # Include also onshell, since this specifies forbidden s-channel
+        return [((leg.get('number'), leg.get('id'), leg.get('state'),
+                  leg.get('onshell')),
+                  leg.get('number'))]
+        
+    @staticmethod
+    def leg_from_link(link):
+        """Return a leg from a link"""
+
+        if link.end_link:
+            # This is an external leg, info in links
+            return base_objects.Leg({'number':link.links[0][0][0],
+                                     'id':link.links[0][0][1],
+                                     'state':link.links[0][0][2],
+                                     'onshell':link.links[0][0][3]})
+
+        # This shouldn't happen
+        assert False
+
+#===============================================================================
 # ColorOrderedLeg
 #===============================================================================
 class ColorOrderedLeg(base_objects.Leg):

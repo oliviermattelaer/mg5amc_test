@@ -118,6 +118,109 @@ class DiagramTag(object):
 
         return self.tag.get_external_numbers()
 
+    def diagram_from_tag(self, model):
+        """Output a diagram from a DiagramTag. Note that each daughter
+        class must implement the static functions id_from_vertex_id
+        (if the vertex id is something else than an integer) and
+        leg_from_link (to pass the correct info from an end link to a
+        leg)."""
+
+        # Create the vertices, starting from the final vertex
+        diagram = base_objects.Diagram({'vertices': \
+                                        self.vertices_from_link(self.tag,
+                                                                model,
+                                                                True)})
+        diagram.calculate_orders(model)
+        return diagram
+
+    @classmethod
+    def vertices_from_link(cls, link, model, first_vertex = False):
+        """Recursively return the leg corresponding to this link and
+        the list of all vertices from all previous links"""
+
+        if link.end_link:
+            # This is an end link and doesn't correspond to a vertex
+            return cls.leg_from_link(link), []
+
+        # First recursively find all daughter legs and vertices
+        leg_vertices = [cls.vertices_from_link(l, model) for l in link.links]
+
+        # The daughter legs are in the first entry
+        legs = base_objects.LegList([l for l,v in leg_vertices])
+        # The daughter vertices are in the second entry
+        vertices = base_objects.VertexList(sum([v for l, v in leg_vertices],
+                                               []))
+        
+        if not first_vertex:
+            # This corresponds to a wavefunction with a resulting leg
+            # Need to create the resulting leg from legs and vertex id
+            last_leg = cls.leg_from_legs(legs,
+                                         cls.id_from_vertex_id(link.vertex_id),
+                                         model)
+            legs.append(last_leg)
+            
+        # Now create and append this vertex
+        vertices.append(cls.vertex_from_link(legs,
+                                        cls.id_from_vertex_id(link.vertex_id),
+                                        model))
+
+        if first_vertex:
+            # Return list of vertices
+            return vertices
+        else:
+            # Return leg and list of vertices
+            return last_leg, vertices
+
+    @staticmethod
+    def leg_from_legs(legs, vertex_id, model):
+        """Return a leg from a leg list and the model info"""
+
+        pdgs = [part.get_pdg_code() for part in \
+                model.get_interaction(vertex_id).get('particles')]
+        # Extract the resulting pdg code from the interaction pdgs
+        for pdg in [leg.get('id') for leg in legs]:
+            pdgs.remove(pdg)
+
+        assert len(pdgs) == 1
+        # Prepare the new leg properties
+        pdg = model.get_particle(pdgs[0]).get_anti_pdg_code()
+        number = min([l.get('number') for l in legs])
+        # State is False for t-channel, True for s-channel
+        state = (len([l for l in legs if l.get('state') == False]) != 1)
+        # Note that this needs to be done before combining decay chains
+        onshell= False
+
+        return base_objects.Leg({'id': pdg,
+                                 'number': number,
+                                 'state': state,
+                                 'onshell': onshell})
+
+    @staticmethod
+    def vertex_from_link(legs, vertex_id, model):
+        """Return a vertex given a leg list and a vertex id"""
+
+        return base_objects.Vertex({'legs': legs,
+                                    'id': vertex_id})
+        
+    @staticmethod
+    def leg_from_link(link):
+        """Return a leg from a link"""
+
+        if link.end_link:
+            # This is an external leg, info in links
+            return base_objects.Leg({'number':link.links[0][1],
+                                     'id':link.links[0][0][0],
+                                     'state':(link.links[0][0][1] != 0),
+                                     'onshell':False})
+
+        # This shouldn't happen
+        assert False
+
+    @staticmethod
+    def id_from_vertex_id(vertex_id):
+        """Return the numerical vertex id from a link.vertex_id"""
+        return vertex_id
+
     @staticmethod
     def reorder_permutation(perm, start_perm):
         """Reorder a permutation with respect to start_perm. Note that
