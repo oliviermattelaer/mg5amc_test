@@ -33,246 +33,6 @@ logger = logging.getLogger('madgraph.diagram_generation')
 # DiagramTag mother class
 #===============================================================================
 
-class DiagramTag(object):
-    """Class to tag diagrams based on objects with some __lt__ measure, e.g.
-    PDG code/interaction id (for comparing diagrams from the same amplitude),
-    or Lorentz/coupling/mass/width (for comparing AMPs from different MEs).
-    Algorithm: Create chains starting from external particles:
-    1 \        / 6
-    2 /\______/\ 7
-    3_ /  |   \_ 8
-    4 /   5    \_ 9
-                \ 10
-    gives ((((9,10,id910),8,id9108),(6,7,id67),id910867)
-           (((1,2,id12),(3,4,id34)),id1234),
-           5,id91086712345)
-    where idN is the id of the corresponding interaction. The ordering within
-    chains is based on chain length (depth; here, 1234 has depth 2, 910867 has
-    depth 3, 5 has depht 0), and if equal on the ordering of the chain elements.
-    The determination of central vertex is based on minimizing the chain length
-    for the longest subchain. 
-    This gives a unique tag which can be used to identify diagrams
-    (instead of symmetry), as well as identify identical matrix elements from
-    different processes."""
-
-    class DiagramTagError(Exception):
-        """Exception for any problems in DiagramTags"""
-        pass
-
-    def __init__(self, diagram, model = None, ninitial = 2):
-        """Initialize with a diagram. Create DiagramTagChainLinks according to
-        the diagram, and figure out if we need to shift the central vertex."""
-
-        # wf_dict keeps track of the intermediate particles
-        leg_dict = {}
-        # Create the chain which will be the diagram tag
-        for vertex in diagram.get('vertices'):
-            # Only add incoming legs
-            legs = vertex.get('legs')[:-1]
-            lastvx = vertex == diagram.get('vertices')[-1]
-            if lastvx:
-                # If last vertex, all legs are incoming
-                legs = vertex.get('legs')
-            # Add links corresponding to the relevant legs
-            link = DiagramTagChainLink([leg_dict.setdefault(leg.get('number'),
-                          DiagramTagChainLink(self.link_from_leg(leg, model))) \
-                                        for leg in legs],
-                                        self.vertex_id_from_vertex(vertex,
-                                                                   lastvx,
-                                                                   model,
-                                                                   ninitial))
-            # Add vertex to leg_dict if not last one
-            if not lastvx:
-                leg_dict[vertex.get('legs')[-1].get('number')] = link
-
-        # The resulting link is the hypothetical result
-        self.tag = link
-
-        # Now make sure to find the central vertex in the diagram,
-        # defined by the longest leg being as short as possible
-        done = max([l.depth for l in self.tag.links]) == 0
-        while not done:
-            # Identify the longest chain in the tag
-            longest_chain = self.tag.links[0]
-            # Create a new link corresponding to moving one step
-            new_link = DiagramTagChainLink(self.tag.links[1:],
-                                           self.flip_vertex(\
-                                               self.tag.vertex_id,
-                                               longest_chain.vertex_id))
-            # Create a new final vertex in the direction of the longest link
-            other_link = DiagramTagChainLink(list(longest_chain.links) + \
-                                             [new_link],
-                                             self.flip_vertex(\
-                                                 longest_chain.vertex_id,
-                                                 self.tag.vertex_id))
-            
-            if other_link.links[0] < self.tag.links[0]:
-                # Switch to new tag, continue search
-                self.tag = other_link
-            else:
-                # We have found the central vertex
-                done = True
-
-    def get_external_numbers(self):
-        """Get the order of external particles in this tag"""
-
-        return self.tag.get_external_numbers()
-
-    def diagram_from_tag(self, model):
-        """Output a diagram from a DiagramTag. Note that each daughter
-        class must implement the static functions id_from_vertex_id
-        (if the vertex id is something else than an integer) and
-        leg_from_link (to pass the correct info from an end link to a
-        leg)."""
-
-        # Create the vertices, starting from the final vertex
-        diagram = base_objects.Diagram({'vertices': \
-                                        self.vertices_from_link(self.tag,
-                                                                model,
-                                                                True)})
-        diagram.calculate_orders(model)
-        return diagram
-
-    @classmethod
-    def vertices_from_link(cls, link, model, first_vertex = False):
-        """Recursively return the leg corresponding to this link and
-        the list of all vertices from all previous links"""
-
-        if link.end_link:
-            # This is an end link and doesn't correspond to a vertex
-            return cls.leg_from_link(link), []
-
-        # First recursively find all daughter legs and vertices
-        leg_vertices = [cls.vertices_from_link(l, model) for l in link.links]
-
-        # The daughter legs are in the first entry
-        legs = base_objects.LegList([l for l,v in leg_vertices])
-        # The daughter vertices are in the second entry
-        vertices = base_objects.VertexList(sum([v for l, v in leg_vertices],
-                                               []))
-        
-        if not first_vertex:
-            # This corresponds to a wavefunction with a resulting leg
-            # Need to create the resulting leg from legs and vertex id
-            last_leg = cls.leg_from_legs(legs,
-                                         cls.id_from_vertex_id(link.vertex_id),
-                                         model)
-            legs.append(last_leg)
-            
-        # Now create and append this vertex
-        vertices.append(cls.vertex_from_link(legs,
-                                        cls.id_from_vertex_id(link.vertex_id),
-                                        model))
-
-        if first_vertex:
-            # Return list of vertices
-            return vertices
-        else:
-            # Return leg and list of vertices
-            return last_leg, vertices
-
-    @staticmethod
-    def leg_from_legs(legs, vertex_id, model):
-        """Return a leg from a leg list and the model info"""
-
-        pdgs = [part.get_pdg_code() for part in \
-                model.get_interaction(vertex_id).get('particles')]
-        # Extract the resulting pdg code from the interaction pdgs
-        for pdg in [leg.get('id') for leg in legs]:
-            pdgs.remove(pdg)
-
-        assert len(pdgs) == 1
-        # Prepare the new leg properties
-        pdg = model.get_particle(pdgs[0]).get_anti_pdg_code()
-        number = min([l.get('number') for l in legs])
-        # State is False for t-channel, True for s-channel
-        state = (len([l for l in legs if l.get('state') == False]) != 1)
-        # Note that this needs to be done before combining decay chains
-        onshell= False
-
-        return base_objects.Leg({'id': pdg,
-                                 'number': number,
-                                 'state': state,
-                                 'onshell': onshell})
-
-    @staticmethod
-    def vertex_from_link(legs, vertex_id, model):
-        """Return a vertex given a leg list and a vertex id"""
-
-        return base_objects.Vertex({'legs': legs,
-                                    'id': vertex_id})
-        
-    @staticmethod
-    def leg_from_link(link):
-        """Return a leg from a link"""
-
-        if link.end_link:
-            # This is an external leg, info in links
-            return base_objects.Leg({'number':link.links[0][1],
-                                     'id':link.links[0][0][0],
-                                     'state':(link.links[0][0][1] != 0),
-                                     'onshell':False})
-
-        # This shouldn't happen
-        assert False
-
-    @staticmethod
-    def id_from_vertex_id(vertex_id):
-        """Return the numerical vertex id from a link.vertex_id"""
-        return vertex_id
-
-    @staticmethod
-    def reorder_permutation(perm, start_perm):
-        """Reorder a permutation with respect to start_perm. Note that
-        both need to start from 1."""
-        if perm == start_perm:
-            return range(len(perm))
-        order = [i for (p,i) in \
-                 sorted([(p,i) for (i,p) in enumerate(perm)])]
-        return [start_perm[i]-1 for i in order]
-
-    @staticmethod
-    def link_from_leg(leg, model):
-        """Returns the default end link for a leg: ((id, state), number).
-        Note that the number is not taken into account if tag comparison,
-        but is used only to extract leg permutations."""
-        if leg.get('state'):
-            # Identify identical final state particles
-            return [((leg.get('id'), 0), leg.get('number'))]
-        else:
-            # Distinguish identical initial state particles
-            return [((leg.get('id'), leg.get('number')), leg.get('number'))]
-
-    @staticmethod
-    def vertex_id_from_vertex(vertex, last_vertex, model, ninitial):
-        """Returns the default vertex id: just the interaction id"""
-        return vertex.get('id')
-
-    @staticmethod
-    def flip_vertex(new_vertex, old_vertex):
-        """Returns the default vertex flip: just the new_vertex"""
-        return new_vertex
-
-    def __eq__(self, other):
-        """Equal if same tag"""
-        if type(self) != type(other):
-            return False
-        return self.tag == other.tag
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __str__(self):
-        return str(self.tag)
-
-    def __lt__(self, other):
-        return self.tag < other.tag
-
-    def __gt__(self, other):
-        return self.tag > other.tag
-
-    __repr__ = __str__
-
 class DiagramTagChainLink(object):
     """Chain link for a DiagramTag. A link is a tuple + vertex id + depth,
     with a comparison operator defined"""
@@ -354,6 +114,250 @@ class DiagramTagChainLink(object):
         return "%s, %s; %d" % (str(self.links),
                                str(self.vertex_id),
                                self.depth)
+
+    __repr__ = __str__
+
+class DiagramTag(object):
+    """Class to tag diagrams based on objects with some __lt__ measure, e.g.
+    PDG code/interaction id (for comparing diagrams from the same amplitude),
+    or Lorentz/coupling/mass/width (for comparing AMPs from different MEs).
+    Algorithm: Create chains starting from external particles:
+    1 \        / 6
+    2 /\______/\ 7
+    3_ /  |   \_ 8
+    4 /   5    \_ 9
+                \ 10
+    gives ((((9,10,id910),8,id9108),(6,7,id67),id910867)
+           (((1,2,id12),(3,4,id34)),id1234),
+           5,id91086712345)
+    where idN is the id of the corresponding interaction. The ordering within
+    chains is based on chain length (depth; here, 1234 has depth 2, 910867 has
+    depth 3, 5 has depht 0), and if equal on the ordering of the chain elements.
+    The determination of central vertex is based on minimizing the chain length
+    for the longest subchain. 
+    This gives a unique tag which can be used to identify diagrams
+    (instead of symmetry), as well as identify identical matrix elements from
+    different processes."""
+
+    class DiagramTagError(Exception):
+        """Exception for any problems in DiagramTags"""
+        pass
+
+    link_class = DiagramTagChainLink
+
+    def __init__(self, diagram, model = None, ninitial = 2):
+        """Initialize with a diagram. Create DiagramTagChainLinks according to
+        the diagram, and figure out if we need to shift the central vertex."""
+
+        # wf_dict keeps track of the intermediate particles
+        leg_dict = {}
+        # Create the chain which will be the diagram tag
+        for vertex in diagram.get('vertices'):
+            # Only add incoming legs
+            legs = vertex.get('legs')[:-1]
+            lastvx = vertex == diagram.get('vertices')[-1]
+            if lastvx:
+                # If last vertex, all legs are incoming
+                legs = vertex.get('legs')
+            # Add links corresponding to the relevant legs
+            link = self.link_class([leg_dict.setdefault(leg.get('number'),
+                          self.link_class(self.link_from_leg(leg, model))) \
+                                        for leg in legs],
+                                        self.vertex_id_from_vertex(vertex,
+                                                                   lastvx,
+                                                                   model,
+                                                                   ninitial))
+            # Add vertex to leg_dict if not last one
+            if not lastvx:
+                leg_dict[vertex.get('legs')[-1].get('number')] = link
+
+        # The resulting link is the hypothetical result
+        self.tag = link
+
+        # Now make sure to find the central vertex in the diagram,
+        # defined by the longest leg being as short as possible
+        done = max([l.depth for l in self.tag.links]) == 0
+        while not done:
+            # Identify the longest chain in the tag
+            longest_chain = self.tag.links[0]
+            # Create a new link corresponding to moving one step
+            new_link = self.link_class(self.tag.links[1:],
+                                           self.flip_vertex(\
+                                               self.tag.vertex_id,
+                                               longest_chain.vertex_id))
+            # Create a new final vertex in the direction of the longest link
+            other_link = self.link_class(list(longest_chain.links) + \
+                                             [new_link],
+                                             self.flip_vertex(\
+                                                 longest_chain.vertex_id,
+                                                 self.tag.vertex_id))
+            
+            if other_link.links[0] < self.tag.links[0]:
+                # Switch to new tag, continue search
+                self.tag = other_link
+            else:
+                # We have found the central vertex
+                done = True
+
+    def get_external_numbers(self):
+        """Get the order of external particles in this tag"""
+
+        return self.tag.get_external_numbers()
+
+    def diagram_from_tag(self, model):
+        """Output a diagram from a DiagramTag. Note that each daughter
+        class must implement the static functions id_from_vertex_id
+        (if the vertex id is something else than an integer) and
+        leg_from_link (to pass the correct info from an end link to a
+        leg)."""
+
+        # Create the vertices, starting from the final vertex
+        diagram = base_objects.Diagram({'vertices': \
+                                        self.vertices_from_link(self.tag,
+                                                                model,
+                                                                True)})
+        diagram.calculate_orders(model)
+        return diagram
+
+    @classmethod
+    def vertices_from_link(cls, link, model, first_vertex = False):
+        """Recursively return the leg corresponding to this link and
+        the list of all vertices from all previous links"""
+
+        if link.end_link:
+            # This is an end link and doesn't correspond to a vertex
+            return cls.leg_from_link(link), []
+
+        # First recursively find all daughter legs and vertices
+        leg_vertices = [cls.vertices_from_link(l, model) for l in link.links]
+
+        # The daughter legs are in the first entry
+        legs = base_objects.LegList(sorted([l for l,v in leg_vertices],
+                                           lambda l1,l2: l2.get('number') - \
+                                           l1.get('number')))
+        # The daughter vertices are in the second entry
+        vertices = base_objects.VertexList(sum([v for l, v in leg_vertices],
+                                               []))
+        
+        if not first_vertex:
+            # This corresponds to a wavefunction with a resulting leg
+            # Need to create the resulting leg from legs and vertex id
+            last_leg = cls.leg_from_legs(legs,
+                                         cls.id_from_vertex_id(link.vertex_id),
+                                         model)
+            legs.append(last_leg)
+            
+        # Now create and append this vertex
+        vertices.append(cls.vertex_from_link(legs,
+                                        cls.id_from_vertex_id(link.vertex_id),
+                                        model))
+
+        if first_vertex:
+            # Return list of vertices
+            return vertices
+        else:
+            # Return leg and list of vertices
+            return last_leg, vertices
+
+    @staticmethod
+    def leg_from_legs(legs, vertex_id, model):
+        """Return a leg from a leg list and the model info"""
+
+        pdgs = [part.get_pdg_code() for part in \
+                model.get_interaction(vertex_id).get('particles')]
+        # Extract the resulting pdg code from the interaction pdgs
+        for pdg in [leg.get('id') for leg in legs]:
+            pdgs.remove(pdg)
+
+        assert len(pdgs) == 1
+        # Prepare the new leg properties
+        pdg = model.get_particle(pdgs[0]).get_anti_pdg_code()
+        number = min([l.get('number') for l in legs])
+        # State is False for t-channel, True for s-channel
+        state = (len([l for l in legs if l.get('state') == False]) != 1)
+        # Note that this needs to be done before combining decay chains
+        onshell= False
+
+        return base_objects.Leg({'id': pdg,
+                                 'number': number,
+                                 'state': state,
+                                 'onshell': onshell})
+
+    @staticmethod
+    def vertex_from_link(legs, vertex_id, model):
+        """Return a vertex given a leg list and a vertex id"""
+
+        return base_objects.Vertex({'legs': legs,
+                                    'id': vertex_id})
+        
+    @staticmethod
+    def leg_from_link(link):
+        """Return a leg from a link"""
+
+        if link.end_link:
+            # This is an external leg, info in links
+            return base_objects.Leg({'number':link.links[0][1],
+                                     'id':link.links[0][0][0],
+                                     'state':(link.links[0][0][1] == 0),
+                                     'onshell':False})
+
+        # This shouldn't happen
+        assert False
+
+    @staticmethod
+    def id_from_vertex_id(vertex_id):
+        """Return the numerical vertex id from a link.vertex_id"""
+        return vertex_id
+
+    @staticmethod
+    def reorder_permutation(perm, start_perm):
+        """Reorder a permutation with respect to start_perm. Note that
+        both need to start from 1."""
+        if perm == start_perm:
+            return range(len(perm))
+        order = [i for (p,i) in \
+                 sorted([(p,i) for (i,p) in enumerate(perm)])]
+        return [start_perm[i]-1 for i in order]
+
+    @staticmethod
+    def link_from_leg(leg, model):
+        """Returns the default end link for a leg: ((id, state), number).
+        Note that the number is not taken into account if tag comparison,
+        but is used only to extract leg permutations."""
+        if leg.get('state'):
+            # Identify identical final state particles
+            return [((leg.get('id'), 0), leg.get('number'))]
+        else:
+            # Distinguish identical initial state particles
+            return [((leg.get('id'), leg.get('number')), leg.get('number'))]
+
+    @staticmethod
+    def vertex_id_from_vertex(vertex, last_vertex, model, ninitial):
+        """Returns the default vertex id: just the interaction id"""
+        return vertex.get('id')
+
+    @staticmethod
+    def flip_vertex(new_vertex, old_vertex):
+        """Returns the default vertex flip: just the new_vertex"""
+        return new_vertex
+
+    def __eq__(self, other):
+        """Equal if same tag"""
+        if type(self) != type(other):
+            return False
+        return self.tag == other.tag
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __str__(self):
+        return str(self.tag)
+
+    def __lt__(self, other):
+        return self.tag < other.tag
+
+    def __gt__(self, other):
+        return self.tag > other.tag
 
     __repr__ = __str__
 
@@ -636,50 +640,16 @@ class Amplitude(base_objects.PhysicsObject):
                 res_diags = filter(lambda diagram: \
                           all([req_s_channel in \
                                [vertex.get_s_channel_id(\
-                               process.get('model'), ninitial) \
+                               model, ninitial) \
                                for vertex in diagram.get('vertices')[:lastvx]] \
                                for req_s_channel in \
                                id_list]), old_res)
                 # Add diagrams only if not already in res
                 res.extend([diag for diag in res_diags if diag not in res])
 
-        # Select the diagrams where no forbidden s-channel propagators
-        # are present.
-        # Note that we shouldn't look at the last vertex in each
-        # diagram, since that is the n->0 vertex
-        if process.get('forbidden_s_channels'):
-            ninitial = len(filter(lambda leg: leg.get('state') == False,
-                              process.get('legs')))
-            verts = base_objects.VertexList(sum([[vertex for vertex \
-                                                  in diagram.get('vertices')[:-1]
-                                           if vertex.get_s_channel_id(\
-                                               process.get('model'), ninitial) \
-                                           in process.get('forbidden_s_channels')] \
-                                               for diagram in res], []))
-            for vert in verts:
-                # Use onshell = False to indicate that this s-channel is forbidden
-                newleg = copy.copy(vert.get('legs').pop(-1))
-                newleg.set('onshell', False)
-                vert.get('legs').append(newleg)
-                
-        # Set diagrams to res
-        self['diagrams'] = res
-
-        # Set actual coupling orders for each diagram
-        for diagram in self['diagrams']:
-            diagram.calculate_orders(model)
-
-        # Set the coupling orders of the process
-        if self['diagrams']:
-            coupling_orders = {}        
-            for key in sorted(list(model.get_coupling_orders())) + ['WEIGHTED']:
-                coupling_orders[key] = max([d.get('orders')[key] for \
-                                            d in self.get('diagrams')])
-            process.set('orders', coupling_orders)
-
         # Replace final id=0 vertex if necessary
         if not process.get('is_decay_chain'):
-            for diagram in self['diagrams']:
+            for diagram in res:
                 vertices = diagram.get('vertices')
                 if len(vertices) > 1 and vertices[-1].get('id') == 0:
                     # Need to "glue together" last and next-to-last
@@ -705,11 +675,54 @@ class Amplitude(base_objects.PhysicsObject):
         if res:
             logger.info("Process has %d diagrams" % len(res))
 
+        # if is_decay_proc:
+            # Set actual coupling orders for diagrams
+        for diagram in res:
+            diagram.calculate_orders(model)
+        # else:
+        #     # Speed up matrix element calculation for non-decay
+        #     # processes by reordering diagrams using
+        #     # OrderDiagramTags. Don't want to do this for decays, since we
+        #     # already have optimal wave function organization, and
+        #     # don't want to change order of vertices.
+        #     for idiag, diag in enumerate(res):
+        #         res[idiag] = OrderDiagramTag(diag).diagram_from_tag(model)
+
+        # Select the diagrams where no forbidden s-channel propagators
+        # are present.
+        # Note that we shouldn't look at the last vertex in each
+        # diagram, since that is the n->0 vertex
+        if process.get('forbidden_s_channels'):
+            ninitial = len(filter(lambda leg: leg.get('state') == False,
+                              process.get('legs')))
+            verts = base_objects.VertexList(sum([[vertex for vertex \
+                                                  in diagram.get('vertices')[:-1]
+                                           if vertex.get_s_channel_id(\
+                                               model, ninitial) \
+                                           in process.get('forbidden_s_channels')] \
+                                               for diagram in res], []))
+            for vert in verts:
+                # Use onshell = False to indicate that this s-channel is forbidden
+                newleg = copy.copy(vert.get('legs').pop(-1))
+                newleg.set('onshell', False)
+                vert.get('legs').append(newleg)
+                
+        # Set diagrams to res
+        self['diagrams'] = res
+
         # Trim down number of legs and vertices used to save memory
         self.trim_diagrams()
 
         # Sort process legs according to leg number
         self.get('process').get('legs').sort()
+
+        # Set the coupling orders of the process
+        if self['diagrams']:
+            coupling_orders = {}        
+            for key in sorted(list(model.get_coupling_orders())) + ['WEIGHTED']:
+                coupling_orders[key] = max([d.get('orders')[key] for \
+                                            d in self.get('diagrams')])
+            process.set('orders', coupling_orders)
 
         return not failed_crossing
 
@@ -1273,7 +1286,7 @@ class MultiProcess(base_objects.PhysicsObject):
                         "%s is not a valid ProcessDefinitionList object" % str(value)
 
         if name == 'amplitudes':
-            if not isinstance(value, diagram_generation.AmplitudeList):
+            if not isinstance(value, AmplitudeList):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid AmplitudeList object" % str(value)
 

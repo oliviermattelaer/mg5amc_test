@@ -55,13 +55,46 @@ logger = logging.getLogger('madgraph.color_ordered_amplitudes')
 spin_dict = {1:'S', 2:'F', 3:'V', 4:'T'}
 
 #===============================================================================
-# DiagramTag class to identify matrix elements
+# DiagramTag class to order diagram vertices in most optimal way
 #===============================================================================
+
+class OrderDiagramTagChainLink(diagram_generation.DiagramTagChainLink):
+    """Chain link class for OrderDiagramTag with different ordering"""
+
+    def get_flat_links(self):
+        """Return a sorted, flattened list of links"""
+
+        if self.end_link:
+            return [self.links[0]]
+        return sorted(sum([l.get_flat_links() for l in self.links],[]))
+
+    def __lt__(self, other):
+        """Compare self with other in the order:
+        1. depth 2. measure of flat links
+        3. len(links) 4. vertex id"""
+
+        if self == other:
+            return False
+
+        if self.depth != other.depth:
+            return self.depth < other.depth
+
+        return self.get_flat_links() < other.get_flat_links()
+
+        if len(self.links) != len(other.links):
+            return len(self.links) < len(other.links)
+
+        if self.vertex_id != other.vertex_id:
+            return self.vertex_id < other.vertex_id
 
 class OrderDiagramTag(diagram_generation.DiagramTag):
     """DiagramTag daughter class to order the vertices in all diagrams
     to ensure that all diagrams are correctly combined into BG
-    currents."""
+    currents for color ordered amplitudes. For regular amplitudes,
+    this gives the most optimal ordering for speed of matrix element
+    calculation."""
+
+    link_class = OrderDiagramTagChainLink
 
     @staticmethod
     def link_from_leg(leg, model):
@@ -85,6 +118,7 @@ class OrderDiagramTag(diagram_generation.DiagramTag):
 
         # This shouldn't happen
         assert False
+
 
 #===============================================================================
 # ColorOrderedLeg
@@ -314,6 +348,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 used_flows.append(this_flow)
                 if failed:
                     continue
+
             # Restore initial state leg identities
             for leg in colegs:
                 if not leg.get('state'):
@@ -347,7 +382,12 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                         process.get('orders')['QCD'] = \
                                           process.get('orders')['QCD'] + 2*iflow
                         process.get('orders')['singlet_QCD'] = 0
-
+                    # Sort diagrams for this color flow using OrderDiagramTags
+                    for idiag, diag in enumerate(flow.get('diagrams')):
+                        flow.get('diagrams')[idiag] = \
+                                      OrderDiagramTag(diag).\
+                                                         diagram_from_tag(model)
+                    
         self.set('color_flows', color_flows)
         return self.get('diagrams')
 
@@ -1274,11 +1314,6 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             diagram.set('amplitudes', left_amplitudes)
             diagram.set('wavefunctions', helas_objects.HelasWavefunctionList())
 
-        # Now filter diagrams to remove diagrams that have already
-        # been accounted for by BG currents (since it is possible to
-        # get double-counting due to this)
-        if optimization > 1:
-            self.filter_diagrams(left_diagrams, combined_wavefunctions)
         # Set diagram numbers
         for i,d in enumerate(left_diagrams):
             d.set('number', i+1)
@@ -1561,62 +1596,6 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         return diagram_generation.Amplitude({\
             'process': self.get('processes')[0],
             'diagrams': diagrams})
-
-    def filter_diagrams(self, diagrams, wavefunctions):
-        """Filter diagrams to ensure that we don't have double
-        counting, which can happen if a BGHelasCurrent includes
-        wavefunctions that give diagrams that would otherwise not have
-        given currents.
-
-        Algorithm: Generate all base_diagrams, and sort according to
-        number of base_diagrams (i.e., diagrams with most BG currents
-        first). Create diagram tags, and ensure that we don't get
-        double counting."""
-
-        diagram_tags = []
-        final_diagrams = helas_objects.HelasDiagramList()
-        # We are using the diagram tag on base_diagrams generated from these diagrams
-
-        optimization = 0
-        wf_dict = {}
-        vx_list = []
-        base_diagrams = [(d.get('amplitudes')[0].get_base_diagram(\
-                wf_dict, vx_list, optimization), i) for (i,d) in \
-                         enumerate(diagrams)]
-
-        base_diagrams.sort(key=lambda d: len(d[0]), reverse=True)
-        for diagram in base_diagrams:
-            print "Diagram ",diagram[1]
-            for d in diagram[0]:
-                print d.nice_string()
-            this_diagram_tags = [FilterDiagramTag(d) for d in diagram[0]]
-            if not any([dt in diagram_tags for dt in this_diagram_tags]):
-                final_diagrams.append(diagrams[diagram[1]])
-                diagram_tags.extend(this_diagram_tags)
-                print "Diagram added"
-            else:
-                assert not any([dt not in diagram_tags for dt in \
-                                this_diagram_tags])
-                print "Diagram rejected"
-                
-        diagrams[:] = final_diagrams
-        diagrams.sort(key = lambda d: d.get('number'))
-        # Determine which wavefunctions are still needed
-        wf_numbers = set(sum([list(d.get('amplitudes')[0].get_wf_numbers()) \
-                              for d in diagrams], []))
-        wavefunctions[:] = [wf for wf in wavefunctions if wf.get('number') in \
-                            wf_numbers]
-        
-class FilterDiagramTag(diagram_generation.DiagramTag):
-    """Subclass of DiagramTag which identifies actual identical diagrams,
-    based on the external leg numbers."""
-    
-    @staticmethod
-    def link_from_leg(leg, model):
-        """Returns the default end link for a leg: ((id, state), number).
-        Note that the number is not taken into account if tag comparison,
-        but is used only to extract leg permutations."""
-        return [(leg.get('number'), leg.get('number'))]
 
 #===============================================================================
 # COHelasFlowList
