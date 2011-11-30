@@ -52,8 +52,7 @@ if '__main__' == __name__:
     my_proc_list = ['g g > g g', 'g u > g u', 'u u~ > g g','u u~ > d d~', 'u u~ > u u~']
     my_proc_list += ['g g > g g g', 'g u > g u g', 'u u~ > g g g', 'u u~ > d d~ g', 'u u~ > u u~ g g']
     my_proc_list += ['g g > g g g g', 'u u~ > g g g g', 'u u~ > u u~ d d~']
-    my_proc_list = ['u u~ > u u~ d d~ d d~','u u~ > u u~ u u~', 'd d~ > u u~ u u~', 'g g > u u~ u u~']
-    my_proc_list = ['g g > g g g g']
+    my_proc_list = ['u u~ > d d~', 'u u~ > d d~ g', 'u u~ > d d~ g g']
 
     # Set the model we are working with
     model = 'sm'
@@ -71,12 +70,14 @@ if '__main__' == __name__:
     my_mg5_ufo.setup(mg5_path, mg4_path)
 
     # Create a MERunner object for UFO-ALOHA-MG5
-    my_mg5_co_11 = me_comparator.MG5_CO_Runner()
-    my_mg5_co_11.setup(mg5_path, mg4_path, optimization=1, color_ordering=1)
-    my_mg5_co_31 = me_comparator.MG5_CO_Runner()
-    my_mg5_co_31.setup(mg5_path, mg4_path, optimization=3, color_ordering=1)
-    #my_mg5_co_15 = me_comparator.MG5_CO_Runner()
-    #my_mg5_co_15.setup(mg5_path, mg4_path, optimization=1, color_ordering=5)
+    #my_mg5_co_11 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_11.setup(mg5_path, mg4_path, optimization=1, color_ordering=1)
+    #my_mg5_co_31 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_31.setup(mg5_path, mg4_path, optimization=3, color_ordering=1)
+    my_mg5_co_15 = me_comparator.MG5_CO_Runner()
+    my_mg5_co_15.setup(mg5_path, mg4_path, optimization=1, color_ordering=5)
+    #my_mg5_co_35 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_35.setup(mg5_path, mg4_path, optimization=3, color_ordering=5)
     #my_mg5_co_17 = me_comparator.MG5_CO_Runner()
     #my_mg5_co_17.setup(mg5_path, mg4_path, optimization=1, color_ordering=7)
     #my_mg5_co_19 = me_comparator.MG5_CO_Runner()
@@ -88,8 +89,8 @@ if '__main__' == __name__:
 
     # Create and setup a comparator
     my_comp = me_comparator.MEComparator()
-    my_comp.set_me_runners(my_mg5_ufo, my_mg5_co_11, my_mg5_co_31)
-    #                       my_mg5_co_15, my_mg5_co_17, my_mg5_co_19)
+    my_comp.set_me_runners(my_mg5_ufo, my_mg5_co_15)
+    #                       my_mg5_co_35, my_mg5_co_15, my_mg5_co_17, my_mg5_co_19)
 
     # Run the actual comparison
     my_comp.run_comparison(my_proc_list,

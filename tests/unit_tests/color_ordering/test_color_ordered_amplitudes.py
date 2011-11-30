@@ -1382,8 +1382,19 @@ class COHelasMatrixElementTest(unittest.TestCase):
             # Check that we get back the correct number of diagrams
             # when we do get_base_amplitude. This is a very powerful
             # check that the BG currents are correct.
-            self.assertEqual(len(helas_flow.get_base_amplitude().get('diagrams')),
-                             len(self.myamplitude.get('diagrams')))
+            diagrams = self.myamplitude.get('color_flows')[0].get('diagrams')
+            base_amplitude = helas_flow.get_base_amplitude().get('diagrams')
+            self.assertEqual(len(diagrams),len(base_amplitude))
+
+            diagram_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                            for d in diagrams]
+            base_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                         for d in base_amplitude]
+            base_tag_copy = copy.copy(base_tags)
+            for tag in diagram_tags:
+                self.assertTrue(tag in base_tags)
+                base_tags.remove(tag)
+            self.assertEqual(base_tags, [])
 
             #print "\n".join(\
             #    color_ordered_export_v4.COFortranUFOHelasCallWriter(self.mymodel).\
@@ -1513,8 +1524,19 @@ class COHelasMatrixElementTest(unittest.TestCase):
             # Check that we get back the correct number of diagrams
             # when we do get_base_amplitude. This is a very powerful
             # check that the BG currents are correct.
-            self.assertEqual(len(matrix_element.get_base_amplitude().get('diagrams')),
-                             len(mycolorflow.get('diagrams')))
+            diagrams = mycolorflow.get('diagrams')
+            base_amplitude = matrix_element.get_base_amplitude().get('diagrams')
+            self.assertEqual(len(diagrams),len(base_amplitude))
+
+            diagram_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                            for d in diagrams]
+            base_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                         for d in base_amplitude]
+            base_tag_copy = copy.copy(base_tags)
+            for tag in diagram_tags:
+                self.assertTrue(tag in base_tags)
+                base_tags.remove(tag)
+            self.assertEqual(base_tags, [])
 
             #print "\n".join(\
             #    color_ordered_export_v4.COFortranUFOHelasCallWriter(self.mymodel).\
@@ -1647,9 +1669,19 @@ class COHelasMatrixElementTest(unittest.TestCase):
             # Check that we get back the correct number of diagrams
             # when we do get_base_amplitude. This is a very powerful
             # check that the BG currents are correct.
-            self.assertEqual(len(mycolorflow.get_base_amplitude().get('diagrams')),
-                             len(self.myamplitude.get('color_flows')[0].\
-                                 get('diagrams')))
+            diagrams = self.myamplitude.get('color_flows')[0].get('diagrams')
+            base_amplitude = mycolorflow.get_base_amplitude().get('diagrams')
+            self.assertEqual(len(diagrams),len(base_amplitude))
+
+            diagram_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                            for d in diagrams]
+            base_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                         for d in base_amplitude]
+            base_tag_copy = copy.copy(base_tags)
+            for tag in diagram_tags:
+                self.assertTrue(tag in base_tags)
+                base_tags.remove(tag)
+            self.assertEqual(base_tags, [])
 
             for cf in matrix_element.get('color_flows')[1:]:
                 self.assertEqual(cf.get('permutations'),
@@ -1805,9 +1837,19 @@ class COHelasMatrixElementTest(unittest.TestCase):
             # Check that we get back the correct number of diagrams
             # when we do get_base_amplitude. This is a very powerful
             # check that the BG currents are correct.
-            self.assertEqual(len(mycolorflow.get_base_amplitude().get('diagrams')),
-                             len(self.myamplitude.get('color_flows')[0].\
-                                 get('diagrams')))
+            diagrams = self.myamplitude.get('color_flows')[0].get('diagrams')
+            base_amplitude = mycolorflow.get_base_amplitude().get('diagrams')
+            self.assertEqual(len(diagrams),len(base_amplitude))
+
+            diagram_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                            for d in diagrams]
+            base_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                         for d in base_amplitude]
+            base_tag_copy = copy.copy(base_tags)
+            for tag in diagram_tags:
+                self.assertTrue(tag in base_tags)
+                base_tags.remove(tag)
+            self.assertEqual(base_tags, [])
 
             for cf in matrix_element.get('color_flows')[1:]:
                 self.assertEqual(cf.get('permutations'),
@@ -1918,10 +1960,27 @@ class COHelasMatrixElementTest(unittest.TestCase):
                 # Check that we get back the correct number of diagrams
                 # when we do get_base_amplitude. This is a very powerful
                 # check that the BG currents are correct.
-                print 'diagrams: ',mycolorflow.nice_string()
-                print 'matrix_element: ',matrix_element.get_base_amplitude().nice_string()
-                self.assertEqual(len(matrix_element.get_base_amplitude().get('diagrams')),
-                                 len(mycolorflow.get('diagrams')))
+                diagrams = mycolorflow.get('diagrams')
+                base_amplitude = matrix_element.get_base_amplitude().get('diagrams')
+                diagram_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                                for d in diagrams]
+                base_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                             for d in base_amplitude]
+                base_tag_copy = copy.copy(base_tags)
+                
+                #print 'diagrams: ',diagrams.nice_string()
+                #print 'matrix_element: ',base_amplitude.nice_string()
+
+                for tag in diagram_tags:
+                    self.assertTrue(tag in base_tags)
+                    base_tags.remove(tag)
+                #for tag in base_tags:
+                #    diag = tag.diagram_from_tag(self.mymodel)
+                #    print base_tag_copy.index(tag)+1,diag.nice_string()
+                    
+                self.assertEqual(base_tags, [])
+
+                self.assertEqual(len(diagrams),len(base_amplitude))
 
                 # Test that wavefunctions that have been combined are
                 # not in any amplitudes
@@ -2113,8 +2172,19 @@ class COHelasMatrixElementTest(unittest.TestCase):
                 # Check that we get back the correct number of diagrams
                 # when we do get_base_amplitude. This is a very powerful
                 # check that the BG currents are correct.
-                self.assertEqual(len(matrix_element.get_base_amplitude().get('diagrams')),
-                             len(mycolorflow.get('diagrams')))
+                diagrams = mycolorflow.get('diagrams')
+                base_amplitude = matrix_element.get_base_amplitude().get('diagrams')
+                diagram_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                                for d in diagrams]
+                base_tags = [color_ordered_amplitudes.OrderDiagramTag(d) \
+                             for d in base_amplitude]
+                base_tag_copy = copy.copy(base_tags)
+                
+                for tag in diagram_tags:
+                    self.assertTrue(tag in base_tags)
+                    base_tags.remove(tag)
+                    
+                self.assertEqual(base_tags, [])
 
                 # Test that wavefunctions that have been combined are
                 # not in any amplitudes

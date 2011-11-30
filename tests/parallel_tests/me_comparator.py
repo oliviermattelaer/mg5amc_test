@@ -55,7 +55,6 @@ class MERunner(object):
 
     setup_flag = False
 
-    name = 'None'
     model_dir = os.path.join(MG5DIR,'models')
 
     class MERunnerException(Exception):
@@ -324,10 +323,6 @@ class MG5Runner(MG4Runner):
 
     mg5_path = ""
 
-    name = 'MadGraph v5'
-    type = 'v5'
-        
-
     def setup(self, mg5_path, mg4_path, temp_dir=None):
         """Wrapper for the mg4 setup, also initializing the mg5 path variable"""
 
@@ -422,9 +417,17 @@ class MG5Runner(MG4Runner):
 
 class MG5_UFO_Runner(MG5Runner):
     
-    name = 'UFO-ALOHA-MG5'
-    type = 'ufo'
+    def setup(self, mg5_path, mg4_path, temp_dir=None):
+        """Wrapper for the mg4 setup, also initializing the mg5 path variable"""
+
+        if not hasattr(self, 'name'):
+            self.name = 'UFO-ALOHA-MG5'
+        if not hasattr(self, 'type'):
+            self.type = 'ufo'
     
+
+        super(MG5_UFO_Runner, self).setup(mg5_path, mg4_path, temp_dir)
+        
     def format_mg5_proc_card(self, proc_list, model, orders):
         """Create a proc_card.dat string following v5 conventions."""
 
@@ -444,11 +447,15 @@ class MG5OldRunner(MG5Runner):
     """ """
     
     mg5_path = ""
-    name = 'MadGraph5 Reference'
-    type = 'ufo_ref'
     
     def setup(self, mg5_path, temp_dir=None):
         """ initializing the mg5 path variable"""
+
+        if not hasattr(self, 'name'):
+            self.name = 'MadGraph5 Reference'
+        if not hasattr(self, 'type'):
+            self.type = 'ufo_ref'
+
         self.mg5_path = os.path.abspath(mg5_path)
 
         if not temp_dir:
