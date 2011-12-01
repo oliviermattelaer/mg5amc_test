@@ -602,7 +602,7 @@ class ALOHAWriterForFortran(WriteALOHA):
         
         argument = {
             'name': name,
-            'fct_args': ','.join(['W%s, C%s' % (i,i) for i in range(nb_wave)]),
+            'fct_args': ','.join(['C%s, W%s' % (i,i) for i in range(nb_wave)]),
             'coupling_def': 'double complex %s' % \
                               (','.join(['C%s' % (i) for i in range(nb_wave)])),
             'wave_def': 'double complex %s' % \

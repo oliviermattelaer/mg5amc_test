@@ -1640,13 +1640,13 @@ class COHelasMatrixElementTest(unittest.TestCase):
         """Test color ordered matrix elements for uu~>ng
         """
 
-        goal_amplitudes = [2, 7, 18, 38]
-        goal_wavefunctions = [6, 10, 21, 41]
+        goal_wavefunctions =  [6, 10, 21, 41, 70, 121]
+        goal_amplitudes =  [2, 7, 18, 38, 76, 130]
         #goal_amplitudes = []
         #goal_wavefunctions = []
 
         # Test 2, 3, 4 and 5 gluons in the final state
-        for ngluon in range (2, 5):
+        for ngluon in range (2, 6):
 
             # Create the amplitude
             myleglist = base_objects.LegList([\
@@ -1932,12 +1932,6 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
-            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
-                self.myamplitude, gen_color=3, optimization=1)
-
-            #print "color basis: ", matrix_element.get('color_basis')
-            #print "color matrix: ", matrix_element.get('color_matrix')
-            #goal_nflows.append(len(self.myamplitude.get('color_flows')))
             #diags=[]
             #amps=[]
             #wfs=[]
@@ -2231,6 +2225,53 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #print 'goal_amplitudes = ',goal_amplitudes
             #print 'goal_ndiags = ',goal_ndiags
                               
+    def test_color_matrix_uux_ddxng(self):
+        """Test color flow matrix elements for uu~>dd~ng
+        """
+
+        # Test 0-3 gluons in the final state
+        for ngluon in range (0, 4):
+
+            # Create the non-optimized amplitude
+            myleglist = base_objects.LegList([\
+                base_objects.Leg({'id':2, 'state':False}),
+                base_objects.Leg({'id':-2, 'state':False}),
+                base_objects.Leg({'id':1}),
+                base_objects.Leg({'id':-1})])
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * ngluon)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'orders':{'QED': 0},
+                                           'model':self.mymodel})
+
+            myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+
+            print "optimization 1"
+            matrix_element1 = color_ordered_amplitudes.COHelasMatrixElement(\
+                myamplitude, gen_color=3, optimization=1)
+
+            print "optimization 3"
+            matrix_element3 = color_ordered_amplitudes.COHelasMatrixElement(\
+                myamplitude, gen_color=3, optimization=3)
+
+            print ngluon,' gluons has ',len(matrix_element1.get('color_flows')),\
+                  ' color flows'
+            for i,(cf1,cf3) in enumerate(zip(matrix_element1.get('color_flows'),
+                                             matrix_element3.get('color_flows'))):
+                print "color flow: ",i
+                print "color strings:"
+                print cf1.get('color_string')
+                print cf3.get('color_string')
+                self.assertEqual(cf1.get('color_string'),
+                                 cf3.get('color_string'))
+            print "color basis opt1: ", matrix_element1.get('color_basis')
+            print "color basis opt3: ", matrix_element3.get('color_basis')
+            self.assertEqual(matrix_element1.get('color_basis'),
+                             matrix_element3.get('color_basis'))
+
+
 #===============================================================================
 # TestDiagramTag
 #===============================================================================

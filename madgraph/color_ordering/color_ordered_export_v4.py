@@ -62,7 +62,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
     # write_co_flow_v4
     #===========================================================================
     def write_co_flow_v4(self, writer, flow, fortran_model):
-        """Export a matrix element to a matrix.f file in MG4 standalone format"""
+        """Export a matrix element to a flow.f file in MG4 standalone format"""
 
         if not flow.get('processes') or \
                not flow.get('diagrams'):
@@ -795,16 +795,16 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
         call_function = None
 
         if isinstance(argument, color_ordered_amplitudes.BGHelasCurrent):
-            # Create call for wavefunction
+            # Create call for wavefunction summation sumVN(fact1,W1,fact2,W2,...,Wres)
             call += "sum%s%d(" % \
                     (color_ordered_amplitudes.spin_dict[\
                                     argument.get('mothers')[0].get('spin')],
                                     len(argument.get('mothers')))
-            call += "W(1,%d),%s," * len(argument.get('mothers')) + \
+            call += "%s,W(1,%d)," * len(argument.get('mothers')) + \
                     "W(1,%d))"
             call_function = lambda wf: call % \
-                (tuple(sum([[mother.get('number'),
-                             self.write_factor(mother.get('factor'))] for \
+                (tuple(sum([[self.write_factor(mother.get('factor')),
+                             mother.get('number')] for \
                             mother in wf.get('mothers')], []) + \
                 [wf.get('number')]))
             self.add_wavefunction(argument.get_call_key(), call_function)

@@ -1060,8 +1060,8 @@ class BGHelasCurrent(COHelasWavefunction):
         common_Nc_power = max([wf.get('color_string').Nc_power for wf \
                               in self.get('mothers')])
         self.get('color_string').Nc_power = common_Nc_power
-        for wf in self.get('mothers'):
-            wf.get('color_string').Nc_power -= common_Nc_power
+        #for wf in self.get('mothers'):
+        #    wf.get('color_string').Nc_power -= common_Nc_power
 
         
     def get_call_key(self):
