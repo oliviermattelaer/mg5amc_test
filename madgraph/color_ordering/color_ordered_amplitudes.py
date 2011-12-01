@@ -1060,9 +1060,17 @@ class BGHelasCurrent(COHelasWavefunction):
         common_Nc_power = max([wf.get('color_string').Nc_power for wf \
                               in self.get('mothers')])
         self.get('color_string').Nc_power = common_Nc_power
-        #for wf in self.get('mothers'):
-        #    wf.get('color_string').Nc_power -= common_Nc_power
 
+        for wf in self.get('mothers'):
+            # Must reset mother color string factors, since
+            # the amplitude color factor is calculated using the
+            # original wfs
+            wf.get('color_string').Nc_power = \
+                                           self.get('color_string').Nc_power
+            wf.get('color_string').coeff = \
+                                           self.get('color_string').coeff
+            wf.get('color_string').is_imaginary = \
+                                           self.get('color_string').is_imaginary
         
     def get_call_key(self):
         """Generate the ('sum', spins) tuple used as key for
@@ -1310,6 +1318,8 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                 # Replace the amplitude mothers in these
                 # amplitudes with corresponding currents
                 self.replace_mothers(amp, wf_current_dict)
+                # Update color and fermion factor, since mothers have changed
+                amp.set_color_and_fermion_factor()
 
             diagram.set('amplitudes', left_amplitudes)
             diagram.set('wavefunctions', helas_objects.HelasWavefunctionList())

@@ -58,6 +58,7 @@ if '__main__' == __name__:
                      'u u~ > u u~ u u~', 'u u~ > u u~ d d~ g', 'u u~ > u u~ u u~ g',
                      'u u~ > u u~ d d~ g g']
 
+    my_proc_list = ['u u~ > d d~ g g', 'u u~ > d d~ g g g']
     # Set the model we are working with
     model = 'sm'
 
@@ -70,18 +71,18 @@ if '__main__' == __name__:
     #my_mg5.setup(mg5_path, mg4_path)
 
     # Create a MERunner object for UFO-ALOHA-MG5
-    my_mg5_ufo = me_comparator.MG5_UFO_Runner()
-    my_mg5_ufo.setup(mg5_path, mg4_path)
+    #my_mg5_ufo = me_comparator.MG5_UFO_Runner()
+    #my_mg5_ufo.setup(mg5_path, mg4_path)
 
     # Create a MERunner object for UFO-ALOHA-MG5
     my_mg5_co_11 = me_comparator.MG5_CO_Runner()
     my_mg5_co_11.setup(mg5_path, mg4_path, optimization=1, color_ordering=1)
     my_mg5_co_31 = me_comparator.MG5_CO_Runner()
     my_mg5_co_31.setup(mg5_path, mg4_path, optimization=3, color_ordering=1)
-    my_mg5_co_17 = me_comparator.MG5_CO_Runner()
-    my_mg5_co_17.setup(mg5_path, mg4_path, optimization=1, color_ordering=7)
-    my_mg5_co_37 = me_comparator.MG5_CO_Runner()
-    my_mg5_co_37.setup(mg5_path, mg4_path, optimization=3, color_ordering=7)
+    #my_mg5_co_17 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_17.setup(mg5_path, mg4_path, optimization=1, color_ordering=7)
+    #my_mg5_co_37 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_37.setup(mg5_path, mg4_path, optimization=3, color_ordering=7)
 
     # Create a MERunner object for C++
     #my_mg5_cpp = me_comparator.MG5_CPP_Runner()
@@ -89,8 +90,9 @@ if '__main__' == __name__:
 
     # Create and setup a comparator
     my_comp = me_comparator.MEComparator()
-    my_comp.set_me_runners(my_mg5_ufo, my_mg5_co_17, my_mg5_co_37,
-                           my_mg5_co_11, my_mg5_co_31)
+    my_comp.set_me_runners(my_mg5_co_11, my_mg5_co_31)
+
+    #my_mg5_ufo, my_mg5_co_17, my_mg5_co_37,
 
     # Run the actual comparison
     my_comp.run_comparison(my_proc_list,
