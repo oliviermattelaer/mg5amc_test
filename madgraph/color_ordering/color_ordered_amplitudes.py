@@ -242,16 +242,19 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
         if len(triplet_legs) != len(anti_triplet_legs):
             # Need triplets in pairs for valid amplitude
-            return
+            # (color triplet-epsilon^{ijk} is not allowed)
+            raise MadGraph5Error, \
+                  "# triplets != # anti-triplets in color ordered amplitude"
+            
 
-        if len(triplet_legs+anti_triplet_legs + octet_legs+singlet_legs) != \
+        if len(triplet_legs + anti_triplet_legs + octet_legs + singlet_legs) != \
                len(legs):
             raise MadGraph5Error, \
                   "Non-triplet/octet/singlet found in color ordered amplitude"
         
         # Determine all unique permutations of particles corresponding
         # to color flows. Valid color flows have color triplet pairs
-        # prganized as (3bar 3)...(3bar 3)...
+        # organized as (3bar 3)...(3bar 3)...
 
         # Extract all unique permutations of legs
         leg_perms = []
@@ -331,26 +334,30 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     ileg = 0
                 ileg += 1
                 leg.set('color_ordering', {ichain: (ileg, ileg)})
-            if ichain > 2:
+            if ichain > 1:
                 # Make sure we don't have double counting between
                 # different orders of identical chains, by comparing
                 # the arrays of [(pdg, chain number, color_ordering)]
-                # for all permutations of the chain numbers.
+                # for all permutations of the chain numbers
                 failed = False
-                for p in itertools.permutations(range(1, ichain+1), ichain): 
-                    this_flow = sorted(sum([[(leg.get('id'), p[i],
-                                           leg.get('color_ordering')[i]) \
-                                          for leg in colegs if i in \
-                                          leg.get('color_ordering')] for \
-                                         i in range(len(p))], []))
-                    
+                for p in itertools.permutations(range(ichain), ichain):
+                    this_flow = sorted(sum([[(leg.get('id'),
+                                       p[i] + 1,
+                                       leg.get('color_ordering')[i + 1]) \
+                                      for leg in colegs if i + 1 in \
+                                      leg.get('color_ordering')] for \
+                                     i in range(ichain)], []))
                     if this_flow in used_flows:
                         failed = True
                         break
-                used_flows.append(this_flow)
                 if failed:
+                    # Need to add the permutations of this amplitude to
+                    # same_flavor_perms
+                    #index = used_flows.index(this_flow)
+                    #same_flavor_perms[index].extend(same_flavor_perms[iperm])
                     continue
-
+                        
+                used_flows.append(this_flow)
             # Restore initial state leg identities
             for leg in colegs:
                 if not leg.get('state'):
