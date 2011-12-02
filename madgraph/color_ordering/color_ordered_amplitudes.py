@@ -272,7 +272,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
             try:
                 ind = good_perm_ids.index(perm_ids)
                 same_flavor_perms[ind].append([p[0] for p in perm] + \
-                                              [last_leg[0][0]])
+                                              [last_leg[0][0]] + \
+                                              [l[0] for l in singlet_legs])
                 continue
             except ValueError:
                 pass
@@ -295,12 +296,13 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
             # Initiate list of permutations for this leglist
             same_flavor_perms[len(leg_perms)] = [[p[0] for p in perm] + \
-                                                 [last_leg[0][0]]]
+                                                 [last_leg[0][0]] + \
+                                                 [l[0] for l in singlet_legs]]
             # Add permutation ids for comparison above
             good_perm_ids.append(perm_ids)
             # Add permutation to accepted permutations
             leg_perms.append(perm)
-            
+
         # Create color flow amplitudes corresponding to all resulting
         # permutations
         color_flows = ColorOrderedFlowList()
@@ -539,15 +541,13 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
                 else:
                     ileg += 1
             elif abs(new_leg_colors[leg_id]) == 8:
-                # Color octets should have 1 or 2 valid orderings, and
-                # no completed groups unless it has 2 valid orderings
+                # Color octets should have 1 or 2 valid orderings
+                # valid_orderings is non-completed groups
                 valid_orderings = [group for group in groups if \
                                    color_orderings[leg_id][group] != \
                                    (1, self.get('max_color_orders')[group])]
                 if (len(valid_orderings) < 1 or \
-                    len(valid_orderings) > 2 or
-                    len(valid_orderings) != len(color_orderings[leg_id]) and \
-                    len(valid_orderings) < 2):
+                    len(valid_orderings) > 2):
                     leg_vert_ids.remove((leg_id, vert_id))
                 else:
                     ileg += 1
