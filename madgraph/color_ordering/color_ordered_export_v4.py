@@ -193,6 +193,20 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                 flow,
                 fortran_model)
 
+        # Create the flow.ps files for each color flow
+        calls = 0
+        for flow in matrix_element.get('color_flows'):
+            filename = 'flow%d.ps' % flow.get('number')
+            plot = draw.MultiEpsDiagramDrawer(flow.get('base_amplitude').\
+                                                 get('diagrams'),
+                                              filename,
+                                              model=matrix_element.get('processes')[0].\
+                                                 get('model'),
+                                              amplitude=True)
+            logger.info("Generating Feynman diagrams for " + \
+                         matrix_element.get('processes')[0].nice_string())
+            plot.draw()
+
         filename = 'nexternal.inc'
         self.write_nexternal_file(writers.FortranWriter(filename),
                              nexternal, ninitial)
@@ -345,9 +359,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         nperms = len(matrix_element.get('permutations'))
         for iperm in range(nperms):
             for iflow, flow in enumerate(matrix_element.get('color_flows')):
-                return_lines.append("JAMP(%d)=%d*FLOW%d(P,NHEL,PERMS(1,%d),IFERM(%d))" \
+                return_lines.append("JAMP(%d)=FLOW%d(P,NHEL,PERMS(1,%d),IFERM(%d))" \
                            % (1 + iperm + iflow * nperms,
-                              flow.get('fermion_perm_factor'),
                               iflow + 1, iperm + 1,
                               iperm + 1))
                 return_lines[-1] = return_lines[-1].replace('=1*', '=')

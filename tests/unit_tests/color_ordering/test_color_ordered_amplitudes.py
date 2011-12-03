@@ -465,7 +465,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_color_ordered_uux_uuxng(self):
         """Test the number of color flows and diagrams for uu~>uu~+ng
         """
-        goal_ndiags = [[1, 1], [3, 2, 3, 2], [10, 5, 11, 4, 10, 5],[35, 16, 41, 10, 41, 10, 35, 16]]
+        goal_ndiags = [[1, 1], [3, 2, 3, 2], [10, 5, 11, 4, 10, 5],[37, 16, 41, 10, 41, 10, 37, 16]]
         goal_nflows = [2, 4, 6, 8]
         goal_nperms = [[2] * 2, [2] * 4, [4] * 6, [12] * 8]
 
@@ -491,6 +491,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             self.myamplitude.set('process', myproc)
 
             self.myamplitude.generate_diagrams()
+
             #for c in self.myamplitude.get('color_flows'):
             #    print "color flow process: ",[(l.get('number'), l.get('color_ordering')) for \
             #                                   l in c.get('process').get('legs')]
@@ -620,19 +621,16 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_color_ordered_uux_uuxddxng(self):
         """Test number of color flows and diagrams for uu~>uu~dd~+ng
         """
-        goal_ndiags = [[4, 4, 4, 6, 4, 4],
-                       [16, 14, 16, 14, 14, 14, 8, 14, 16, 8, 16, 8,
-                        16, 14, 14, 14, 16, 14],
-                       [63, 50, 69, 56, 63, 50, 50, 38, 28, 32, 20,
-                        38, 69, 28, 63, 20, 63, 20, 69, 28, 63, 50, 69,
-                        28, 56, 32, 28, 32, 69, 28, 69, 56, 50, 38, 63,
-                        50]]
+        goal_ndiags =  [[4, 4, 4, 6, 4, 4],
+                        [16, 14, 16, 14, 14, 14, 8, 14, 16, 8, 14, 14, 16, 8, 16, 14, 16, 14],
+                        [63, 50, 69, 56, 63, 50, 50, 38, 28, 32, 20, 38, 69, 28, 69, 28, 56, 32, 28, 32, 63, 20, 50, 38, 63, 20, 69, 28, 63, 50, 69, 28, 69, 56, 63, 50]]
         
         goal_nflows = [6, 18, 36]
         #goal_nflows = []
         #goal_ndiags = []
-
-        for ngluons in range(0, 2):
+        goal_nperms = [[2]*6,[2]*18,[4]*36]
+        
+        for ngluons in range(0, 1):
 
             myleglist = base_objects.LegList()
 
@@ -667,30 +665,34 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             self.assertEqual(len(self.myamplitude.get('color_flows')),
                              goal_nflows[ngluons])
             #diags = []
+            #perms = []
             for iflow, flow in enumerate(self.myamplitude.get('color_flows')):
                 #diags.append(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')))
-                self.assertEqual(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')),
-                             goal_ndiags[ngluons][iflow])
+                self.assertEqual(len(flow.get('diagrams')),
+                                 goal_ndiags[ngluons][iflow])
+                #perms.append(len(flow.get('permutations')))
+                print flow.get('permutations')
+                self.assertEqual(len(flow.get('permutations')),
+                                 goal_nperms[ngluons][iflow])
             #goal_ndiags.append(diags)
+            #goal_nperms.append(perms)
             #print goal_nflows
-            #print goal_ndiags
+            #print "goal_ndiags = ",goal_ndiags
+            #print "goal_nperms = ",goal_nperms
 
     def test_color_ordered_ddx_uuxuuxng(self):
         """Test number of color flows and diagrams for dd~>uu~uu~+ng
         """
-        goal_ndiags = [[4, 4, 4, 6, 4, 4],
-                       [16, 14, 16, 14, 14, 14, 8, 14, 16, 8, 16, 8,
-                        16, 14, 14, 14, 16, 14],
-                       [63, 50, 69, 56, 63, 50, 50, 38, 28, 32, 20,
-                        38, 69, 28, 63, 20, 63, 20, 69, 28, 63, 50, 69,
-                        28, 56, 32, 28, 32, 69, 28, 69, 56, 50, 38, 63,
-                        50]]
+        goal_ndiags =  [[4, 4, 4, 4, 4, 6],
+                        [16, 14, 16, 8, 16, 14, 16, 14, 16, 14, 8, 14, 14, 14, 16, 8, 14, 14],
+                        [63, 50, 69, 28, 63, 20, 69, 56, 69, 28, 63, 50, 63, 50, 69, 56, 63, 50, 20, 38, 28, 32, 50, 38, 69, 28, 69, 28, 28, 32, 56, 32, 63, 20, 50, 38]]
         
         goal_nflows = [6, 18, 36]
+        goal_nperms = [[2]*6,[2]*18,[4]*36]        
         #goal_nflows = []
         #goal_ndiags = []
 
-        for ngluons in range(0, 2):
+        for ngluons in range(0, 1):
 
             myleglist = base_objects.LegList()
 
@@ -727,11 +729,14 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             #diags = []
             for iflow, flow in enumerate(self.myamplitude.get('color_flows')):
                 #diags.append(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')))
-                self.assertEqual(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')),
+                self.assertEqual(len(flow.get('diagrams')),
                              goal_ndiags[ngluons][iflow])
+                print "permutations: ",flow.get('permutations')
+                self.assertEqual(len(flow.get('permutations')),
+                                 goal_nperms[ngluons][iflow])
             #goal_ndiags.append(diags)
             #print goal_nflows
-            #print goal_ndiags
+            #print "goal_ndiags = ",goal_ndiags
 
     def test_color_ordered_uux_epem_nglue(self):
         """Test the number of color flows and diagrams generated for uu~>e+e-ng
@@ -1740,7 +1745,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #print '\n'.join(export_v4.get_JAMP_lines(mycolorflow))
 
     def test_matrix_element_uux_nglue_non_optimized(self):
-        """Test color ordered matrix elements for uu~>ng
+        """Test color ordered matrix elements for uu~>ng (non-optimized)
         """
 
         goal_amplitudes = [2, 7, 28, 126]
@@ -1918,7 +1923,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
         #goal_nflows = []
 
         # Test 0-3 gluons in the final state
-        for ngluon in range (3, 4):
+        for ngluon in range (0, 3):
 
             # Create the amplitude
             myleglist = base_objects.LegList([\
@@ -1941,7 +1946,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #wfs=[]
 
             for iflow, mycolorflow in \
-                enumerate(self.myamplitude.get('color_flows')[:1]):
+                enumerate(self.myamplitude.get('color_flows')):
 
                 matrix_element = color_ordered_amplitudes.COHelasFlow(\
                     mycolorflow, gen_color=False, optimization = 3)
@@ -2018,6 +2023,71 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #print goal_nflows
             #print goal_wavefunctions
             #print goal_amplitudes
+
+    def test_matrix_element_uux_uxu(self):
+        """Test color flow matrix element for uu~>u~u
+        """
+
+        # Create the amplitude
+        myleglist = base_objects.LegList([\
+            base_objects.Leg({'id':2, 'state':False}),
+            base_objects.Leg({'id':-2, 'state':False}),
+            base_objects.Leg({'id':-2}),
+            base_objects.Leg({'id':2})])
+
+        myproc = base_objects.Process({'legs':myleglist,
+                                       'orders':{'QED': 0},
+                                       'model':self.mymodel})
+
+        self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+
+        for iflow, mycolorflow in \
+            enumerate(self.myamplitude.get('color_flows')):
+
+            matrix_element = color_ordered_amplitudes.COHelasFlow(\
+                mycolorflow, gen_color=False, optimization = 3)
+
+            print "\n".join(\
+                color_ordered_export_v4.COFortranUFOHelasCallWriter(self.mymodel).\
+                get_matrix_element_calls(matrix_element))
+            exporter = color_ordered_export_v4.ProcessExporterFortranCO()
+            print '\n'.join(exporter.get_JAMP_lines(matrix_element))
+            for amp in matrix_element.get_all_amplitudes():
+                print amp.get('number'),amp.get('factor')
+            for d in matrix_element.get('diagrams'):
+                self.assertTrue(len(d.get('amplitudes')) > 0)
+
+        # Create the amplitude
+        myleglist = base_objects.LegList([\
+            base_objects.Leg({'id':2, 'state':False}),
+            base_objects.Leg({'id':-2, 'state':False}),
+            base_objects.Leg({'id':2}),
+            base_objects.Leg({'id':-2})])
+
+        myproc = base_objects.Process({'legs':myleglist,
+                                       'orders':{'QED': 0},
+                                       'model':self.mymodel})
+
+        print myproc.nice_string()
+        self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+
+        for iflow, mycolorflow in \
+            enumerate(self.myamplitude.get('color_flows')):
+
+            matrix_element = color_ordered_amplitudes.COHelasFlow(\
+                mycolorflow, gen_color=False, optimization = 3)
+
+            print "\n".join(\
+                color_ordered_export_v4.COFortranUFOHelasCallWriter(self.mymodel).\
+                get_matrix_element_calls(matrix_element))
+            exporter = color_ordered_export_v4.ProcessExporterFortranCO()
+            print '\n'.join(exporter.get_JAMP_lines(matrix_element))
+            for amp in matrix_element.get_all_amplitudes():
+                print amp.get('number'),amp.get('factor')
+            for d in matrix_element.get('diagrams'):
+                self.assertTrue(len(d.get('amplitudes')) > 0)
+
+            
 
     def test_matrix_element_uux_ddxng_non_optimized(self):
         """Test color flow matrix element for uu~>dd~ng witout optimization

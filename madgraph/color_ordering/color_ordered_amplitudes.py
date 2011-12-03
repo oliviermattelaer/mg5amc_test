@@ -269,6 +269,11 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                                   triplet_legs + \
                                                   octet_legs,
                                                   lambda l1, l2: l1[0] - l2[0])):
+            # Remove permutations where the order of anti-triplets is changed
+            anti_triplet_numbers = [p[0] for p in perm if p[2]==-3]
+            if anti_triplet_numbers != sorted(anti_triplet_numbers):
+                continue
+
             # Permutations with same flavor ordering as existing perm
             # are kept in same_flavor_perms
             perm_ids = array.array('i', [p[1] for p in perm])
@@ -281,14 +286,14 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
             except ValueError:
                 pass
             
-            # trip is a list of [position, (number, id, color)] for
-            # triplet and antitriplet legs
-            trip = [(i,p) for (i,p) in enumerate(last_leg + list(perm)) \
-                    if abs(p[2])==3]
             # Remove permutations where a triplet and
             # anti-triplet are not next to each other and ordered as 
             # (3bar 3)...(3bar 3)...
             failed = False
+            # trip is a list of [position, (number, id, color)] for
+            # triplet and antitriplet legs
+            trip = [(i,p) for (i,p) in enumerate(last_leg + list(perm)) \
+                    if abs(p[2])==3]
             for i in range(0,len(trip),2):
                 if trip[i][0] != trip[i+1][0]-1 or \
                        trip[i][1][2]-trip[i+1][1][2] != -6:
@@ -316,12 +321,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         # group, and each entry in the chain has a unique color flow
         # flag {chain:(n,n)}
 
-        # For > 2 triplet pairs, we need to remove double counting due
-        # to different ordering of color chains.
-
-        used_flows = []
-        used_perms = []
-        
         for iperm, perm in enumerate(leg_perms):
             colegs = base_objects.LegList([ColorOrderedLeg(l) for l in legs])
             # Keep track of number of triplets
@@ -335,51 +334,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     ileg = 0
                 ileg += 1
                 leg.set('color_ordering', {ichain: (ileg, ileg)})
-            if ichain > 1:
-                # Make sure we don't have double counting between
-                # different orders of identical chains, by comparing
-                # the arrays of [(pdg, chain number, color_ordering)]
-                # for all permutations of the chain numbers
-                failed = False
-                for p in itertools.permutations(range(1,ichain+1), ichain):
-                    this_flow = sorted(sum([[(leg.get('id'),
-                                       p[i],
-                                       leg.get('color_ordering')[i + 1]) \
-                                      for leg in colegs if i + 1 in \
-                                      leg.get('color_ordering')] for \
-                                     i in range(ichain)], []))
-                    if this_flow in used_flows:
-                        failed = True
-                        break
-                if failed:
-                    print "failed: ",this_flow,p
-                    # Need to add the permutations of this amplitude to
-                    # same_flavor_perms
-                    index = used_flows.index(this_flow)
-                    chainperm = \
-                             self.from_perm_to_perm(p, used_perms[index])
-                    print "chainperm: ",chainperm
-                    # First need to reorder the permutation according
-                    # to the shift in color groups
-                    leg_order_list = [[] for i in range(ichain)]
-                    for i,lnum in enumerate(same_flavor_perms[iperm][0]):
-                        leg_order_list[colegs[lnum-1].get('color_ordering').keys()[0]-1].append(i)
-                    print leg_order_list
-                    reordering = sum([leg_order_list[i] for i in chainperm], [])
-                    print reordering
-                    for old_perm in same_flavor_perms[iperm]:
-                        print "old_perm: ",old_perm
-                        new_perm = [old_perm[i] for i in reordering]
-                        print "new_perm: ",new_perm
-                        if not new_perm in same_flavor_perms[index]:
-                            same_flavor_perms[index].append(new_perm)
-                        
-                    continue
-                        
-                used_flows.append(this_flow)
-                used_perms.append(p)
-                print "appended: ",this_flow, p
-
 
             # Restore initial state leg identities
             for leg in colegs:
@@ -401,11 +355,12 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 coprocess.get('orders')['singlet_QCD'] = 2*iflow
                 flow = ColorOrderedFlow(coprocess)
                 if flow.get('diagrams'):
-                    # Set perm information for this flow
-                    flow.set('permutations', same_flavor_perms[iperm])
-                    flow.set('fermion_perm_factor',
-                             self.get_fermion_perm_factor(coprocess,
-                                           [p[0]-1 for p in list(perm)+last_leg]))
+                    # Set permutation information for this flow
+                    # (relative to first permutation)
+                    perms = same_flavor_perms[iperm]
+                    flow.set('permutations',
+                             [base_objects.reorder_permutation(perms[0], p) \
+                              for p in perms])
                     # Add flow to list
                     color_flows.append(flow)
                     if not 'QCD' in process.get('orders'):
@@ -422,35 +377,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     
         self.set('color_flows', color_flows)
         return self.get('diagrams')
-
-    @staticmethod
-    def get_fermion_perm_factor(process, perm):
-        """Get the factor based on permutations of fermions for this
-        color flow"""
-
-        model = process.get('model')
-        legs = process.get('legs')
-        external_fermions = [legs[i].get('number') for i in perm if \
-                             model.get_particle(legs[i].get('id')).is_fermion()]
-        return helas_objects.HelasAmplitude.sign_flips_to_order(\
-                external_fermions)
-
-    @staticmethod
-    def from_perm_to_perm(perm, start_perm):
-        """How to get from perm to start_perm. Note that
-        both need to start from 1."""
-        if perm == start_perm:
-            return range(len(perm))
-        
-        start_order = [i for (p,i) in \
-                       sorted([(p,i) for (i,p) in enumerate(start_perm)])]
-        order = [i for (p,i) in \
-                       sorted([(p,i) for (i,p) in enumerate(perm)])]
-
-        print start_order, order
-        return [order[i] for i in start_order]
-
-    
 
 #===============================================================================
 # ColorOrderedMultiProcess
@@ -496,7 +422,6 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
         super(ColorOrderedFlow, self).default_setup()
         self['max_color_orders'] = {}
         self['permutations'] = []
-        self['fermion_perm_factor'] = 1
 
     def get_combined_legs(self, legs, leg_vert_ids, number, state):
         """Determine if the combination of legs is valid with color
@@ -766,7 +691,7 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         # (fraction, is_imaginary?)
         self['factor'] = (1, fractions.Fraction(1,1), False)
         # Fermion external number (for fermion exchange factor)
-        self['fermion_number_external'] = 0
+        self['fermion_number_external'] = []
 
 
     def filter(self, name, value):
@@ -790,9 +715,9 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid tuple" % str(value)
         elif name == 'fermion_number_external':
-            if not isinstance(value, int):
+            if not isinstance(value, list):
                 raise self.PhysicsObjectError, \
-                        "%s is not a valid int" % str(value)
+                        "%s is not a valid list" % str(value)
         else:
             super(COHelasWavefunction, self).filter(name, value)
 
@@ -866,19 +791,21 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         """Set the fermion number used for fermionfactor calculation"""
 
         if self.is_fermion() and not self.get('mothers'):
-            self['fermion_number_external'] = self['number_external']
-        elif self.is_fermion():
+            self['fermion_number_external'] = [self['number_external']]
+        else:
             self['fermion_number_external'] = \
-                     self.find_mother_fermion().get('fermion_number_external')
+                            sum([wf.get('fermion_number_external') for \
+                                 wf in self.get('mothers')], [])
 
     def calculate_fermionfactor(self):
         """Calculate the fermion factor (needed sign flips for mother
         fermions, if this wavefunction has a pair of fermion mothers,
-        times the product of fermion factors of the mothers)."""
+        times the product of fermion factors of the mothers).
+        Sort fermion_number_external."""
 
         # Pick out fermion mothers
-        fermion_numbers = [wf.get('fermion_number_external') for wf in \
-                           self.get('mothers') if wf.is_fermion()]
+        fermion_numbers = self.get('fermion_number_external')
+        self.set('fermion_number_external', sorted(fermion_numbers))
 
         return helas_objects.HelasAmplitude.sign_flips_to_order(\
             fermion_numbers) * \
@@ -1002,18 +929,17 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
             self['factor'] = (self.calculate_fermionfactor(),
                               self.get('color_string').coeff,
                               self.get('color_string').is_imaginary)
-
+            
     def calculate_fermionfactor(self):
         """Calculate the fermion factor (needed sign flips for mother
         fermions, if this amplitude has multiple fermion mothers,
         times the product of fermion factors of the mothers)."""
 
         # Pick out fermion mothers
-        fermion_numbers = [wf.get('fermion_number_external') for wf in \
-                           self.get('mothers') if wf.is_fermion()]
+        fermion_numbers = sum([wf.get('fermion_number_external') for wf in \
+                               self.get('mothers')], [])
 
-        return self.sign_flips_to_order(\
-            fermion_numbers) * \
+        return self.sign_flips_to_order(fermion_numbers) * \
             reduce(lambda x1, x2: x1*x2, [m.get('factor')[0] for m in \
                                           self.get('mothers')])
         
@@ -1189,8 +1115,6 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         self['color_string'] = color.ColorString()
         # Identifier for this color flow
         self['number'] = 0
-        # Factor due to fermion permutations in the color string
-        self['fermion_perm_factor'] = 1
 
     def filter(self, name, value):
         """Filter for valid amplitude property values."""
@@ -1203,7 +1127,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             if not isinstance(value, color.ColorString):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid color string" % str(value)
-        elif name in ['number', 'fermion_perm_factor']:
+        elif name in ['number']:
             if not isinstance(value, int):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid integer" % str(value)
@@ -1234,7 +1158,6 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
 
         # Set permutations
         self.set('permutations', amplitude.get('permutations'))
-        self.set('fermion_perm_factor', amplitude.get('fermion_perm_factor'))
         
         # Set color string
         self.set('color_string', self.get_color_string(range(1,
@@ -1726,13 +1649,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                                                    gen_color = False,
                                                    number = iflow + 1))
                 if self.get('color_flows'):
-                    perms = self.get('color_flows')[0].get('permutations')
-                    # Reorder permutations so first permutation
-                    # is 1,2,3,... and others are with respect to this
                     self.set('permutations',
-                             [base_objects.reorder_permutation(perms[0],
-                                                               perm) for \
-                              perm in perms])
+                             self.get('color_flows')[0].get('permutations'))
                 if gen_color and not self.get('color_matrix'):
                     self.build_color_matrix(gen_color)
             else:

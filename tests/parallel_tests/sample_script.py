@@ -52,13 +52,12 @@ if '__main__' == __name__:
     #    initial=2, final_1=2, final_2 = 1)
     my_proc_list = ['g g > g g', 'g g > g g g', 'g g > g g g g']
     my_proc_list += ['u u~ > g g', 'g u > g u g', 'u u~ > g g g', 'u u~ > g g g g']
-    my_proc_list += ['u u~ > u u~', 'u u~ > u u~ g', 'u u~ > d d~ g',
-                     'u u~ > u u~ g g', 'u u~ > d d~ g g', 'u u~ > u u~ g g g',
-                     'u u~ > d d~ g g g']
-    my_proc_list += ['u u~ > d d~ s s~', 'u u~ > u u~ d d~', 'd d~ > u u~ u u~',
-                     'u u~ > u u~ u u~', 'u u~ > u u~ d d~ g', 'u u~ > u u~ u u~ g',
+    my_proc_list += ['u u~ > u u~', 'u~ u > u u~ g', 'u u~ > d d~ g',
+                     'u u~ > u u~ g g', 'u u~ > d~ d g g', 'u u~ > u u~ g g g',
+                     'u u~ > d~ d g g g']
+    my_proc_list += ['u u~ > d~ d s s~', 'u u~ > u u~ d d~', 'd d~ > u~ u u u~',
+                     'u u~ > u u~ u u~', 'u u~ > u u~ d d~ g', 'u~ u > u u~ u u~ g',
                      'u u~ > u u~ d d~ g g']
-    my_proc_list  = ['u u~ > a a a a a a', 'u u~ > a a a g a g']
     # Set the model we are working with
     model = 'sm'
 
@@ -81,8 +80,8 @@ if '__main__' == __name__:
     #my_mg5_co_31.setup(mg5_path, mg4_path, optimization=3, color_ordering=1)
     my_mg5_co_17 = me_comparator.MG5_CO_Runner()
     my_mg5_co_17.setup(mg5_path, mg4_path, optimization=1, color_ordering=7)
-    my_mg5_co_37 = me_comparator.MG5_CO_Runner()
-    my_mg5_co_37.setup(mg5_path, mg4_path, optimization=3, color_ordering=7)
+    #my_mg5_co_37 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_37.setup(mg5_path, mg4_path, optimization=3, color_ordering=7)
 
     # Create a MERunner object for C++
     #my_mg5_cpp = me_comparator.MG5_CPP_Runner()
@@ -90,14 +89,14 @@ if '__main__' == __name__:
 
     # Create and setup a comparator
     my_comp = me_comparator.MEComparator()
-    my_comp.set_me_runners(my_mg5_ufo, my_mg5_co_17, my_mg5_co_37)
+    my_comp.set_me_runners(my_mg5_ufo, my_mg5_co_17)
 
     #my_mg5_ufo, my_mg5_co_17, my_mg5_co_37,
 
     # Run the actual comparison
     my_comp.run_comparison(my_proc_list,
                            model=model,
-                           orders={'QED':99}, energy=2000)
+                           orders={'QED':0}, energy=2000)
 
     # Do some cleanup
     #my_comp.cleanup()
