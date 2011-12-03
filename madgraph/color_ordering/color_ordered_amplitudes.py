@@ -320,7 +320,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         # to different ordering of color chains.
 
         used_flows = []
-
+        used_perms = []
+        
         for iperm, perm in enumerate(leg_perms):
             colegs = base_objects.LegList([ColorOrderedLeg(l) for l in legs])
             # Keep track of number of triplets
@@ -340,9 +341,9 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 # the arrays of [(pdg, chain number, color_ordering)]
                 # for all permutations of the chain numbers
                 failed = False
-                for p in itertools.permutations(range(ichain), ichain):
+                for p in itertools.permutations(range(1,ichain+1), ichain):
                     this_flow = sorted(sum([[(leg.get('id'),
-                                       p[i] + 1,
+                                       p[i],
                                        leg.get('color_ordering')[i + 1]) \
                                       for leg in colegs if i + 1 in \
                                       leg.get('color_ordering')] for \
@@ -351,13 +352,35 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                         failed = True
                         break
                 if failed:
+                    print "failed: ",this_flow,p
                     # Need to add the permutations of this amplitude to
                     # same_flavor_perms
-                    #index = used_flows.index(this_flow)
-                    #same_flavor_perms[index].extend(same_flavor_perms[iperm])
+                    index = used_flows.index(this_flow)
+                    chainperm = \
+                             self.from_perm_to_perm(p, used_perms[index])
+                    print "chainperm: ",chainperm
+                    # First need to reorder the permutation according
+                    # to the shift in color groups
+                    leg_order_list = [[] for i in range(ichain)]
+                    for i,lnum in enumerate(same_flavor_perms[iperm][0]):
+                        leg_order_list[colegs[lnum-1].get('color_ordering').keys()[0]-1].append(i)
+                    print leg_order_list
+                    reordering = sum([leg_order_list[i] for i in chainperm], [])
+                    print reordering
+                    for old_perm in same_flavor_perms[iperm]:
+                        print "old_perm: ",old_perm
+                        new_perm = [old_perm[i] for i in reordering]
+                        print "new_perm: ",new_perm
+                        if not new_perm in same_flavor_perms[index]:
+                            same_flavor_perms[index].append(new_perm)
+                        
                     continue
                         
                 used_flows.append(this_flow)
+                used_perms.append(p)
+                print "appended: ",this_flow, p
+
+
             # Restore initial state leg identities
             for leg in colegs:
                 if not leg.get('state'):
@@ -411,6 +434,23 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                              model.get_particle(legs[i].get('id')).is_fermion()]
         return helas_objects.HelasAmplitude.sign_flips_to_order(\
                 external_fermions)
+
+    @staticmethod
+    def from_perm_to_perm(perm, start_perm):
+        """How to get from perm to start_perm. Note that
+        both need to start from 1."""
+        if perm == start_perm:
+            return range(len(perm))
+        
+        start_order = [i for (p,i) in \
+                       sorted([(p,i) for (i,p) in enumerate(start_perm)])]
+        order = [i for (p,i) in \
+                       sorted([(p,i) for (i,p) in enumerate(perm)])]
+
+        print start_order, order
+        return [order[i] for i in start_order]
+
+    
 
 #===============================================================================
 # ColorOrderedMultiProcess
