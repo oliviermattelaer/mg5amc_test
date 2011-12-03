@@ -849,7 +849,7 @@ class UFOHelasCallWriter(HelasCallWriter):
         """Create a suitable string for the factor of the form
         (fraction, is_imaginary?)."""
         imag_dict = {True: "IMAG1", False: "ONE"}
-        return str(factor[0]*factor[1]) + "*" + imag_dict[factor[2]]
+        return str(factor[0]*factor[1]) + ".*" + imag_dict[factor[2]]
 
 #===============================================================================
 # FortranUFOHelasCallWriter

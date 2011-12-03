@@ -686,13 +686,15 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         self['external_numbers'] = array.array('I')
         # Information for color calculation
         self['color_string'] = color.ColorString()
+        # Unique number for color substitution
         self['lastleg_number'] = 0
         # Factor for wavefunction in wf summation in form
         # (fraction, is_imaginary?)
         self['factor'] = (1, fractions.Fraction(1,1), False)
-        # Fermion external number (for fermion exchange factor)
+        # Fermion external numbers (for fermion exchange factor)
         self['fermion_number_external'] = []
-
+        # Complete set of orders for the wavefunctions up to this
+        self['all_orders'] = None
 
     def filter(self, name, value):
         """Filter for valid amplitude property values."""
@@ -718,6 +720,10 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
             if not isinstance(value, list):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid list" % str(value)
+        elif name == 'all_orders':
+            if not isinstance(value, dict) or value == None:
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid dict" % str(value)
         else:
             super(COHelasWavefunction, self).filter(name, value)
 
@@ -739,6 +745,8 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
             self.create_arrays()
         if name == 'fermion_number_external' and not self[name]:
             self.set_fermion_number_external()
+        if name == 'all_orders' and self[name] == None:
+            self.set_all_orders()
             
         return super(COHelasWavefunction, self).get(name)        
 
@@ -751,7 +759,7 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
 
         current_array is used to determine if two wavefunctions belong
         in the same current, i.e. if they have the same external
-        numbers, pdg code and fermion flow state.
+        numbers, pdg code, fermion flow state and interaction orders.
         
         compare_array is the tuple of [mothers current_arrays,
         interaction id, coupling key], used to find duplicate
@@ -771,11 +779,24 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
                                         for m in self.get('mothers')], []))))
             self.set('current_array', [self['external_numbers'],
                                        self.get('pdg_code'),
-                                       self.get_with_flow('state')])
+                                       self.get_with_flow('state'),
+                                       sorted(self.get('all_orders').items())])
             self.set('compare_array', [[m.get('current_array') for \
                                         m in self.get('mothers')],
                                        self.get('interaction_id'),
                                        self.get('color_key')])
+
+    def set_all_orders(self):
+        """Set the dictionary of orders from this wf and all mothers"""
+
+        all_orders = copy.copy(self.get('orders'))
+        for mother in self.get('mothers'):
+            for order in mother.get('all_orders'):
+                if order in all_orders:
+                    all_orders[order] += mother.get('all_orders')[order]
+                else:
+                    all_orders[order] = mother.get('all_orders')[order]
+        self['all_orders'] = all_orders
 
     def set_color_and_fermion_factor(self):
         """Set the color and fermion factor for this wavefunction. The
@@ -1004,7 +1025,8 @@ class BGHelasCurrent(COHelasWavefunction):
                 self.set('compare_array', [])
                 self.set('external_numbers', array.array('I'))
                 self.set('fermion_number_external',
-                         arguments[0].get('fermion_number_external'))
+                         sorted(arguments[0].get('fermion_number_external')))
+                self.set('all_orders', arguments[0].get('all_orders'))
             else:
                 super(BGHelasCurrent, self).__init__(*arguments)
         else:
@@ -1567,8 +1589,9 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         vx_list = []
         diagrams = base_objects.DiagramList()
         for diag in self.get('diagrams'):
-            diagrams.extend(diag.get('amplitudes')[0].get_base_diagram(\
-                wf_dict, vx_list, optimization))
+            if diag.get('amplitudes'):
+                diagrams.extend(diag.get('amplitudes')[0].get_base_diagram(\
+                                             wf_dict, vx_list, optimization))
 
         for diag in diagrams:
             diag.calculate_orders(self.get('processes')[0].get('model'))
