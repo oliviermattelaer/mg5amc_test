@@ -560,29 +560,12 @@ class ColorMatrix(dict):
                 if is_symmetric and i2 < i1:
                     continue
 
-                # Fix indices in struct2 knowing summed indices in struct1
-                # to avoid duplicates
-                new_struct2 = self.fix_summed_indices(struct1, struct2)
-
-                # Build a canonical representation of the two immutable struct
-                canonical_entry, dummy = \
-                            color_algebra.ColorString().to_canonical(struct1 + \
-                                                                   new_struct2)
-
-                try:
-                    # If this has already been calculated, use the result
-                    result, result_fixed_Nc = canonical_dict[canonical_entry]
-                except KeyError:
-                    # Otherwise calculate the result
-                    result, result_fixed_Nc = \
-                            self.create_new_entry(struct1,
-                                                  new_struct2,
-                                                  Nc_power_min,
-                                                  Nc_power_max,
-                                                  Nc)
-                    # Store both results
-                    canonical_dict[canonical_entry] = (result, result_fixed_Nc)
-
+                result, result_fixed_Nc = self.get_matrix_entry(canonical_dict,
+                                                               struct1, struct2,
+                                                               Nc_power_min,
+                                                               Nc_power_max,
+                                                               Nc)
+                
                 # Store the full result...
                 self[(i1, i2)] = result
                 if is_symmetric:
@@ -604,9 +587,41 @@ class ColorMatrix(dict):
                     if is_symmetric:
                         self.inverted_col_matrix[result_fixed_Nc] = [(i2, i1)]
 
-    def create_new_entry(self, struct1, struct2,
-                         Nc_power_min, Nc_power_max, Nc):
-        """ Create a new product result, and result with fixed Nc for two color
+    @classmethod
+    def get_matrix_entry(cls, canonical_dict, struct1, struct2,
+                         Nc_power_min = None, Nc_power_max = None, Nc = 3):
+        """Create a new entry in for a color matrix, reusing previous results
+        if possible"""
+
+        # Fix indices in struct2 knowing summed indices in struct1
+        # to avoid duplicates
+        new_struct2 = cls.fix_summed_indices(struct1, struct2)
+
+        # Build a canonical representation of the two immutable struct
+        canonical_entry, dummy = \
+                    color_algebra.ColorString().to_canonical(struct1 + \
+                                                           new_struct2)
+
+        try:
+            # If this has already been calculated, use the result
+            result, result_fixed_Nc = canonical_dict[canonical_entry]
+        except KeyError:
+            # Otherwise calculate the result
+            result, result_fixed_Nc = \
+                    cls.create_new_entry(struct1,
+                                          new_struct2,
+                                          Nc_power_min,
+                                          Nc_power_max,
+                                          Nc)
+            # Store both results
+            canonical_dict[canonical_entry] = (result, result_fixed_Nc)
+
+        return result, result_fixed_Nc
+
+    @staticmethod
+    def create_new_entry(struct1, struct2,
+                         Nc_power_min = None, Nc_power_max = None, Nc = 3):
+        """ Create a new product result, and result with fixed Nc for two color 
         basis entries. Implement Nc power limits."""
 
         # Create color string objects corresponding to color basis 
@@ -631,12 +646,12 @@ class ColorMatrix(dict):
         # Keep only terms with Nc_max >= Nc power >= Nc_min
         if result:
             max_power = result[0].Nc_power
-            if Nc_power_min and max_power < Nc_power_min:
+            if Nc_power_min != None and max_power < Nc_power_min:
                 result[:] = []
             #if Nc_power_min:
             #    result[:] = [col_str for col_str in result \
             #                 if col_str.Nc_power >= Nc_power_min]
-            if Nc_power_max and max_power > Nc_power_max:
+            if Nc_power_max != None and max_power > Nc_power_max:
                 result[:] = []
 
         # Calculate the fixed Nc representation
