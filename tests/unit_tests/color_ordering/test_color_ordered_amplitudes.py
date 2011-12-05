@@ -32,6 +32,7 @@ import madgraph.color_ordering.color_ordered_export_v4 as \
        color_ordered_export_v4
 import madgraph.iolibs.drawing_eps as draw
 import madgraph.iolibs.export_v4 as export_v4
+import madgraph.iolibs.save_load_object as save_load_object
 
 #===============================================================================
 # ColorOrderedAmplitudeTest
@@ -1170,10 +1171,10 @@ class COHelasMatrixElementTest(unittest.TestCase):
         self.myinterlist.append(base_objects.Interaction({
                       'id': 3,
                       'particles': base_objects.ParticleList(\
-                                            [self.mypartlist[1], \
-                                             antiu, \
+                                            [antiu, \
+                                             self.mypartlist[1], \
                                              self.mypartlist[0]]),
-                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'color': [color.ColorString([color.T(2,1,0)])],
                       'lorentz':['L1'],
                       'couplings':{(0, 0):'GQQ'},
                       'orders':{'QCD':1}}))
@@ -1181,10 +1182,10 @@ class COHelasMatrixElementTest(unittest.TestCase):
         self.myinterlist.append(base_objects.Interaction({
                       'id': 4,
                       'particles': base_objects.ParticleList(\
-                                            [self.mypartlist[1], \
-                                             antiu, \
+                                            [antiu, \
+                                             self.mypartlist[1], \
                                              gamma]),
-                      'color': [color.ColorString([color.T(0,1)])],
+                      'color': [color.ColorString([color.T(1,0)])],
                       'lorentz':['L1'],
                       'couplings':{(0, 0):'GQED'},
                       'orders':{'QED':1}}))
@@ -1192,10 +1193,10 @@ class COHelasMatrixElementTest(unittest.TestCase):
         self.myinterlist.append(base_objects.Interaction({
                       'id': 5,
                       'particles': base_objects.ParticleList(\
-                                            [self.mypartlist[2], \
-                                             antid, \
+                                            [antid, \
+                                             self.mypartlist[2], \
                                              self.mypartlist[0]]),
-                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'color': [color.ColorString([color.T(2,1,0)])],
                       'lorentz':['L1'],
                       'couplings':{(0, 0):'GQQ'},
                       'orders':{'QCD':1}}))
@@ -1203,10 +1204,10 @@ class COHelasMatrixElementTest(unittest.TestCase):
         self.myinterlist.append(base_objects.Interaction({
                       'id': 6,
                       'particles': base_objects.ParticleList(\
-                                            [self.mypartlist[2], \
-                                             antid, \
+                                            [antid, \
+                                             self.mypartlist[2], \
                                              gamma]),
-                      'color': [color.ColorString([color.T(0,1)])],
+                      'color': [color.ColorString([color.T(1,0)])],
                       'lorentz':['L1'],
                       'couplings':{(0, 0):'GQED'},
                       'orders':{'QED':1}}))
@@ -1214,10 +1215,10 @@ class COHelasMatrixElementTest(unittest.TestCase):
         self.myinterlist.append(base_objects.Interaction({
                       'id': 7,
                       'particles': base_objects.ParticleList(\
-                                            [s, 
-                                             antis,
+                                            [antis,
+                                             s,
                                              self.mypartlist[0]]),
-                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'color': [color.ColorString([color.T(2,1,0)])],
                       'lorentz':['L1'],
                       'couplings':{(0, 0):'GQQ'},
                       'orders':{'QCD':1}}))
@@ -2345,7 +2346,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
 
         goal_wavefunctions =  [[12, 13, 13, 15, 12, 13],
                                [22, 24, 22, 24, 24, 22, 18, 22, 22, 18, 24, 22, 22, 18, 22, 24, 22, 24],
-                               [43, 47, 42, 52, 41, 47, 47, 37, 36, 36, 28, 38, 44, 36, 42, 36, 52, 36, 36, 39, 43, 28, 47, 38, 43, 27, 44, 33, 43, 44, 42, 33, 42, 49, 41, 44]]
+                               [43, 47, 42, 52, 41, 47, 47, 37, 35, 31, 28, 38, 44, 35, 42, 35, 52, 31, 35, 37, 43, 28, 47, 38, 43, 27, 44, 29, 43, 44, 42, 29, 42, 49, 41, 44]]
         goal_amplitudes =  [[4, 4, 4, 6, 4, 4],
                             [11, 10, 11, 10, 10, 10, 4, 10, 11, 4, 10, 10, 11, 4, 11, 10, 11, 10],
                             [22, 19, 24, 19, 24, 19, 19, 14, 7, 13, 3, 13, 22, 7, 24, 7, 19, 13, 7, 10, 22, 3, 19, 13, 22, 4, 22, 10, 22, 22, 24, 10, 24, 22, 24, 22]]
@@ -2378,6 +2379,9 @@ class COHelasMatrixElementTest(unittest.TestCase):
                                            'model':self.mymodel})
 
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+            #save_load_object.save_to_file('uux_uuxddxgg.pkl', self.myamplitude)
+            #self.myamplitude = save_load_object.load_from_file('uux_uuxddxgg.pkl')
+            
             self.assertEqual(len(self.myamplitude.get('color_flows')),
                              goal_nflows[ngluon])
             #goal_nflows.append(len(self.myamplitude.get('color_flows')))
@@ -2390,7 +2394,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
                 #print mycolorflow.nice_string()
                 
                 matrix_element = color_ordered_amplitudes.COHelasFlow(\
-                    mycolorflow, gen_color=False, optimization = 3)
+                    mycolorflow, gen_color=1, optimization = 3)
 
                 #print "\n".join(\
                 #    color_ordered_export_v4.COFortranUFOHelasCallWriter(self.mymodel).\

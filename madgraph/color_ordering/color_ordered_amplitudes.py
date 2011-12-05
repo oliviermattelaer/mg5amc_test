@@ -692,7 +692,7 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         # (fraction, is_imaginary?)
         self['factor'] = (1, fractions.Fraction(1,1), False)
         # Fermion external numbers (for fermion exchange factor)
-        self['fermion_number_external'] = []
+        self['external_fermion_numbers'] = []
         # Complete set of orders for the wavefunctions up to this
         self['all_orders'] = None
 
@@ -716,7 +716,7 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
             if not isinstance(value, tuple):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid tuple" % str(value)
-        elif name == 'fermion_number_external':
+        elif name == 'external_fermion_numbers':
             if not isinstance(value, list):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid list" % str(value)
@@ -743,8 +743,8 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         if name in ['compare_array', 'current_array', 'external_numbers'] and \
                not self[name]:
             self.create_arrays()
-        if name == 'fermion_number_external' and not self[name]:
-            self.set_fermion_number_external()
+        if name == 'external_fermion_numbers' and not self[name]:
+            self.set_external_fermion_numbers()
         if name == 'all_orders' and self[name] == None:
             self.set_all_orders()
             
@@ -808,28 +808,26 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
                               self.get('color_string').coeff,
                               self.get('color_string').is_imaginary)        
 
-    def set_fermion_number_external(self):
+    def set_external_fermion_numbers(self):
         """Set the fermion number used for fermionfactor calculation"""
 
         if self.is_fermion() and not self.get('mothers'):
-            self['fermion_number_external'] = [self['number_external']]
+            self['external_fermion_numbers'] = [self['number_external']]
         else:
-            self['fermion_number_external'] = \
-                            sum([wf.get('fermion_number_external') for \
+            self['external_fermion_numbers'] = \
+                            sum([sorted(wf.get('external_fermion_numbers')) for \
                                  wf in self.get('mothers')], [])
 
     def calculate_fermionfactor(self):
         """Calculate the fermion factor (needed sign flips for mother
         fermions, if this wavefunction has a pair of fermion mothers,
         times the product of fermion factors of the mothers).
-        Sort fermion_number_external."""
+        Sort external_fermion_numbers."""
 
         # Pick out fermion mothers
-        fermion_numbers = self.get('fermion_number_external')
-        self.set('fermion_number_external', sorted(fermion_numbers))
-
+        
         return helas_objects.HelasAmplitude.sign_flips_to_order(\
-            fermion_numbers) * \
+            self.get('external_fermion_numbers')) * \
             reduce(lambda x1, x2: x1*x2, [m.get('factor')[0] for m in \
                                           self.get('mothers')])
         
@@ -957,7 +955,7 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
         times the product of fermion factors of the mothers)."""
 
         # Pick out fermion mothers
-        fermion_numbers = sum([wf.get('fermion_number_external') for wf in \
+        fermion_numbers = sum([wf.get('external_fermion_numbers') for wf in \
                                self.get('mothers')], [])
 
         return self.sign_flips_to_order(fermion_numbers) * \
@@ -1024,8 +1022,8 @@ class BGHelasCurrent(COHelasWavefunction):
                 self.set('mothers', helas_objects.HelasWavefunctionList())
                 self.set('compare_array', [])
                 self.set('external_numbers', array.array('I'))
-                self.set('fermion_number_external',
-                         sorted(arguments[0].get('fermion_number_external')))
+                self.set('external_fermion_numbers',
+                         sorted(arguments[0].get('external_fermion_numbers')))
                 self.set('all_orders', arguments[0].get('all_orders'))
             else:
                 super(BGHelasCurrent, self).__init__(*arguments)
@@ -1178,6 +1176,8 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         assert  isinstance(amplitude, ColorOrderedFlow), \
                     "Missing or erraneous arguments for generate_helas_diagrams"
 
+        use_bg_currents = (optimization // 2 == 1)
+
         # Set permutations
         self.set('permutations', amplitude.get('permutations'))
         
@@ -1220,49 +1220,45 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             combine_functions = [w for w in co_wavefunctions if \
                                  w.get('current_array') == \
                                  co_wavefunctions[0].get('current_array')]
-            if len(combine_functions) == 1 or optimization // 2 == 0:
-                # Just add the wavefunction to combined_wavefunctions
+            bg_mothers = helas_objects.HelasWavefunctionList()
+            while combine_functions:
                 wf = combine_functions.pop(0)
                 # Remove used wavefunctions from co_wavefunctions
                 co_wavefunctions.remove(wf)
-                # Check correct color and determine color coeff
+                # Check if an identical wavefunction (after
+                # replacing mothers with currents) is already
+                # present in the current (if using BG currents)
+                if use_bg_currents and wf.get('compare_array') in \
+                       [m.get('compare_array') for m in bg_mothers]:
+                    continue
+                # Check if color is correct
                 if any([m in removed_wfs for m in wf.get('mothers')]) or \
                        not self.check_color(wf):
                     removed_wfs.append(wf)
-                    continue                    
-                combined_wavefunctions.append(wf)
-            else:
-                # Combine wavefunctions to a current
-                combine_wf = BGHelasCurrent(combine_functions[0])
-                while combine_functions:
-                    wf = combine_functions.pop(0)
-                    # Remove used wavefunctions from co_wavefunctions
-                    co_wavefunctions.remove(wf)
-                    # Check if an identical wavefunction (after
-                    # replacing mothers with currents) is already
-                    # present in the current
-                    if wf.get('compare_array') in \
-                       [m.get('compare_array') for m in \
-                        combine_wf.get('mothers')]:
-                        continue
-                    # Check if color is correct
-                    if any([m in removed_wfs for m in wf.get('mothers')]) or \
-                           not self.check_color(wf):
-                        removed_wfs.append(wf)
-                        continue
+                    continue
+                if use_bg_currents:
                     # Replace the wavefunction mothers in this
                     # wavefunction with corresponding currents
                     self.replace_mothers(wf, wf_current_dict)
-                    # Add the resulting wavefunction to
-                    # combined_wavefunctions and to combine_wf
-                    combined_wavefunctions.append(wf)
-                    combine_wf.get('mothers').append(wf)
-                # Add combine_wf to combined_wavefunctions
+                    # Update fermion factor for wf (since we replaced mothers)
+                    wf.set_color_and_fermion_factor()
+                # Add the resulting wavefunction to
+                # combined_wavefunctions and to combine_wf
+                combined_wavefunctions.append(wf)
+                if use_bg_currents:
+                    bg_mothers.append(wf)
+            if use_bg_currents and len(bg_mothers) > 1:
+                # Combine wavefunctions to a current
+                combine_wf = BGHelasCurrent(bg_mothers[0])
+                # Set the mothers
+                combine_wf.set('mothers', bg_mothers)
+                # Set color string for the new BG current
                 combine_wf.set_color_string()
+                # Add combine_wf to combined_wavefunctions
                 combined_wavefunctions.append(combine_wf)
+                # Add this BG current to the replacement dictionary
                 for wf in combine_wf.get('mothers'):
                     wf_current_dict[wf.get('number')] = combine_wf
-
         # left_diagrams is the diagrams that are left after BG
         # combinations
         left_diagrams = helas_objects.HelasDiagramList()
