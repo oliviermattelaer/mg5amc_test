@@ -716,7 +716,7 @@ class ColorSquareTest(unittest.TestCase):
     def test_color_matrix_Nc_restrictions(self):
         """Test the Nc power restriction during color basis building """
 
-        goal = [fractions.Fraction(19, 6),
+        goal = [fractions.Fraction(0, 1),
                 fractions.Fraction(0, 1),
                 fractions.Fraction(19, 6)]
 

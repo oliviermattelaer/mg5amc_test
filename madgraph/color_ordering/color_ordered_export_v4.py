@@ -232,7 +232,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
     # write_matrix_element_v4
     #===========================================================================
     def write_matrix_element_v4(self, writer, matrix_element):
-        """Export a matrix element to a matrix.f file in MG4 standalone format"""
+        """Export a matrix element to a matrix.f file in standalone
+        color ordered amplitude format"""
 
         if not matrix_element.get('processes') \
                or not isinstance(matrix_element,
@@ -274,31 +275,28 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         den_factor_line = self.get_den_factor_line(matrix_element)
         replace_dict['den_factor_line'] = den_factor_line
 
+        # Extract flow function definition lines
+        flow_functions_lines = self.get_flow_functions_lines(matrix_element)
+        replace_dict['flow_functions_lines'] = flow_functions_lines
+
+        # Extract flow call lines and color sum lines
+        nflows, flow_call_lines, color_sum_lines, nflowperms, \
+                flow_perms_data_lines, flow_iferm_data_line = \
+                self.get_flow_call_lines(matrix_element)
+        replace_dict['flow_perms_data_lines'] = '\n'.join(flow_perms_data_lines)
+        replace_dict['flow_iferm_data_line'] = flow_iferm_data_line
+        replace_dict['nflowperms'] = nflowperms
+        replace_dict['flow_call_lines'] = '\n'.join(flow_call_lines)
+        replace_dict['color_sum_lines'] = '\n'.join(color_sum_lines)
+        replace_dict['nflows'] = nflows
+
+
         # Extract permutation data lines
         perms_data_lines, nperms = self.get_perms_data_lines(matrix_element)
         replace_dict['nperms'] = nperms
         replace_dict['perms_data_lines'] = "\n".join(perms_data_lines)
 
-        # Extract fermion signs due to permutations
-        iferm_data_line = self.get_iferm_data_line(matrix_element)
-        replace_dict['iferm_data_line'] = iferm_data_line
-        
-        # Extract nflows
-        nflows = len(matrix_element.get('color_flows')) * nperms
-        replace_dict['nflows'] = nflows
-
-        # Extract flow function definition lines
-        flow_functions_lines = self.get_flow_functions_lines(matrix_element)
-        replace_dict['flow_functions_lines'] = flow_functions_lines
-
-        # Extract flow call lines
-        flow_call_lines = self.get_flow_call_lines(matrix_element)
-        replace_dict['flow_call_lines'] = '\n'.join(flow_call_lines)
-
-        # Extract color sum lines
-        color_sum_lines = self.get_color_sum_lines(matrix_element)
-        replace_dict['color_sum_lines'] = '\n'.join(color_sum_lines)
-
+        # Create file contents
         file = open(os.path.join(_file_path, \
                                  'color_ordering/template_files/%s' % \
                                  self.super_matrix_file)).read()
@@ -325,22 +323,6 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         return iperm_line_list, len(iperm_line_list), 
         
-    def get_iferm_data_line(self, matrix_element):
-        """Write out the data lines defining the permutations"""
-        
-        iferm_list = []
-        external_fermions = [i for (i,w) in enumerate(matrix_element.\
-                             get_external_wavefunctions()) if w.is_fermion()]
-        for perm in matrix_element.get('permutations'):
-            fermion_numbers = [perm[i] for i in external_fermions]
-            iferm_list.append(helas_objects.HelasAmplitude.sign_flips_to_order(\
-                fermion_numbers))
-
-        iferm_line = "DATA IFERM/" + \
-                     ",".join(['%2r' % i for i in iferm_list]) + "/"
-
-        return iferm_line
-        
     def get_flow_functions_lines(self, matrix_element):
         """Write out function definition lines"""
 
@@ -352,121 +334,111 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
     def get_flow_call_lines(self, matrix_element):
         """Write out the calls to all color flows. Need to multiply by
         fermion permutation factor for this color flow to get right
-        sign."""
+        sign. Also return the lines for defining all needed
+        permutations, fermion factors, and the color sum lines. Note
+        that this is all only for one row in the color matrix (per
+        basic color flow)."""
 
-        return_lines = []
-
-        nperms = len(matrix_element.get('permutations'))
-        for iperm in range(nperms):
-            for iflow, flow in enumerate(matrix_element.get('color_flows')):
-                return_lines.append("JAMP(%d)=FLOW%d(P,NHEL,PERMS(1,%d),IFERM(%d))" \
-                           % (1 + iperm + iflow * nperms,
-                              iflow + 1, iperm + 1,
-                              iperm + 1))
-                return_lines[-1] = return_lines[-1].replace('=1*', '=')
-        return return_lines
-    
-    def get_color_sum_lines(self, matrix_element):
-        """Write out the data lines defining the permutations"""
-
-        # First calculate the color matrix, since we want to use the full
-        # color matrix for the standalone version
-        col_mat = color_amp.ColorMatrix(matrix_element.get('color_basis'),
-                                        Nc_power_min = \
-                                        matrix_element.get('min_Nc_power'))
-        color_basis = matrix_element.get('color_basis')
-        denoms = col_mat.get_line_denominators()
+        color_matrix = matrix_element.get('color_matrix')
         flows = matrix_element.get('color_flows')
-        nperms = len(matrix_element.get('permutations'))
-        res_lines = []
+        nflows = len(flows)
+        # The permutations with non-zero color matrix elements with
+        # the basic color flows
+        needed_perms = sorted(list(set([icol / nflows for (icol, irow) in \
+                                        color_matrix.keys()])))
+        nperms = len(needed_perms)
+        all_perms = matrix_element.get('permutations')
+        nexternal, ninitial = matrix_element.get_nexternal_ninitial()
+        # The data lines giving the needed permutations
+        iperm_line_list = []
+        for iperm, perm in enumerate(needed_perms):
+            int_list = [iperm+1, nexternal]
+            int_list.extend(all_perms[perm])
+            iperm_line_list.append(\
+                ("DATA (PERMS(I,%4r),I=1,%d) /" + \
+                 ",".join(['%2r'] * nexternal) + "/") % tuple(int_list))
 
-        # Now go row by row in the color matrix, and collect all
-        # non-zero entries with Nc_power >= min_Nc_power
-        for icol, col_basis_elem in enumerate(sorted(color_basis.keys())):
-            numerators = col_mat.get_line_numerators(icol, denoms[icol])
-            if not any([n for n in numerators]):
-                continue
-            for diag_tuple in color_basis[col_basis_elem]:
-                iflow = diag_tuple[0]
-                iperm = diag_tuple[1][0]
-                nflow = 1 + iflow*nperms + iperm
-                Nc_power = flows[iflow].get('color_string').Nc_power
-                # Find the factors for all JAMPs that should be included in
-                # this multiplication
-                allnums = self.get_jamp_factors_for_row(matrix_element,
-                                                        col_mat,
-                                                        icol, Nc_power,
-                                                        numerators)
-                if not allnums:
-                    continue
-                allnums = self.combine_jamp_factors(allnums)
-                Nc_power = self.Nc_power_to_fraction(Nc_power)
-                res_lines.append(\
-                    'ZTEMP = ZTEMP+%(fact)s*%(flow)s/%(den)s*DCONJG(%(flows)s)' % \
-                    {'fact': self.fraction_to_string(Nc_power),
-                     'flow': 'JAMP(%d)' % nflow,
-                     'den': str(denoms[icol]),
-                     'flows': "+".join(['%s*(%s)' % \
-                                        (self.fraction_to_string(fact),\
-                                         "+".join(["JAMP(%d)" % i for i in \
-                                                   allnums[fact]])) for fact \
-                                         in sorted(allnums.keys(), reverse=True)])})
-                res_lines[-1] = res_lines[-1].replace('+-', '-')
-                res_lines[-1] = res_lines[-1].replace('+1D0*', '+')
-                res_lines[-1] = res_lines[-1].replace('/1*', '*')
+        # The data line for iferm
+        iferm_list = []
+        external_fermions = [i for (i,w) in enumerate(matrix_element.\
+                             get_external_wavefunctions()) if w.is_fermion()]
+        for perm in needed_perms:
+            fermion_numbers = [all_perms[perm][i] for i in external_fermions]
+            iferm_list.append(helas_objects.HelasAmplitude.sign_flips_to_order(\
+                fermion_numbers))
 
-        return res_lines
+        iferm_line = "DATA IFERM/" + \
+                     ",".join(['%2r' % i for i in iferm_list]) + "/"
 
-    def get_color_sum_function(self, matrix_element):
-        """Write out the function giving the color sum"""
+        # Each row in the color matrix corresponds to one of the basic
+        # flows, while each column corresponds to a flow. Keep track
+        # of the needed flows for each permutation
+        perm_needed_flows = {}
+        row_flow_factors = {}
+        # Mapping from basic flows (in 1st perm) to jamp number
+        flow_jamp_dict = {}
+        # nflows_needed keeps track of the present JAMP number
+        jamp = 0
+        for (icol, irow) in sorted(color_matrix.keys()):
+            # irow is the number of the basic flow (from first permutation)
+            # iperm is the permutation (among the full set, all_perms)
+            iperm = icol / nflows
+            # iflow is the flow number (for this permutation)
+            iflow = icol % nflows
+            # Add this flow to the needed flows for this permutation
+            # (used for the flow call lines generated below)
+            if not iflow in [i for (i,n) in \
+                             perm_needed_flows.setdefault(iperm, [])]:
+                jamp += 1
+                perm_needed_flows[iperm].append((iflow, jamp))
+                if iperm == 0: flow_jamp_dict[iflow] = jamp
 
-        # First calculate the color matrix, since we want to use the full
-        # color matrix for the standalone version
-        col_mat = color_amp.ColorMatrix(matrix_element.get('color_basis'),
-                                        Nc_power_min = \
-                                        matrix_element.get('min_Nc_power'))
-        color_basis = matrix_element.get('color_basis')
-        denoms = col_mat.get_line_denominators()
-        flows = matrix_element.get('color_flows')
-        nperms = len(matrix_element.get('permutations'))
-        res_lines = []
+            # Make sure that also the basic flow is included
+            if not irow in [i for (i,n) in perm_needed_flows[0]]:
+                jamp += 1
+                perm_needed_flows[0].append((irow, jamp))
+                flow_jamp_dict[irow] = jamp
+            # Add the factor needed for this JAMP
+            row_flow_factors.setdefault(irow, []).append(\
+                               (max([c.Nc_power for c in \
+                                     color_matrix[(icol, irow)]]),
+                                jamp if iperm > 0 else flow_jamp_dict[iflow],
+                                color_matrix.col_matrix_fixed_Nc[(icol, irow)]))
 
-        # Now go row by row in the color matrix, and collect all
-        # non-zero entries with Nc_power >= min_Nc_power
-        for icol, col_basis_elem in enumerate(sorted(color_basis.keys())):
-            numerators = col_mat.get_line_numerators(icol, denoms[icol])
-            if not any([n for n in numerators]):
-                continue
-            for diag_tuple in color_basis[col_basis_elem]:
-                iflow = diag_tuple[0]
-                iperm = diag_tuple[1][0]
-                nflow = 1 + iflow*nperms + iperm
-                Nc_power = flows[iflow].get('color_string').Nc_power
-                # Find the factors for all JAMPs that should be included in
-                # this multiplication
-                allnums = self.get_jamp_factors_for_row(matrix_element,
-                                                        col_mat,
-                                                        icol, Nc_power,
-                                                        numerators)
-                if not allnums:
-                    continue
-                allnums = self.combine_jamp_factors(allnums)
-                Nc_power = self.Nc_power_to_fraction(Nc_power)
-                res_lines.append(\
-                    'ZTEMP = ZTEMP+%(fact)s*%(flow)s/%(den)s*DCONJG(%(flows)s)' % \
-                    {'fact': self.fraction_to_string(Nc_power),
-                     'flow': 'JAMP(%d)' % nflow,
-                     'den': str(denoms[icol]),
-                     'flows': "+".join(['%s*(%s)' % \
-                                        (self.fraction_to_string(fact),\
-                                         "+".join(["JAMP(%d)" % i for i in \
-                                                   allnums[fact]])) for fact \
-                                         in sorted(allnums.keys(), reverse=True)])})
-                res_lines[-1] = res_lines[-1].replace('+-', '-')
-                res_lines[-1] = res_lines[-1].replace('+1D0*', '+')
-                res_lines[-1] = res_lines[-1].replace('/1*', '*')
+        # Generate the calls to all needed flows
+        flow_call_lines = []
+        for iperm, perm in enumerate(needed_perms):
+            # Set the perm needed in the flow calls
+            flow_call_lines.append("DO I=1,NEXTERNAL")
+            flow_call_lines.append("PERM(I)=PM(PERMS(I,%d))" % (iperm + 1))
+            flow_call_lines.append("ENDDO")
+            # Now generate the flow calls
+            for iflow, jmp in perm_needed_flows[perm]:
+                flow_call_lines.append(\
+                    "JAMP(%d)=IFERM(%d)*FLOW%d(P,NHEL,PERM)" \
+                    % (jmp, iperm+1, iflow+1))
 
-        return res_lines
+        # Now output the color matrix summation lines for the basic color flows
+        color_sum_lines = []
+        
+        # Go through the rows and output the explicit color matrix
+        # summation for this line
+        for irow in sorted(row_flow_factors.keys()):
+            row_flow_factors[irow].sort(lambda c1,c2: c2[0]-c1[0] if \
+                                        c1[0]-c2[0] != 0 else c1[1]-c2[1])
+            color_sum_lines.append(\
+                'ZTEMP = ZTEMP+JAMP(%(jamp)d)*DCONJG(%(flows)s)' % \
+                {'jamp': flow_jamp_dict[irow],
+                 'flows': "+".join(['%s*(%s)' % \
+                                    (self.fraction_to_string(fact[0]),\
+                                     "JAMP(%d)" % jamp) for (n, jamp, fact) \
+                                     in row_flow_factors[irow]])})
+            color_sum_lines[-1] = color_sum_lines[-1].replace('+-', '-')
+            color_sum_lines[-1] = color_sum_lines[-1].replace('+1D0*', '+')
+            color_sum_lines[-1] = color_sum_lines[-1].replace('/1*', '*')
+
+        return jamp, flow_call_lines, color_sum_lines, nperms, \
+               iperm_line_list, iferm_line
 
     def get_jamp_factors_for_row(self, matrix_element, color_matrix, irow,
                                  row_Nc_power, numerators):

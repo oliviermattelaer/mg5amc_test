@@ -2465,8 +2465,8 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #print 'goal_ndiags = ',goal_ndiags
             #print 'goal_nflows = ',goal_nflows
                               
-    def test_color_matrix_uux_ddxng(self):
-        """Test color flow matrix elements for uu~>dd~ng
+    def test_color_matrix_uux_uuxng(self):
+        """Test color flow matrix elements for uu~>uu~ng
         """
 
         # Test 0-3 gluons in the final state
@@ -2476,8 +2476,8 @@ class COHelasMatrixElementTest(unittest.TestCase):
             myleglist = base_objects.LegList([\
                 base_objects.Leg({'id':2, 'state':False}),
                 base_objects.Leg({'id':-2, 'state':False}),
-                base_objects.Leg({'id':1}),
-                base_objects.Leg({'id':-1})])
+                base_objects.Leg({'id':2}),
+                base_objects.Leg({'id':-2})])
 
             myleglist.extend([base_objects.Leg({'id':21,
                                               'state':True})] * ngluon)
@@ -2489,17 +2489,19 @@ class COHelasMatrixElementTest(unittest.TestCase):
             myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
             matrix_element1 = color_ordered_amplitudes.COHelasMatrixElement(\
-                myamplitude, gen_color=3, optimization=1)
+                myamplitude, gen_color=2, optimization=1)
 
             matrix_element3 = color_ordered_amplitudes.COHelasMatrixElement(\
-                myamplitude, gen_color=3, optimization=3)
+                myamplitude, gen_color=2, optimization=3)
 
             for i,(cf1,cf3) in enumerate(zip(matrix_element1.get('color_flows'),
                                              matrix_element3.get('color_flows'))):
                 self.assertEqual(cf1.get('color_string'),
                                  cf3.get('color_string'))
-            self.assertEqual(matrix_element1.get('color_basis'),
-                             matrix_element3.get('color_basis'))
+            self.assertEqual(matrix_element1.get('color_matrix'),
+                             matrix_element3.get('color_matrix'))
+            print [(key, matrix_element1.get('color_matrix').col_matrix_fixed_Nc[key]) for key in \
+                   sorted(matrix_element1.get('color_matrix').keys())]
 
 
 #===============================================================================

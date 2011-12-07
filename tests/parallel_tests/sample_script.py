@@ -51,16 +51,15 @@ if '__main__' == __name__:
     #    fermion, fermion, boson,
     #    initial=2, final_1=2, final_2 = 1)
     my_proc_list = ['g g > g g', 'g g > g g g', 'g g > g g g g']
-    my_proc_list += ['u u~ > g g', 'g u > g u g', 'u u~ > g g g', 'u u~ > g g g g',
-                     'u u~ > g g g g g']
+    my_proc_list += ['u u~ > g g', 'g u > g u g', 'u u~ > g g g', 'u u~ > g g g g']
     my_proc_list += ['u u~ > u u~', 'u~ u > u u~ g', 'u u~ > d d~ g',
                      'u u~ > u u~ g g', 'u u~ > d~ d g g', 'u u~ > u u~ g g g',
-                     'u u~ > d~ d g g g', 'u u~ > u u~ g g g g',]
+                     'u u~ > u u~ g g g g',]
     my_proc_list += ['u u~ > d~ d s s~', 'u u~ > u u~ d d~', 'd d~ > u~ u u u~',
                      'u u~ > u u~ u u~', 'u u~ > u u~ d d~ g', 'u~ u > u u~ u u~ g',
-                     'u u~ > u u~ d d~ g g']
+                     'u u~ > u u~ d d~ g g', 'u u~ > u u~ u u~ u u~']
 
-    #my_proc_list = ['u u~ > u u~ u u~', 'u u~ > u u~ d d~ g g']
+    my_proc_list = ['u~ u > u u~', 'u u~ > u u~ u u~', 'g g > g g g', 'u u~ > u u~ g g']
 
     # Set the model we are working with
     model = 'sm'
@@ -74,14 +73,22 @@ if '__main__' == __name__:
     #my_mg5.setup(mg5_path, mg4_path)
 
     # Create a MERunner object for UFO-ALOHA-MG5
-    #my_mg5_co_11 = me_comparator.MG5_CO_Runner()
-    #my_mg5_co_11.setup(mg5_path, mg4_path, optimization=1, color_ordering=1)
+    my_mg5_co_11 = me_comparator.MG5_CO_Runner()
+    my_mg5_co_11.setup(mg5_path, mg4_path, optimization=1, color_ordering=1)
     #my_mg5_co_31 = me_comparator.MG5_CO_Runner()
     #my_mg5_co_31.setup(mg5_path, mg4_path, optimization=3, color_ordering=1)
+    my_mg5_co_12 = me_comparator.MG5_CO_Runner()
+    my_mg5_co_12.setup(mg5_path, mg4_path, optimization=1, color_ordering=2)
+    #my_mg5_co_32 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_32.setup(mg5_path, mg4_path, optimization=3, color_ordering=2)
+    my_mg5_co_13 = me_comparator.MG5_CO_Runner()
+    my_mg5_co_13.setup(mg5_path, mg4_path, optimization=1, color_ordering=3)
+    #my_mg5_co_33 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_33.setup(mg5_path, mg4_path, optimization=3, color_ordering=3)
     my_mg5_co_17 = me_comparator.MG5_CO_Runner()
     my_mg5_co_17.setup(mg5_path, mg4_path, optimization=1, color_ordering=7)
-    my_mg5_co_37 = me_comparator.MG5_CO_Runner()
-    my_mg5_co_37.setup(mg5_path, mg4_path, optimization=3, color_ordering=7)
+    #my_mg5_co_37 = me_comparator.MG5_CO_Runner()
+    #my_mg5_co_37.setup(mg5_path, mg4_path, optimization=3, color_ordering=7)
 
     # Create a MERunner object for UFO-ALOHA-MG5
     my_mg5_ufo = me_comparator.MG5_UFO_Runner()
@@ -93,7 +100,10 @@ if '__main__' == __name__:
 
     # Create and setup a comparator
     my_comp = me_comparator.MEComparator()
-    my_comp.set_me_runners(my_mg5_co_17, my_mg5_co_37, my_mg5_ufo)
+    my_comp.set_me_runners(my_mg5_ufo, my_mg5_co_11, 
+                           my_mg5_co_12, 
+                           my_mg5_co_13, 
+                           my_mg5_co_17)
 
     #my_mg5_ufo, my_mg5_co_17, my_mg5_co_37,
 

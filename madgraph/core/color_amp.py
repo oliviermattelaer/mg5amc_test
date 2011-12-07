@@ -560,6 +560,7 @@ class ColorMatrix(dict):
                 if is_symmetric and i2 < i1:
                     continue
 
+                # Get the matrix element for these structs
                 result, result_fixed_Nc = self.get_matrix_entry(canonical_dict,
                                                                struct1, struct2,
                                                                Nc_power_min,
@@ -597,7 +598,7 @@ class ColorMatrix(dict):
         # to avoid duplicates
         new_struct2 = cls.fix_summed_indices(struct1, struct2)
 
-        # Build a canonical representation of the two immutable struct
+        # Build a canonical representation of the two immutable structs
         canonical_entry, dummy = \
                     color_algebra.ColorString().to_canonical(struct1 + \
                                                            new_struct2)
@@ -609,18 +610,23 @@ class ColorMatrix(dict):
             # Otherwise calculate the result
             result, result_fixed_Nc = \
                     cls.create_new_entry(struct1,
-                                          new_struct2,
-                                          Nc_power_min,
-                                          Nc_power_max,
-                                          Nc)
+                                         new_struct2,
+                                         Nc)
             # Store both results
             canonical_dict[canonical_entry] = (result, result_fixed_Nc)
+
+        # Keep only terms with Nc_max >= Nc power >= Nc_min
+        if result:
+            max_power = result[0].Nc_power
+            if Nc_power_min != None and max_power < Nc_power_min or \
+               Nc_power_max != None and max_power > Nc_power_max:
+                result = color_algebra.ColorFactor()
+                result_fixed_Nc = result.set_Nc(Nc)
 
         return result, result_fixed_Nc
 
     @staticmethod
-    def create_new_entry(struct1, struct2,
-                         Nc_power_min = None, Nc_power_max = None, Nc = 3):
+    def create_new_entry(struct1, struct2, Nc = 3):
         """ Create a new product result, and result with fixed Nc for two color 
         basis entries. Implement Nc power limits."""
 
@@ -642,17 +648,6 @@ class ColorMatrix(dict):
 
         # Sort result according to falling Nc_power
         result.sort(key=lambda c1: c1.Nc_power, reverse=True)
-
-        # Keep only terms with Nc_max >= Nc power >= Nc_min
-        if result:
-            max_power = result[0].Nc_power
-            if Nc_power_min != None and max_power < Nc_power_min:
-                result[:] = []
-            #if Nc_power_min:
-            #    result[:] = [col_str for col_str in result \
-            #                 if col_str.Nc_power >= Nc_power_min]
-            if Nc_power_max != None and max_power > Nc_power_max:
-                result[:] = []
 
         # Calculate the fixed Nc representation
         result_fixed_Nc = result.set_Nc(Nc)

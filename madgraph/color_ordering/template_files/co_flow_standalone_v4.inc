@@ -1,4 +1,4 @@
-      COMPLEX*16 FUNCTION FLOW%(number)s(P,NHEL,IP,IFERM)
+      COMPLEX*16 FUNCTION FLOW%(number)s(P,NHEL,IP)
 C  
 %(info_lines)s
 C
@@ -21,14 +21,11 @@ C
       PARAMETER (ZERO=0D0)
       COMPLEX*16 IMAG1, ONE
       PARAMETER (IMAG1=(0D0,1D0),ONE=(1d0,0d0))
-c     SFACT = sqrt(-3/2)
-      COMPLEX*16 SFACT
-      PARAMETER (SFACT=(0d0,1.2247448713915889d0))
 C  
 C ARGUMENTS 
 C  
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL),IP(NEXTERNAL),IFERM
+      INTEGER NHEL(NEXTERNAL),IP(NEXTERNAL)
 C  
 C LOCAL VARIABLES 
 C  
@@ -48,6 +45,6 @@ C ----------
 %(helas_calls)s
 %(jamp_lines)s
 
-      FLOW%(number)d=IFERM*JAMP(1)
+      FLOW%(number)d=JAMP(1)
       RETURN
       END
