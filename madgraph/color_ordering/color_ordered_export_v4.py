@@ -400,10 +400,10 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                 flow_jamp_dict[irow] = jamp
             # Add the factor needed for this JAMP
             row_flow_factors.setdefault(irow, []).append(\
-                               (max([c.Nc_power for c in \
-                                     color_matrix[(icol, irow)]]),
-                                jamp if iperm > 0 else flow_jamp_dict[iflow],
-                                color_matrix.col_matrix_fixed_Nc[(icol, irow)]))
+                            (max([c.Nc_power for c in \
+                                  color_matrix[(icol, irow)]]),
+                             jamp if iperm > 0 else flow_jamp_dict[iflow],
+                             color_matrix.col_matrix_fixed_Nc[(icol, irow)][0]))
 
         # Generate the calls to all needed flows
         flow_call_lines = []
@@ -424,49 +424,22 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         # Go through the rows and output the explicit color matrix
         # summation for this line
         for irow in sorted(row_flow_factors.keys()):
-            row_flow_factors[irow].sort(lambda c1,c2: c2[0]-c1[0] if \
-                                        c1[0]-c2[0] != 0 else c1[1]-c2[1])
+            den, factor_dict = self.organize_row(row_flow_factors[irow])
             color_sum_lines.append(\
-                'ZTEMP = ZTEMP+JAMP(%(jamp)d)*DCONJG(%(flows)s)' % \
-                {'jamp': flow_jamp_dict[irow],
+                'ZTEMP = ZTEMP+%(den)s*JAMP(%(jamp)d)*DCONJG(%(flows)s)' % \
+                {'den': self.fraction_to_string(den),
+                 'jamp': flow_jamp_dict[irow],
                  'flows': "+".join(['%s*(%s)' % \
-                                    (self.fraction_to_string(fact[0]),\
-                                     "JAMP(%d)" % jamp) for (n, jamp, fact) \
-                                     in row_flow_factors[irow]])})
+                                (self.fraction_to_string(fact),\
+                                 "+".join(["JAMP(%d)" % i for i in \
+                                           factor_dict[fact]])) for fact \
+                                in sorted(factor_dict.keys(), reverse=True)])})
             color_sum_lines[-1] = color_sum_lines[-1].replace('+-', '-')
             color_sum_lines[-1] = color_sum_lines[-1].replace('+1D0*', '+')
             color_sum_lines[-1] = color_sum_lines[-1].replace('/1*', '*')
 
         return jamp, flow_call_lines, color_sum_lines, nperms, \
                iperm_line_list, iferm_line
-
-    def get_jamp_factors_for_row(self, matrix_element, color_matrix, irow,
-                                 row_Nc_power, numerators):
-        """Get the series of (numerator, JAMP) for this flow number"""
-
-        color_basis = matrix_element.get('color_basis')
-        flows = matrix_element.get('color_flows')
-        nperms = len(matrix_element.get('permutations'))
-        allnums = []
-        for icol, col_bas_elem in enumerate(sorted(color_basis.keys())):
-            for diag_tuple in color_basis[col_bas_elem]:
-                iflow = diag_tuple[0]
-                iperm = diag_tuple[1][0]
-                nflow = 1 + iflow*nperms + iperm
-                column_Nc_power = flows[diag_tuple[0]].get('color_string').\
-                                  Nc_power
-                if numerators[icol]:
-                    # Only add if Nc_power large enough. Count only
-                    # half of negative Nc powers, since the singlet contribution
-                    # is put at -2 but should be -1
-                    Nc_power = color_matrix[(irow,icol)][0].Nc_power + \
-                           (row_Nc_power + column_Nc_power)//2
-                    if Nc_power >= matrix_element.get('min_Nc_power'):
-                        Nc_pow = self.Nc_power_to_fraction(column_Nc_power)
-                        allnums.append((numerators[icol] * Nc_pow,
-                                        nflow))
-        
-        return allnums
 
     def combine_jamp_factors(self, allnums):
         """Combine all JAMPs with the same factors"""
@@ -481,6 +454,29 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         return result
     
     @staticmethod
+    def organize_row(flow_factors):
+        """Organize the information for this row to get a nice output.
+        The elements of flow_factors is Nc_power, jamp number, fraction.
+        Return the common denominator and a dictionary from value to
+        sorted list of jamp numbers"""
+
+        # If only one factor (leading order) simply return 1 and the fraction
+        if len(flow_factors) <= 1:
+            return 1, dict([(f, [j]) for (n,j,f) in flow_factors])
+
+        # First get common denominators for this row
+        den = color_amp.ColorMatrix.lcmm(*[fact[2] for fact in flow_factors])
+        if not den or den > 100000: den = 1
+        return_dict = {}
+        for facttuple in flow_factors:
+            fact = facttuple[2]*den
+            if fact == int(fact): fact = int(fact)
+            return_dict.setdefault(fact, []).append(facttuple[1])
+
+        return fractions.Fraction(1, int(den)), return_dict
+        
+
+    @staticmethod
     def Nc_power_to_fraction(Nc_power):
         """Given an Nc power, return the corresponding fraction"""
         if Nc_power < 0:
@@ -493,7 +489,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         """Return a Fortran string for a fraction"""
         if not fraction:
             return "0"
-        return "%sd0" % str(fraction)
+        return "%sD0" % str(fraction)
         
 
 #===============================================================================
