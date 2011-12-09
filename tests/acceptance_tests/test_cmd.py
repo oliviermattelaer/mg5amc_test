@@ -395,15 +395,15 @@ class TestCmdShell2(unittest.TestCase,
         self.do('import model sm')
         self.do('set color_ordering 3')
         self.do('set optimization 3')
-        self.do('generate g g > g g g')
+        self.do('generate u g > u g g g')
         self.do('output standalone %s ' % self.out_dir)
         self.do('set color_ordering 0')
         self.do('set optimization 1')
         # Check that the needed ALOHA subroutines are generated
-        files = ['aloha_file.inc', 
-                 'VVV1_0.f', 'VVV1_1.f', 'VVVV1_0.f', 'VVVV1_1.f',
-                 'sumV2.f',
-                 'makefile', 'aloha_functions.f']
+        files = ['FFV1_0.f', 'FFV1_3.f', 'VVVV1_0.f', 'sumF2.f', 'FFV1_1.f',
+                 'VVV1_0.f', 'VVVV4_0.f', 'sumV2.f', 'FFV1_2.f', 'VVV1_1.f',
+                 'aloha_functions.f']
+
         for f in files:
             self.assertTrue(os.path.isfile(os.path.join(self.out_dir,
                                                         'Source', 'DHELAS',
@@ -422,24 +422,25 @@ class TestCmdShell2(unittest.TestCase,
         subprocess.call(['make', 'check'],
                         stdout=devnull, stderr=devnull, 
                         cwd=os.path.join(self.out_dir, 'SubProcesses',
-                                         'P0_gg_ggg'))
+                                         'P0_ug_uggg'))
         self.assertTrue(os.path.exists(os.path.join(self.out_dir,
-                                                    'SubProcesses', 'P0_gg_ggg',
+                                                    'SubProcesses',
+                                                    'P0_ug_uggg',
                                                     'check')))
         # Check that the output of check is correct 
-        logfile = os.path.join(self.out_dir,'SubProcesses', 'P0_gg_ggg',
+        logfile = os.path.join(self.out_dir,'SubProcesses', 'P0_ug_uggg',
                                'check.log')
         subprocess.call('./check', 
                         stdout=open(logfile, 'w'), stderr=devnull,
                         cwd=os.path.join(self.out_dir, 'SubProcesses',
-                                         'P0_gg_ggg'), shell=True)
+                                         'P0_ug_uggg'), shell=True)
         log_output = open(logfile, 'r').read()
         me_re = re.compile('Matrix element\s*=\s*(?P<value>[\d\.eE\+-]+)\s*GeV',
                            re.IGNORECASE)
         me_groups = me_re.search(log_output)
         self.assertTrue(me_groups)
         self.assertAlmostEqual(float(me_groups.group('value')),
-                               1.8175147859853399e-2)
+                               6.1227347240103e-7)
         
     def test_v4_heft(self):
         """Test standalone directory for UFO HEFT model"""

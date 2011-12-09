@@ -215,7 +215,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         self.write_pmass_file(writers.FortranWriter(filename),
                          matrix_element)
 
-        linkfiles = ['check_sa.f', 'coupl.inc', 'makefile']
+        linkfiles = ['check_sa.f', 'ipnext.f', 'coupl.inc', 'makefile']
 
 
         for file in linkfiles:
@@ -279,6 +279,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         flow_functions_lines = self.get_flow_functions_lines(matrix_element)
         replace_dict['flow_functions_lines'] = flow_functions_lines
 
+        # Extract nperms
+        replace_dict['nperms'] = len(matrix_element.get('permutations'))        
         # Extract flow call lines and color sum lines
         nflows, flow_call_lines, color_sum_lines, nflowperms, \
                 flow_perms_data_lines, flow_iferm_data_line = \
@@ -291,10 +293,9 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         replace_dict['nflows'] = nflows
 
 
-        # Extract permutation data lines
-        perms_data_lines, nperms = self.get_perms_data_lines(matrix_element)
-        replace_dict['nperms'] = nperms
-        replace_dict['perms_data_lines'] = "\n".join(perms_data_lines)
+        # Extract the info about which particles should be permuted
+        comp_data_line = self.get_comp_data_line(matrix_element)
+        replace_dict['comp_data_line'] = comp_data_line
 
         # Create file contents
         file = open(os.path.join(_file_path, \
@@ -308,20 +309,29 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         return 0
 
 
-    def get_perms_data_lines(self, matrix_element):
-        """Write out the data lines defining the permutations"""
+    def get_comp_data_line(self, matrix_element):
+        """Write out the data line for the comp vector."""
 
-        iperm_line_list = []
-        i = 0
-        for perm in matrix_element.get('permutations'):
-            i = i + 1
-            int_list = [i, len(perm)]
-            int_list.extend(perm)
-            iperm_line_list.append(\
-                ("DATA (PERMS(I,%4r),I=1,%d) /" + \
-                 ",".join(['%2r'] * len(perm)) + "/") % tuple(int_list))
+        process = matrix_element.get('processes')[0]
+        model = process.get('model')
+        part_states = [(model.get_particle(l.get('id')), l.get('state')) \
+                       for l in process.get('legs')]
+        pdg_colors = [(p[0].get_pdg_code(), p[0].get_color()) if p[1] else \
+                     (p[0].get_anti_pdg_code(), p[0].get_color()) \
+                     for p in part_states]
+        pdg_dict = {}
+        comp_list = []
+        comp_id = 0
+        for pdg, col in pdg_colors:
+            if pdg in pdg_dict and col in [3, 8]:
+                comp_list.append(pdg_dict[pdg])
+            else:
+                comp_id += 1
+                comp_list.append(str(comp_id))
+                pdg_dict[pdg] = str(comp_id)
 
-        return iperm_line_list, len(iperm_line_list), 
+        comp_data_line = 'DATA COMP/%s/' % ','.join(comp_list)
+        return comp_data_line
         
     def get_flow_functions_lines(self, matrix_element):
         """Write out function definition lines"""
@@ -431,9 +441,13 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                  'jamp': flow_jamp_dict[irow],
                  'flows': "+".join(['%s*(%s)' % \
                                 (self.fraction_to_string(fact),\
-                                 "+".join(["JAMP(%d)" % i for i in \
+                                 "+".join(["%d*JAMP(%d)" % i for i in \
                                            factor_dict[fact]])) for fact \
                                 in sorted(factor_dict.keys(), reverse=True)])})
+            color_sum_lines[-1] = color_sum_lines[-1].replace('+-1*', '-')
+            color_sum_lines[-1] = color_sum_lines[-1].replace('+1*', '+')
+            color_sum_lines[-1] = color_sum_lines[-1].replace('(-1*', '(-')
+            color_sum_lines[-1] = color_sum_lines[-1].replace('(1*', '(')
             color_sum_lines[-1] = color_sum_lines[-1].replace('+-', '-')
             color_sum_lines[-1] = color_sum_lines[-1].replace('+1D0*', '+')
             color_sum_lines[-1] = color_sum_lines[-1].replace('/1*', '*')
@@ -465,13 +479,15 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
             return 1, dict([(f, [j]) for (n,j,f) in flow_factors])
 
         # First get common denominators for this row
-        den = color_amp.ColorMatrix.lcmm(*[fact[2] for fact in flow_factors])
+        den = color_amp.ColorMatrix.lcmm(*[fact[2].denominator \
+                                           for fact in flow_factors])
         if not den or den > 100000: den = 1
         return_dict = {}
         for facttuple in flow_factors:
             fact = facttuple[2]*den
             if fact == int(fact): fact = int(fact)
-            return_dict.setdefault(fact, []).append(facttuple[1])
+            return_dict.setdefault(abs(fact), []).append((fact/abs(fact),
+                                                          facttuple[1]))
 
         return fractions.Fraction(1, int(den)), return_dict
         

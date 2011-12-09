@@ -741,6 +741,8 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
             # Probably standalone already called
             pass
 
+        
+
     #===========================================================================
     # Make the Helas and Model directories for Standalone directory
     #===========================================================================
@@ -834,7 +836,7 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
                      matrix_element.get('processes')[0].nice_string())
         plot.draw()
 
-        linkfiles = ['check_sa.f', 'coupl.inc', 'makefile']
+        linkfiles = ['check_sa.f', 'ipnext.f', 'coupl.inc', 'makefile']
 
 
         for file in linkfiles:

@@ -164,8 +164,6 @@ C CONSTANTS
 C  
       INTEGER    NEXTERNAL
       PARAMETER (NEXTERNAL=%(nexternal)d)
-      INTEGER    NPERMS
-      PARAMETER (NPERMS=%(nperms)d) 
 C  
 C ARGUMENTS 
 C  
@@ -173,13 +171,26 @@ C
 C  
 C LOCAL VARIABLES 
 C  
-      INTEGER I,J
-      INTEGER PERMS(NEXTERNAL,NPERMS)
-%(perms_data_lines)s
+      INTEGER I,J,IFLAG
+      LOGICAL OK
+      INTEGER COMP(NEXTERNAL)
+%(comp_data_line)s
 C ----------
 C BEGIN CODE
 C ----------
       DO I=1,NEXTERNAL
-        PERM(I)=PERMS(I,IPERM)
+        PERM(I)=I
+      ENDDO
+      I=1
+      DO WHILE(I.LT.IPERM)
+         CALL IPNEXT(PERM,NEXTERNAL,IFLAG)
+	 OK=.TRUE.
+	 DO J=1,NEXTERNAL
+           IF(COMP(PERM(J)).ne.COMP(J))THEN
+              OK=.FALSE.
+              EXIT
+           ENDIF
+	 ENDDO
+         IF(OK) I=I+1
       ENDDO
       END

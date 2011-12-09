@@ -175,7 +175,7 @@ class HelasAmplitudeTest(unittest.TestCase):
 
         self.assertEqual(helas_objects.HelasAmplitude().sign_flips_to_order(mylist), 1)
 
-        mylist[3] = 1
+        mylist[2] = 1
         self.assertEqual(helas_objects.HelasAmplitude().sign_flips_to_order(mylist), -1)
 
 #===============================================================================
