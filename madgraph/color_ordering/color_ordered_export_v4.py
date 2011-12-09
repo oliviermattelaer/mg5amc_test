@@ -474,10 +474,6 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         Return the common denominator and a dictionary from value to
         sorted list of jamp numbers"""
 
-        # If only one factor (leading order) simply return 1 and the fraction
-        if len(flow_factors) <= 1:
-            return 1, dict([(f, [j]) for (n,j,f) in flow_factors])
-
         # First get common denominators for this row
         den = color_amp.ColorMatrix.lcmm(*[fact[2].denominator \
                                            for fact in flow_factors])
