@@ -1228,52 +1228,76 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         super(COHelasFlow, self).generate_helas_diagrams(amplitude,
                                                          optimization,
                                                          decay_ids)
-        # Go through and change wavefunctions into COHelasWavefunction
+        # Collect all wavefunctions and turn into COHelasWavefunctions
         all_wavefunctions = self.get_all_wavefunctions()
         co_wavefunctions = helas_objects.HelasWavefunctionList(\
             [COHelasWavefunction(wf) for wf in all_wavefunctions])
-        # Replace all mothers with the co_wavefunctions
-        for wf in co_wavefunctions:
-            wf.get('mothers')[:] = \
-                                [co_wavefunctions[all_wavefunctions.index(w)] \
-                                 for w in wf.get('mothers')]
+
         # Same thing for amplitudes
         for diag in self.get('diagrams'):
             diag.set('amplitudes', helas_objects.HelasAmplitudeList(\
                 [COHelasAmplitude(amp) for amp in diag.get('amplitudes')]))
-            for amp in diag.get('amplitudes'):
-                amp.get('mothers')[:] = \
-                                [co_wavefunctions[all_wavefunctions.index(w)] \
-                                 for w in amp.get('mothers')]
 
-        # Sort wavefunctions according to len(external_number)
-        co_wavefunctions.sort(lambda w1,w2: len(w1.get('external_numbers')) - \
-                              len(w2.get('external_numbers')))
-        
-        # Go through wavefunctions and make all possible combinations
-        combined_wavefunctions = helas_objects.HelasWavefunctionList()
-        wf_current_dict = {}
+        # current_arrays for combined wfs
+        combined_wf_arrays = []
+        # lists of combined wfs with the same current_array
+        combined_wavefunctions = []
+        # list of compare_arrays for the wavefunctions in the currents
+        compare_arrays = []
+        # List of wf numbers that failed due to color
         removed_wfs = []
-        while co_wavefunctions:
-            # Pick out all wavefunctions with the same external numbers
-            combine_functions = [w for w in co_wavefunctions if \
-                                 w.get('current_array') == \
-                                 co_wavefunctions[0].get('current_array')]
+        # Dict from old wf number to new wf/BG current
+        wf_co_dict = dict((i+1,wf) for i, wf in \
+                               enumerate(co_wavefunctions))
+        # Go through wavefunctions and combine into currents
+        for wf in co_wavefunctions:
+            # Replace mothers for this wf with CO wavefunction
+            self.replace_mothers(wf, wf_co_dict)
+            # Check if this wf has any removed mothers, or if color is incorrect
+            if any([m.get('number') in removed_wfs for m in wf.get('mothers')]) \
+                   or not self.check_color(wf):
+                removed_wfs.append(wf.get('number'))
+                continue
+
+            if use_bg_currents:
+                # Combine wavefunctions with the same current_array
+                wf_array = wf.get('current_array')                
+                try:
+                    index = combined_wf_arrays.index(wf_array)
+                except ValueError:
+                    combined_wf_arrays.append(wf_array)
+                    combined_wavefunctions.append(\
+                        helas_objects.HelasWavefunctionList([wf]))
+                else:
+                    combined_wavefunctions[index].append(wf)
+            else:
+                combined_wavefunctions.append(\
+                    helas_objects.HelasWavefunctionList([wf]))
+
+        # Sort currents according to length (number of wfs) to ensure
+        # that all mothers come before their daughters.
+        if use_bg_currents:
+            combined_wavefunctions = sorted(combined_wavefunctions,
+                                            lambda l1,l2:len(l1)-len(l2))
+
+        # Dict from old wf number to new wf/BG current
+        wf_current_dict = {}
+
+        # Go through combined wavefunction and replace with currents
+        combined_currents = helas_objects.HelasWavefunctionList()
+        for wf_list in combined_wavefunctions:
+            # The final mothers for this current
             bg_mothers = helas_objects.HelasWavefunctionList()
-            while combine_functions:
-                wf = combine_functions.pop(0)
-                # Remove used wavefunctions from co_wavefunctions
-                co_wavefunctions.remove(wf)
+            # Numbers of wfs in this current
+            wf_numbers = []
+            while wf_list:
+                wf = wf_list.pop(0)
+                wf_numbers.append(wf.get('number'))
                 # Check if an identical wavefunction (after
                 # replacing mothers with currents) is already
                 # present in the current (if using BG currents)
                 if use_bg_currents and wf.get('compare_array') in \
                        [m.get('compare_array') for m in bg_mothers]:
-                    continue
-                # Check if color is correct
-                if any([m in removed_wfs for m in wf.get('mothers')]) or \
-                       not self.check_color(wf):
-                    removed_wfs.append(wf)
                     continue
                 if use_bg_currents:
                     # Replace the wavefunction mothers in this
@@ -1282,73 +1306,58 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                     # Update fermion factor for wf (since we replaced mothers)
                     wf.set_color_and_fermion_factor()
                 # Add the resulting wavefunction to
-                # combined_wavefunctions and to combine_wf
-                combined_wavefunctions.append(wf)
-                if use_bg_currents:
-                    bg_mothers.append(wf)
-            if use_bg_currents and len(bg_mothers) > 1:
+                # combined_currents and to bg_mothers
+                combined_currents.append(wf)
+                bg_mothers.append(wf)
+            
+            if len(bg_mothers) > 1:
                 # Combine wavefunctions to a current
                 combine_wf = BGHelasCurrent(bg_mothers[0])
                 # Set the mothers
                 combine_wf.set('mothers', bg_mothers)
                 # Set color string for the new BG current
                 combine_wf.set_color_string()
-                # Add combine_wf to combined_wavefunctions
-                combined_wavefunctions.append(combine_wf)
+                # Add combine_wf to combined_currents
+                combined_currents.append(combine_wf)
                 # Add this BG current to the replacement dictionary
-                for wf in combine_wf.get('mothers'):
-                    wf_current_dict[wf.get('number')] = combine_wf
+                for wf_number in wf_numbers:
+                    wf_current_dict[wf_number] = combine_wf
+            else:
+                for wf_number in wf_numbers:
+                    wf_current_dict[wf_number] = bg_mothers[0]
+
         # left_diagrams is the diagrams that are left after BG
         # combinations
         left_diagrams = helas_objects.HelasDiagramList()
-        diagrams = self.get('diagrams')
         idiag = 0
-        while diagrams:
-            idiag += 1
-            # Pick out all diagrams with amplitudes with the same
-            # external number mothers (i.e., same BG currents) the
-            # same interaction id and the same coupling key.
-            # If there is one such amplitude in a diagram, the other
-            # amplitudes should be represented already by other
-            # amplitudes in this diagram, since the only difference
-            # between amplitudes in a diagram is coupling keys.
-            diagram = diagrams.pop(0)
-            left_diagrams.append(diagram)
-            amp = diagram.get('amplitudes')[0]
-            if optimization // 2 == 1:
-                remove_amp_diagrams = [d for d in self.get('diagrams') if \
-                                       any([a.get('compare_array') == \
-                                            amp.get('compare_array') for \
-                                            a in d.get('amplitudes')])]
-                # Remove all those diagrams
-                for d in remove_amp_diagrams:
-                    diagrams.remove(d)
-            # Determine which amplitudes in this diagram that should
-            # contribute (when BG currents are taken into account)
-            left_amplitudes = helas_objects.HelasAmplitudeList()
-            while diagram.get('amplitudes'):
-                amp = diagram.get('amplitudes').pop(0)
-                # Check that this amp passes color check
-                if any([m in removed_wfs for m in amp.get('mothers')]) or \
-                       not self.check_color(amp):
-                    continue
-                left_amplitudes.append(amp)
-                if optimization // 2 == 1:
-                    # Check for other amps in this diagram with the same
-                    # compare_array (i.e., same BG current mothers)
-                    remove_amps = [a for a in diagram.get('amplitudes') if \
-                                   a.get('compare_array') == \
-                                   amp.get('compare_array')]
-                    for a in remove_amps:
-                        diagram.get('amplitudes').remove(a)
-            
-                # Replace the amplitude mothers in these
-                # amplitudes with corresponding currents
+        amp_compare_arrays = []
+        for diagram in self.get('diagrams'):
+            valid_amps = helas_objects.HelasAmplitudeList()
+            for amp in diagram.get('amplitudes'):
+                # Replace wf mothers in this diagram
                 self.replace_mothers(amp, wf_current_dict)
+                # Check that this amp passes color check
+                if any([m.get('number') in removed_wfs for m in \
+                        amp.get('mothers')]) or not self.check_color(amp):
+                    continue
                 # Update color and fermion factor, since mothers have changed
                 amp.set_color_and_fermion_factor()
-
-            diagram.set('amplitudes', left_amplitudes)
+                # Check if an amplitude with identical mothers,
+                # interaction id and coupling key is already present -
+                # in that case skip this amp
+                if amp.get('compare_array') in amp_compare_arrays:
+                    continue
+                # Otherwise add this diagram to the list
+                valid_amps.append(amp)
+                # If we use BG currents, add compare_array
+                if use_bg_currents:
+                    amp_compare_arrays.append(amp.get('compare_array'))
+            # If no valid amplitudes, skip this diagram
+            if not valid_amps:
+                continue
+            # Otherwise replace amplitudes and add to list
+            left_diagrams.append(diagram)
+            diagram.set('amplitudes', valid_amps)
             diagram.set('wavefunctions', helas_objects.HelasWavefunctionList())
 
         # Set diagram numbers
@@ -1357,7 +1366,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         self.set('diagrams', left_diagrams)
 
         # Set wf number for all wavefunctions
-        for i, wf in enumerate(combined_wavefunctions):
+        for i, wf in enumerate(combined_currents):
             wf.set('number', i+1)
         
         # Set amplitude number for all amplitudes
@@ -1365,7 +1374,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             amp.set('number', i+1)
 
         # Set wavefunctions in first diagram
-        self.get('diagrams')[0].set('wavefunctions', combined_wavefunctions)
+        self.get('diagrams')[0].set('wavefunctions', combined_currents)
 
         # Set Nc power for the overall color string instead of every
         # amplitude, but only if it is negative

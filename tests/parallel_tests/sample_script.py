@@ -59,7 +59,7 @@ if '__main__' == __name__:
                      'u u~ > u u~ u u~', 'u u~ > u u~ d d~ g', 'u~ u > u u~ u u~ g',
                      'u u~ > u u~ d d~ g g', 'u u~ > u u~ u u~ u u~']
 
-    #my_proc_list = ['u~ u > u u~', 'u u~ > u u~ u u~', 'g g > g g g', 'u u~ > u u~ g g', 'g g > g g g g']
+    my_proc_list = ['u~ u > u u~', 'u u~ > u u~ u u~', 'g g > g g g', 'u u~ > u u~ g g', 'g g > g g g g']
 
     # Set the model we are working with
     model = 'sm'
