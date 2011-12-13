@@ -1336,17 +1336,20 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             for amp in diagram.get('amplitudes'):
                 # Replace wf mothers in this diagram
                 self.replace_mothers(amp, wf_current_dict)
-                # Check that this amp passes color check
+                # Check that this amp has any removed mothers
                 if any([m.get('number') in removed_wfs for m in \
-                        amp.get('mothers')]) or not self.check_color(amp):
+                        amp.get('mothers')]):
                     continue
-                # Update color and fermion factor, since mothers have changed
-                amp.set_color_and_fermion_factor()
                 # Check if an amplitude with identical mothers,
                 # interaction id and coupling key is already present -
                 # in that case skip this amp
                 if amp.get('compare_array') in amp_compare_arrays:
                     continue
+                # Check that this amp passes color check
+                if not self.check_color(amp):
+                    continue
+                # Update color and fermion factor, since mothers have changed
+                amp.set_color_and_fermion_factor()
                 # Otherwise add this diagram to the list
                 valid_amps.append(amp)
                 # If we use BG currents, add compare_array
@@ -1771,7 +1774,12 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         basic_immutable_factors = []
         # canonical_dict to store previous calculation results
         canonical_dict = {}
-        for iperm, perm in enumerate(self.get('permutations')):
+        if gen_color == 1:
+            permutations = self.get('permutations')[:1]
+        else:
+            permutations = self.get('permutations')
+
+        for iperm, perm in enumerate(permutations):
             for iflow, color_flow in enumerate(self.get('color_flows')):
                 # 1,2,3,4,5 -> 1,2,4,5,3 e.g.
                 perm_replace_dict = \
