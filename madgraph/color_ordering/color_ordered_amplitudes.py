@@ -1080,10 +1080,10 @@ class BGHelasCurrent(COHelasWavefunction):
 
     def set_color_string(self):
         """Set color string based on the first mother"""
-        self.set('color_string', self.get('mothers')[0].get('color_string'))
-        col_str = self.get('color_string')
+        col_str = copy.copy(self.get('mothers')[0].get('color_string'))
         col_str.coeff = fractions.Fraction(1)
         col_str.is_imaginary = False
+        self.set('color_string', col_str)
         # Since color and fermion factors are already included for
         # each wavefunction, we should set the factor to 1 for current
         self.set('factor', (1, fractions.Fraction(1,1), False))
@@ -1092,17 +1092,6 @@ class BGHelasCurrent(COHelasWavefunction):
         common_Nc_power = max([wf.get('color_string').Nc_power for wf \
                               in self.get('mothers')])
         self.get('color_string').Nc_power = common_Nc_power
-
-        for wf in self.get('mothers'):
-            # Must reset mother color string factors, since
-            # the amplitude color factor is calculated using the
-            # original wfs
-            wf.get('color_string').Nc_power = \
-                                           self.get('color_string').Nc_power
-            wf.get('color_string').coeff = \
-                                           self.get('color_string').coeff
-            wf.get('color_string').is_imaginary = \
-                                           self.get('color_string').is_imaginary
         
     def get_call_key(self):
         """Generate the ('sum', spins) tuple used as key for
@@ -1228,6 +1217,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         super(COHelasFlow, self).generate_helas_diagrams(amplitude,
                                                          optimization,
                                                          decay_ids)
+
         # Collect all wavefunctions and turn into COHelasWavefunctions
         all_wavefunctions = self.get_all_wavefunctions()
         co_wavefunctions = helas_objects.HelasWavefunctionList(\
@@ -1253,11 +1243,6 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         for wf in co_wavefunctions:
             # Replace mothers for this wf with CO wavefunction
             self.replace_mothers(wf, wf_co_dict)
-            # Check if this wf has any removed mothers, or if color is incorrect
-            if any([m.get('number') in removed_wfs for m in wf.get('mothers')]) \
-                   or not self.check_color(wf):
-                removed_wfs.append(wf.get('number'))
-                continue
 
             if use_bg_currents:
                 # Combine wavefunctions with the same current_array
@@ -1292,19 +1277,32 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             wf_numbers = []
             while wf_list:
                 wf = wf_list.pop(0)
+                # Check if this wf has any removed mothers
+                if any([m.get('number') in removed_wfs for m in \
+                        wf.get('mothers')]):
+                    removed_wfs.append(wf.get('number'))
+                    continue
+
+                if use_bg_currents:
+                    # Replace the wavefunction mothers in this
+                    # wavefunction with corresponding currents
+                    self.replace_mothers(wf, wf_current_dict)
+
+                # Check if color is incorrect
+                if not self.check_color(wf):
+                    removed_wfs.append(wf.get('number'))
+                    continue
+
+                # This is a valid wf, so append number to wfs
                 wf_numbers.append(wf.get('number'))
+
                 # Check if an identical wavefunction (after
                 # replacing mothers with currents) is already
                 # present in the current (if using BG currents)
                 if use_bg_currents and wf.get('compare_array') in \
                        [m.get('compare_array') for m in bg_mothers]:
                     continue
-                if use_bg_currents:
-                    # Replace the wavefunction mothers in this
-                    # wavefunction with corresponding currents
-                    self.replace_mothers(wf, wf_current_dict)
-                    # Update fermion factor for wf (since we replaced mothers)
-                    wf.set_color_and_fermion_factor()
+
                 # Add the resulting wavefunction to
                 # combined_currents and to bg_mothers
                 combined_currents.append(wf)
@@ -1322,7 +1320,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                 # Add this BG current to the replacement dictionary
                 for wf_number in wf_numbers:
                     wf_current_dict[wf_number] = combine_wf
-            else:
+            elif bg_mothers:
                 for wf_number in wf_numbers:
                     wf_current_dict[wf_number] = bg_mothers[0]
 
@@ -1371,7 +1369,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         # Set wf number for all wavefunctions
         for i, wf in enumerate(combined_currents):
             wf.set('number', i+1)
-        
+
         # Set amplitude number for all amplitudes
         for i, amp in enumerate(self.get_all_amplitudes()):
             amp.set('number', i+1)
