@@ -1688,7 +1688,7 @@ class MultiProcess(base_objects.PhysicsObject):
         new_amp.set('process', process)
         # Now replace the leg numbers in the diagrams
         diagrams = base_objects.DiagramList([d.renumber_legs(perm_map,
-                                             process.get('legs'),) for \
+                                             process.get('legs')) for \
                                              d in new_amp.get('diagrams')])
         new_amp.set('diagrams', diagrams)
         new_amp.trim_diagrams()

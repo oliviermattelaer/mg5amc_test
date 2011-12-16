@@ -997,6 +997,42 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
         self.assertEqual(ndiags, goal_ndiags[ngluon - 2])
 
+    def test_periferal_diagrams_gluons(self):
+        """Test the number of color ordered diagrams gg>ng with n up to 4"""
+
+        goal_ndiags = [12, 66, 180, 990]
+
+        # Time for 6 gluons: 5 min
+
+        # Test 2, 3, 4 and 5 gluons in the final state
+        for ngluon in range (3, 5):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([base_objects.Leg({'id':21,
+                                              'state':False})] * 2)
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * ngluon)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'model':self.mymodel})
+
+            self.myamplitude.set('process', myproc)
+
+            self.myamplitude.generate_diagrams()
+
+            diagrams, flow_perms = \
+                      self.myamplitude.get_periferal_diagrams_from_flows()
+
+            # print diagrams.nice_string()
+            # plot = draw.MultiEpsDiagramDrawer(diagrams,
+            #                                   "allperiferal%i.eps" % ngluon,
+            #                                   model=self.mymodel)
+            # plot.draw()
+            # goal_ndiags.append(len(diagrams))
+            self.assertEqual(len(diagrams), goal_ndiags[ngluon - 3])
+        # print goal_ndiags
+
 #===============================================================================
 # COHelasMatrixElementTest
 #===============================================================================
@@ -1294,6 +1330,8 @@ class COHelasMatrixElementTest(unittest.TestCase):
                                            'model':self.mymodel})
 
             self.myamplitude.set('process', myproc)
+
+            #print myproc.nice_string()
 
             self.myamplitude.generate_diagrams()
 
@@ -2437,10 +2475,59 @@ class COHelasMatrixElementTest(unittest.TestCase):
                              col_matrix_fixed_Nc,
                              goal_matrices[ngluon])
 
+    def test_madevent_matrix_element_gluons(self):
+        """Test the matrix element for all-gluon amplitudes"""
+
+        goal_ndiags = [12, 66, 180, 990]
+        goal_nflowperms = [8, 16, 32, 64]
+
+        for ngluon in range(3,5):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([base_objects.Leg({'id':21,
+                                              'state':False})] * 2)
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * ngluon)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'orders':{'QCD':ngluon},
+                                           'model':self.mymodel})
+
+            self.myamplitude.set('process', myproc)
+
+            self.myamplitude.generate_diagrams()
+
+            #print "Generated diagrams for ", myproc.nice_string()
+
+            matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+                self.myamplitude, gen_color = 3, optimization = 3,
+                gen_periferal_diagrams = True)
+
+            # Check that we get back the correct number of periferal diagrams
+            diagrams = matrix_element.get('diagrams')
+            # print "\n".join(\
+            #     color_ordered_export_v4.COFortranUFOHelasCallWriter(self.mymodel).\
+            #     get_matrix_element_calls(matrix_element))
+            self.assertEqual(len(diagrams), goal_ndiags[ngluon-3])
+
+            flows_in_perms = []
+            for idiag, flowperms in \
+                    enumerate(matrix_element.get('periferal_flow_perms')):
+                #if idiag == 0:
+                #    goal_nflowperms.append(len(flowperms))
+                self.assertEqual(len(flowperms), goal_nflowperms[ngluon-3])
+                flows_in_perms.extend([p for (f,p) in flowperms])
+                #print 'Diagram: ',idiag+1,' has flow_perms ', flowperms
+            self.assertEqual(set(flows_in_perms),
+                            set(range(len(matrix_element.get('permutations')))))
+
+        #print goal_nflowperms
+
 #===============================================================================
-# TestDiagramTag
+# TestOrderDiagramTag
 #===============================================================================
-class TestDiagramTag(unittest.TestCase):
+class TestOrderDiagramTag(unittest.TestCase):
     """Test class for the DiagramTag class"""
 
 
@@ -2734,3 +2821,387 @@ class TestDiagramTag(unittest.TestCase):
                 self.assertEqual(dtag,
                                  color_ordered_amplitudes.OrderDiagramTag(\
                                      dtag.diagram_from_tag(self.mymodel)))
+
+#===============================================================================
+# TestPeriferalDiagramTag
+#===============================================================================
+class TestPeriferalDiagramTag(unittest.TestCase):
+    """Test class for the PeriferalDiagramTag class"""
+
+
+    def setUp(self):
+
+        self.mypartlist = base_objects.ParticleList()
+        self.myinterlist = base_objects.InteractionList()
+        self.mymodel = base_objects.Model()
+
+        # A gluon
+        self.mypartlist.append(base_objects.Particle({'name':'g',
+                      'antiname':'g',
+                      'spin':3,
+                      'color':8,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'g',
+                      'antitexname':'g',
+                      'line':'curly',
+                      'charge':0.,
+                      'pdg_code':21,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':True}))
+
+        # A quark U and its antiparticle
+        self.mypartlist.append(base_objects.Particle({'name':'u',
+                      'antiname':'u~',
+                      'spin':2,
+                      'color':3,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'u',
+                      'antitexname':'\bar u',
+                      'line':'straight',
+                      'charge':2. / 3.,
+                      'pdg_code':2,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        antiu = copy.copy(self.mypartlist[1])
+        antiu.set('is_part', False)
+
+        # A quark D and its antiparticle
+        self.mypartlist.append(base_objects.Particle({'name':'d',
+                      'antiname':'d~',
+                      'spin':2,
+                      'color':3,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'d',
+                      'antitexname':'\bar d',
+                      'line':'straight',
+                      'charge':-1. / 3.,
+                      'pdg_code':1,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        antid = copy.copy(self.mypartlist[2])
+        antid.set('is_part', False)
+
+        # A quark S and its antiparticle
+        self.mypartlist.append(base_objects.Particle({'name':'s',
+                      'antiname':'s~',
+                      'spin':2,
+                      'color':3,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'s',
+                      'antitexname':'\bar s',
+                      'line':'straight',
+                      'charge':-1. / 3.,
+                      'pdg_code':3,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        s = self.mypartlist[len(self.mypartlist) - 1]
+        antis = copy.copy(s)
+        antis.set('is_part', False)
+
+        # A photon
+        self.mypartlist.append(base_objects.Particle({'name':'a',
+                      'antiname':'a',
+                      'spin':3,
+                      'color':1,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'\gamma',
+                      'antitexname':'\gamma',
+                      'line':'wavy',
+                      'charge':0.,
+                      'pdg_code':22,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':True}))
+        gamma = self.mypartlist[len(self.mypartlist) - 1]
+
+        # A electron and positron
+        self.mypartlist.append(base_objects.Particle({'name':'e+',
+                      'antiname':'e-',
+                      'spin':2,
+                      'color':1,
+                      'mass':'zero',
+                      'width':'zero',
+                      'texname':'e^+',
+                      'antitexname':'e^-',
+                      'line':'straight',
+                      'charge':-1.,
+                      'pdg_code':11,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+        e = self.mypartlist[len(self.mypartlist) - 1]
+        antie = copy.copy(e)
+        antie.set('is_part', False)
+
+        # W
+        self.mypartlist.append(base_objects.Particle({'name':'w+',
+                      'antiname':'w-',
+                      'spin':3,
+                      'color':0,
+                      'mass':'WMASS',
+                      'width':'WWIDTH',
+                      'texname':'W^+',
+                      'antitexname':'W^-',
+                      'line':'wavy',
+                      'charge':1.,
+                      'pdg_code':24,
+                      'propagating':True,
+                      'is_part':True,
+                      'self_antipart':False}))
+
+        wplus = self.mypartlist[len(self.mypartlist) - 1]
+        wminus = copy.copy(wplus)
+        wminus.set('is_part', False)
+
+        # 3 gluon vertex
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 1,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[0]] * 3),
+                      'color': [color.ColorString([color.f(0,1,2)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'G'},
+                      'orders':{'QCD':1}}))
+
+        # 4 gluon vertex
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 2,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[0]] * 4),
+                      'color': [color.ColorString([color.f(1, 2, -1),
+                                                   color.f(-1, 0, 3)]),
+                                color.ColorString([color.f(1, 3, -1),
+                                                   color.f(-1, 0, 2)]),
+                                color.ColorString([color.f(2, 3, -1),
+                                                   color.f(-1, 0, 1)])],
+                      'lorentz':['VVVV4', 'VVVV3', 'VVVV1'],
+            'couplings':{(0, 0):'GG', (1, 1):'GG', (2, 2):'GG'},
+                      'orders':{'QCD':2}}))
+
+        # Gluon and photon couplings to quarks
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 3,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[1], \
+                                             antiu, \
+                                             self.mypartlist[0]]),
+                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QCD':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 4,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[1], \
+                                             antiu, \
+                                             gamma]),
+                      'color': [color.ColorString([color.T(0,1)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 5,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[2], \
+                                             antid, \
+                                             self.mypartlist[0]]),
+                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QCD':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 6,
+                      'particles': base_objects.ParticleList(\
+                                            [self.mypartlist[2], \
+                                             antid, \
+                                             gamma]),
+                      'color': [color.ColorString([color.T(0,1)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 7,
+                      'particles': base_objects.ParticleList(\
+                                            [s, 
+                                             antis,
+                                             self.mypartlist[0]]),
+                      'color': [color.ColorString([color.T(2,0,1)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQQ'},
+                      'orders':{'QCD':1}}))
+
+        # Coupling of e to gamma
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 9,
+                      'particles': base_objects.ParticleList(\
+                                            [e, \
+                                             antie, \
+                                             gamma]),
+                      'color': [color.ColorString([color.T(1,0)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        # Coupling of u and d to W
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 10,
+                      'particles': base_objects.ParticleList(\
+                                            [antid, \
+                                             self.mypartlist[1], \
+                                             wminus]),
+                      'color': [color.ColorString([color.T(1,0)])],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        # Coupling of d and u to W
+
+        self.myinterlist.append(base_objects.Interaction({
+                      'id': 11,
+                      'particles': base_objects.ParticleList(\
+                                            [antiu, \
+                                             self.mypartlist[2], \
+                                             wplus]),
+                      'color': [],
+                      'lorentz':['L1'],
+                      'couplings':{(0, 0):'GQED'},
+                      'orders':{'QED':1}}))
+
+        self.mymodel.set('particles', self.mypartlist)
+        self.mymodel.set('interactions', self.myinterlist)
+    
+    def test_periferal_diagram_tag_gg_nglue(self):
+        """Test the PeriferalDiagramTag for g g > n g
+        """
+
+        goal_periferals = [[1, 2, 4, 5, 7],
+                           [3, 13],
+                           [5, 6, 8, 9, 19, 20, 43, 44, 46, 47, 57, 58, 81, 82]]
+        maxgluons = 4
+
+        # Test 3, 4 and 5 gluons in the final state
+        for ngluon in range(0, maxgluons-2):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([\
+                base_objects.Leg({'id':21, 'state':False}),
+                base_objects.Leg({'id':21, 'state':False})])
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * (ngluon + 3))
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'orders':{'QCD':ngluon+3, 'QED': 0},
+                                           'model':self.mymodel})
+
+            myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+            diagrams = myamplitude.get('color_flows')[0].get('diagrams')
+            diagram_tags = [color_ordered_amplitudes.PeriferalDiagramTag(d) \
+                            for d in diagrams]
+            # plot = draw.MultiEpsDiagramDrawer(diagrams,
+            #                                   "alldiags%i.eps" % ngluon,
+            #                                   model=self.mymodel)
+            # plot.draw()
+
+            periferals = []
+            # periferal_diagrams = base_objects.DiagramList()
+            for i, (d, dtag) in enumerate(zip(diagrams, diagram_tags)):
+                # print d.nice_string()
+                # print i+1,dtag.check_periferal_diagram(self.mymodel)
+                check_res = dtag.check_periferal_diagram(self.mymodel)
+                if check_res:
+                    periferals.append(i+1)
+            #         periferal_diagrams.append(d)
+            # plot = draw.MultiEpsDiagramDrawer(periferal_diagrams,
+            #                                   "periferals%i.eps" % ngluon,
+            #                                   model=self.mymodel)
+            # plot.draw()
+            
+            # goal_periferals.append(periferals)
+            self.assertEqual(periferals, goal_periferals[ngluon])
+
+        # print 'goal_periferals = ',goal_periferals
+
+    def test_periferal_diagram_tag_gg_nglue_order2(self):
+        """Test the PeriferalDiagramTag for g g > n g with order=2
+        """
+
+        goal_periferals = [[1, 2, 4, 5, 7],
+                           [2, 3, 5, 6, 8, 12, 13, 15, 16, 18, 22, 24, 25, 28],
+                           [5, 6, 8, 9, 19, 20, 43, 44, 46, 47, 57, 58, 81, 82],
+                           [9, 14, 15, 19, 20, 22, 30, 55, 57, 60, 64, 65, 70,
+                            98, 163, 168, 169, 173, 174, 176, 184, 209, 211,
+                            214, 218, 219, 224, 252, 315, 321, 322, 325, 349,
+                            352, 353, 420]]
+
+        goal_pass = [[4, 5, 7],
+                     [12, 13, 16, 25, 28],
+                     [44, 47, 58, 82],
+                     [169, 173, 211, 352, 420]]
+
+        maxgluons = 4
+
+        # Test 3,4 and 5 gluons in the final state
+        for ngluon in range(0, maxgluons-2):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([\
+                base_objects.Leg({'id':21, 'state':False}),
+                base_objects.Leg({'id':21, 'state':False})])
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * (ngluon + 3))
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'orders':{'QCD':ngluon+3, 'QED': 0},
+                                           'model':self.mymodel})
+
+            myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+            diagrams = myamplitude.get('color_flows')[0].get('diagrams')
+            diagram_tags = [color_ordered_amplitudes.PeriferalDiagramTag(d) \
+                            for d in diagrams]
+            # plot = draw.MultiEpsDiagramDrawer(diagrams,
+            #                                   "alldiags%i.eps" % ngluon,
+            #                                   model=self.mymodel)
+            # plot.draw()
+
+            periferals = []
+            pass_restrictions = []
+            periferal_diagrams = base_objects.DiagramList()
+            for i, (d, dtag) in enumerate(zip(diagrams, diagram_tags)):
+                check_res = dtag.check_periferal_diagram(self.mymodel,
+                                                            order = 2)
+                # print d.nice_string()
+                # print i+1,check_res
+                if not check_res: continue
+                periferals.append(i+1)
+                if dtag.pass_restrictions(self.mymodel):
+                    pass_restrictions.append(i+1)
+            #         periferal_diagrams.append(d)
+            # plot = draw.MultiEpsDiagramDrawer(periferal_diagrams,
+            #                                   "pass%i.eps" % ngluon,
+            #                                   model=self.mymodel)
+            # plot.draw()
+            
+            # goal_periferals.append(periferals)
+            # goal_pass.append(pass_restrictions)
+            self.assertEqual(periferals, goal_periferals[ngluon])
+
+        # print 'goal_periferals = ',goal_periferals
+        # print 'goal_pass = ',goal_pass
+

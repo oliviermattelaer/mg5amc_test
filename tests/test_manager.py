@@ -44,6 +44,8 @@ import unittest
 
 #Add the ROOT dir to the current PYTHONPATH
 root_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0]
+#For profiling, need the explicit path here
+#root_path = "/Users/alwall/MadGraph/new_color_ordering"
 sys.path.insert(0, root_path)
 # Only for profiling with -m cProfile!
 #root_path = os.path.split(os.path.dirname(os.path.realpath(sys.argv[0])))[0]

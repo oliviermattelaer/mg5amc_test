@@ -119,6 +119,207 @@ class OrderDiagramTag(diagram_generation.DiagramTag):
         # This shouldn't happen
         assert False
 
+#===============================================================================
+# DiagramTag class to select and manipulate periferal diagrams for
+# color ordered phase space integration
+#===============================================================================
+
+class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
+    """Chain link class for PeriferalDiagramTag with special functions"""
+
+    def check_periferal_legs(self, model, nallowed, order, amp_link = False):
+        """Check if this is a periferal subdiagram (to the order given).
+        amp_link is True for a link corresponding to an amplitude,
+        False for a link corresponding to a wavefunction.
+
+        Periferal means that at most one (massless) external leg
+        attaches to a vertex with depth > order. Decay-type vertices
+        (where a non-zero mass parameter appears only once) are not
+        included in this condition. Returns the number of external
+        legs connecting to a forbidden vertex plus a sorted list of
+        tuples of the external numbers of the vertices,
+        e.g. [(1,3),(2,4),5] for a t-channel 5-particle diagram, or an
+        empty list if the diagram is not periferal."""
+
+        # Algorithm: Go through the links and collect external
+        # particles. If more than 1 external particle couples to a
+        # vertex with depth > order, return []
+
+        # If this is an external link, return leg number (as an array)
+        if self.end_link:
+            return 0, [self.links[0][1]]
+
+        # Remove any 4-particle vertices
+        if len(self.links) > (3 if amp_link else 2):
+            return 0, []
+
+        # If this vertex has depth 1, return a tuple of sorted external legs
+        if self.depth == 1:
+            return 0, [tuple(sorted([l.links[0][1] for l in self.links]))]
+
+        # Otherwise, go through mother links
+        leglist = []
+        nexternal = 0
+        for link in self.links:
+            n, legs = link.check_periferal_legs(model, nallowed, order)
+            # If any link returns an empty list, we already have a
+            # non-periferal subdiagram
+            if not legs:
+                return nexternal, []
+            nexternal += n
+            if nexternal > nallowed:
+                return nexternal, []
+            leglist.extend(legs)
+
+        # If the depth of this link is > order,
+        # check if we have external legs, unless this is a decay vertex
+
+        depth = self.depth
+        if amp_link:
+            # For the last link, we need to use the depth of the
+            # shortest non-external leg
+            depth = min([l.depth for l in self.links if not l.end_link]) + 1
+
+        decay_vertex = False
+
+        if depth > order:
+            # A decay vertex has one non-zero mass parameter coming
+            # only once
+            masses = [p.get('mass') for p in \
+                      model.get_interaction(self.vertex_id).get('particles') \
+                      if p.get('mass').lower() != 'zero']
+            for mass in set(masses):
+                if len([m for m in masses if m == mass]) == 1:
+                    decay_vertex = True
+                    break
+            # Now check if there is any external leg attached
+            if not decay_vertex:
+                n = len([l for l in self.links if l.end_link])
+                nexternal += n
+                # Fail if external legs and depth is > order + 1, or
+                # if nexternal > nallowed
+                if nexternal > nallowed or (n > 0 and depth > order + 1):
+                    return nexternal, []
+
+        # For amp vertex or deep vertices that are not decay vertices,
+        # return the sorted leglist
+        if amp_link or depth > order and not decay_vertex:
+            return nexternal, sorted(leglist)
+        # For vertices with depth <= order and decay vertices, return a tuple
+        return nexternal, [tuple(sorted(leglist))]
+
+    def pass_restrictions(self, model, amp_link = False):
+        """Check if this subdiagram passes the following
+        restrictions:
+
+        - Maximum two external legs connecting to any s-channel
+          propagator (unless this is a decay vertex)
+        """
+
+        # First check if any daughter links fail
+        if any([not l.pass_restrictions(model) for l in self.links \
+                if not l.end_link]):
+            return False
+        
+        # A decay vertex has one non-zero mass parameter coming
+        # only once
+        decay_vertex = False
+        masses = [p.get('mass') for p in \
+                  model.get_interaction(self.vertex_id).get('particles') \
+                  if p.get('mass').lower() != 'zero']
+
+        for mass in set(masses):
+            if len([m for m in masses if m == mass]) == 1:
+                decay_vertex = True
+                break
+
+        # Decay vertices can't fail
+        if decay_vertex:
+            return True
+
+        # If this vertex has depth 1, forbid the (1,2) combination
+        if self.depth == 1:
+            if sorted(self.get_external_numbers()) == [1,2]:
+                return False
+            return True
+
+        # If this vertex has depth > 1, fail if this is s-channel
+        if amp_link:
+            # If this amplitude has two external legs, fail if
+            # (1,2) combination
+            if len([l for l in self.links if l.end_link]) == 2:
+                return sorted(sum([l.get_external_numbers() for l \
+                                   in self.links if l.end_link], [])) == [1, 2]
+            # Otherwise, fail if any single link has the (1,2) combination
+            return not any([sorted(l.get_external_numbers())[:2] == [1, 2] \
+                        for l in self.links])
+        else:
+            external_numbers = sum([l.get_external_numbers() for l in \
+                                    self.links], [])
+        if not (1 in external_numbers or 2 in external_numbers):
+            return False
+
+        # Otherwise, return True
+        return True
+
+    def fill_comp_array(self, comp_array):
+        """Fills a comparison array which allows fast comparison
+        between tags, containing [depth] (if not external) and
+        [depth, external number] (if external)."""
+
+        comp_array.append(self.depth)
+        if self.end_link:
+            comp_array.append(self.links[0][1])
+        else:
+            for link in self.links:
+                link.fill_comp_array(comp_array)
+
+class PeriferalDiagramTag(OrderDiagramTag):
+    """DiagramTag daughter class to select only periferal diagrams, as
+    needed for MadEvent phase space integration of color ordered
+    amplitudes"""
+
+    link_class = PeriferalDiagramTagChainLink
+
+    def check_periferal_diagram(self, model, order = 1):
+        """Check if this is a periferal diagram (to the order given).
+
+        Periferal means that at most one (massless) external leg
+        attaches to a vertex with depth > order. Vertices where all
+        particles are different (decays) are not included in this
+        condition. Returns the number of external legs attached to a
+        vertex with depth > order, and a sorted list of tuples of the
+        external numbers of the vertices, e.g. 1, [(1,3),(2,4),5] for a
+        t-channel 5-particle diagram, or an empty list if the diagram
+        is not periferal."""
+
+        # Algorithm: Go through the links and collect external
+        # particles. Allow 1 external particle coupling to a vertex if
+        # order == 1, otherwise if any external couples to depth >
+        # order, return []
+
+        return self.tag.check_periferal_legs(model,
+                                             1 if order == 1 else 0,
+                                             order,
+                                             True)[1]
+
+    def pass_restrictions(self, model):
+        """Check if this periferal diagram passes the following
+        restrictions:
+
+        - No (1,2) (pure s-channel) combinations
+        - No connection of external line to s-channel propagator
+        """
+        
+        return self.tag.pass_restrictions(model, True)
+
+    def get_comp_array(self):
+        """Give a comparison array which allows fast comparison
+        between tags"""
+
+        comp_array = array.array('i')
+        self.tag.fill_comp_array(comp_array)
+        return comp_array
 
 #===============================================================================
 # ColorOrderedLeg
@@ -208,6 +409,16 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         (specified by the coupling order singlet_QCD)"""
 
         process = self.get('process')
+
+        # Ensure that all legs are unique
+        process.set('legs',
+                    base_objects.LegList([copy.copy(l) for l in \
+                                          process.get('legs')]))
+        
+        # Set leg numbers for the process
+        for i, leg in enumerate(process.get('legs')):
+            leg.set('number', i+1)
+
         legs = base_objects.LegList([copy.copy(l) for l in \
                                      process.get('legs')])
 
@@ -220,10 +431,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         # color octets, with only 3-3bar-8 interactions.
         # Color factor: -1/(2*Nc) * Id(1,2)
 
-        # Set leg numbers for the process
+        # Reverse initial state legs to have all legs outgoing
         for i, leg in enumerate(legs):
-            leg.set('number', i+1)
-            # Reverse initial state legs to have all legs outgoing
             if not leg.get('state'):
                 leg.set('id', model.get_particle(leg.get('id')).\
                         get_anti_pdg_code())
@@ -377,6 +586,112 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     
         self.set('color_flows', color_flows)
         return self.get('diagrams')
+
+    def get_periferal_diagrams_from_flows(self):
+        """Generate the periferal diagrams needed for efficient phase
+        space integration from the diagrams of the color flows and
+        their permutations, using the PeriferalDiagramTag.
+
+        Use all depth-2 periferal diagrams from the basic flows, and
+        then generate all diagrams from all permutations before
+        applying the following rules:
+
+        Rules:
+        - External lines can couple only to vertices of max depth 2
+        - No (1,2) (pure s-channel) combinations
+        - No connection of external line to s-channel propagator
+
+        Remember which flows contribute to each diagram, since this
+        can be used to select flows for a given channel in the phase
+        space integration."""
+
+        process = self.get('color_flows')[0].get('process')
+        model = process.get('model')
+
+        basic_diagrams = []
+        basic_tags = []
+        all_diagrams = []
+        all_tags = []
+        flow_permutations = []
+        failed_tags = []
+
+        # Pick out the periferal diagrams from the basic flows
+        for iflow, flow in enumerate(self.get('color_flows')):
+            for diag in flow.get('diagrams'):
+                tag = PeriferalDiagramTag(diag)
+                if not tag.check_periferal_diagram(model, order = 2):
+                    # This diagram is not periferal
+                    continue
+                tag_array = tag.get_comp_array()
+                # If the diagram is not already represented, add it to
+                # basic_diagrams
+                if tag_array not in basic_tags:
+                    # Append tag to basic_tag
+                    basic_tags.append(tag_array)
+                    # Append diagram to basic_diagrams
+                    basic_diagrams.append(diag)
+
+        # Now go through all permutations to get the full set of diagrams
+        permutations = self.get('color_flows')[0].get('permutations')
+        for iperm, perm in enumerate(permutations):
+            # Go through the basic diagrams and replace indices.
+            perm_dict = dict(zip(permutations[0],perm))
+            for basic_diag in basic_diagrams:
+                diag = basic_diag.renumber_legs(perm_dict,
+                                              process.get('legs'))
+                tag = PeriferalDiagramTag(diag)
+                # Use get_comp_array for very fast comparison between tags
+                tag_array = tag.get_comp_array()
+                # Check if diagram already failed
+                if tag_array in failed_tags:
+                    continue
+
+                # Check if the diagram is already represented,
+                # otherwise append tag, diagram, and (flow, permutation)
+                try:
+                    index = all_tags.index(tag_array)
+                except ValueError:
+                    # Check if this diagram passes the rules to be used
+                    # for phase space integration
+                    if tag.pass_restrictions(model):
+                        all_tags.append(tag_array)
+                        all_diagrams.append(diag)
+                        flow_permutations.append([(iflow,iperm)])
+                    else:
+                        failed_tags.append(tag_array)
+                else:
+                    flow_permutations[index].append((iflow, iperm))
+
+        return base_objects.DiagramList(all_diagrams), flow_permutations
+
+    @staticmethod
+    def get_comp_list(process):
+        """Return a list of numbers that are identical for particles
+        that are permutated"""
+
+        model = process.get('model')
+        part_states = [(model.get_particle(l.get('id')), l.get('state')) \
+                       for l in process.get('legs')]
+        pdg_colors = [(p[0].get_pdg_code(), p[0].get_color()) if p[1] else \
+                     (p[0].get_anti_pdg_code(), p[0].get_color()) \
+                     for p in part_states]
+        pdg_dict = {}
+        comp_list = []
+        comp_id = 0
+        # For all-octet amplitudes, exclude the first particle
+        octets_only = pdg_colors[0][1] == 8 and \
+                      len(set([p[1] for p in pdg_colors])) == 1
+        for ipart, (pdg, col) in enumerate(pdg_colors):
+            if pdg in pdg_dict and col in [3, 8] and \
+                   (not octets_only or ipart < len(pdg_colors) - 1):
+                comp_list.append(pdg_dict[pdg])
+            else:
+                comp_id += 1
+                comp_list.append(comp_id)
+                pdg_dict[pdg] = comp_id
+
+        return comp_list
+        
 
 #===============================================================================
 # ColorOrderedMultiProcess
@@ -1678,6 +1993,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         self['color_flows'] = COHelasFlowList()
         self['min_Nc_power'] = 0
         self['permutations'] = []
+        self['periferal_flow_perms'] = []
 
     def filter(self, name, value):
         """Filter for valid diagram property values."""
@@ -1692,7 +2008,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid integer" % str(value)
 
-        elif name == 'permutations':
+        elif name in ['permutations', 'periferal_flow_perms']:
             if not isinstance(value, list):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid list" % str(value)
@@ -1703,7 +2019,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         return True
     
     def __init__(self, amplitude = None, optimization = 3, decay_ids = [],
-                 gen_color = 2):
+                 gen_color = 2, gen_periferal_diagrams = False):
         """Initialize a COHelasMatrixElement with a ColorOrderedAmplitude"""
         
         if amplitude != None:
@@ -1722,6 +2038,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                              self.get('color_flows')[0].get('permutations'))
                 if gen_color and not self.get('color_matrix'):
                     self.build_color_matrix(gen_color)
+                if gen_periferal_diagrams:
+                    self.generate_periferal_diagrams(amplitude, decay_ids)
             else:
                 # In this case, try to use amplitude as a dictionary
                 super(COHelasMatrixElement, self).__init__(amplitude)
@@ -1852,7 +2170,33 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         identical final state particles"""
         
         return self.get('color_flows')[0].get_denominator_factor()
+    
+    def get_comp_list(self):
+        """Return a list of numbers that are identical for particles
+        that are permutated"""
         
+        process = self.get('processes')[0]
+        return ColorOrderedAmplitude.get_comp_list(process)
+
+    def generate_periferal_diagrams(self, amplitude, decay_ids):
+        """Generate wavefunctions and amplitudes for all periferal
+        diagrams for this color ordered amplitude, for use in phase
+        space integration"""
+
+        # Get all periferal diagrams as well as a list of color flows and
+        # permutations that contribute to each diagram from the amplitude
+        periferal_diagrams, flow_permutations = \
+                            amplitude.get_periferal_diagrams_from_flows()
+        periferal_amplitude = diagram_generation.Amplitude()
+        periferal_amplitude.set('process', amplitude.get('process'))
+        periferal_amplitude.set('diagrams', periferal_diagrams)
+
+        self.set('periferal_flow_perms', flow_permutations)
+        
+        self.generate_helas_diagrams(periferal_amplitude,
+                                     optimization = 1,
+                                     decay_ids = decay_ids)
+
 #===============================================================================
 # COHelasMultiProcess
 #===============================================================================

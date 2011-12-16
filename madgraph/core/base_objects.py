@@ -1432,7 +1432,8 @@ class Diagram(PhysicsObject):
         self.set('orders', coupling_orders)
 
     def renumber_legs(self, perm_map, leg_list):
-        """Renumber legs in all vertices according to perm_map"""
+        """Renumber legs in all vertices according to perm_map,
+        given the leg_list of the process"""
         vertices = VertexList()
         min_dict = copy.copy(perm_map)
         # Dictionary from leg number to state

@@ -312,25 +312,9 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
     def get_comp_data_line(self, matrix_element):
         """Write out the data line for the comp vector."""
 
-        process = matrix_element.get('processes')[0]
-        model = process.get('model')
-        part_states = [(model.get_particle(l.get('id')), l.get('state')) \
-                       for l in process.get('legs')]
-        pdg_colors = [(p[0].get_pdg_code(), p[0].get_color()) if p[1] else \
-                     (p[0].get_anti_pdg_code(), p[0].get_color()) \
-                     for p in part_states]
-        pdg_dict = {}
-        comp_list = []
-        comp_id = 0
-        for pdg, col in pdg_colors:
-            if pdg in pdg_dict and col in [3, 8]:
-                comp_list.append(pdg_dict[pdg])
-            else:
-                comp_id += 1
-                comp_list.append(str(comp_id))
-                pdg_dict[pdg] = str(comp_id)
+        comp_list = matrix_element.get_comp_list()
 
-        comp_data_line = 'DATA COMP/%s/' % ','.join(comp_list)
+        comp_data_line = 'DATA COMP/%s/' % ','.join([str(c) for c in comp_list])
         return comp_data_line
         
     def get_flow_functions_lines(self, matrix_element):
