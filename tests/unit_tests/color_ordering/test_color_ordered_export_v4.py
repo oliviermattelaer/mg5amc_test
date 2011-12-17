@@ -41,6 +41,8 @@ import madgraph.various.process_checks as process_checks
 import madgraph.core.color_amp as color_amp
 import madgraph.color_ordering.color_ordered_amplitudes as \
        color_ordered_amplitudes
+import madgraph.color_ordering.color_ordered_helas_objects as \
+       color_ordered_helas_objects
 import madgraph.color_ordering.color_ordered_export_v4 as \
        color_ordered_export_v4
 import tests.unit_tests.core.test_helas_objects as test_helas_objects
@@ -343,7 +345,7 @@ class COExportV4Test(unittest.TestCase,
 
         self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
-        matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+        matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
             self.myamplitude, gen_color=3, optimization=1)
 
         process_exporter = color_ordered_export_v4.ProcessExporterFortranCOSA()
@@ -1201,7 +1203,7 @@ C     ----------
 
         self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
-        matrix_element = color_ordered_amplitudes.COHelasMatrixElement(\
+        matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
             self.myamplitude, gen_color=3, optimization=3)
 
         process_exporter = color_ordered_export_v4.ProcessExporterFortranCOSA()

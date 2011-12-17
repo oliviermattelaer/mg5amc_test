@@ -56,6 +56,8 @@ import madgraph.iolibs.save_load_object as save_load_object
 
 import madgraph.color_ordering.color_ordered_amplitudes as \
        color_ordered_amplitudes
+import madgraph.color_ordering.color_ordered_helas_objects as \
+       color_ordered_helas_objects
 import madgraph.color_ordering.color_ordered_export_v4 as \
        color_ordered_export_v4
 
@@ -3017,7 +3019,7 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                         else:
                             gen_periferal_diagrams = False
                         self._curr_matrix_elements = \
-                            color_ordered_amplitudes.COHelasMultiProcess(\
+                            color_ordered_helas_objects.COHelasMultiProcess(\
                                self._curr_amps,
                                gen_color = self._options['color_ordering'],
                                optimization = self._options['optimization'],

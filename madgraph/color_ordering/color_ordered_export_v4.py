@@ -38,6 +38,8 @@ import madgraph.iolibs.gen_infohtml as gen_infohtml
 import madgraph.iolibs.template_files as iolibs_template_files
 import madgraph.color_ordering.color_ordered_amplitudes as \
        color_ordered_amplitudes
+import madgraph.color_ordering.color_ordered_helas_objects as \
+       color_ordered_helas_objects
 import madgraph.color_ordering.template_files as template_files
 import madgraph.iolibs.ufo_expression_parsers as parsers
 import madgraph.various.diagram_symmetry as diagram_symmetry
@@ -237,7 +239,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         if not matrix_element.get('processes') \
                or not isinstance(matrix_element,
-                              color_ordered_amplitudes.COHelasMatrixElement) \
+                              color_ordered_helas_objects.COHelasMatrixElement) \
                or not matrix_element.get('color_flows'):
             return 0
 
@@ -771,10 +773,10 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
 
         call_function = None
 
-        if isinstance(argument, color_ordered_amplitudes.BGHelasCurrent):
+        if isinstance(argument, color_ordered_helas_objects.BGHelasCurrent):
             # Create call for wavefunction summation sumVN(fact1,W1,fact2,W2,...,Wres)
             call += "sum%s%d(" % \
-                    (color_ordered_amplitudes.spin_dict[\
+                    (color_ordered_helas_objects.spin_dict[\
                                     argument.get('mothers')[0].get('spin')],
                                     len(argument.get('mothers')))
             call += "%s,W(1,%d)," * len(argument.get('mothers')) + \
