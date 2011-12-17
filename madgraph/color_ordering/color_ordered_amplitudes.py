@@ -410,6 +410,10 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
         process = self.get('process')
 
+        # Check that this is a valid process
+        if not process.check_valid_process():
+            return base_objects.DiagramList()
+
         # Ensure that all legs are unique
         process.set('legs',
                     base_objects.LegList([copy.copy(l) for l in \
@@ -1508,7 +1512,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         if 'number' in opts:
             number = opts['number']
             del opts['number']
-        super(COHelasFlow, self).__init__(*arguments, **opts)        
+        super(COHelasFlow, self).__init__(*arguments, **opts)
         self.set('number', number)
 
     def generate_helas_diagrams(self, amplitude, optimization=3,
@@ -2030,8 +2034,9 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                          amplitude.get('has_mirror_process'))
                 for iflow, flow in enumerate(amplitude.get('color_flows')):
                     self.get('color_flows').append(COHelasFlow(flow,
-                                                   optimization, decay_ids,
+                                                   optimization = optimization,
                                                    gen_color = False,
+                                                   decay_ids = decay_ids,
                                                    number = iflow + 1))
                 if self.get('color_flows'):
                     self.set('permutations',
@@ -2197,6 +2202,39 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                                      optimization = 1,
                                      decay_ids = decay_ids)
 
+    # Comparison between different amplitudes, to allow check for
+    # identical processes. Note that we are then not interested in
+    # interaction id, but in all other properties.
+    def __eq__(self, other):
+        """Comparison between different matrix elements, to allow check for
+        identical processes.
+        """
+
+        if not isinstance(other, COHelasMatrixElement):
+            return False
+
+        # If no processes, this is an empty matrix element
+        if not self['processes'] and not other['processes']:
+            return True
+
+        # Should only check if diagrams and process id are identical
+        # Except in case of decay processes: then also initial state
+        # must be the same
+        if self['processes'] and not other['processes'] or \
+               self['has_mirror_process'] != other['has_mirror_process'] or \
+               self['processes'] and \
+               self['processes'][0]['id'] != other['processes'][0]['id'] or \
+               self['processes'][0]['is_decay_chain'] or \
+               other['processes'][0]['is_decay_chain'] or \
+               self['identical_particle_factor'] != \
+                           other['identical_particle_factor'] or \
+               self['diagrams'] != other['diagrams']:
+            return False
+
+        # Check if color flows are identical
+        return self['color_flows'] == other['color_flows']
+
+
 #===============================================================================
 # COHelasMultiProcess
 #===============================================================================
@@ -2205,19 +2243,24 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
 
     matrix_element_class = COHelasMatrixElement
 
-    def __init__(self, argument=None, gen_color = 3, optimization = 1):
+    def __init__(self, argument=None, gen_color = 3, optimization = 1,
+                 gen_periferal_diagrams = False):
         """Allow initialization with AmplitudeList"""
 
         if isinstance(argument, ColorOrderedMultiProcess):
             super(COHelasMultiProcess, self).__init__()
             self.set('matrix_elements',
                      self.generate_matrix_elements(argument.get('amplitudes'),
-                                                   gen_color, optimization))
+                                                   gen_color, optimization,
+                                                   gen_periferal_diagrams))
         if isinstance(argument, diagram_generation.AmplitudeList):
             super(COHelasMultiProcess, self).__init__()
             self.set('matrix_elements',
-                     self.generate_matrix_elements(argument, gen_color,
-                                                   optimization))
+                     self.generate_matrix_elements(argument,
+                                                   gen_color = gen_color,
+                                                   optimization = optimization,
+                                                   gen_periferal_diagrams = \
+                                                   gen_periferal_diagrams))
         elif argument:
             # call the mother routine
             super(COHelasMultiProcess, self).__init__(argument)
@@ -2230,7 +2273,8 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
     #===========================================================================
     @classmethod
     def generate_matrix_elements(cls, amplitudes, gen_color = 3,
-                                 optimization = 1, decay_ids = []):
+                                 optimization = 1, decay_ids = [],
+                                 gen_periferal_diagrams = False):
         """Generate the HelasMatrixElements for the amplitudes,
         identifying processes with identical matrix elements, as
         defined by HelasMatrixElement.__eq__. Returns a
@@ -2263,7 +2307,9 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                 matrix_element_list = [cls.matrix_element_class(amplitude,
                                                    decay_ids=decay_ids,
                                                    gen_color=gen_color,
-                                                   optimization = optimization)]
+                                                   optimization = optimization,
+                                                   gen_periferal_diagrams = \
+                                                        gen_periferal_diagrams)]
             for matrix_element in matrix_element_list:
                 assert isinstance(matrix_element, helas_objects.HelasMatrixElement), \
                           "Not a HelasMatrixElement: %s" % matrix_element

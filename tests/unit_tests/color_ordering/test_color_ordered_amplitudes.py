@@ -998,7 +998,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         self.assertEqual(ndiags, goal_ndiags[ngluon - 2])
 
     def test_periferal_diagrams_gluons(self):
-        """Test the number of color ordered diagrams gg>ng with n up to 4"""
+        """Test periferal diagrams for gg>ng"""
 
         goal_ndiags = [12, 66, 180, 990]
 
@@ -1032,6 +1032,49 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             # goal_ndiags.append(len(diagrams))
             self.assertEqual(len(diagrams), goal_ndiags[ngluon - 3])
         # print goal_ndiags
+
+    def test_periferal_diagrams_uux_ddxng(self):
+        """Test periferal diagrams for uu~>dd~+ng"""
+
+        goal_ndiags = []
+
+        # Time for 6 gluons: 5 min
+
+        self.assertEqual(True, False, "2+ triplet lines need to be fixed")
+
+        # Test 2, 3, 4 and 5 gluons in the final state
+        for ngluon in range (1, 4):
+
+            # Create the amplitude
+            # Create the amplitude
+            myleglist = base_objects.LegList([\
+                base_objects.Leg({'id':2, 'state':False}),
+                base_objects.Leg({'id':-2, 'state':False}),
+                base_objects.Leg({'id':1}),
+                base_objects.Leg({'id':-1})])
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * ngluon)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'orders':{'QED':0},
+                                           'model':self.mymodel})
+
+            self.myamplitude.set('process', myproc)
+
+            self.myamplitude.generate_diagrams()
+
+            diagrams, flow_perms = \
+                      self.myamplitude.get_periferal_diagrams_from_flows()
+
+            print diagrams.nice_string()
+            plot = draw.MultiEpsDiagramDrawer(diagrams,
+                                              "uuxddxperiferal%i.eps" % ngluon,
+                                              model=self.mymodel)
+            plot.draw()
+            goal_ndiags.append(len(diagrams))
+            self.assertEqual(len(diagrams), goal_ndiags[ngluon - 1])
+        print goal_ndiags
 
 #===============================================================================
 # COHelasMatrixElementTest

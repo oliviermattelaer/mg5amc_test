@@ -2869,6 +2869,11 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
             logging.getLogger('madgraph').setLevel(eval('logging.' + args[1]))
             logger.info('set output information to level: %s' % args[1])
 
+        elif args[0] == "color_ordering":
+            self._options[args[0]] = eval(args[1])
+            if self._options['color_ordering'] > 0:
+                self.do_set('group_subprocesses False')
+                self.do_set('optimization 3')
         else:
             self._options[args[0]] = eval(args[1])
             logger.info('Set %s to %s' % \
@@ -3007,11 +3012,16 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                             me.get('processes')[0].set('uid', uid)
                 else:
                     if self._options['color_ordering']:
+                        if self._export_format == 'madevent':
+                            gen_periferal_diagrams = True
+                        else:
+                            gen_periferal_diagrams = False
                         self._curr_matrix_elements = \
                             color_ordered_amplitudes.COHelasMultiProcess(\
-                                    self._curr_amps,
-                                    gen_color = self._options['color_ordering'],
-                                    optimization = self._options['optimization'])
+                               self._curr_amps,
+                               gen_color = self._options['color_ordering'],
+                               optimization = self._options['optimization'],
+                               gen_periferal_diagrams = gen_periferal_diagrams)
                     else:
                         self._curr_matrix_elements = \
                                  helas_objects.HelasMultiProcess(\

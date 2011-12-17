@@ -25,7 +25,7 @@ import os
 import re
 import StringIO
 import madgraph.core.color_algebra as color
-from madgraph import MadGraph5Error, MG5DIR
+from madgraph import MadGraph5Error, MG5DIR, InvalidCmd
 
 logger = logging.getLogger('madgraph.base_objects')
 
@@ -1965,6 +1965,52 @@ class Process(PhysicsObject):
                 orders[k] = min(orders[k], v)
             else:
                 orders[k] = v
+
+    def check_valid_process(self):
+        """Check if this process is a valid process: even number of
+        fermions, same number of fermions and antifermions (if model
+        is fermion number conserving), and charge conserved."""
+
+        legs = self.get('legs')
+        model = self.get('model')
+
+        # First check that the number of fermions is even
+        if len(filter(lambda leg: model.get('particle_dict')[\
+                        leg.get('id')].is_fermion(), legs)) % 2 == 1:
+            raise InvalidCmd, 'The number of fermion is odd' 
+            return False
+
+        # Then check same number of incoming and outgoing fermions (if
+        # no Majorana particles in model)
+        if not model.get('got_majoranas') and \
+           len(filter(lambda leg: leg.is_incoming_fermion(model), legs)) != \
+           len(filter(lambda leg: leg.is_outgoing_fermion(model), legs)):
+            raise InvalidCmd, 'The number of of incoming/outcoming fermions are different' 
+            return False
+        
+        # Finally check that charge (conserve by all interactions) of
+        # the process is globally conserve for this process.
+        for charge in model.get('conserved_charge'):
+            total = 0
+            for leg in legs:
+                part = model.get('particle_dict')[leg.get('id')]
+                try:
+                    value = part.get(charge)
+                except AttributeError, PhysicsObjectError:
+                    value = 0
+                    
+                if (leg.get('id') != part['pdg_code']) != leg['state']:
+                    total -= value
+                else:
+                    total += value
+
+            if abs(total) > 1e-10:
+                raise InvalidCmd, 'No %s conservation for this process ' % charge
+                return False
+
+        # Passed all checks
+        return True
+    
 
     def __eq__(self, other):
         """Overloading the equality operator, so that only comparison
