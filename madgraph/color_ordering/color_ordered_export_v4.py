@@ -752,7 +752,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         os.chdir(old_pos)               
 
 #===============================================================================
-# FortranUFOHelasCallWriter
+# COFortranUFOHelasCallWriter
 #===============================================================================
 class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
     """The class for writing Helas calls in Fortran, starting from

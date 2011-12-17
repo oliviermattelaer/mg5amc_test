@@ -508,6 +508,7 @@ class Amplitude(base_objects.PhysicsObject):
                   
 
         res = base_objects.DiagramList()
+        self['diagrams'] = res
         if not process.check_valid_process():
             return res
                     
