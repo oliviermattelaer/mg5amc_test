@@ -13,13 +13,15 @@ LIBS = $(LIBDIR)libdhelas.$(libext) $(LIBDIR)libdsample.$(libext) $(LIBDIR)libge
 
 # Source files
 
-PROCESS= driver.o myamp.o genps.o unwgt.o setcuts.o get_color.o \
+PROCESS= driver.o myamp.o genps.o unwgt.o setcuts.o get_color.o ipnext.o \
          cuts.o cluster.o reweight.o initcluster.o addmothers.o setscales.o \
          $(patsubst %.f,%.o,$(wildcard auto_dsig*.f)) \
-         $(patsubst %.f,%.o,$(wildcard matrix*.f))
-SYMMETRY = symmetry.o setcuts.o cuts.o cluster.o myamp.o genps.o \
+         $(patsubst %.f,%.o,$(wildcard matrix*.f)) \
+         $(patsubst %.f,%.o,$(wildcard flow*.f))
+SYMMETRY = symmetry.o setcuts.o cuts.o cluster.o myamp.o genps.o ipnext.o \
 	   initcluster.o setscales.o reweight.o get_color.o \
-           $(patsubst %.f,%.o,$(wildcard matrix*.f))
+           $(patsubst %.f,%.o,$(wildcard matrix*.f)) \
+           $(patsubst %.f,%.o,$(wildcard flow*.f))
 
 # Binaries
 

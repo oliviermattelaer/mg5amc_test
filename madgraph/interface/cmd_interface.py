@@ -2928,9 +2928,19 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                                       self._mgme_dir, self._export_dir,
                                       not noclean)
             else:
-                self._curr_exporter = export_v4.ProcessExporterFortranME(\
+                if self._options['color_ordering']:
+                    self._curr_fortran_model = \
+                         color_ordered_export_v4.COFortranUFOHelasCallWriter(\
+                                                               self._curr_model)
+                    self._curr_exporter = color_ordered_export_v4.\
+                                          ProcessExporterFortranCOME(\
+                                              self._mgme_dir, self._export_dir,
+                                              not noclean)
+                else:
+                    self._curr_exporter = export_v4.ProcessExporterFortranME(\
                                       self._mgme_dir, self._export_dir,
                                       not noclean)
+                    
         elif self._export_format in ['standalone', 'matrix']:
             if self._options['color_ordering']:
                 self._curr_fortran_model = \

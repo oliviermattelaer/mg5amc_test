@@ -337,7 +337,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #print myproc.nice_string()
 
             self.myamplitude.generate_diagrams()
-
+            
             #print "Generated diagrams for ", myproc.nice_string()
 
             matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
@@ -346,6 +346,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #print "Generated matrix element"
 
             helas_flow = matrix_element.get('color_flows')[0]
+
             #print "permutations: ",helas_flow.get('permutations')
             if ngluon < 5:
                 self.assertEqual(matrix_element.get('color_matrix').\

@@ -614,7 +614,6 @@ class ColorMatrix(dict):
                                          Nc)
             # Store both results
             canonical_dict[canonical_entry] = (result, result_fixed_Nc)
-
         # Keep only terms with Nc_max >= Nc power >= Nc_min
         if result:
             max_power = result[0].Nc_power

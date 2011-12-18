@@ -1112,6 +1112,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 if self.get('color_flows'):
                     self.set('permutations',
                              self.get('color_flows')[0].get('permutations'))
+                if gen_color and not self.get('color_basis'):
+                    self.set_color_basis()
                 if gen_color and not self.get('color_matrix'):
                     self.build_color_matrix(gen_color)
                 if gen_periferal_diagrams:
@@ -1122,6 +1124,22 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         else:
             super(COHelasMatrixElement, self).__init__()
         
+    def set_color_basis(self):
+        """Set the color basis using only the leading color flows."""
+
+        max_Nc = max([flow.get('color_string').Nc_power \
+                      for flow in self.get('color_flows')])
+
+        list_color_dict = []
+        # Build a color basis from the leading color flows
+        for iflow, flow in enumerate(self.get('color_flows')):
+            if flow.get('color_string').Nc_power < max_Nc: continue
+            color_string = flow.get('color_string')
+            list_color_dict.append(dict([((0,), copy.copy(color_string))]))
+
+        self.get('color_basis')._list_color_dict = list_color_dict
+        # Build the color basis
+        self.get('color_basis').build()
 
     def build_color_matrix(self, gen_color):
         """Build the relevant lines of the color matrix, to the order
@@ -1306,6 +1324,19 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # Check if color flows are identical
         return self['color_flows'] == other['color_flows']
 
+    def get_used_lorentz(self):
+        """Return the used lorentz structures for this matrix element
+        and all color flows"""
+
+        return sum([f.get_used_lorentz() for f in self.get('color_flows')],
+                   super(COHelasMatrixElement, self).get_used_lorentz())
+
+    def get_used_couplings(self):
+        """Return the used couplings structures for this matrix element
+        and all color flows"""
+
+        return sum([f.get_used_couplings() for f in self.get('color_flows')],
+                   super(COHelasMatrixElement, self).get_used_couplings())
 
 #===============================================================================
 # COHelasMultiProcess
