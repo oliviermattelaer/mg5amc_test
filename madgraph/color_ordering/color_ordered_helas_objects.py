@@ -1180,6 +1180,15 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         if Nc_powers:
             min_Nc_power = max(Nc_powers) - (gen_color - 1)
             self.set('min_Nc_power', min_Nc_power)
+
+        # Check if this is an all-octet amplitude
+        process = self.get('processes')[0]
+        model = process.get('model')
+        colors = [model.get_particle(l.get('id')).get('color') for l in \
+                  process.get('legs') if \
+                  model.get_particle(l.get('id')).get('color') != 1]
+        all_octets = (set(colors) == set([8]))
+        
         # The col_basis will contain the basis strings for the basic flows
         basic_immutable_factors = []
         # canonical_dict to store previous calculation results
@@ -1206,15 +1215,13 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 # and all (previous) entries in the basic flows
                 for ibasic, (basic_string, basic_Nc) in \
                                              enumerate(basic_immutable_factors):
+                    Nc_power = min_Nc_power - basic_Nc - col_str.Nc_power
                     # Get matrix entry
                     result, result_fixed_Nc = \
                            col_matrix.get_matrix_entry(canonical_dict,
                                                        immutable_col_str,
                                                        basic_string,
-                                                       Nc_power_min = \
-                                                       min_Nc_power - \
-                                                       basic_Nc - \
-                                                       col_str.Nc_power)
+                                                       Nc_power_min = Nc_power)
                     # Ignore null entries
                     if not result:
                         continue
@@ -1224,10 +1231,19 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
                     col_matrix[(icol, irow)] = copy.copy(result)
 
+                    # For color octets, pick leading order contribution,
+                    # and multiply by 1-1/Nc^2
+                    if all_octets and gen_color == 1:
+                        col_matrix[(icol, irow)][:] = \
+                                      [copy.copy(result[0]),
+                                       copy.copy(result[0])]
+                        col_matrix[(icol, irow)][1].Nc_power -= 2
+                        col_matrix[(icol, irow)][1].coeff *= -1
+
                     # Account for combined Nc colors for results
                     for col in col_matrix[(icol, irow)]:
                         col.Nc_power += basic_Nc + col_str.Nc_power
-                        
+
                     col_matrix.col_matrix_fixed_Nc[(icol, irow)] = \
                                       col_matrix[(icol, irow)].set_Nc(3)
                     if iperm == 0:

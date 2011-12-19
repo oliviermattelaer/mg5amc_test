@@ -664,7 +664,7 @@ c
 c     tjs 8/7/2007-JA 8/17/11 Allow stop when have enough luminocity
 c
          write(*,*) "Cross section",i,io(np),xsec(io(np)),mfact(io(np))
-         write(26,'(9x,a,e13.5,a)') 'echo "',-goal_lum*1000/mjobs,
+         write(26,'(9x,a,e13.5,a)') 'echo "',-goal_lum*mfact(io(np))*1000/mjobs,
      $        '" >> input_sg.txt'                       !Luminocity
          write(26,'(9x,a)') 'echo "2" >> input_sg.txt'  !Grid Adjustment
          write(26,'(9x,a)') 'echo "1" >> input_sg.txt'  !Suppression
@@ -686,7 +686,7 @@ c
 c
 c tjs 8/7/2007-JA 8/17/11    Change to request luminocity not accuracy
 c
-         write(26,'(9x,a,e13.5,a)') 'echo "',-goal_lum*1000/mjobs,
+         write(26,'(9x,a,e13.5,a)') 'echo "',-goal_lum*mfact(io(np))*1000/mjobs,
      $        '" >> input_sg.txt'                       !Luminocity
 c         write(26,'(9x,a,e12.3,a)') 'echo "',-goal_lum*mfact(io(np)),
 c     $        '" >> input_sg.txt'
