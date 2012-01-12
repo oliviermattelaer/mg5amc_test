@@ -197,56 +197,104 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
         # For vertices with depth <= order and decay vertices, return a tuple
         return nexternal, [tuple(sorted(leglist))]
 
-    def pass_restrictions(self, model, amp_link = False):
+    def pass_restrictions(self, model, amp_link = False,
+                          include_only_t = False,
+                          allow_group_12 = False,
+                          allow_12_sch = True):
         """Check if this subdiagram passes the following
         restrictions:
 
         - Maximum two external legs connecting to any s-channel
-          propagator (unless this is a decay vertex)
+          propagator
+        - If include_only_t, only allow pure t-channel diagrams
+        - 
         """
 
         # First check if any daughter links fail
-        if any([not l.pass_restrictions(model) for l in self.links \
-                if not l.end_link]):
+        if any([not l.pass_restrictions(model, amp_link,
+                                        include_only_t,
+                                        allow_group_12,
+                                        allow_12_sch) \
+                for l in self.links if not l.end_link]):
             return False
+
+        # Ensure model is accessible
+        self.model = model
         
-        # A decay vertex has one non-zero mass parameter coming
-        # only once
-        decay_vertex = False
-        masses = [p.get('mass') for p in \
-                  model.get_interaction(self.vertex_id).get('particles') \
-                  if p.get('mass').lower() != 'zero']
+        # # A decay vertex has one non-zero mass parameter coming
+        # # only once
+        # decay_vertex = False
+        # masses = [p.get('mass') for p in \
+        #           model.get_interaction(self.vertex_id).get('particles') \
+        #           if p.get('mass').lower() != 'zero']
 
-        for mass in set(masses):
-            if len([m for m in masses if m == mass]) == 1:
-                decay_vertex = True
-                break
+        # for mass in set(masses):
+        #     if len([m for m in masses if m == mass]) == 1:
+        #         decay_vertex = True
+        #         break
 
-        # Decay vertices can't fail
-        if decay_vertex:
+        # # Decay vertices can't fail
+        # if decay_vertex:
+        #     return True
+
+
+        # If we only allow pure t-channels, fail if a level 1 vertex has non-t
+        if include_only_t:
+            if self.depth == 1:
+                external_numbers = self.get_external_numbers()
+                if 1 not in external_numbers and 2 not in external_numbers \
+                   or set(external_numbers) == set([1,2]):
+                    return False
+            # Otherwise pass
             return True
 
-        # If this vertex has depth 1, forbid the (1,2) combination
-        if self.depth == 1:
-            if sorted(self.get_external_numbers()) == [1,2]:
-                return False
-            return True
-
-        # If this vertex has depth > 1, fail if this is s-channel
-        if amp_link:
-            # If this amplitude has two external legs, fail if
-            # (1,2) combination
-            if len([l for l in self.links if l.end_link]) == 2:
-                return sorted(sum([l.get_external_numbers() for l \
-                                   in self.links if l.end_link], [])) == [1, 2]
-            # Otherwise, fail if any single link has the (1,2) combination
-            return not any([sorted(l.get_external_numbers())[:2] == [1, 2] \
-                        for l in self.links])
+        # If we allow non-pure t-channels, continue
+        
+        if allow_group_12:
+            # If allow_group_12, allow grouping 1 and 2
+            if self.depth == 1:
+                return True
+            elif not allow_12_sch:
+                # Forbid any diagram which combines 1 or 2 with s-channel
+                externals = [l.get_external_numbers()[0] for l in self.links \
+                             if l.end_link] 
+                if len(externals) == 1 and externals[0] in [1,2]:
+                    # We are pairing 1 or 2 with an s-channel
+                    return False
         else:
-            external_numbers = sum([l.get_external_numbers() for l in \
-                                    self.links], [])
-        if not (1 in external_numbers or 2 in external_numbers):
+            end_links = [l.get_external_numbers()[0] for l in self.links \
+                         if l.end_link] 
+
+            if self.depth == 1:
+                # If this vertex has depth 1, forbid the (1,2) combination
+                if set(end_links) == set([1,2]):
+                    return False
+                # Otherwise pass
+                return True
+
+            # Forbid any diagram which combines 1 or 2 with s-channel
+            if not allow_12_sch and \
+                   len(end_links) == 1 and end_links[0] in [1,2]:
+                return False
+            elif set(end_links) == set([1,2]):
+                # Forbid the combination (1,2)
+                return False
+
+        # The following applies whether or not allow_group_12
+        # Note that self.depth > 1 below
+
+        # Fail if this is pure s-channel
+        external_numbers = sum([l.get_external_numbers() for l in \
+                                self.links], [])
+
+        if 1 not in external_numbers and 2 not in external_numbers:
             return False
+
+        # If this is amplitude, fail if any single link contains both
+        # 1 and 2 (meaning that this is an s-channel) unless allow_group_12
+        if amp_link and not allow_group_12:
+            return not any([sorted(l.get_external_numbers())[:2] == [1,2] for \
+                            l in self.links])
 
         # Otherwise, return True
         return True
@@ -297,15 +345,24 @@ class PeriferalDiagramTag(OrderDiagramTag):
                                              include_all_t,
                                              amp_link = True)[1]
 
-    def pass_restrictions(self, model):
+    def pass_restrictions(self, model,
+                          include_only_t = False,
+                          allow_group_12 = False,
+                          allow_12_sch = True):
         """Check if this periferal diagram passes the following
         restrictions:
 
-        - No (1,2) (pure s-channel) combinations
-        - No connection of external line to s-channel propagator
+        - No s-channel propagators with more than 2 external particles
+        - If include_only_t, only pure t-channels allowed (no s-channels)
+        - If not allow_group_12, no (1,2) combinations allowed
+        - If not allow_12_sch, initial state legs must couple directly
+          to external particles (not to s-channel propagators).
         """
         
-        return self.tag.pass_restrictions(model, True)
+        return self.tag.pass_restrictions(model, True,
+                                          include_only_t,
+                                          allow_group_12,
+                                          allow_12_sch)
 
     def get_comp_array(self):
         """Give a comparison array which allows fast comparison
@@ -585,7 +642,10 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         self.set('color_flows', color_flows)
         return self.get('diagrams')
 
-    def get_periferal_diagrams_from_flows(self):
+    def get_periferal_diagrams_from_flows(self,
+                                          include_only_t = False,
+                                          allow_group_12 = False,
+                                          allow_12_sch = True):
         """Generate the periferal diagrams needed for efficient phase
         space integration from the diagrams of the color flows and
         their permutations, using the PeriferalDiagramTag.
@@ -651,7 +711,10 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 except ValueError:
                     # Check if this diagram passes the rules to be used
                     # for phase space integration
-                    if tag.pass_restrictions(model):
+                    if tag.pass_restrictions(model,
+                                             include_only_t,
+                                             allow_group_12,
+                                             allow_12_sch):
                         all_tags.append(tag_array)
                         all_diagrams.append(diag)
                         flow_permutations.append([(iflow,iperm)])
