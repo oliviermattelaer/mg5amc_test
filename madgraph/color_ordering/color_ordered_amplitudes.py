@@ -113,7 +113,8 @@ class OrderDiagramTag(diagram_generation.DiagramTag):
 class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
     """Chain link class for PeriferalDiagramTag with special functions"""
 
-    def check_periferal_legs(self, model, nallowed, order, amp_link = False):
+    def check_periferal_legs(self, model, order, nallowed, 
+                             include_all_t = False, amp_link = False):
         """Check if this is a periferal subdiagram (to the order given).
         amp_link is True for a link corresponding to an amplitude,
         False for a link corresponding to a wavefunction.
@@ -147,18 +148,19 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
         leglist = []
         nexternal = 0
         for link in self.links:
-            n, legs = link.check_periferal_legs(model, nallowed, order)
+            n, legs = link.check_periferal_legs(model, order, nallowed,
+                                                include_all_t)
             # If any link returns an empty list, we already have a
             # non-periferal subdiagram
             if not legs:
                 return nexternal, []
             nexternal += n
-            if nexternal > nallowed:
+            if nexternal > nallowed and not include_all_t:
                 return nexternal, []
             leglist.extend(legs)
 
-        # If the depth of this link is > order,
-        # check if we have external legs, unless this is a decay vertex
+        # If the depth of this link is > order, check if we have
+        # external legs
 
         depth = self.depth
         if amp_link:
@@ -185,7 +187,8 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
                 # Fail if external legs and depth is > order + 1, or
                 # if nexternal > nallowed
                 if nexternal > nallowed or (n > 0 and depth > order + 1):
-                    return nexternal, []
+                    if not include_all_t or n != 1:
+                        return nexternal, []
 
         # For amp vertex or deep vertices that are not decay vertices,
         # return the sorted leglist
@@ -267,7 +270,9 @@ class PeriferalDiagramTag(OrderDiagramTag):
 
     link_class = PeriferalDiagramTagChainLink
 
-    def check_periferal_diagram(self, model, order = 1):
+    def check_periferal_diagram(self, model, order = 1,
+                                nallowed = -1,
+                                include_all_t = False):
         """Check if this is a periferal diagram (to the order given).
 
         Periferal means that at most one (massless) external leg
@@ -284,10 +289,13 @@ class PeriferalDiagramTag(OrderDiagramTag):
         # order == 1, otherwise if any external couples to depth >
         # order, return []
 
+        if nallowed < 0:
+            nallowed = 1 if order == 1 else 0
         return self.tag.check_periferal_legs(model,
-                                             1 if order == 1 else 0,
                                              order,
-                                             True)[1]
+                                             nallowed,
+                                             include_all_t,
+                                             amp_link = True)[1]
 
     def pass_restrictions(self, model):
         """Check if this periferal diagram passes the following

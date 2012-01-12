@@ -1757,3 +1757,69 @@ class TestPeriferalDiagramTag(unittest.TestCase):
         # print 'goal_periferals = ',goal_periferals
         # print 'goal_pass = ',goal_pass
 
+    def test_periferal_diagram_tag_gg_nglue_order2_include_all_t(self):
+        """Test the PeriferalDiagramTag for g g > n g with order=2 including t
+        """
+
+        goal_periferals = []
+
+        goal_pass = []
+
+        maxgluons = 6
+
+        # Test 3,4 and 5 gluons in the final state
+        for ngluon in range(0, maxgluons-2):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([\
+                base_objects.Leg({'id':21, 'state':False}),
+                base_objects.Leg({'id':21, 'state':False})])
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * (ngluon + 3))
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'orders':{'QCD':ngluon+3, 'QED': 0},
+                                           'model':self.mymodel})
+
+            myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+            diagrams = myamplitude.get('color_flows')[0].get('diagrams')
+            diagram_tags = [color_ordered_amplitudes.PeriferalDiagramTag(d) \
+                            for d in diagrams]
+            # plot = draw.MultiEpsDiagramDrawer(diagrams,
+            #                                   "alldiags%i.eps" % ngluon,
+            #                                   model=self.mymodel)
+            # plot.draw()
+
+            periferals = []
+            pass_restrictions = []
+            periferal_diagrams = base_objects.DiagramList()
+            pass_diagrams = base_objects.DiagramList()
+            for i, (d, dtag) in enumerate(zip(diagrams, diagram_tags)):
+                check_res = dtag.check_periferal_diagram(self.mymodel,
+                                                         order = 2,
+                                                         include_all_t = True)
+                # print d.nice_string()
+                # print i+1,check_res
+                if not check_res: continue
+                periferals.append(i+1)
+                periferal_diagrams.append(d)
+                if dtag.pass_restrictions(self.mymodel):
+                    pass_restrictions.append(i+1)
+                    pass_diagrams.append(d)
+            plot = draw.MultiEpsDiagramDrawer(periferal_diagrams,
+                                              "periferal%i.eps" % ngluon,
+                                              model=self.mymodel)
+            plot.draw()
+            plot = draw.MultiEpsDiagramDrawer(pass_diagrams,
+                                              "pass%i.eps" % ngluon,
+                                              model=self.mymodel)
+            plot.draw()
+            
+            goal_periferals.append(periferals)
+            goal_pass.append(pass_restrictions)
+            self.assertEqual(periferals, goal_periferals[ngluon])
+
+        print 'goal_periferals = ',goal_periferals
+        print 'goal_pass = ',goal_pass
+
