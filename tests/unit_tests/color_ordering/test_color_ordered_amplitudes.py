@@ -1005,42 +1005,6 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         # Time for 6 gluons: 5 min
 
         # Test 2, 3, 4 and 5 gluons in the final state
-        for ngluon in range (3, 6):
-
-            # Create the amplitude
-            myleglist = base_objects.LegList([base_objects.Leg({'id':21,
-                                              'state':False})] * 2)
-
-            myleglist.extend([base_objects.Leg({'id':21,
-                                              'state':True})] * ngluon)
-
-            myproc = base_objects.Process({'legs':myleglist,
-                                           'model':self.mymodel})
-
-            self.myamplitude.set('process', myproc)
-
-            self.myamplitude.generate_diagrams()
-
-            diagrams, flow_perms = \
-                      self.myamplitude.get_periferal_diagrams_from_flows()
-
-            #print diagrams.nice_string()
-            #plot = draw.MultiEpsDiagramDrawer(diagrams,
-            #                                  "allperiferalnew%i.eps" % ngluon,
-            #                                  model=self.mymodel)
-            #plot.draw()
-            goal_ndiags.append(len(diagrams))
-            self.assertEqual(len(diagrams), goal_ndiags[ngluon - 3])
-        # print goal_ndiags
-
-    def test_periferal_diagrams_gluons_no_12_sch(self):
-        """Test periferal diagrams for gg>ng"""
-
-        goal_ndiags = [6, 36, 120, 990]
-
-        # Time for 6 gluons: 5 min
-
-        # Test 2, 3, 4 and 5 gluons in the final state
         for ngluon in range (3, 7):
 
             # Create the amplitude
@@ -1059,9 +1023,48 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             diagrams, flow_perms = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
-                           allow_12_sch = False)
+                                 include_all_t = False, tch_depth = 1,
+                                 identify_depth = 10)
 
-            #print diagrams.nice_string()
+            print diagrams.nice_string()
+            plot = draw.MultiEpsDiagramDrawer(diagrams,
+                                              "allperiferal%i.eps" % ngluon,
+                                              model=self.mymodel)
+            plot.draw()
+            goal_ndiags.append(len(diagrams))
+            self.assertEqual(len(diagrams), goal_ndiags[ngluon - 3])
+        # print goal_ndiags
+
+    def test_periferal_diagrams_gluons_tch_2(self):
+        """Test periferal diagrams for gg>ng"""
+
+        goal_ndiags = [6, 36, 240, 1455]
+
+        # Time for 6 gluons: 5 min
+
+        # Test 3, 4 and 5 gluons in the final state
+        for ngluon in range (3, 7):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([base_objects.Leg({'id':21,
+                                              'state':False})] * 2)
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * ngluon)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'model':self.mymodel})
+
+            self.myamplitude.set('process', myproc)
+
+            self.myamplitude.generate_diagrams()
+
+            diagrams, flow_perms = \
+                      self.myamplitude.get_periferal_diagrams_from_flows(\
+                            include_all_t = True, tch_depth = 2,
+                            identify_depth = 2)
+
+            print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
                                               "allperiferalnew%i.eps" % ngluon,
                                               model=self.mymodel)
