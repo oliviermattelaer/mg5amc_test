@@ -216,7 +216,7 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
             return True
             
         # First check if any daughter links fail
-        if any([not l.pass_restrictions(model, amp_link, tch_depth) \
+        if any([not l.pass_restrictions(model, False, tch_depth) \
                 for l in self.links if not l.end_link]):
             return False
 
@@ -275,7 +275,8 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
 
         # This checks that final vertex is t-channel
         if amp_link and depths[1][0] < tch_depth:
-            if depths[0][0] == 0 and depths[0][1][0] <= 2:
+            if depths[0][0] == 0 and depths[0][1][0] <= 2 or \
+               depths[0][0] > 0 and depths[1][0] < tch_depth-1:
                 return False
 
         # Otherwise, return True

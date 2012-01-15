@@ -1062,7 +1062,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             diagrams, flow_perms = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
                             include_all_t = True, tch_depth = 2,
-                            identify_depth = 2)
+                            identify_depth = 10)
 
             print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
