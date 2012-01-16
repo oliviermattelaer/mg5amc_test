@@ -292,21 +292,23 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
 
         res_array = []
         links = self.links
+        left_links = []
         depth = self.depth
         if amp_link:
             depths = sorted([(d,i) for (i,d) in \
                              enumerate([l.depth for l in self.links])])
-            depth = depths[0][0]+depths[1][0]
+            depth = depths[0][0]+depths[1][0]+1
             links = [self.links[d[1]] for d in depths[:2]]
-            res_array = self.links[depths[2][1]].fill_comp_array(False,
-                                                                 identify_depth)
-
+            left_links.append(self.links[depths[2][1]])
         for link in links:
             res_array.extend(link.fill_comp_array(False, identify_depth))
         res_array.sort()
         if depth <= identify_depth:
             res_array.insert(0,depth)
             res_array = [self.flatten(res_array)]
+        for link in left_links:
+            res_array.extend(link.fill_comp_array(False, identify_depth))
+        res_array.sort()
         return res_array
 
     @staticmethod

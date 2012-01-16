@@ -1035,7 +1035,45 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             self.assertEqual(len(diagrams), goal_ndiags[ngluon - 3])
         # print goal_ndiags
 
-    def test_periferal_diagrams_gluons_tch_2(self):
+    def test_periferal_diagrams_gluons_tch_2_id_1(self):
+        """Test periferal diagrams for gg>ng"""
+
+        goal_ndiags = [6, 24, 36, 1455]
+
+        # Time for 6 gluons: 5 min
+
+        # Test 3, 4 and 5 gluons in the final state
+        for ngluon in range (3, 7):
+
+            # Create the amplitude
+            myleglist = base_objects.LegList([base_objects.Leg({'id':21,
+                                              'state':False})] * 2)
+
+            myleglist.extend([base_objects.Leg({'id':21,
+                                              'state':True})] * ngluon)
+
+            myproc = base_objects.Process({'legs':myleglist,
+                                           'model':self.mymodel})
+
+            self.myamplitude.set('process', myproc)
+
+            self.myamplitude.generate_diagrams()
+
+            diagrams, flow_perms = \
+                      self.myamplitude.get_periferal_diagrams_from_flows(\
+                            include_all_t = True, tch_depth = 2,
+                            identify_depth = 1)
+
+            print diagrams.nice_string()
+            plot = draw.MultiEpsDiagramDrawer(diagrams,
+                                              "allperiferalnew%i.eps" % ngluon, 
+                                              model=self.mymodel)
+            plot.draw()
+            goal_ndiags.append(len(diagrams))
+            self.assertEqual(len(diagrams), goal_ndiags[ngluon - 3])
+        # print goal_ndiags
+
+    def test_periferal_diagrams_gluons_tch_2_id_2(self):
         """Test periferal diagrams for gg>ng"""
 
         goal_ndiags = [6, 36, 240, 1455]
@@ -1062,11 +1100,11 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             diagrams, flow_perms = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
                             include_all_t = True, tch_depth = 2,
-                            identify_depth = 10)
+                            identify_depth = 2)
 
             print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
-                                              "allperiferalnew%i.eps" % ngluon,
+                                              "allperiferalnew%i.eps" % ngluon, 
                                               model=self.mymodel)
             plot.draw()
             goal_ndiags.append(len(diagrams))
