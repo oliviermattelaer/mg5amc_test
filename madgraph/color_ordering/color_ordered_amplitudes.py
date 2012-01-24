@@ -270,7 +270,8 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
 
         # This checks tch_depth for s-channel mergings for wf-like vertices
         if not amp_link and depths[1][0] < tch_depth and \
-               (depths[0][0] > 0 or depths[0][1][0] <= 2):
+               (depths[0][0] == 0 and depths[0][1][0] <= 2 or \
+                depths[0][0] > 0 and depths[1][0] < tch_depth-1):
             return False
 
         # This checks that final vertex is t-channel
@@ -674,6 +675,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         failed_tags = []
 
         # Pick out the periferal diagrams from the basic flows
+        idiag=0
         for iflow, flow in enumerate(self.get('color_flows')):
             for diag in flow.get('diagrams'):
                 tag = PeriferalDiagramTag(diag)
@@ -681,18 +683,26 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                                  include_all_t = include_all_t):
                     # This diagram is not periferal
                     continue
+                idiag += 1
                 tag_array = tag.get_comp_array(identify_depth = identify_depth)
                 # If the diagram is not already represented, add it to
                 # basic_diagrams
-                if tag_array not in basic_tags:
+                if tag_array not in basic_tags and \
+                       tag.pass_restrictions(model, tch_depth = tch_depth):
                     # Append tag to basic_tag
                     basic_tags.append(tag_array)
                     # Append diagram to basic_diagrams
                     basic_diagrams.append(diag)
-
+        
         # Now go through all permutations to get the full set of diagrams
-        permutations = self.get('color_flows')[0].get('permutations')
-        for iperm, perm in enumerate(permutations):
+        permutations = []
+        iperm = 0
+        comp_list = self.get_comp_list(process)
+        for perm in itertools.permutations(range(1,len(process.get('legs'))+1)):
+            if any([comp_list[perm[i]-1] != comp_list[i] for i in \
+                    range(len(process.get('legs')))]): continue
+            permutations.append(perm)
+            iperm = iperm + 1
             # Go through the basic diagrams and replace indices.
             perm_dict = dict(zip(permutations[0],perm))
             for basic_diag in basic_diagrams:
@@ -721,6 +731,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 else:
                     flow_permutations[index].append((iflow, iperm))
 
+        self.get('color_flows')[0].set('permutations', permutations)
         return base_objects.DiagramList(all_diagrams), flow_permutations
 
     @staticmethod
@@ -742,7 +753,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                       len(set([p[1] for p in pdg_colors])) == 1
         for ipart, (pdg, col) in enumerate(pdg_colors):
             if pdg in pdg_dict and col in [3, 8] and \
-                   (not octets_only or ipart < len(pdg_colors) - 1):
+                   (not octets_only or ipart > 0):
                 comp_list.append(pdg_dict[pdg])
             else:
                 comp_id += 1
