@@ -234,7 +234,7 @@ C
 
       ZTEMP = (0.D0,0.D0)
       ZTEMP=ZTEMP+ONEPERM%(proc_id)s(P,NHEL,PERM)
-      MATRIX=REAL(ZTEMP)
+      MATRIX%(proc_id)s=REAL(ZTEMP)
 
       RETURN
       END
@@ -292,7 +292,7 @@ C ----------
 %(flow_call_lines)s
       ZTEMP = (0.D0,0.D0)
 %(color_sum_lines)s
-      ONEPERM=ZTEMP
+      ONEPERM%(proc_id)s=ZTEMP
 
 %(jamp2_lines)s
 

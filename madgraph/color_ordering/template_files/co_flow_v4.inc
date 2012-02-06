@@ -2,7 +2,7 @@
 C  
 %(info_lines)s
 C
-C Returns color ordered amplitude for color flow %(number)d
+C Returns color ordered amplitude for color flow %(number)s
 c for the point with external momenta P(0:3, NEXTERNAL)
 C  
 %(process_lines)s
@@ -45,6 +45,6 @@ C ----------
 %(helas_calls)s
 %(jamp_lines)s
 
-      FLOW%(number)d=JAMP(1)
+      FLOW%(number)s=JAMP(1)
       RETURN
       END

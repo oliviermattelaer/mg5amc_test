@@ -63,7 +63,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
     #===========================================================================
     # write_co_flow_v4
     #===========================================================================
-    def write_co_flow_v4(self, writer, flow, helas_call_writer):
+    def write_co_flow_v4(self, writer, flow, helas_call_writer, me_number = ''):
         """Export a matrix element to a flow.f file in MG4 standalone format"""
 
         if not flow.get('processes') or \
@@ -88,7 +88,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         replace_dict['process_lines'] = process_lines
 
         # Set number
-        replace_dict['number'] = flow.get('number')
+        replace_dict['number'] = "%s%d" % (me_number, flow.get('number'))
 
         # Extract number of external particles
         (nexternal, ninitial) = flow.get_nexternal_ninitial()
@@ -232,7 +232,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return iferm_line
 
-    def get_flow_call_lines(self, needed_perms, perm_needed_flows):
+    def get_flow_call_lines(self, needed_perms, perm_needed_flows,
+                            me_flag = ''):
         """Write out the calls to all color flows. Need to multiply by
         fermion permutation factor for this color flow to get right
         sign."""
@@ -247,8 +248,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             # Now generate the flow calls
             for iflow, jmp in perm_needed_flows[perm]:
                 flow_call_lines.append(\
-                    "JAMP(%d)=IFERM(%d)*FLOW%d(P,NHEL,PERM)" \
-                    % (jmp, iperm+1, iflow+1))
+                    "JAMP(%d)=IFERM(%d)*FLOW%s%d(P,NHEL,PERM)" \
+                    % (jmp, iperm+1, me_flag, iflow+1))
 
         return flow_call_lines
 
@@ -327,11 +328,11 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         comp_data_line = 'DATA COMP/%s/' % ','.join([str(c) for c in comp_list])
         return comp_data_line
         
-    def get_flow_functions_lines(self, matrix_element):
+    def get_flow_functions_lines(self, matrix_element, me_flag = ''):
         """Write out function definition lines"""
 
-        flow_functions = ",".join(["FLOW%d" % flow.get('number') for flow in \
-                                   matrix_element.get('color_flows')])
+        flow_functions = ",".join(["FLOW%s%d" % (me_flag, flow.get('number')) \
+                                 for flow in matrix_element.get('color_flows')])
 
         return "COMPLEX*16 %(ff)s\nEXTERNAL %(ff)s" % {"ff": flow_functions}
         
@@ -536,7 +537,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
     """Class to take care of exporting a set of matrix elements to
     MadEvent format."""
 
-    super_matrix_file = "co_super_matrix_madevent_v4.inc"
+    matrix_file = "co_super_matrix_madevent_v4.inc"
 
     #===========================================================================
     # generate_subprocess_directory_v4 
@@ -582,7 +583,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
 
         # Create the matrix.f file, auto_dsig.f file and all inc files
         filename = 'matrix.f'
-        calls = self.write_matrix_element_v4(writers.FortranWriter(filename),
+        calls,nc = self.write_matrix_element_v4(writers.FortranWriter(filename),
                                              matrix_element,
                                              co_helas_call_writer)
 
@@ -840,7 +841,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                or not isinstance(matrix_element,
                               color_ordered_helas_objects.COHelasMatrixElement) \
                or not matrix_element.get('color_flows'):
-            return 0
+            return (0, 0)
 
         if not isinstance(writer, writers.FortranWriter):
             raise writers.FortranWriter.FortranWriterError(\
@@ -931,8 +932,14 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         else:
             replace_dict['wavefunctionsize'] = 6
 
+        # Process specific flag for flow calls
+        me_flag = ""
+        if proc_id:
+            me_flag = proc_id + "_"
+
         # Extract flow function definition lines
-        flow_functions_lines = self.get_flow_functions_lines(matrix_element)
+        flow_functions_lines = self.get_flow_functions_lines(matrix_element,
+                                                             me_flag)
         replace_dict['flow_functions_lines'] = flow_functions_lines
 
         # Extract nperms
@@ -947,7 +954,8 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         flow_iferm_data_line = self.get_iferm_line(matrix_element,
                                                    needed_perms)
         flow_call_lines = self.get_flow_call_lines(needed_perms,
-                                                   perm_needed_flows)
+                                                   perm_needed_flows,
+                                                   me_flag)
         color_sum_lines = self.get_color_flow_lines(row_flow_factors,
                                                     flow_jamp_dict)
         replace_dict['flow_perms_data_lines'] = '\n'.join(flow_perms_data_lines)
@@ -970,13 +978,14 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         # Create file contents
         file = open(os.path.join(_file_path, \
                                  'color_ordering/template_files/%s' % \
-                                 self.super_matrix_file)).read()
+                                 self.matrix_file)).read()
         file = file % replace_dict
 
         # Write the file
         writer.writelines(file)
 
-        return 0
+        return 0, max([len(flow.get_color_amplitudes()) for flow in \
+                       matrix_element.get('color_flows')])
 
     def get_jamp2_lines(self, matrix_element, perm_needed_flows):
         """Extract the summation lines for JAMP2's, including only the
@@ -1015,6 +1024,61 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         return ret_list
 
         # LATER ON MAKE SURE TO IMPLEMENT THIS PROPERLY!
+
+class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
+                                      ProcessExporterFortranCOME):
+
+    """Class to take care of exporting a set of matrix elements to
+    MadEvent format."""
+
+    matrix_file = "co_super_matrix_madevent_v4.inc"
+
+    #===========================================================================
+    # generate_subprocess_directory_v4
+    #===========================================================================
+    def generate_subprocess_directory_v4(self, subproc_group,
+                                         co_helas_call_writer,
+                                         group_number):
+
+        # First generate all files needed except for the flow files
+        export_v4.ProcessExporterFortranMEGroup.\
+                      generate_subprocess_directory_v4(self,
+                                                       subproc_group,
+                                                       co_helas_call_writer,
+                                                       group_number)
+
+        # Create the flow.f files for each color flow
+        calls = 0
+        subprocdir = "P%d_%s" % (subproc_group.get('number'),
+                                 subproc_group.get('name'))
+        for ime,me in enumerate(subproc_group.get('matrix_elements')):
+            # Process specific flag for flow calls
+            me_flag = "%d_" % (ime + 1)
+            for flow in me.get('color_flows'):
+                filename = os.path.join(self.dir_path,
+                                        'SubProcesses',
+                                        subprocdir,
+                                        'flow%s%d.f' % (me_flag,
+                                                        flow.get('number')))
+                calls += self.write_co_flow_v4(
+                    writers.FortranWriter(filename),
+                    flow,
+                    co_helas_call_writer,
+                    me_flag)
+
+        return calls
+
+    def write_matrix_element_v4(self, *args, **opts):
+        """Just pass on to ProcessExporterFortranCOME"""
+
+        return ProcessExporterFortranCOME.write_matrix_element_v4(\
+                                                            self, *args, **opts)
+
+    def get_icolamp_lines(self, *args, **opts):
+        """Just pass on to ProcessExporterFortranCOME"""
+
+        return ProcessExporterFortranCOME.get_icolamp_lines(self, *args, **opts)
+        
 
 #===============================================================================
 # COFortranUFOHelasCallWriter
@@ -1094,3 +1158,4 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
 
         # By default, call mother function
         super(COFortranUFOHelasCallWriter, self).generate_helas_call(argument)
+

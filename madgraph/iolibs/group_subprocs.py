@@ -105,6 +105,8 @@ class SubProcessGroup(base_objects.PhysicsObject):
     """Class to group a number of amplitudes with same initial states
     into a subprocess group"""
 
+    helas_multi_process_class = helas_objects.HelasMultiProcess
+
     def default_setup(self):
         """Define object and give default values"""
 
@@ -198,7 +200,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
         amplitudes = copy.copy(self.get('amplitudes'))
 
         self.set('matrix_elements',
-                 helas_objects.HelasMultiProcess.\
+                 self.helas_multi_process_class.\
                                    generate_matrix_elements(amplitudes))
 
         self.set('amplitudes', diagram_generation.AmplitudeList())
@@ -343,7 +345,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
     # group_amplitudes
     #===========================================================================
     @staticmethod
-    def group_amplitudes(amplitudes):
+    def group_amplitudes(cls, amplitudes):
         """Return a SubProcessGroupList with the amplitudes divided
         into subprocess groups"""
 
@@ -352,13 +354,13 @@ class SubProcessGroup(base_objects.PhysicsObject):
 
         logger.info("Organizing processes into subprocess groups")
 
-        process_classes = SubProcessGroup.find_process_classes(amplitudes)
+        process_classes = cls.find_process_classes(amplitudes)
         ret_list = SubProcessGroupList()
         process_class_numbers = sorted(list(set(process_classes.values())))
         for num in process_class_numbers:
             amp_nums = [key for (key, val) in process_classes.items() if \
                           val == num]
-            group = SubProcessGroup()
+            group = cls()
             group.set('amplitudes',
                       diagram_generation.AmplitudeList([amplitudes[i] for i in \
                                                         amp_nums]))
@@ -594,7 +596,7 @@ class DecayChainSubProcessGroup(SubProcessGroup):
     # group_amplitudes
     #===========================================================================
     @staticmethod
-    def group_amplitudes(decay_chain_amp):
+    def group_amplitudes(cls, decay_chain_amp):
         """Recursive function. Starting from a DecayChainAmplitude,
         return a DecayChainSubProcessGroup with the core amplitudes
         and decay chains divided into subprocess groups"""
@@ -605,6 +607,7 @@ class DecayChainSubProcessGroup(SubProcessGroup):
 
         # Determine core process groups
         core_groups = SubProcessGroup.group_amplitudes(\
+            SubProcessGroup,
             decay_chain_amp.get('amplitudes'))
 
         dc_subproc_group = DecayChainSubProcessGroup(\
@@ -614,7 +617,8 @@ class DecayChainSubProcessGroup(SubProcessGroup):
         # Recursively determine decay chain groups
         for decay_chain in decay_chain_amp.get('decay_chains'):
             dc_subproc_group.get('decay_groups').append(\
-                DecayChainSubProcessGroup.group_amplitudes(decay_chain))
+                DecayChainSubProcessGroup.group_amplitudes(SubProcessGroup,
+                                                           decay_chain))
 
         return dc_subproc_group
 

@@ -37,6 +37,7 @@ import madgraph.core.color_algebra as color
 import madgraph.core.color_amp as color_amp
 import madgraph.core.diagram_generation as diagram_generation
 import madgraph.core.helas_objects as helas_objects
+import madgraph.iolibs.group_subprocs as group_subprocs
 import madgraph.color_ordering.color_ordered_amplitudes as \
        color_ordered_amplitudes
 from madgraph import MadGraph5Error
@@ -1451,3 +1452,50 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                         matrix_elements.append(matrix_element)
 
         return matrix_elements
+
+#===============================================================================
+# ColorOrderedSubProcessGroup
+#===============================================================================
+
+class COSubProcessGroup(group_subprocs.SubProcessGroup):
+    """Class to group a number of color ordered amplitudes with same
+    initial states into a subprocess group"""
+
+    helas_multi_process_class = COHelasMultiProcess
+
+    @staticmethod
+    def group_amplitudes(cls, amplitudes, gen_color, optimization,
+                         gen_periferal_diagrams):
+        """Return a SubProcessGroupList with the color ordered amplitudes divided
+        into subprocess groups, and store the additional options"""
+
+        groups = group_subprocs.SubProcessGroup.group_amplitudes(cls,
+                                                                 amplitudes)
+        for group in groups:
+            group.gen_color = gen_color
+            group.optimization = optimization
+            group.gen_periferal_diagrams = gen_periferal_diagrams
+
+        return groups
+
+    #===========================================================================
+    # generate_matrix_elements
+    #===========================================================================
+    def generate_matrix_elements(self):
+        """Create a COHelasMultiProcess corresponding to the amplitudes
+        in self"""
+
+        if not self.get('amplitudes'):
+            raise self.PhysicsObjectError, \
+                  "Need amplitudes to generate matrix_elements"
+
+        amplitudes = copy.copy(self.get('amplitudes'))
+
+        self.set('matrix_elements',
+                 self.helas_multi_process_class.\
+                         generate_matrix_elements(amplitudes,
+                         gen_color = self.gen_color,
+                         optimization = self.optimization,
+                         gen_periferal_diagrams = self.gen_periferal_diagrams))
+
+        self.set('amplitudes', diagram_generation.AmplitudeList())

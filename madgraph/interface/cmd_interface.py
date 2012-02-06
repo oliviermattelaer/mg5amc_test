@@ -2874,7 +2874,7 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
         elif args[0] == "color_ordering":
             self._options[args[0]] = eval(args[1])
             if self._options['color_ordering'] > 0:
-                self.do_set('group_subprocesses False')
+                #self.do_set('group_subprocesses False')
                 self.do_set('optimization 3')
         else:
             self._options[args[0]] = eval(args[1])
@@ -2923,15 +2923,23 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                              self._options['group_subprocesses']
         # Make a Template Copy
         if self._export_format == 'madevent':
+            if self._options['color_ordering']:
+                self._curr_fortran_model = \
+                     color_ordered_export_v4.COFortranUFOHelasCallWriter(\
+                                                           self._curr_model)
             if group_subprocesses:
-                self._curr_exporter = export_v4.ProcessExporterFortranMEGroup(\
+                if self._options['color_ordering']:
+                    self._curr_exporter = color_ordered_export_v4.\
+                                          ProcessExporterFortranCOMEGroup(\
+                                             self._mgme_dir, self._export_dir,
+                                             not noclean)
+                else:
+                    self._curr_exporter = export_v4.ProcessExporterFortranMEGroup(\
                                       self._mgme_dir, self._export_dir,
                                       not noclean)
+                    
             else:
                 if self._options['color_ordering']:
-                    self._curr_fortran_model = \
-                         color_ordered_export_v4.COFortranUFOHelasCallWriter(\
-                                                               self._curr_model)
                     self._curr_exporter = color_ordered_export_v4.\
                                           ProcessExporterFortranCOME(\
                                               self._mgme_dir, self._export_dir,
@@ -3001,18 +3009,34 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                               isinstance(amp, \
                                          diagram_generation.DecayChainAmplitude)])
                     subproc_groups = group_subprocs.SubProcessGroupList()
-                    if non_dc_amps:
-                        subproc_groups.extend(\
-                                   group_subprocs.SubProcessGroup.group_amplitudes(\
-                                                                       non_dc_amps))
-                    for dc_amp in dc_amps:
-                        dc_subproc_group = \
+                    if not self._options['color_ordering']:
+                        if non_dc_amps:
+                            subproc_groups.extend(\
+                                 group_subprocs.SubProcessGroup.group_amplitudes(\
+                                              group_subprocs.SubProcessGroup,
+                                              non_dc_amps))
+                        for dc_amp in dc_amps:
+                            dc_subproc_group = \
                                  group_subprocs.DecayChainSubProcessGroup.\
-                                                           group_amplitudes(dc_amp)
-                        subproc_groups.extend(\
-                                  dc_subproc_group.\
-                                        generate_helas_decay_chain_subproc_groups())
+                                     group_amplitudes(\
+                                         group_subprocs.DecayChainSubProcessGroup,
+                                         dc_amp)
+                            subproc_groups.extend(\
+                                      dc_subproc_group.\
+                                            generate_helas_decay_chain_subproc_groups())
+                    else:
+                        if self._export_format == 'madevent':
+                            gen_periferal_diagrams = True
+                        else:
+                            gen_periferal_diagrams = False
 
+                        subproc_groups.extend(\
+                                   color_ordered_helas_objects.COSubProcessGroup.group_amplitudes(\
+                                               color_ordered_helas_objects.COSubProcessGroup,
+                                               non_dc_amps,
+                                               gen_color = self._options['color_ordering'],
+                                               optimization = self._options['optimization'],
+                                               gen_periferal_diagrams = gen_periferal_diagrams))
                     ndiags = sum([len(m.get('diagrams')) for m in \
                               subproc_groups.get_matrix_elements()])
                     self._curr_matrix_elements = subproc_groups
@@ -3028,6 +3052,7 @@ class MadGraphCmd(CmdExtended, HelpToCmd):
                             gen_periferal_diagrams = True
                         else:
                             gen_periferal_diagrams = False
+
                         self._curr_matrix_elements = \
                             color_ordered_helas_objects.COHelasMultiProcess(\
                                self._curr_amps,

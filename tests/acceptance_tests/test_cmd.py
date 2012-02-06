@@ -450,6 +450,7 @@ class TestCmdShell2(unittest.TestCase,
 
         self.do('import model sm')
         self.do('set color_ordering 3')
+        self.do('set group_subprocesses False')
         self.do('generate u g > u g g g')
         self.do('output %s ' % self.out_dir)
         self.do('set color_ordering 0')
@@ -507,6 +508,84 @@ class TestCmdShell2(unittest.TestCase,
         self.assertTrue(os.path.exists(os.path.join(self.out_dir,
                                                     'SubProcesses',
                                                     'P0_ug_uggg',
+                                                    'madevent')))
+        
+    def test_color_ordered_grouped_madevent_output(self):
+        """Test output of grouped color ordered MadEvent directory"""
+
+        if os.path.isdir(self.out_dir):
+            shutil.rmdir(self.out_dir)
+
+        self.do('import model sm')
+        self.do('set color_ordering 3')
+        self.do('generate u g > u g g g')
+        self.do('output %s ' % self.out_dir)
+        self.do('set color_ordering 0')
+        self.do('set optimization 1')
+        # Check that the needed ALOHA subroutines are generated
+        files = ['FFV1_0.f', 'FFV1_3.f', 'VVVV1_0.f', 'sumF2.f', 'FFV1_1.f',
+                 'VVV1_0.f', 'VVVV4_0.f', 'sumV2.f', 'FFV1_2.f', 'VVV1_1.f',
+                 'aloha_functions.f']
+
+        for f in files:
+            self.assertTrue(os.path.isfile(os.path.join(self.out_dir,
+                                                        'Source', 'DHELAS',
+                                                        f)), 
+                            '%s file is not in aloha directory' % f)
+
+        # Check that the needed files are generated in the Subproc dir
+        files = ['auto_dsig.f', 'auto_dsig1.f', 'matrix1.f', 'flow1_1.f']
+
+        for f in files:
+            self.assertTrue(os.path.isfile(os.path.join(self.out_dir,
+                                                        'SubProcesses',
+                                                        'P0_qg_qggg',
+                                                        f)), 
+                            '%s file is not in aloha directory' % f)
+        
+        devnull = open(os.devnull,'w')
+        # Check that the Source directory compiles
+        status = subprocess.call(['make'],
+                                 stdout=devnull, stderr=devnull, 
+                                 cwd=os.path.join(self.out_dir, 'Source'))
+        self.assertEqual(status, 0)
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                               'lib', 'libdhelas.a')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                               'lib', 'libmodel.a')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                               'lib', 'libgeneric.a')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                               'lib', 'libcernlib.a')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                               'lib', 'libdsample.a')))
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                               'lib', 'libpdf.a')))
+        # Check that gensym compiles
+        status = subprocess.call(['make', 'gensym'],
+                                 stdout=devnull, stderr=devnull, 
+                                 cwd=os.path.join(self.out_dir, 'SubProcesses',
+                                                  'P0_qg_qggg'))
+        self.assertEqual(status, 0)
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                                    'SubProcesses',
+                                                    'P0_qg_qggg',
+                                                    'gensym')))
+        # Check that gensym runs
+        status = subprocess.call('./gensym', 
+                                 stdout=devnull, stderr=devnull,
+                                 cwd=os.path.join(self.out_dir, 'SubProcesses',
+                                                  'P0_qg_qggg'), shell=True)
+        self.assertEqual(status, 0)
+        # Check that madevent compiles
+        status = subprocess.call(['make', 'madevent'],
+                                 stdout=devnull, stderr=devnull, 
+                                 cwd=os.path.join(self.out_dir, 'SubProcesses',
+                                                  'P0_qg_qggg'))
+        self.assertEqual(status, 0)
+        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
+                                                    'SubProcesses',
+                                                    'P0_qg_qggg',
                                                     'madevent')))
         
     def test_v4_heft(self):
