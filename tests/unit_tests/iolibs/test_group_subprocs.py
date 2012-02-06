@@ -319,7 +319,8 @@ class SubProcessGroupTest(unittest.TestCase):
             amplitudes = my_multiprocess.get('amplitudes')
 
             subprocess_groups = group_subprocs.SubProcessGroup.\
-                                group_amplitudes(amplitudes)
+                                group_amplitudes(group_subprocs.SubProcessGroup,
+                                                 amplitudes)
             #dmaps = []
             #diags = []
             for igroup, group in enumerate(subprocess_groups):
@@ -397,7 +398,8 @@ class SubProcessGroupTest(unittest.TestCase):
                              proc_classes[nfs-2])
 
             subproc_groups = group_subprocs.SubProcessGroup.\
-                             group_amplitudes(amplitudes)
+                             group_amplitudes(group_subprocs.SubProcessGroup,
+                                              amplitudes)
 
             #dmaps = []
             for inum, group in enumerate(subproc_groups):
@@ -463,7 +465,8 @@ class SubProcessGroupTest(unittest.TestCase):
             'decay_chains': decays})
 
         dc_subproc_group = group_subprocs.DecayChainSubProcessGroup.\
-                          group_amplitudes(decay_chains)
+                          group_amplitudes(group_subprocs.SubProcessGroup,
+                                           decay_chains)
 
         #print dc_subproc_group.nice_string()
         
@@ -734,7 +737,8 @@ Decay groups:
         my_amplitude = diagram_generation.DecayChainAmplitude(process)
 
         dc_subproc_group = group_subprocs.DecayChainSubProcessGroup.\
-                          group_amplitudes(my_amplitude)
+                          group_amplitudes(group_subprocs.SubProcessGroup,
+                                           my_amplitude)
 
         subproc_groups = \
                        dc_subproc_group.generate_helas_decay_chain_subproc_groups()

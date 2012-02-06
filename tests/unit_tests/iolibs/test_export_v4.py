@@ -579,7 +579,8 @@ C     Amplitude(s) for diagram number 6
 
         amplitudes[1].set('has_mirror_process', True)
         subprocess_groups = group_subprocs.SubProcessGroup.\
-                           group_amplitudes(amplitudes)
+                           group_amplitudes(group_subprocs.SubProcessGroup,
+                                            amplitudes)
         self.assertEqual(len(subprocess_groups), 2)
         self.assertEqual(subprocess_groups[0].get('name'), 'qq_gg')
         self.assertEqual(subprocess_groups[1].get('name'), 'qq_qq')
@@ -1705,7 +1706,8 @@ C       Flip x values (to get boost right)
             'decay_chains': decays})
 
         dc_subproc_group = group_subprocs.DecayChainSubProcessGroup.\
-                          group_amplitudes(decay_chains)
+                          group_amplitudes(group_subprocs.DecayChainSubProcessGroup,
+                                           decay_chains)
 
         subproc_groups = \
                        dc_subproc_group.generate_helas_decay_chain_subproc_groups()
@@ -2235,7 +2237,8 @@ mirror  d~ d > d d~ g d d~ g"""
             'decay_chains': decays})
 
         dc_subproc_group = group_subprocs.DecayChainSubProcessGroup.\
-                          group_amplitudes(decay_chains)
+                          group_amplitudes(group_subprocs.DecayChainSubProcessGroup,
+                                           decay_chains)
 
         subproc_groups = \
                        dc_subproc_group.generate_helas_decay_chain_subproc_groups()
