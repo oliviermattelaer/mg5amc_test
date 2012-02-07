@@ -757,7 +757,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         return calls
 
     def finalize_v4_directory(self, matrix_elements, history, makejpg = False,
-                              online = False):
+                              online = False, compiler = 'gfortran'):
         """Finalize ME v4 directory by creating jpeg diagrams, html
         pages,proc_card_mg5.dat and madevent.tar.gz."""
 
@@ -769,10 +769,8 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         # Touch "done" file
         os.system('touch %s/done' % os.path.join(self.dir_path,'SubProcesses'))
 
-        if not misc.which('g77'):
-            logger.info('Change makefiles to use gfortran')
-            subprocess.call(['python','./bin/Passto_gfortran.py'], cwd=self.dir_path, \
-                            stdout = open(os.devnull, 'w')) 
+        # Check for compiler
+        self.set_compiler(compiler)
 
         old_pos = os.getcwd()
         os.chdir(os.path.join(self.dir_path, 'SubProcesses'))
@@ -785,21 +783,20 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
             logger.info("Generate jpeg diagrams")
             for Pdir in P_dir_list:
                 os.chdir(Pdir)
-                subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'gen_jpeg-pl')],
+                subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'internal', 'gen_jpeg-pl')],
                                 stdout = devnull)
                 os.chdir(os.path.pardir)
 
         logger.info("Generate web pages")
         # Create the WebPage using perl script
 
-        subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'gen_cardhtml-pl')], \
+        subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')], \
                                                                 stdout = devnull)
 
         os.chdir(os.path.pardir)
 
         gen_infohtml.make_info_html(self.dir_path)
-        subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'gen_crossxhtml-pl')],
-                        stdout = devnull)
+
         [mv(name, './HTML/') for name in os.listdir('.') if \
                             (name.endswith('.html') or name.endswith('.jpg')) and \
                             name != 'index.html']               
@@ -812,7 +809,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
             output_file.write(text)
             output_file.close()
 
-        subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'gen_cardhtml-pl')],
+        subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')],
                         stdout = devnull)
 
         # Run "make" to generate madevent.tar.gz file
@@ -826,7 +823,8 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
             # Touch "Online" file
             os.system('touch %s/Online' % self.dir_path)
 
-        subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'gen_cardhtml-pl')],
+        subprocess.call([os.path.join(old_pos, self.dir_path, 'bin',
+                                      'internal', 'gen_cardhtml-pl')],
                         stdout = devnull)
 
         #return to the initial dir
