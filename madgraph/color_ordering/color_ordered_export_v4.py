@@ -766,6 +766,11 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         self.write_maxconfigs_file(writers.FortranWriter(filename),
                                    matrix_elements)
         
+        # Write maxparticles.inc based on max of ME's/subprocess groups
+        filename = os.path.join(self.dir_path,'Source','maxparticles.inc')
+        self.write_maxparticles_file(writers.FortranWriter(filename),
+                                     matrix_elements)
+        
         # Touch "done" file
         os.system('touch %s/done' % os.path.join(self.dir_path,'SubProcesses'))
 

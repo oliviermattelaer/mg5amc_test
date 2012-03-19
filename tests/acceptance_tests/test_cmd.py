@@ -20,13 +20,13 @@ import shutil
 import sys
 import logging
 
-
+pjoin = os.path.join
 
 logger = logging.getLogger('test_cmd')
 
 import tests.unit_tests.iolibs.test_file_writers as test_file_writers
 
-import madgraph.interface.cmd_interface as Cmd
+import madgraph.interface.master_interface as Cmd
 import madgraph.interface.launch_ext_program as launch_ext
 _file_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0]
 _pickle_path =os.path.join(_file_path, 'input_files')
@@ -42,7 +42,7 @@ class TestCmdShell1(unittest.TestCase):
     def setUp(self):
         """ basic building of the class to test """
         
-        self.cmd = Cmd.MadGraphCmdShell()
+        self.cmd = Cmd.MasterCmd()
     
     @staticmethod
     def join_path(*path):
@@ -93,7 +93,8 @@ class TestCmdShell1(unittest.TestCase):
         """ command 'draw' works """
 
         self.do('set group_subprocesses False')
-        self.do('load processes %s' % self.join_path(_pickle_path,'e+e-_e+e-.pkl'))
+        self.do('import model_v4 sm')
+        self.do('generate e+ e- > e+ e-')
         self.do('display diagrams .')
         self.assertTrue(os.path.exists('./diagrams_0_epem_epem.eps'))
         os.remove('./diagrams_0_epem_epem.eps')
@@ -122,7 +123,10 @@ class TestCmdShell1(unittest.TestCase):
                     'exrootanalysis_path': './ExRootAnalysis', 
                     'eps_viewer': None, 
                     'automatic_html_opening': 'True', 
-                    'pythia8_path': './pythia8'}
+                    'pythia8_path': './pythia8',
+                    'group_subprocesses': 'Auto',
+                    'ignore_six_quark_processes': False
+                    }
 
         self.assertEqual(config, expected)
         
@@ -146,7 +150,7 @@ class TestCmdShell2(unittest.TestCase,
     def setUp(self):
         """ basic building of the class to test """
         
-        self.cmd = Cmd.MadGraphCmdShell()
+        self.cmd = Cmd.MasterCmd()
         if  MG4DIR:
             logger.debug("MG_ME dir: " + MG4DIR)
             self.out_dir = os.path.join(MG4DIR, 'AUTO_TEST_MG5')
@@ -304,7 +308,7 @@ class TestCmdShell2(unittest.TestCase,
                             self.join_path(_pickle_path,'simple_v4_proc_card.dat'),
                             os.path.join(self.out_dir,'Cards','proc_card.dat')))
     
-        self.cmd = Cmd.MadGraphCmdShell()
+        self.cmd = Cmd.MasterCmd()
         pwd = os.getcwd()
         os.chdir(self.out_dir)
         self.do('import proc_v4 %s' % os.path.join('Cards','proc_card.dat'))
@@ -329,7 +333,8 @@ class TestCmdShell2(unittest.TestCase,
             shutil.rmdir(self.out_dir)
 
         self.do('set group_subprocesses False')
-        self.do('load processes %s' % self.join_path(_pickle_path,'e+e-_e+e-.pkl'))
+        self.do('import model_v4 sm')
+        self.do('generate e+ e- > e+ e-')
         self.do('output standalone %s' % self.out_dir)
         self.do('set group_subprocesses True')
         self.assertTrue(os.path.exists(self.out_dir))
@@ -866,7 +871,7 @@ class TestCmdShell2(unittest.TestCase,
                                                'lib', 'libdsample.a')))
         self.assertTrue(os.path.exists(os.path.join(self.out_dir,
                                                'lib', 'libpdf.a')))
-        # Check that combine_events, gen_ximprove, combine_runs and sum_html
+        # Check that combine_events, gen_ximprove, combine_runs 
         # compile
         status = subprocess.call(['make', '../bin/internal/combine_events'],
                                  stdout=devnull, 
@@ -886,12 +891,6 @@ class TestCmdShell2(unittest.TestCase,
         self.assertEqual(status, 0)
         self.assertTrue(os.path.exists(os.path.join(self.out_dir,
                                                'bin','internal', 'combine_runs')))
-        status = subprocess.call(['make', '../bin/internal/sum_html'],
-                                 stdout=devnull, 
-                                 cwd=os.path.join(self.out_dir, 'Source'))
-        self.assertEqual(status, 0)
-        self.assertTrue(os.path.exists(os.path.join(self.out_dir,
-                                               'bin', 'internal', 'sum_html')))
         # Check that gensym compiles
         status = subprocess.call(['make', 'gensym'],
                                  stdout=devnull, 
@@ -937,6 +936,7 @@ class TestCmdShell2(unittest.TestCase,
         self.assertTrue(os.path.exists(os.path.join(self.out_dir,
                                                     'SubProcesses',
                                                     'P0_qq_gogo_go_qqn1_go_qqn1')))
+        
         # Check the contents of the symfact.dat file
         self.assertEqual(open(os.path.join(self.out_dir,
                                            'SubProcesses',
@@ -980,18 +980,18 @@ class TestCmdShell2(unittest.TestCase,
                                            'SubProcesses',
                                            'P0_qq_gogo_go_qqn1_go_qqn1',
                                            'symfact.dat')).read(),
-                         """     1     1
-     2    -1
-     3    -1
-     4    -1
-     5     1
-     6    -5
-     7    -5
-     8    -5
-     9     1
-    10    -9
-    11    -9
-    12    -9
+                         """   1   1
+   2  -1
+   3  -1
+   4  -1
+   5   1
+   6  -5
+   7  -5
+   8  -5
+   9   1
+  10  -9
+  11  -9
+  12  -9
 """)
         
     def test_madevent_subproc_group_decay_chain(self):
@@ -1198,6 +1198,32 @@ P1_qq_wp_wp_lvl
         """ check that we can use standard MG4 name """
         self.do('import model sm')
         self.do('generate mu+ mu- > ta+ ta-')       
+
+    def test_save_load(self):
+        """ check that we can use standard MG4 name """
+        
+        self.do('import model sm')
+        self.assertEqual(len(self.cmd._curr_model.get('particles')), 17)
+        self.assertEqual(len(self.cmd._curr_model.get('interactions')), 55)
+        self.do('save model /tmp/model.pkl')
+        self.do('import model mssm-full')
+        self.do('load model /tmp/model.pkl')
+        self.assertEqual(len(self.cmd._curr_model.get('particles')), 17)
+        self.assertEqual(len(self.cmd._curr_model.get('interactions')), 55)
+        self.do('generate mu+ mu- > ta+ ta-') 
+        self.assertEqual(len(self.cmd._curr_amps), 1)
+        nicestring = """Process: mu+ mu- > ta+ ta- WEIGHTED=4
+2 diagrams:
+1  ((1(13),2(-13)>1(22),id:18),(3(-15),4(15),1(22),id:19)) (QCD=0,QED=2,WEIGHTED=4)
+2  ((1(13),2(-13)>1(23),id:57),(3(-15),4(15),1(23),id:58)) (QCD=0,QED=2,WEIGHTED=4)"""
+        self.assertEqual(self.cmd._curr_amps[0].nice_string().split('\n'), nicestring.split('\n'))
+        self.do('save processes /tmp/model.pkl')
+        self.do('generate e+ e- > e+ e-')
+        self.do('load processes /tmp/model.pkl')
+        self.assertEqual(len(self.cmd._curr_amps), 1)
+        self.assertEqual(self.cmd._curr_amps[0].nice_string(), nicestring)
+        
+        os.remove('/tmp/model.pkl')
         
     def test_pythia8_output(self):
         """Test Pythia 8 output"""
@@ -1286,4 +1312,17 @@ P1_qq_wp_wp_lvl
         me_groups = me_re.search(log_output)
         self.assertTrue(me_groups)
         self.assertAlmostEqual(float(me_groups.group('value')), 1.953735e-2)
+        
+    def test_import_banner_command(self):
+        """check that the import banner command works"""
+        self.do('import banner %s --no_launch' % pjoin(MG5DIR, 'tests', 'input_files', 'tt_banner.txt'))
+        
+        # check that the output exists:
+        self.assertTrue(os.path.exists(self.out_dir))
+        
+        # check that the Cards have been modified
+        run_card = open(pjoin(self.out_dir,'Cards','run_card.dat')).read()
+        self.assertTrue("'tt'     = run_tag" in run_card)
+        self.assertTrue("200       = nevents" in run_card)
+        
         

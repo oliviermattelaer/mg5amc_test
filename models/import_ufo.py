@@ -26,16 +26,17 @@ from madgraph import MadGraph5Error, MG5DIR
 import madgraph.core.base_objects as base_objects
 import madgraph.core.color_algebra as color
 import madgraph.iolibs.files as files
-import madgraph.iolibs.misc as misc
 import madgraph.iolibs.save_load_object as save_load_object
 from madgraph.core.color_algebra import *
+
+import madgraph.various.misc as misc
 
 import aloha.create_aloha as create_aloha
 import aloha.aloha_fct as aloha_fct
 
 import models as ufomodels
 import models.model_reader as model_reader
-logger = logging.getLogger('models.import_ufo')
+logger = logging.getLogger('madgraph.model')
 logger_mod = logging.getLogger('madgraph.model')
 
 root_path = os.path.dirname(os.path.realpath( __file__ ))
@@ -218,6 +219,9 @@ class UFOMG5Converter(object):
                    [p.antiname.lower() for p in self.ufomodel.all_particles])):
             self.use_lower_part_names = True
 
+        # check which of the fermion/anti-fermion should be set as incoming
+        self.detect_incoming_fermion()
+
         for particle_info in self.ufomodel.all_particles:            
             self.add_particle(particle_info)
 
@@ -268,9 +272,10 @@ class UFOMG5Converter(object):
         
         # MG5 have only one entry for particle and anti particles.
         #UFO has two. use the color to avoid duplictions
-        if particle_info.pdg_code < 0:
+        pdg = particle_info.pdg_code
+        if pdg in self.incoming or (pdg not in self.outcoming and pdg <0):
             return
-        
+                        
         # MG5 doesn't use ghost (use unitary gauges)
         if particle_info.spin < 0:
             return 
@@ -369,7 +374,26 @@ class UFOMG5Converter(object):
                 output[anticolor.pdg_code] = -3
         
         return output
-
+    
+    def detect_incoming_fermion(self):
+        """define which fermion should be incoming
+           for that we look at F F~ X interactions
+        """
+        self.incoming = [] 
+        self.outcoming = []       
+        for interaction_info in self.ufomodel.all_vertices:
+            # check if the interaction meet requirements:
+            pdg = [p.pdg_code for p in interaction_info.particles if p.spin in [2,4]]
+            if len(pdg) % 2:
+                raise UFOImportError, 'Odd number of fermion in vertex: %s' % [p.pdg_code for p in interaction_info.particles]
+            for i in range(0, len(pdg),2):
+                if pdg[i] == - pdg[i+1]:
+                    if pdg[i] in self.outcoming:
+                        raise UFOImportError, 'Input output not coherent'
+                    elif not pdg[i] in self.incoming:
+                        self.incoming.append(pdg[i])
+                        self.outcoming.append(pdg[i+1])
+                     
             
     def add_interaction(self, interaction_info, color_info):
         """add an interaction in the MG5 model. interaction_info is the 
@@ -824,10 +848,13 @@ class RestrictModel(model_reader.ModelReader):
             if value == 0:
                 zero_coupling.append(name)
                 continue
+            elif not strict_zero and abs(value) < 1e-13:
+                logger.debug('coupling with small value %s: %s treated as zero' %
+                             (name, value))
+                zero_coupling.append(name)
             elif not strict_zero and abs(value) < 1e-10:
                 return self.detect_identical_couplings(strict_zero=True)
-            elif not strict_zero and abs(value) < 1e-15:
-                zero_coupling.append(name)
+
             
             if value in dict_value_coupling:
                 iden_key.add(value)

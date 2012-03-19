@@ -54,6 +54,10 @@ function UrlExists(url) {
 function check_link(url,alt, id){
     var obj = document.getElementById(id);
     if ( ! UrlExists(url)){
+       if ( ! UrlExists(alt)){
+         obj.href = url;
+         return 1==1;
+        }
        obj.href = alt;
        return 1 == 2;
     }
@@ -110,7 +114,7 @@ status_template = """
                     %(pgs_card)s
                     %(delphes_card)s
         </TD>
-        <TD nowrap ROWSPAN=2> <A HREF="./HTML/%(run_name)s/results.html">%(cross).4g <font face=symbol>&#177</font> %(error).4g (%(unit)s)</A> </TD> 
+        <TD nowrap ROWSPAN=2> %(results)s </TD> 
         %(status)s
  </TR>
  <tr></tr>
@@ -236,6 +240,7 @@ class AllResults(dict):
                     self.current.update_status()
                 else:
                     self.current.update_status(nolevel='parton')
+        self.output()
                     
     def clean(self, levels = ['all'], run=None, tag=None):
         """clean the run for the levels"""
@@ -306,6 +311,11 @@ class AllResults(dict):
                             'tag_name': self.current['tag'],
                             'unit': self[self.current['run_name']].info['unit']}
 
+            if exists(pjoin(self.path, 'HTML',self.current['run_name'], 
+                        'results.html')):
+                status_dict['results'] = """<A HREF="./HTML/%(run_name)s/results.html">%(cross).4g <font face=symbol>&#177</font> %(error).4g (%(unit)s)</A>""" % status_dict
+            else:
+                status_dict['results'] = "No results yet"
             if exists(pjoin(self.path, 'Cards', 'plot_card.dat')):
                 status_dict['plot_card'] = """ <a href="./Cards/plot_card.dat">plot_card</a><BR>"""
             else:
@@ -446,11 +456,11 @@ class RunResults(list):
         output = {}
         current = self[-1]
         # Check that cross/nb_event/error are define
-        if current.pythia and not current['nb_event']:
+        if current.pythia and not current['nb_event'] and len(self) > 1:
             output['nb_event'] = self[-2]['nb_event']
             output['cross'] = self[-2]['cross']
             output['error'] = self[-2]['error']
-        elif (current.pgs or current.delphes) and not current['nb_event']:
+        elif (current.pgs or current.delphes) and not current['nb_event'] and len(self) > 1:
             if self[-2]['cross_pythia']:
                 output['cross'] = self[-2]['cross_pythia']
                 output['nb_event'] = int(0.5+(self[-2]['nb_event'] * current['cross'] /self[-2]['cross']))                           
@@ -617,7 +627,7 @@ class OneTagResults(dict):
         
         id = '%s_%s_%s_%s' % (self['run_name'],self['tag'], level, name)
         
-        return " <a  id='%(id)s' href='%(link)s' onClick=\"check_link('%(link)s.gz','%(link)s','%(id)s')\">%(name)s</a>" \
+        return " <a  id='%(id)s' href='%(link)s.gz' onClick=\"check_link('%(link)s.gz','%(link)s','%(id)s')\">%(name)s</a>" \
               % {'link': link, 'id': id, 'name':name}
     
     def double_link(self, link1, link2, name, id):

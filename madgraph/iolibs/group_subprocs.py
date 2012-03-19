@@ -31,11 +31,12 @@ import madgraph.core.diagram_generation as diagram_generation
 import madgraph.core.helas_objects as helas_objects
 import madgraph.iolibs.drawing_eps as draw
 import madgraph.iolibs.files as files
-import madgraph.iolibs.misc as misc
 import madgraph.iolibs.file_writers as writers
 import madgraph.iolibs.template_files as template_files
 import madgraph.iolibs.ufo_expression_parsers as parsers
 import madgraph.color_ordering.color_ordered_amplitudes as color_ordered_amplitudes
+
+import madgraph.various.misc as misc
 
 import aloha.create_aloha as create_aloha
 
@@ -302,31 +303,31 @@ class SubProcessGroup(base_objects.PhysicsObject):
                     diagram_maps[ime].append(0)
                     continue
                 
-                # Use only periferal diagrams
-                tag = color_ordered_amplitudes.PeriferalDiagramTag(diagram)
-                # Use get_comp_array for very fast comparison between tags
-                tag_array = tag.get_comp_array(identify_depth = 1)
-                # Check if diagram already failed
-                if tag_array in failed_tags:
-                    diagram_maps[ime].append(0)
-                    continue
-                # Check if the diagram is already represented,
-                # otherwise append tag, diagram, and (flow, permutation)
-                try:
-                    index = used_tags.index(tag_array)
-                except ValueError:
-                    # Check if this diagram passes the rules to be used
-                    # for phase space integration
-                    if tag.pass_restrictions(model, tch_depth = 10):
-                        used_tags.append(tag_array)
-                        used_diagrams.append(diagram)
-                    else:
-                        failed_tags.append(tag_array)
-                        diagram_maps[ime].append(0)
-                        continue
-                else:
-                        diagram_maps[ime].append(0)
-                        continue
+#                 # Use only periferal diagrams
+#                 tag = color_ordered_amplitudes.PeriferalDiagramTag(diagram)
+#                 # Use get_comp_array for very fast comparison between tags
+#                 tag_array = tag.get_comp_array(identify_depth = 1)
+#                 # Check if diagram already failed
+#                 if tag_array in failed_tags:
+#                     diagram_maps[ime].append(0)
+#                     continue
+#                 # Check if the diagram is already represented,
+#                 # otherwise append tag, diagram, and (flow, permutation)
+#                 try:
+#                     index = used_tags.index(tag_array)
+#                 except ValueError:
+#                     # Check if this diagram passes the rules to be used
+#                     # for phase space integration
+#                     if tag.pass_restrictions(model, tch_depth = 10):
+#                         used_tags.append(tag_array)
+#                         used_diagrams.append(diagram)
+#                     else:
+#                         failed_tags.append(tag_array)
+#                         diagram_maps[ime].append(0)
+#                         continue
+#                 else:
+#                         diagram_maps[ime].append(0)
+#                         continue
 
                 # Create the equivalent diagram, in the format
                 # [[((ext_number1, mass_width_id1), ..., )],
