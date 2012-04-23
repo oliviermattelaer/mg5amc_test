@@ -45,10 +45,13 @@ C
     INTEGER I,IDEN
     INTEGER IPROC,II
     LOGICAL GOODHEL(NCOMB)
-    REAL*8 HWGT,XTOT,XTRY,XREJ,XR,YFRAC(0:NCOMB)
+    REAL*8 HWGT,XTOT,XTRY,XREJ,XR,YFRAC(0:NCOMB),FRAC
     INTEGER IDUM,IPERM,NGOOD,IGOOD(NCOMB),JHEL,J,JJ
     REAL     XRAN1
     EXTERNAL XRAN1
+    REAL*8 FACTNUL
+    INTEGER JHELBK,NUPPER
+    LOGICAL FIRSTFLOW
 C  
 C GLOBAL VARIABLES
 C  
@@ -80,10 +83,6 @@ C BEGIN CODE
 C ----------
     NTRY=NTRY+1
 
-C   Select a permutation
-    IPERM=1+INT(XRAN1(IDUM)*NPERMS)
-    CALL GETPERM%(proc_id)s(IPERM,PERM)
-     
     IF (multi_channel) THEN
         DO I=1,NDIAGS
             AMP2(I)=0D0
@@ -98,85 +97,103 @@ C   Select a permutation
     DO I=1,NCOMB
        TS(I)=0d0
     ENDDO
-    IF (ISUM_HEL .EQ. 0 .OR. NTRY .LE. MAXTRIES) THEN
-        DO I=1,NCOMB
-           IF (GOODHEL(I) .OR. NTRY .LE. MAXTRIES) THEN
-               T=MATRIX%(proc_id)s(P ,NHEL(1,I), PERM)            
-             DO JJ=1,nincoming
-               IF(POL(JJ).NE.1d0.AND.NHEL(JJ,I).EQ.INT(SIGN(1d0,POL(JJ)))) THEN
-                 T=T*ABS(POL(JJ))
-               ELSE IF(POL(JJ).NE.1d0)THEN
-                 T=T*(2d0-ABS(POL(JJ)))
-               ENDIF
-             ENDDO
-             ANS=ANS+T
-             TS(I)=T
-           ENDIF
-        ENDDO
-        JHEL = 1
-        IF(NTRY.LE.MAXTRIES)THEN
-         DO I=1,NCOMB
-            IF (.NOT.GOODHEL(I) .AND. (TS(I).GT.ANS*LIMHEL/NCOMB)) THEN
-               GOODHEL(I)=.TRUE.
-               NGOOD = NGOOD +1
-               IGOOD(NGOOD) = I        
-               print *,'Adding good helicity ',I,TS(I)/ANS
-            ENDIF
-         ENDDO
-        ENDIF
-        IF(NTRY.EQ.MAXTRIES)THEN
-           ISUM_HEL=MIN(ISUM_HEL,NGOOD)
-        ENDIF
-    ELSE              !RANDOM HELICITY
-        DO J=1,ISUM_HEL
+c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
+      JHELBK=JHEL
+      IF (ISUM_HEL .EQ. 0 .OR. NTRY .LE. MAXTRIES) THEN
+         NUPPER=NCOMB
+         HWGT=1.
+      ELSE
+         NUPPER=ISUM_HEL
+         HWGT = REAL(NGOOD)/REAL(ISUM_HEL)
+      ENDIF
+c     Set perm selection info
+      FRAC=MIN(NUMPERMS,NPERMS)*1d0/NPERMS
+c     Correction factor for events where no permutation is selected
+      DO I=1,NPERMS
+         FACTNUL=FACTNUL*(1-FRAC)
+      ENDDO
+      FACTNUL=1-FACTNUL
+
+ 10 FIRSTFLOW=.TRUE.
+c     Start loop over permutations
+      DO IPERM=1,NPERMS
+        JHEL=JHELBK
+C     Decide whether to use this permutation
+        IF(XRAN1(IDUM).GT.FRAC) CYCLE
+c        PRINT *,'Use perm ',IPERM
+
+        CALL GETPERM1(IPERM,PERM)
+        DO J=1,NUPPER
+          IF (ISUM_HEL .EQ. 0 .OR. NTRY .LE. MAXTRIES) THEN
+            I=J
+            IF(.NOT.GOODHEL(I) .AND. NTRY .GT. MAXTRIES) CYCLE
+          ELSE
             JHEL=JHEL+1
             IF (JHEL .GT. NGOOD) JHEL=1
-            HWGT = REAL(NGOOD)/REAL(ISUM_HEL)
             I = IGOOD(JHEL)
-            T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM)
-            DO JJ=1,nincoming
-              IF(POL(JJ).NE.1d0.AND.NHEL(JJ,I).EQ.INT(SIGN(1d0,POL(JJ)))) THEN
-                T=T*ABS(POL(JJ))
-              ELSE IF(POL(JJ).NE.1d0)THEN
-                T=T*(2d0-ABS(POL(JJ)))
-              ENDIF
-            ENDDO
-            ANS=ANS+T*HWGT
-            TS(I)=T*HWGT
+          ENDIF
+          T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW)
+          DO JJ=1,NINCOMING
+            IF(POL(JJ).NE.1D0.AND.NHEL(JJ,I).EQ.INT(SIGN(1D0,POL(JJ)))) THEN
+              T=T*ABS(POL(JJ))
+            ELSE IF(POL(JJ).NE.1D0)THEN
+              T=T*(2D0-ABS(POL(JJ)))
+            ENDIF
+          ENDDO
+          ANS=ANS+T*HWGT/FRAC*FACTNUL
+          TS(I)=T*HWGT/FRAC*FACTNUL
         ENDDO
-        IF (ISUM_HEL .EQ. 1) THEN
-            WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
+        FIRSTFLOW=.FALSE.
+c        print *,'ANS: ',ANS
+        IF(NTRY.LE.MAXTRIES)THEN
+          DO I=1,NCOMB
+            IF (.NOT.GOODHEL(I) .AND. (TS(I).GT.ANS*LIMHEL/NCOMB)) THEN
+              GOODHEL(I)=.TRUE.
+              NGOOD = NGOOD +1
+              IGOOD(NGOOD) = I
+              PRINT *,'Adding good helicity ',I,TS(I)/ANS
+            ENDIF
+          ENDDO
         ENDIF
-    ENDIF
-    IF (ISUM_HEL .NE. 1) THEN
-    R=XRAN1(IDUM)*ANS
-    SUMHEL=0d0
-    DO I=1,NCOMB
-       SUMHEL=SUMHEL+TS(I)
-       IF(R.LT.SUMHEL)THEN
+        IF(NTRY.EQ.MAXTRIES)THEN
+          ISUM_HEL=MIN(ISUM_HEL,NGOOD)
+        ENDIF
+        IF (ISUM_HEL .EQ. 1) THEN
           WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
-          GOTO 10
-       ENDIF
-    ENDDO
- 10 CONTINUE   
-    ENDIF
-    IF (MULTI_CHANNEL) THEN
+        ENDIF
+      ENDDO
+C     If no permutation was chosen, repeat
+      IF(FIRSTFLOW) GOTO 10
+      IF (ISUM_HEL .NE. 1) THEN
+        R=XRAN1(IDUM)*ANS
+        SUMHEL=0D0
+        DO I=1,NCOMB
+          SUMHEL=SUMHEL+TS(I)
+          IF(R.LT.SUMHEL)THEN
+            WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
+            GOTO 20
+          ENDIF
+        ENDDO
+ 20     CONTINUE
+      ENDIF
+      IF (MULTI_CHANNEL) THEN
         XTOT=0D0
         DO I=1,NDIAGS
-            XTOT=XTOT+AMP2(I)
+          XTOT=XTOT+AMP2(I)
         ENDDO
+c        print *,'XTOT,AMP2: ',XTOT,AMP2(SUBDIAG(1))
         IF (XTOT.NE.0D0) THEN
-%(set_amp2_line)s
+          ANS=ANS*AMP2(SUBDIAG(1))/XTOT
         ELSE
-            ANS=0D0
+          ANS=0D0
         ENDIF
-    ENDIF
-    ANS=ANS/DBLE(IDEN)*NPERMS
-    END
+      ENDIF
+      ANS=ANS/DBLE(IDEN)
+      END
 
-C     ----------------------------------------------
-      REAL*8 FUNCTION MATRIX%(proc_id)s(P,NHEL,PERM)
-C     ----------------------------------------------
+C     --------------------------------------------------------
+      REAL*8 FUNCTION MATRIX%(proc_id)s(P,NHEL,PERM,FIRSTFLOW)
+C     --------------------------------------------------------
 C
 C Returns amplitude squared summed/avg over colors
 c for the point with external momenta P(0:3,NEXTERNAL)
@@ -204,6 +221,7 @@ C ARGUMENTS
 C  
       REAL*8 P(0:3,NEXTERNAL)
       INTEGER NHEL(NEXTERNAL),PERM(NEXTERNAL)
+      LOGICAL FIRSTFLOW
 C  
 C GLOBAL VARIABLES
 C  
@@ -226,13 +244,16 @@ C
       COMPLEX*16 ONEPERM%(proc_id)s
       EXTERNAL ONEPERM%(proc_id)s
 
+c     Skip calculating amp2s for PS if secondary flows
+      IF(.NOT.FIRSTFLOW) GOTO 10
+
 %(helas_calls)s
 
       DO I=1,NGRAPHS
         AMP2(I)=AMP2(I)+AMP(I)*DCONJG(AMP(I))
       ENDDO
 
-      ZTEMP = (0.D0,0.D0)
+ 10   ZTEMP = (0.D0,0.D0)
       ZTEMP=ZTEMP+ONEPERM%(proc_id)s(P,NHEL,PERM)
       MATRIX%(proc_id)s=REAL(ZTEMP)
 

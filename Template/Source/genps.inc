@@ -27,9 +27,10 @@ c      parameter (max_host=99,maxplace=199,maxpoints=100,maxans=50)
       parameter (maxfprb = maxinvar*maxplace*maxpoints)
 
 c*************************************************************************
-c	Parameters for helicity sums in matrixN.f
+c	Parameters for helicity and color flow sums in matrixN.f
 c*************************************************************************
       REAL*8 LIMHEL
       PARAMETER(LIMHEL=1e-6)
-      INTEGER MAXTRIES
-      PARAMETER(MAXTRIES=10)
+      INTEGER MAXTRIES,NUMPERMS
+      PARAMETER(MAXTRIES=10,NUMPERMS=10)
+      
