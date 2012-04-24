@@ -551,6 +551,22 @@ c-----
       enddo
       end
 
+      subroutine revperm(perm,perm1,nexternal)
+c**************************************************************************
+c     Changes stuff for crossings
+c**************************************************************************
+      implicit none
+      integer nexternal
+      integer perm(nexternal),perm1(nexternal)
+      integer i
+c-----
+c Begin Code
+c-----
+      do i=1,nexternal
+         perm1(perm(i))=i
+      enddo
+      end
+
       double precision function dot(p1,p2)
 C****************************************************************************
 C     4-Vector Dot product

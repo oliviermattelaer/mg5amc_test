@@ -978,6 +978,17 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         comp_data_line = self.get_comp_data_line(matrix_element)
         replace_dict['comp_data_line'] = comp_data_line
 
+        # Extract info about which permutations are close to leading color flow
+        if matrix_element.get('tch_depth') == 1 and \
+                matrix_element.get('identify_depth') == 1: 
+            npairs = 2
+            comp = [1,nexternal,2,3]
+        else:
+            npairs = 1
+            comp = [1,1]
+        replace_dict['npairs'] = npairs
+        replace_dict['comp_pairs'] = ",".join([str(c) for c in comp])
+
         # Create file contents
         file = open(os.path.join(_file_path, \
                                  'color_ordering/template_files/%s' % \

@@ -1068,6 +1068,9 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         self['color_flows'] = COHelasFlowList()
         self['min_Nc_power'] = 0
         self['permutations'] = []
+        self['include_all_t'] = False
+        self['tch_depth'] = 0
+        self['identify_depth'] = 0
         self['periferal_flow_perms'] = []
 
     def filter(self, name, value):
@@ -1087,6 +1090,16 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             if not isinstance(value, list):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid list" % str(value)
+        
+        elif name in ['include_all_t']:
+            if not isinstance(value, bool):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid bool" % str(value)
+        
+        elif name in ['tch_depth', 'identify_depth']:
+            if not isinstance(value, int):
+                raise self.PhysicsObjectError, \
+                        "%s is not a valid integer" % str(value)
         
         else:
             super(COHelasMatrixElement, self).filter(name, value)
@@ -1119,10 +1132,10 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 if gen_color and not self.get('color_matrix'):
                     self.build_color_matrix(gen_color)
                 if gen_periferal_diagrams:
-                    self.generate_periferal_diagrams(amplitude, decay_ids,
-                                                     include_all_t,
-                                                     tch_depth,
-                                                     identify_depth)
+                    self.set('include_all_t', include_all_t)
+                    self.set('tch_depth', tch_depth)
+                    self.set('identify_depth', identify_depth)
+                    self.generate_periferal_diagrams(amplitude, decay_ids)
             else:
                 # In this case, try to use amplitude as a dictionary
                 super(COHelasMatrixElement, self).__init__(amplitude)
@@ -1294,10 +1307,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         return color_ordered_amplitudes.ColorOrderedAmplitude.\
                                               get_comp_list(process)
 
-    def generate_periferal_diagrams(self, amplitude, decay_ids,
-                                    include_all_t = True,
-                                    tch_depth = 1,
-                                    identify_depth = 1):
+    def generate_periferal_diagrams(self, amplitude, decay_ids):
         """Generate wavefunctions and amplitudes for all periferal
         diagrams for this color ordered amplitude, for use in phase
         space integration"""
@@ -1306,9 +1316,9 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # permutations that contribute to each diagram from the amplitude
         periferal_diagrams, flow_permutations = \
                             amplitude.get_periferal_diagrams_from_flows(\
-                             include_all_t = include_all_t,
-                             tch_depth = tch_depth,
-                             identify_depth = identify_depth)
+                             include_all_t = self.get('include_all_t'),
+                             tch_depth = self.get('tch_depth'),
+                             identify_depth = self.get('identify_depth'))
         periferal_amplitude = diagram_generation.Amplitude()
         periferal_amplitude.set('process', amplitude.get('process'))
         periferal_amplitude.set('diagrams', periferal_diagrams)

@@ -47,11 +47,17 @@ C
     LOGICAL GOODHEL(NCOMB)
     REAL*8 HWGT,XTOT,XTRY,XREJ,XR,YFRAC(0:NCOMB),FRAC
     INTEGER IDUM,IPERM,NGOOD,IGOOD(NCOMB),JHEL,J,JJ
-    REAL     XRAN1
-    EXTERNAL XRAN1
-    REAL*8 FACTNUL
+    REAL*8 TOTFACT,FACTNUL
     INTEGER JHELBK,NUPPER
     LOGICAL FIRSTFLOW
+    REAL*8 COMBANS,PERMANS(NPERMS)
+    INTEGER IPERMFACT(NPERMS),LPERM(NEXTERNAL),TPERM(NEXTERNAL)
+    INTEGER PERMFACT%(proc_id)s
+    EXTERNAL PERMFACT%(proc_id)s
+    INTEGER PERMS(NEXTERNAL,LMAXCONFIGS)
+    INCLUDE 'symperms.inc'
+    REAL     XRAN1
+    EXTERNAL XRAN1
 C  
 C GLOBAL VARIABLES
 C  
@@ -97,6 +103,24 @@ C ----------
     DO I=1,NCOMB
        TS(I)=0d0
     ENDDO
+C     Reset permutation helper variables
+      DO I=1,NEXTERNAL
+        LPERM(I)=I
+        TPERM(I)=I
+      ENDDO
+c     Get reversed config permutation
+      CALL REVPERM(PERMS(1,MAPCONFIG(ICONFIG)),TPERM,NEXTERNAL)
+      COMBANS=0d0
+c     Calculate summed permutation weight
+      TOTFACT=0
+      DO IPERM=1,NPERMS
+         IPERMFACT(IPERM)=PERMFACT%(proc_id)s(LPERM)
+         TOTFACT=TOTFACT+IPERMFACT(IPERM)
+C     Correction factor for events where no permutation is selected
+         FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1D0/TOTFACT
+         FACTNUL=FACTNUL*(1-FRAC)
+      ENDDO
+      FACTNUL=1-FACTNUL
 c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
       JHELBK=JHEL
       IF (ISUM_HEL .EQ. 0 .OR. NTRY .LE. MAXTRIES) THEN
@@ -106,23 +130,19 @@ c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
          NUPPER=ISUM_HEL
          HWGT = REAL(NGOOD)/REAL(ISUM_HEL)
       ENDIF
-c     Set perm selection info
-      FRAC=MIN(NUMPERMS,NPERMS)*1d0/NPERMS
-c     Correction factor for events where no permutation is selected
-      DO I=1,NPERMS
-         FACTNUL=FACTNUL*(1-FRAC)
-      ENDDO
-      FACTNUL=1-FACTNUL
-
  10 FIRSTFLOW=.TRUE.
 c     Start loop over permutations
       DO IPERM=1,NPERMS
         JHEL=JHELBK
+c     Set perm selection info
+      FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1d0/TOTFACT
 C     Decide whether to use this permutation
         IF(XRAN1(IDUM).GT.FRAC) CYCLE
-c        PRINT *,'Use perm ',IPERM
-
-        CALL GETPERM1(IPERM,PERM)
+c     Get permutation
+        CALL GETPERM1(IPERM,LPERM)
+c     Compensate for config permutation
+        CALL SWITCHHEL(TPERM,PERM,LPERM,NEXTERNAL)
+c     Start loop over helicities
         DO J=1,NUPPER
           IF (ISUM_HEL .EQ. 0 .OR. NTRY .LE. MAXTRIES) THEN
             I=J
@@ -364,3 +384,45 @@ C ----------
          IF(OK) I=I+1
       ENDDO
       END
+
+C     ------------------------------------
+      FUNCTION PERMFACT%(proc_id)s(PERM)
+C     ------------------------------------
+C     
+C     Gives color factor for permutation PERM
+C     
+C     Process: g g > g g g g QCD=4 QED=0 WEIGHTED=4 singlet_QCD=0
+C     
+      IMPLICIT NONE
+C     
+C     CONSTANTS
+C     
+      INCLUDE 'nexternal.inc'
+      INCLUDE 'genps.inc'
+      INTEGER NPAIRS
+      PARAMETER(NPAIRS=%(npairs)d)
+C     
+C     ARGUMENTS 
+C     
+      INTEGER PERMFACT%(proc_id)s,PERM(NEXTERNAL)
+C     
+C     LOCAL VARIABLES 
+C     
+      INTEGER I,J,IPAIRS
+      LOGICAL OK
+      INTEGER COMP(2,NPAIRS)
+      DATA COMP/%(comp_pairs)s/
+C     ----------
+C     BEGIN CODE
+C     ----------
+      IPAIRS=0
+      IF(NPAIRS.GT.0.AND.PERM(NEXTERNAL).EQ.COMP(2,1)) IPAIRS=IPAIRS+1
+      DO I=1,NPAIRS
+         DO J=1,NEXTERNAL-1
+            IF(PERM(J).EQ.COMP(1,I).AND.PERM(J+1).EQ.COMP(2,I).OR.PERM(J).EQ.COMP(2,I).AND.PERM(J+1).EQ.COMP(1,I)) IPAIRS=IPAIRS+1
+         ENDDO
+      ENDDO
+      PERMFACT%(proc_id)s=IFACT**IPAIRS
+      RETURN
+      END
+
