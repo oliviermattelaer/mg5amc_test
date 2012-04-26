@@ -1309,7 +1309,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
     def generate_periferal_diagrams(self, amplitude, decay_ids):
         """Generate wavefunctions and amplitudes for all periferal
-        diagrams for this color ordered amplitude, for use in phase
+        diagrams for the color ordered amplitude, for use in phase
         space integration"""
 
         # Get all periferal diagrams as well as a list of color flows and

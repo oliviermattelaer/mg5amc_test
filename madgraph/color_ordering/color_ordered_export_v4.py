@@ -1045,7 +1045,7 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
     """Class to take care of exporting a set of matrix elements to
     MadEvent format."""
 
-    matrix_file = "co_super_matrix_madevent_v4.inc"
+    matrix_file = "co_super_matrix_madevent_group_v4.inc"
 
     #===========================================================================
     # generate_subprocess_directory_v4
