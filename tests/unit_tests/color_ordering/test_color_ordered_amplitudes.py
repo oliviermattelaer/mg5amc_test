@@ -313,6 +313,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
         self.mymodel.set('particles', self.mypartlist)
         self.mymodel.set('interactions', self.myinterlist)
+        self.mymodel.set('order_hierarchy', {'QCD': 1, 'QED': 2})
 
         self.ref_dict_to0 = self.myinterlist.generate_ref_dict()[0]
         self.ref_dict_to1 = self.myinterlist.generate_ref_dict()[1]
@@ -320,6 +321,8 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_color_ordered_model(self):
         """Test the ColorOrderedModel based on this model"""
         co_model = color_ordered_amplitudes.ColorOrderedModel(self.mymodel)
+        self.assertEqual(co_model.get('order_hierarchy'),
+                         {'QCD': 1, 'singlet_QCD': 1, 'QED': 2})
         singlet = base_objects.Particle({'name': 'g',
                                          'antiname': 'g',
                                          'spin': 3,

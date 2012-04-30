@@ -1450,7 +1450,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                 matrix_element_list = helas_objects.HelasDecayChainProcess(amplitude).\
                                       combine_decay_chain_processes()
             else:
-                logger.info("Generating Helas calls for %s" % \
+                logger.info("Generating Helas calls for color ordered %s" % \
                          amplitude.get('process').nice_string().\
                                            replace('Process', 'process'))
                 matrix_element_list = [cls.matrix_element_class(amplitude,
@@ -1462,7 +1462,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                                                    include_all_t = include_all_t,
                                                    tch_depth = tch_depth,
                                                    identify_depth = identify_depth)]
-
+                
             for matrix_element in matrix_element_list:
                 assert isinstance(matrix_element, helas_objects.HelasMatrixElement), \
                           "Not a HelasMatrixElement: %s" % matrix_element

@@ -1206,6 +1206,16 @@ class LegList(PhysicsObjectList):
 
         return res
 
+    def renumber_legs(self, num_dict, state_dict):
+        """Renumber legs in this LegList according to perm_map,
+        given the leg_list of the process"""
+
+        leg_list = copy.copy(self)
+        leg_list[:] = [copy.copy(l) for l in self]
+        for leg in leg_list:
+            leg.set('number', num_dict[leg.get('number')])
+            leg.set('state', state_dict[leg.get('number')])
+        return leg_list
 
 #===============================================================================
 # MultiLeg
@@ -1440,27 +1450,23 @@ class Diagram(PhysicsObject):
         # First renumber all legs in the n-1->1 vertices
         for vertex in self.get('vertices')[:-1]:
             vertex = copy.copy(vertex)
-            leg_list = LegList([copy.copy(l) for l in vertex.get('legs')])
-            for leg in leg_list[:-1]:
-                leg.set('number', min_dict[leg.get('number')])
-                leg.set('state', state_dict[leg.get('number')])
-            min_number = min([leg.get('number') for leg in leg_list[:-1]])
-            leg = leg_list[-1]
+            leg_list = copy.copy(vertex.get('legs'))
+            leg = copy.copy(leg_list.pop(-1))
+            leg_list = leg_list.renumber_legs(min_dict, state_dict)
+            min_number = min([l.get('number') for l in leg_list])
             min_dict[leg.get('number')] = min_number
             # resulting leg is initial state if there is exactly one
             # initial state leg among the incoming legs
-            state_dict[min_number] = len([l for l in leg_list[:-1] if \
+            state_dict[min_number] = len([l for l in leg_list if \
                                           not l.get('state')]) != 1
             leg.set('number', min_number)
             leg.set('state', state_dict[min_number])
+            leg_list.append(leg)
             vertex.set('legs', leg_list)
             vertices.append(vertex)
         # Now renumber the legs in final vertex
         vertex = copy.copy(self.get('vertices')[-1])
-        leg_list = LegList([copy.copy(l) for l in vertex.get('legs')])
-        for leg in leg_list:
-            leg.set('number', min_dict[leg.get('number')])
-            leg.set('state', state_dict[leg.get('number')])
+        leg_list = vertex.get('legs').renumber_legs(min_dict, state_dict)
         vertex.set('legs', leg_list)
         vertices.append(vertex)
         # Finally create new diagram
@@ -1923,6 +1929,27 @@ class Process(PhysicsObject):
             leg.set('number', ileg + 1)
             
         return LegList(legs)
+
+    def renumber_legs(self, num_dict):
+        """Renumber legs in the process according to num_dict"""
+
+        # Copy process and legs
+        process = copy.copy(self)
+        model = self.get('model')
+        leg_list = copy.copy(self.get('legs'))
+        leg_list[:] = [copy.copy(l) for l in leg_list]
+        # Generate a map from new leg number to state
+        state_dict = dict([(l.get('number'), l.get('state')) for l in leg_list])
+        # Renumber legs, keeping the correct state and id
+        for leg in leg_list:
+            leg.set('number', num_dict[leg.get('number')])
+            if leg.get('state') != state_dict[leg.get('number')]:
+                leg.set('state', state_dict[leg.get('number')])
+                leg.set('id', 
+                        model.get_particle(leg.get('id')).get_anti_pdg_code())
+        leg_list.sort()
+        process.set('legs', leg_list)
+        return process
 
     def list_for_sort(self):
         """Output a list that can be compared to other processes as:

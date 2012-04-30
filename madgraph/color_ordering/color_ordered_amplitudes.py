@@ -771,6 +771,27 @@ class ColorOrderedMultiProcess(diagram_generation.MultiProcess):
 
     amplitude_class = ColorOrderedAmplitude
 
+    @staticmethod
+    def cross_amplitude(amplitude, org_perm, new_perm):
+        """Return the color ordered amplitude crossed with the
+        permutation new_perm"""
+        
+        # Initiate new amplitude
+        new_amp = copy.copy(amplitude)
+        # Create dict from original leg numbers to new leg numbers
+        perm_map = dict(zip(org_perm, new_perm))
+        # New process with reordered legs
+        process = amplitude.get('process').renumber_legs(perm_map)
+        # Set process
+        new_amp.set('process', process)
+        # Cross all color flows
+        color_flows = ColorOrderedFlowList()
+        for flow in amplitude.get('color_flows'):
+            color_flows.append(diagram_generation.MultiProcess.\
+                             cross_amplitude(flow, org_perm, new_perm))
+        new_amp.set('color_flows', color_flows)
+        return new_amp
+
 #===============================================================================
 # ColorOrderedFlow
 #===============================================================================
@@ -971,7 +992,7 @@ class ColorOrderedModel(import_ufo.RestrictModel):
         """
 
         super(ColorOrderedModel, self).__init__(*arguments)
-
+        
         if len(arguments) == 1 and isinstance(arguments[0], base_objects.Model) \
                and not isinstance(arguments[0], ColorOrderedModel):
             self.add_color_singlets()
@@ -1041,6 +1062,11 @@ class ColorOrderedModel(import_ufo.RestrictModel):
             inter.set('orders', orders)
 
         interactions.extend(singlet_interactions)
+        order_hierarchy = self.get('order_hierarchy')
+        order_hierarchy['singlet_QCD'] = order_hierarchy['QCD']
+        expansion_order = self.get('expansion_order')
         self.set('interactions', interactions)
+        self.set('order_hierarchy', order_hierarchy)
+        self.set('expansion_order', expansion_order)
         return 
 

@@ -1358,7 +1358,7 @@ class MultiProcess(base_objects.PhysicsObject):
                                     repr(process_definition)
 
         # Set automatic coupling orders
-        process_definition.set('orders', MultiProcess.\
+        process_definition.set('orders', cls.\
                                find_optimal_process_orders(process_definition))
         # Check for maximum orders from the model
         process_definition.check_expansion_orders()
@@ -1483,9 +1483,8 @@ class MultiProcess(base_objects.PhysicsObject):
                         pass
                     else:
                         # Found crossing - reuse amplitude
-                        amplitude = MultiProcess.cross_amplitude(\
+                        amplitude = cls.cross_amplitude(\
                             amplitudes[crossed_index],
-                            process,
                             permutations[crossed_index],
                             permutation)
                         amplitudes.append(amplitude)
@@ -1694,18 +1693,17 @@ class MultiProcess(base_objects.PhysicsObject):
         return {coupling: len(fsids)*max(hierarchy)}
 
     @staticmethod
-    def cross_amplitude(amplitude, process, org_perm, new_perm):
+    def cross_amplitude(amplitude, org_perm, new_perm):
         """Return the amplitude crossed with the permutation new_perm"""
         # Create dict from original leg numbers to new leg numbers
         perm_map = dict(zip(org_perm, new_perm))
         # Initiate new amplitude
         new_amp = copy.copy(amplitude)
-        # Number legs
-        for i, leg in enumerate(process.get('legs')):
-            leg.set('number', i+1)
+        # New process with reordered legs
+        process = amplitude.get('process').renumber_legs(perm_map)
         # Set process
         new_amp.set('process', process)
-        # Now replace the leg numbers in the diagrams
+        # Replace the leg numbers in the diagrams
         diagrams = base_objects.DiagramList([d.renumber_legs(perm_map,
                                              process.get('legs')) for \
                                              d in new_amp.get('diagrams')])

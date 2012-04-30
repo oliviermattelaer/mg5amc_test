@@ -3408,9 +3408,10 @@ class MultiProcessTest(unittest.TestCase):
                                           'model':self.mymodel})
 
         crossamp = diagram_generation.MultiProcess.cross_amplitude(myamplitude,
-                                                                   crossproc,
                                                                    [3,4,2,1],
                                                                    [2,4,1,3])
+        self.assertEqual(crossamp.get('process'), crossproc)
+
         crossed_numbers =  [[[3, 1, 1], [2, 4, 1]],
                             [[3, 2, 2], [1, 4, 2]],
                             [[3, 4, 3], [1, 2, 3]]]
@@ -3424,6 +3425,8 @@ class MultiProcessTest(unittest.TestCase):
             self.assertEqual([[l.get('state') for l in v.get('legs')] \
                               for v in diagram.get('vertices')],
                              crossed_states[idiag])
+
+
 #===============================================================================
 # TestDiagramTag
 #===============================================================================

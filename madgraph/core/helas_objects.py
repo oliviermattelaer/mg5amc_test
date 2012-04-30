@@ -3383,7 +3383,6 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                 if not wf in wavefunctions and not wf in diagram_wavefunctions:
                     diagram_wavefunctions.append(wf)
             mothers.append(wf)
-
         return mothers
 
     def get_num_configs(self):
