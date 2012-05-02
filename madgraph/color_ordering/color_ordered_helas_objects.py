@@ -1314,11 +1314,12 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         # Get all periferal diagrams as well as a list of color flows and
         # permutations that contribute to each diagram from the amplitude
-        periferal_diagrams, flow_permutations = \
+        periferal_diagrams, flow_permutations, tch_depth= \
                             amplitude.get_periferal_diagrams_from_flows(\
                              include_all_t = self.get('include_all_t'),
                              tch_depth = self.get('tch_depth'),
                              identify_depth = self.get('identify_depth'))
+        self.set('tch_depth', tch_depth)
         periferal_amplitude = diagram_generation.Amplitude()
         periferal_amplitude.set('process', amplitude.get('process'))
         periferal_amplitude.set('diagrams', periferal_diagrams)

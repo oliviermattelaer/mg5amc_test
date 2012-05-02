@@ -51,7 +51,7 @@ C
     INTEGER JHELBK,NUPPER
     LOGICAL FIRSTFLOW
     REAL*8 COMBANS,PERMANS(NPERMS)
-    INTEGER IPERMFACT(NPERMS),LPERM(NEXTERNAL),TPERM(NEXTERNAL)
+    INTEGER IPERMFACT(NPERMS)
     INTEGER PERMFACT%(proc_id)s
     EXTERNAL PERMFACT%(proc_id)s
     INTEGER PERMS(NEXTERNAL,LMAXCONFIGS)
@@ -103,18 +103,13 @@ C ----------
     DO I=1,NCOMB
        TS(I)=0d0
     ENDDO
-C     Reset permutation helper variables
-      DO I=1,NEXTERNAL
-        LPERM(I)=I
-        TPERM(I)=I
-      ENDDO
-c     Get reversed config permutation
-      CALL REVPERM(PERMS(1,MAPCONFIG(ICONFIG)),TPERM,NEXTERNAL)
       COMBANS=0d0
 c     Calculate summed permutation weight
       TOTFACT=0
+      FACTNUL=1d0
       DO IPERM=1,NPERMS
-         IPERMFACT(IPERM)=PERMFACT%(proc_id)s(LPERM)
+         CALL GETPERM%(proc_id)s(IPERM,PERM)
+         IPERMFACT(IPERM)=PERMFACT%(proc_id)s(PERM)
          TOTFACT=TOTFACT+IPERMFACT(IPERM)
 C     Correction factor for events where no permutation is selected
          FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1D0/TOTFACT
@@ -139,9 +134,7 @@ c     Set perm selection info
 C     Decide whether to use this permutation
         IF(XRAN1(IDUM).GT.FRAC) CYCLE
 c     Get permutation
-        CALL GETPERM1(IPERM,LPERM)
-c     Compensate for config permutation
-        CALL SWITCHHEL(TPERM,PERM,LPERM,NEXTERNAL)
+        CALL GETPERM%(proc_id)s(IPERM,PERM)
 c     Start loop over helicities
         DO J=1,NUPPER
           IF (ISUM_HEL .EQ. 0 .OR. NTRY .LE. MAXTRIES) THEN

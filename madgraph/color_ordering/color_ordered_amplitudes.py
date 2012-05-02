@@ -665,6 +665,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         space integration."""
 
         process = self.get('color_flows')[0].get('process')
+        nfinal = len([l for l in process.get('legs') if l.get('state')])
         model = process.get('model')
 
         basic_diagrams = []
@@ -676,23 +677,35 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
         # Pick out the periferal diagrams from the basic flows
         idiag=0
-        for iflow, flow in enumerate(self.get('color_flows')):
-            for diag in flow.get('diagrams'):
-                tag = PeriferalDiagramTag(diag)
-                if not tag.check_periferal_diagram(model, order = 2,
-                                                 include_all_t = include_all_t):
-                    # This diagram is not periferal
+        done = False
+        while not done:
+            for iflow, flow in enumerate(self.get('color_flows')):
+                if flow.get('process').get('orders')['singlet_QCD'] > 0:
                     continue
-                idiag += 1
-                tag_array = tag.get_comp_array(identify_depth = identify_depth)
-                # If the diagram is not already represented, add it to
-                # basic_diagrams
-                if tag_array not in basic_tags and \
-                       tag.pass_restrictions(model, tch_depth = tch_depth):
-                    # Append tag to basic_tag
-                    basic_tags.append(tag_array)
-                    # Append diagram to basic_diagrams
-                    basic_diagrams.append(diag)
+                for diag in flow.get('diagrams'):
+                    tag = PeriferalDiagramTag(diag)
+                    if not tag.check_periferal_diagram(model, order = 2,
+                                                       include_all_t = \
+                                                           include_all_t):
+                        # This diagram is not periferal
+                        continue
+                    idiag += 1
+                    tag_array = tag.get_comp_array(identify_depth = \
+                                                       identify_depth)
+                    # If the diagram is not already represented, add it to
+                    # basic_diagrams
+                    if tag_array not in basic_tags and \
+                           tag.pass_restrictions(model, tch_depth = tch_depth):
+                        # Append tag to basic_tag
+                        basic_tags.append(tag_array)
+                        # Append diagram to basic_diagrams
+                        basic_diagrams.append(diag)
+            if not basic_diagrams and tch_depth > 0:
+                tch_depth -= 1
+            else:
+                done = True
+        
+        assert(basic_diagrams)
         
         # Now go through all permutations to get the full set of diagrams
         permutations = []
@@ -732,7 +745,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     flow_permutations[index].append((iflow, iperm))
 
         self.get('color_flows')[0].set('permutations', permutations)
-        return base_objects.DiagramList(all_diagrams), flow_permutations
+        return base_objects.DiagramList(all_diagrams), flow_permutations, \
+            tch_depth
 
     @staticmethod
     def get_comp_list(process):
@@ -743,7 +757,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         part_states = [(model.get_particle(l.get('id')), l.get('state')) \
                        for l in process.get('legs')]
         pdg_colors = [(p[0].get_pdg_code(), p[0].get_color()) if p[1] else \
-                     (p[0].get_anti_pdg_code(), p[0].get_color()) \
+                     (p[0].get_anti_pdg_code(), p[0].get_anti_color()) \
                      for p in part_states]
         pdg_dict = {}
         comp_list = []

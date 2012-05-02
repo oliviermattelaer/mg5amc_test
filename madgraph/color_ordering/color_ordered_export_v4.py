@@ -490,9 +490,9 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         replace_dict['flow_functions_lines'] = flow_functions_lines
 
         # Extract nperms
-        replace_dict['nperms'] = len(matrix_element.get('permutations'))        
+        replace_dict['nperms'] = len(matrix_element.get('permutations'))       
 
-        # Extract flow call lines and color sum lines
+        # Extract call lines and color sum lines
         nflows, needed_perms, perm_needed_flows, row_flow_factors, \
                 flow_jamp_dict = self.get_flow_info(matrix_element)
         nflowperms = len(needed_perms)
@@ -1039,6 +1039,9 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
 
         # LATER ON MAKE SURE TO IMPLEMENT THIS PROPERLY!
 
+#===============================================================================
+# ProcessExporterFortranCOMEGroup
+#===============================================================================
 class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
                                       ProcessExporterFortranCOME):
 
@@ -1053,6 +1056,8 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
     def generate_subprocess_directory_v4(self, subproc_group,
                                          co_helas_call_writer,
                                          group_number):
+
+        matrix_elements = subproc_group.get('matrix_elements')
 
         # First generate all files needed except for the flow files
         export_v4.ProcessExporterFortranMEGroup.\
@@ -1079,6 +1084,23 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
                     flow,
                     co_helas_call_writer,
                     me_flag)
+
+        # Rewrite maxamps.inc with correct values for flow
+        filename = os.path.join(self.dir_path,
+                                'SubProcesses',
+                                subprocdir,
+                                'maxamps.inc')
+
+        self.write_maxamps_file(writers.FortranWriter(filename),
+                           max([len(me.get('diagrams')) for me in \
+                                        matrix_elements]),
+                           max([len(me.get('color_flows')) for me in \
+                                        matrix_elements]),
+                           max([len(me.get('processes')) for me in \
+                                matrix_elements]),
+                           len(matrix_elements))
+
+
 
         return calls
 
