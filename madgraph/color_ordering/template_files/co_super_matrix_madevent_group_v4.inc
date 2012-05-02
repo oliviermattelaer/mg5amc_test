@@ -54,6 +54,7 @@ C
     LOGICAL FIRSTFLOW
     REAL*8 COMBANS,PERMANS(NPERMS)
     INTEGER IPERMFACT(NPERMS) 
+    INTEGER  LPERM(NEXTERNAL),TPERM(NEXTERNAL)
     INTEGER PERMFACT%(proc_id)s
     EXTERNAL PERMFACT%(proc_id)s
     INTEGER PERMS(NEXTERNAL,LMAXCONFIGS)
@@ -111,12 +112,19 @@ C ----------
     DO I=1,NCOMB
        TS(I)=0d0
     ENDDO
+    DO I=1,NEXTERNAL
+       TPERM(I)=I
+    ENDDO
+c     Get reversed config permutation
+      CALL REVPERM(PERMS(1,MAPCONFIG(ICONFIG)),TPERM,NEXTERNAL)
       COMBANS=0d0
 c     Calculate summed permutation weight
       TOTFACT=0
       FACTNUL=1d0
       DO IPERM=1,NPERMS
-         CALL GETPERM%(proc_id)s(IPERM,PERM)
+         CALL GETPERM%(proc_id)s(IPERM,LPERM)
+c     Compensate for config permutation
+         CALL SWITCHHEL(TPERM,PERM,LPERM,NEXTERNAL)
          IPERMFACT(IPERM)=PERMFACT%(proc_id)s(PERM)
          TOTFACT=TOTFACT+IPERMFACT(IPERM)
 C     Correction factor for events where no permutation is selected
@@ -165,6 +173,7 @@ c     Start loop over helicities
           TS(I)=T*HWGT/FRAC*FACTNUL
         ENDDO
         FIRSTFLOW=.FALSE.
+c        print *,'ANS: ',ANS
         IF(NTRY(IMIRROR).LE.MAXTRIES)THEN
           DO I=1,NCOMB
             IF (.NOT.GOODHEL(I,IMIRROR) .AND. (TS(I).GT.ANS*LIMHEL/NCOMB)) THEN

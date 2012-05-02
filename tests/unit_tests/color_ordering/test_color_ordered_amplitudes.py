@@ -1159,8 +1159,6 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
         # Time for 6 gluons: 5 min
 
-        self.assertEqual(True, False, "2+ triplet lines need to be fixed")
-
         # Test 2, 3, 4 and 5 gluons in the final state
         for ngluon in range (1, 4):
 
@@ -1194,6 +1192,76 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             goal_ndiags.append(len(diagrams))
             self.assertEqual(len(diagrams), goal_ndiags[ngluon - 1])
         print goal_ndiags
+
+    def test_periferal_diagrams_gu_wpgd(self):
+        """Test periferal diagrams for uu~>dd~+ng"""
+
+        # Time for 6 gluons: 5 min
+
+        # Create the amplitude
+        myleglist = base_objects.LegList([\
+            base_objects.Leg({'id':21, 'state':False}),
+            base_objects.Leg({'id':2, 'state':False}),
+            base_objects.Leg({'id':24}),
+            base_objects.Leg({'id':21}),
+            base_objects.Leg({'id':1})])
+
+        myproc = base_objects.Process({'legs':myleglist,
+                                       'orders':{'WEIGHTED':4},
+                                       'model':self.mymodel})
+
+        self.myamplitude.set('process', myproc)
+
+        self.myamplitude.generate_diagrams()
+
+        for i,cf in enumerate(self.myamplitude.get('color_flows')):
+            plot = draw.MultiEpsDiagramDrawer(cf.get('diagrams'),
+                                              "test1_%d.eps" % (i+1),
+                                              model=self.mymodel)
+            plot.draw()
+
+        diagrams, flow_perms, tch_depth = \
+                  self.myamplitude.get_periferal_diagrams_from_flows(True,
+                                                                     10,
+                                                                     1)
+
+        print diagrams.nice_string()
+        self.assertEqual(len(diagrams), 3)
+
+    def test_periferal_diagrams_gdx_wpgux(self):
+        """Test periferal diagrams for uu~>dd~+ng"""
+
+        # Time for 6 gluons: 5 min
+
+        # Create the amplitude
+        myleglist = base_objects.LegList([\
+            base_objects.Leg({'id':21, 'state':False}),
+            base_objects.Leg({'id':-1, 'state':False}),
+            base_objects.Leg({'id':24}),
+            base_objects.Leg({'id':21}),
+            base_objects.Leg({'id':-2})])
+
+        myproc = base_objects.Process({'legs':myleglist,
+                                       'orders':{'WEIGHTED':4},
+                                       'model':self.mymodel})
+
+        self.myamplitude.set('process', myproc)
+
+        self.myamplitude.generate_diagrams()
+
+        for i,cf in enumerate(self.myamplitude.get('color_flows')):
+            plot = draw.MultiEpsDiagramDrawer(cf.get('diagrams'),
+                                              "test2_%i.eps" % (i+1),
+                                              model=self.mymodel)
+            plot.draw()
+
+        diagrams, flow_perms, tch_depth = \
+                  self.myamplitude.get_periferal_diagrams_from_flows(True,
+                                                                     10,
+                                                                     1)
+
+        print diagrams.nice_string()
+        self.assertEqual(len(diagrams), 3)
 
 #===============================================================================
 # TestOrderDiagramTag

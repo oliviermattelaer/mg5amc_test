@@ -704,7 +704,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 tch_depth -= 1
             else:
                 done = True
-        
+
         assert(basic_diagrams)
         
         # Now go through all permutations to get the full set of diagrams
@@ -743,7 +743,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                         failed_tags.append(tag_array)
                 else:
                     flow_permutations[index].append((iflow, iperm))
-
         self.get('color_flows')[0].set('permutations', permutations)
         return base_objects.DiagramList(all_diagrams), flow_permutations, \
             tch_depth

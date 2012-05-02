@@ -979,7 +979,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         replace_dict['comp_data_line'] = comp_data_line
 
         # Extract info about which permutations are close to leading color flow
-        if matrix_element.get('tch_depth') == 1 and \
+        if matrix_element.get('tch_depth') == 10 and \
                 matrix_element.get('identify_depth') == 1: 
             npairs = 2
             comp = [1,nexternal,2,3]
