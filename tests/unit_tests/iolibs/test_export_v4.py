@@ -900,6 +900,7 @@ C     ----------
               NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
               IGOOD(NGOOD(IMIRROR),IMIRROR) = I
               PRINT *,'Added good helicity ',I,TS(I)*NCOMB/ANS
+     $         ,' in event ',NTRY(IMIRROR)
             ENDIF
           ENDDO
         ENDIF
@@ -1908,6 +1909,15 @@ C     Diagram 8
       DATA (IFOREST(I,-6,8),I=1,2)/-5,-4/
 C     Number of configs
       DATA MAPCONFIG(0)/8/
+""")
+
+        # Test maxconfigs.inc
+        writer = writers.FortranWriter(self.give_pos('test'))
+        exporter.write_maxconfigs_file(writer, subproc_groups)
+        writer.close()
+        self.assertFileContains('test',
+                                """      INTEGER LMAXCONFIGS
+      PARAMETER(LMAXCONFIGS=32)
 """)
 
         # Test config_subproc_map.inc
@@ -7208,6 +7218,15 @@ C     Number of configs
                                 "MAXPROC, MAXSPROC\n" + \
                                 "      PARAMETER (MAXAMPS=8, MAXFLOW=1)\n" + \
                                 "      PARAMETER (MAXPROC=1, MAXSPROC=1)\n")
+        # Test maxconfigs.inc
+        writer = writers.FortranWriter(self.give_pos('test'))
+        exporter.write_maxconfigs_file(writer, matrix_elements)
+        writer.close()
+        self.assertFileContains('test',
+                                """      INTEGER LMAXCONFIGS
+      PARAMETER(LMAXCONFIGS=72)
+""")
+
         # Test mg.sym
         writer = writers.FortranWriter(self.give_pos('test'))
         exporter.write_mg_sym_file(writer, me)
@@ -8536,6 +8555,15 @@ C     Number of configs
       DATA MAPCONFIG(0)/10/
 """)
         
+        # Test maxconfigs.inc
+        writer = writers.FortranWriter(self.give_pos('test'))
+        exporter.write_maxconfigs_file(writer, [me])
+        writer.close()
+        self.assertFileContains('test',
+                                """      INTEGER LMAXCONFIGS
+      PARAMETER(LMAXCONFIGS=10)
+""")
+
     def test_configs_4f_decay(self):
         """Test configs.inc for 4f decay process that failed in v. 1.3.27
         """
@@ -9288,8 +9316,8 @@ class UFO_model_to_mg4_Test(unittest.TestCase):
         self.assertEqual(expected, solution)
         
         #  internal params
-        self.assertEqual(len(mg4_model.params_dep), 1)
-        self.assertEqual(len(mg4_model.params_indep), 31)
+        self.assertEqual(len(mg4_model.params_dep), 2)
+        self.assertEqual(len(mg4_model.params_indep), 29)
         
         # couplings
         self.assertEqual(len(mg4_model.coups_dep), 3)
@@ -9299,11 +9327,12 @@ class UFO_model_to_mg4_Test(unittest.TestCase):
 
         
         # MG4 use G and not aS as it basic object for alphas related computation
-        #Pass G in the  independant list
-        self.assertTrue('G' not in [p.name for p in mg4_model.params_dep])
-        self.assertTrue('G' in [p.name for p in mg4_model.params_indep])
-        self.assertTrue('sqrt__aS' not in [p.name for p in mg4_model.params_dep])
-        self.assertTrue('sqrt__aS' in [p.name for p in mg4_model.params_indep])
+        # G is out of any list!
+        self.assertFalse('G' in [p.name for p in mg4_model.params_dep])
+        self.assertFalse('G' in [p.name for p in mg4_model.params_indep])
+        # check that sqrt__aS is correctly set
+        self.assertTrue('sqrt__aS' in [p.name for p in mg4_model.params_dep])
+        self.assertTrue('sqrt__aS' not in [p.name for p in mg4_model.params_indep])
         
         
     def test_case_sensitive(self):

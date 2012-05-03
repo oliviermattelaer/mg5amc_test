@@ -32,7 +32,6 @@ c*************************************************************************
       REAL*8 LIMHEL
       PARAMETER(LIMHEL=1e-6)
       INTEGER MAXTRIES,NUMPERMS
-      PARAMETER(MAXTRIES=10,NUMPERMS=10)
+      PARAMETER(MAXTRIES=100,NUMPERMS=10)
       INTEGER IFACT
       PARAMETER(IFACT=6)
-      

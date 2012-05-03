@@ -180,7 +180,7 @@ c        print *,'ANS: ',ANS
               GOODHEL(I,IMIRROR)=.TRUE.
               NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
               IGOOD(NGOOD(IMIRROR),IMIRROR) = I
-              PRINT *,'Adding good helicity ',I,TS(I)/ANS
+              PRINT *,'Added good helicity ',I,TS(I)*NCOMB/ANS,' in event ',NTRY(IMIRROR)
             ENDIF
           ENDDO
         ENDIF

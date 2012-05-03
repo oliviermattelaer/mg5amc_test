@@ -899,6 +899,10 @@ This will take effect only in a NEW terminal
         if args and args[0][0] != '-':
             # This is a path
             path = args.pop(0)
+            forbiden_chars = ['>','<',';','&']
+            for char in forbiden_chars:
+                if char in path:
+                    raise self.invalidCmd('%s is not allowed in the output path' % char)
             # Check for special directory treatment
             if path == 'auto' and self._export_format in \
                      ['madevent', 'standalone', 'standalone_cpp']:
@@ -1160,8 +1164,7 @@ class CompleteForCmd(cmd.CompleteCmd):
 
         # Directory continuation
         if args[-1].endswith(os.path.sep):
-            return self.path_completion(text,
-                                        pjoin('.',*[a for a in args \
+            return self.path_completion(text, pjoin(*[a for a in args \
                                                     if a.endswith(os.path.sep)]))
         # autocompletion for particles/couplings
         model_comp = self.model_completion(text, ' '.join(args[2:]))
@@ -1193,7 +1196,7 @@ class CompleteForCmd(cmd.CompleteCmd):
             return self.list_completion(text, self._display_opts)
 
         if len(args) == 2 and args[1] == 'checks':
-            return self.list_completion(text, 'failed')
+            return self.list_completion(text, ['failed'])
 
         if len(args) == 2 and args[1] == 'particles':
             return self.model_completion(text, line[begidx:])
@@ -1206,7 +1209,7 @@ class CompleteForCmd(cmd.CompleteCmd):
         # Directory continuation
         if args[-1].endswith(os.path.sep):
             return self.path_completion(text,
-                                        pjoin('.',*[a for a in args if a.endswith(os.path.sep)]),
+                                        pjoin(*[a for a in args if a.endswith(os.path.sep)]),
                                         only_dirs = True)
         # Format
         if len(args) == 1:
@@ -1226,7 +1229,7 @@ class CompleteForCmd(cmd.CompleteCmd):
         # Directory continuation
         if args[-1].endswith(os.path.sep):
             return self.path_completion(text,
-                                        pjoin('.',*[a for a in args if a.endswith(os.path.sep)]),
+                                        pjoin(*[a for a in args if a.endswith(os.path.sep)]),
                                         only_dirs = True)
         # Format
         if len(args) == 1:
@@ -1267,7 +1270,7 @@ class CompleteForCmd(cmd.CompleteCmd):
         # Directory continuation
         if args[-1].endswith(os.path.sep):
             return self.path_completion(text,
-                                        pjoin('.',*[a for a in args if \
+                                        pjoin(*[a for a in args if \
                                                       a.endswith(os.path.sep)]))
 
         # Filename if directory is not given
@@ -1286,22 +1289,23 @@ class CompleteForCmd(cmd.CompleteCmd):
         # Directory continuation
         if args[-1].endswith(os.path.sep):
             return self.path_completion(text,
-                                        pjoin('.',*[a for a in args if a.endswith(os.path.sep)]),
+                                        pjoin(*[a for a in args if a.endswith(os.path.sep)]),
                                         only_dirs = True)
 
         # Filename if directory is not given
         if len(args) == 2:
             return self.path_completion(text)
-        
+
+    @cmd.debug()    
     def complete_open(self, text, line, begidx, endidx): 
         """ complete the open command """
-
+        
         args = self.split_arg(line[0:begidx])
         
         # Directory continuation
         if os.path.sep in args[-1] + text:
             return self.path_completion(text,
-                                    pjoin('.',*[a for a in args if \
+                                    pjoin(*[a for a in args if \
                                                       a.endswith(os.path.sep)]))
 
         possibility = []
@@ -1349,7 +1353,7 @@ class CompleteForCmd(cmd.CompleteCmd):
             # Directory continuation
             if args[-1].endswith(os.path.sep):
                 return [name for name in self.path_completion(text,
-                        pjoin('.',*[a for a in args if a.endswith(os.path.sep)]),
+                        pjoin(*[a for a in args if a.endswith(os.path.sep)]),
                         only_dirs = True) if name not in forbidden_names]
             # options
             if args[-1][0] == '-' or len(args) > 1 and args[-2] == '-':
@@ -1388,7 +1392,7 @@ class CompleteForCmd(cmd.CompleteCmd):
         if args[-1] == '--output=' or args[-1].endswith(os.path.sep):
             # Directory continuation
             completion_categories['path'] =  [name for name in self.path_completion(text,
-                        pjoin('.',*[a for a in args if a.endswith(os.path.sep)]),
+                        pjoin(*[a for a in args if a.endswith(os.path.sep)]),
                         only_dirs = True) if name not in forbidden_names]
 
         else:
@@ -1445,7 +1449,7 @@ class CompleteForCmd(cmd.CompleteCmd):
                 return self.list_completion(text, first_set + second_set)
         elif len(args) >2 and args[-1].endswith(os.path.sep):
                 return self.path_completion(text,
-                        pjoin('.',*[a for a in args if a.endswith(os.path.sep)]),
+                        pjoin(*[a for a in args if a.endswith(os.path.sep)]),
                         only_dirs = True)
         
     def complete_import(self, text, line, begidx, endidx):
@@ -1537,7 +1541,7 @@ class CompleteForCmd(cmd.CompleteCmd):
                                       or os.path.exists(pjoin(MG5DIR,'models',p,'particles.dat')) \
                                       or os.path.exists(pjoin(self._mgme_dir,'Models',p,'particles.dat')) 
             else:
-                cur_path = pjoin('.',*[a for a in args \
+                cur_path = pjoin(*[a for a in args \
                                                    if a.endswith(os.path.sep)])
                 all_path =  self.path_completion(text, cur_path)
                 completion_categories['model name'] = all_path
@@ -1559,7 +1563,7 @@ class CompleteForCmd(cmd.CompleteCmd):
                         all_name += self.find_restrict_card(model_name, 
                                             base_dir=pjoin(MG5DIR,'models'))
                 if mode == 'all':
-                    cur_path = pjoin('.',*[a for a in args \
+                    cur_path = pjoin(*[a for a in args \
                                                         if a.endswith(os.path.sep)])
                     all_path =  self.path_completion(text, cur_path)
                     completion_categories['model name'] = all_path + all_name 
@@ -1913,7 +1917,6 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                 # check if a particle is asked more than once
                 if len(request_part) > len(set(request_part)):
                     for p in request_part:
-                        print p, request_part.count(p),present_part.count(p)
                         if request_part.count(p) > present_part.count(p):
                             continue
                         
@@ -2795,11 +2798,11 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
         # Load that path
         logger.info('Downloading %s' % path[args[0]])
         if sys.platform == "darwin":
-            subprocess.call(['curl', path[args[0]], '-o%s.tgz' % name], cwd=MG5DIR)
+            misc.call(['curl', path[args[0]], '-o%s.tgz' % name], cwd=MG5DIR)
         else:
-            subprocess.call(['wget', path[args[0]], '--output-document=%s.tgz'% name], cwd=MG5DIR)
+            misc.call(['wget', path[args[0]], '--output-document=%s.tgz'% name], cwd=MG5DIR)
         # Untar the file
-        returncode = subprocess.call(['tar', '-xzpvf', '%s.tgz' % name], cwd=MG5DIR, 
+        returncode = misc.call(['tar', '-xzpvf', '%s.tgz' % name], cwd=MG5DIR, 
                                      stdout=open(os.devnull, 'w'))
         if returncode:
             raise MadGraph5Error, 'Fail to download correctly the File. Stop'
@@ -2825,7 +2828,9 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
         # Compile the file
         # Check for F77 compiler
         if 'FC' not in os.environ or not os.environ['FC']:
-            if misc.which('gfortran'):
+            if self.options['fortran_compiler']:
+                compiler = self.options['fortran_compiler']
+            elif misc.which('gfortran'):
                  compiler = 'gfortran'
             elif misc.which('g77'):
                 compiler = 'g77'
@@ -2835,16 +2840,24 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                 path = os.path.join(MG5DIR, 'pythia-pgs', 'src', 'make_opts')
                 text = open(path).read()
                 text = text.replace('FC=g77','FC=gfortran')
-                open(path, 'w').writelines(text)            
-        
-        if logger.level <= logging.INFO: 
-            subprocess.call(['make', 'clean'], )
-            status = subprocess.call(['make'], cwd = os.path.join(MG5DIR, name))
+                open(path, 'w').writelines(text)    
+            elif compiler == 'gfortran' and args[0] == 'MadAnalysis':
+                path = os.path.join(MG5DIR, 'MadAnalysis', 'makefile')
+                text = open(path).read()
+                text = text.replace('FC=g77','FC=gfortran')
+                open(path, 'w').writelines(text)
+                            
+        if logger.level <= logging.INFO:
+            devnull = open(os.devnull,'w') 
+            misc.call(['make', 'clean'], stdout=devnull, stderr=-2)
+            status = misc.call(['make'], cwd = os.path.join(MG5DIR, name))
         else:
             misc.compile(['clean'], mode='', cwd = os.path.join(MG5DIR, name))
             status = misc.compile(mode='', cwd = os.path.join(MG5DIR, name))
         if not status:
             logger.info('compilation succeeded')
+        else:
+            logger.warning('Error detected during the compilation. Please check the compilation error and run make manually.')
 
 
         # Special treatment for TD program (require by MadAnalysis)
@@ -2859,15 +2872,15 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
             if sys.platform == "darwin":
                 logger.info('Downloading TD for Mac')
                 target = 'http://theory.fnal.gov/people/parke/TD/td_mac_intel.tar.gz'
-                subprocess.call(['curl', target, '-otd.tgz'], 
+                misc.call(['curl', target, '-otd.tgz'], 
                                                   cwd=pjoin(MG5DIR,'td'))      
-                subprocess.call(['tar', '-xzpvf', 'td.tgz'], 
+                misc.call(['tar', '-xzpvf', 'td.tgz'], 
                                                   cwd=pjoin(MG5DIR,'td'))
                 files.mv(MG5DIR + '/td/td_mac_intel',MG5DIR+'/td/td')
             else:
                 logger.info('Downloading TD for Linux 32 bit')
                 target = 'http://madgraph.phys.ucl.ac.be/Downloads/td'
-                subprocess.call(['wget', target], cwd=pjoin(MG5DIR,'td'))      
+                misc.call(['wget', target], cwd=pjoin(MG5DIR,'td'))      
                 os.chmod(pjoin(MG5DIR,'td','td'), 0775)
                 if sys.maxsize > 2**32:
                     logger.warning('''td program (needed by MadAnalysis) is not compile for 64 bit computer
@@ -3614,7 +3627,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
         elif self._export_format == 'madevent':          
             # Create configuration file [path to executable] for madevent
             filename = os.path.join(self._export_dir, 'Cards', 'me5_configuration.txt')
-            self.do_save('options %s' % filename, check=False)
+            self.do_save('options %s' % filename.replace(' ', '\ '), check=False)
 
         if self._export_format in ['madevent', 'standalone']:
             
