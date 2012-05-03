@@ -766,7 +766,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                       len(set([p[1] for p in pdg_colors])) == 1
         for ipart, (pdg, col) in enumerate(pdg_colors):
             if pdg in pdg_dict and col in [3, 8] and \
-                   (not octets_only or ipart > 0):
+                   (not octets_only or ipart > 1):
                 comp_list.append(pdg_dict[pdg])
             else:
                 comp_id += 1
