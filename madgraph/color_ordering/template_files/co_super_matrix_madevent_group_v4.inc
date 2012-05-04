@@ -60,6 +60,7 @@ C
     INTEGER PERMS(NEXTERNAL,LMAXCONFIGS)
     INCLUDE 'symperms.inc'
     REAL*8   RVEC
+    SAVE IPERMFACT,FACTNUL,TOTFACT
 C  
 C GLOBAL VARIABLES
 C  
@@ -114,23 +115,27 @@ C ----------
     DO I=1,NEXTERNAL
        TPERM(I)=I
     ENDDO
+    IF(NTRY(IMIRROR).EQ.1)THEN
 c     Get reversed config permutation
       CALL REVPERM(PERMS(1,MAPCONFIG(ICONFIG)),TPERM,NEXTERNAL)
       COMBANS=0d0
 c     Calculate summed permutation weight
       TOTFACT=0
-      FACTNUL=1d0
       DO IPERM=1,NPERMS
          CALL GETPERM%(proc_id)s(IPERM,LPERM)
 c     Compensate for config permutation
          CALL SWITCHHEL(TPERM,PERM,LPERM,NEXTERNAL)
          IPERMFACT(IPERM)=PERMFACT%(proc_id)s(PERM)
          TOTFACT=TOTFACT+IPERMFACT(IPERM)
+      ENDDO
 C     Correction factor for events where no permutation is selected
+      FACTNUL=1d0
+      DO IPERM=1,NPERMS
          FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1D0/TOTFACT
          FACTNUL=FACTNUL*(1-FRAC)
       ENDDO
       FACTNUL=1-FACTNUL
+    ENDIF
 c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
       JHELBK=JHEL(IMIRROR)
       IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
