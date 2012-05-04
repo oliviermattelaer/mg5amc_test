@@ -52,15 +52,8 @@ C
     REAL*8 TOTFACT,FACTNUL
     INTEGER JHELBK,NUPPER
     LOGICAL FIRSTFLOW
-    REAL*8 COMBANS,PERMANS(NPERMS)
-    INTEGER IPERMFACT(NPERMS) 
-    INTEGER  LPERM(NEXTERNAL),TPERM(NEXTERNAL)
-    INTEGER PERMFACT%(proc_id)s
-    EXTERNAL PERMFACT%(proc_id)s
-    INTEGER PERMS(NEXTERNAL,LMAXCONFIGS)
-    INCLUDE 'symperms.inc'
     REAL*8   RVEC
-    SAVE IPERMFACT,FACTNUL,TOTFACT
+    SAVE FRAC,FACTNUL
 C  
 C GLOBAL VARIABLES
 C  
@@ -112,26 +105,13 @@ C ----------
     DO I=1,NCOMB
        TS(I)=0d0
     ENDDO
-    DO I=1,NEXTERNAL
-       TPERM(I)=I
-    ENDDO
     IF(NTRY(IMIRROR).EQ.1)THEN
-c     Get reversed config permutation
-      CALL REVPERM(PERMS(1,MAPCONFIG(ICONFIG)),TPERM,NEXTERNAL)
-      COMBANS=0d0
 c     Calculate summed permutation weight
-      TOTFACT=0
-      DO IPERM=1,NPERMS
-         CALL GETPERM%(proc_id)s(IPERM,LPERM)
-c     Compensate for config permutation
-         CALL SWITCHHEL(TPERM,PERM,LPERM,NEXTERNAL)
-         IPERMFACT(IPERM)=PERMFACT%(proc_id)s(PERM)
-         TOTFACT=TOTFACT+IPERMFACT(IPERM)
-      ENDDO
+      TOTFACT=NPERMS
+      FRAC=MIN(NUMPERMS,NPERMS)*1D0/TOTFACT
 C     Correction factor for events where no permutation is selected
       FACTNUL=1d0
       DO IPERM=1,NPERMS
-         FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1D0/TOTFACT
          FACTNUL=FACTNUL*(1-FRAC)
       ENDDO
       FACTNUL=1-FACTNUL
@@ -149,8 +129,6 @@ c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
 c     Start loop over permutations
       DO IPERM=1,NPERMS
         JHEL(IMIRROR)=JHELBK
-c     Set perm selection info
-      FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1d0/TOTFACT
 C     Decide whether to use this permutation
         CALL RANMAR(RVEC)
         IF(RVEC.GT.FRAC) CYCLE
@@ -395,46 +373,5 @@ C ----------
 	 ENDDO
          IF(OK) I=I+1
       ENDDO
-      END
-
-C     ------------------------------------
-      FUNCTION PERMFACT%(proc_id)s(PERM)
-C     ------------------------------------
-C     
-C     Gives color factor for permutation PERM
-C     
-C     Process: g g > g g g g QCD=4 QED=0 WEIGHTED=4 singlet_QCD=0
-C     
-      IMPLICIT NONE
-C     
-C     CONSTANTS
-C     
-      INCLUDE 'nexternal.inc'
-      INCLUDE 'genps.inc'
-      INTEGER NPAIRS
-      PARAMETER(NPAIRS=%(npairs)d)
-C     
-C     ARGUMENTS 
-C     
-      INTEGER PERMFACT%(proc_id)s,PERM(NEXTERNAL)
-C     
-C     LOCAL VARIABLES 
-C     
-      INTEGER I,J,IPAIRS
-      LOGICAL OK
-      INTEGER COMP(2,NPAIRS)
-      DATA COMP/%(comp_pairs)s/
-C     ----------
-C     BEGIN CODE
-C     ----------
-      IPAIRS=0
-      IF(NPAIRS.GT.0.AND.PERM(NEXTERNAL).EQ.COMP(2,1)) IPAIRS=IPAIRS+1
-      DO I=1,NPAIRS
-         DO J=1,NEXTERNAL-1
-            IF(PERM(J).EQ.COMP(1,I).AND.PERM(J+1).EQ.COMP(2,I).OR.PERM(J).EQ.COMP(2,I).AND.PERM(J+1).EQ.COMP(1,I)) IPAIRS=IPAIRS+1
-         ENDDO
-      ENDDO
-      PERMFACT%(proc_id)s=IFACT**IPAIRS
-      RETURN
       END
 
