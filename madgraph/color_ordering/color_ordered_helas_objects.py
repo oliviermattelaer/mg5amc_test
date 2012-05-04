@@ -1377,12 +1377,45 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                    super(COHelasMatrixElement, self).get_used_couplings())
 
 #===============================================================================
+# DiagramTag class to compare color-ordered matrix elements
+#===============================================================================
+
+class IdentifyCOMETag(helas_objects.IdentifyMETag):
+    """Combine IdentifyMETags for the matrix element (integration diagrams) 
+       and all color flows."""
+
+    @staticmethod
+    def create_tag(amplitude, identical_particle_factor = 0):
+        """Create a tag which identifies identical matrix elements"""
+
+        assert(isinstance(amplitude, 
+                          color_ordered_amplitudes.ColorOrderedAmplitude))
+
+        process = amplitude.get('process')
+        ninitial = process.get_ninitial()
+        model = process.get('model')
+
+        # Create tag for main amplitude
+        tag = helas_objects.IdentifyMETag.create_tag(amplitude, 
+                                                     identical_particle_factor)
+
+        # Add tags for all color flows
+        for flow in amplitude.get('color_flows'):
+            tag.append(sorted([helas_objects.IdentifyMETag(d, model, ninitial) \
+                                   for d in amplitude.get('diagrams')]))
+        tag.sort()
+        return tag
+
+#===============================================================================
 # COHelasMultiProcess
 #===============================================================================
 class COHelasMultiProcess(helas_objects.HelasMultiProcess):
     """Version of HelasMultiProcess which generates COHelasMatrixElements"""
 
+    # Matrix element class
     matrix_element_class = COHelasMatrixElement
+    # Tag class to compare matrix elements
+    identify_tag_class = IdentifyCOMETag
 
     def __init__(self, argument=None, gen_color = 1, optimization = 3,
                  gen_periferal_diagrams = False,
@@ -1442,7 +1475,16 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
         list_color_basis = []
         list_color_matrices = []
 
+        # List of valid matrix elements
         matrix_elements = helas_objects.HelasMatrixElementList()
+        # List of identified matrix_elements
+        identified_matrix_elements = []
+        # List of amplitude tags, synchronized with identified_matrix_elements
+        amplitude_tags = []
+        # List of the external leg permutations for the amplitude_tags,
+        # which allows to reorder the final state particles in the right way
+        # for maximal process combination
+        permutations = []
 
         while amplitudes:
             # Pop the amplitude to save memory space
@@ -1454,7 +1496,15 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                 logger.info("Generating Helas calls for color ordered %s" % \
                          amplitude.get('process').nice_string().\
                                            replace('Process', 'process'))
-                matrix_element_list = [cls.matrix_element_class(amplitude,
+                # Create tag identifying the matrix element using
+                # IdentifyMETag. If two amplitudes have the same tag,
+                # they have the same matrix element
+                amplitude_tag = cls.identify_tag_class.create_tag(amplitude)
+                try:
+                    me_index = amplitude_tags.index(amplitude_tag)
+                except ValueError:
+                    # Create matrix element for this amplitude
+                    matrix_element_list = [cls.matrix_element_class(amplitude,
                                                    decay_ids=decay_ids,
                                                    gen_color=gen_color,
                                                    optimization = optimization,
@@ -1463,26 +1513,39 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                                                    include_all_t = include_all_t,
                                                    tch_depth = tch_depth,
                                                    identify_depth = identify_depth)]
+                    me = matrix_element_list[0]
+                    if me.get('processes') and me.get('diagrams'):
+                        # Keep track of amplitude tags
+                        amplitude_tags.append(amplitude_tag)
+                        identified_matrix_elements.append(me)
+                        permutations.append(amplitude_tag[-1][0].\
+                                            get_external_numbers())
+                else:
+                    # Identical matrix element found
+                    other_processes = identified_matrix_elements[me_index].\
+                                      get('processes')
+                    logger.info("Combining process with %s" % \
+                                other_processes[0].nice_string().\
+                                replace('Process: ', ''))
+                    other_processes.append(cls.reorder_process(\
+                        amplitude.get('process'),
+                        permutations[me_index],
+                        amplitude_tag[-1][0].get_external_numbers()))
+                    # Go on to next amplitude
+                    continue
                 
+            # Deal with newly generated matrix element
             for matrix_element in matrix_element_list:
                 assert isinstance(matrix_element, helas_objects.HelasMatrixElement), \
                           "Not a HelasMatrixElement: %s" % matrix_element
 
-                try:
-                    # If an identical matrix element is already in the list,
-                    # then simply add this process to the list of
-                    # processes for that matrix element
-                    me_index = matrix_elements.index(matrix_element)
-                    other_processes = matrix_elements[me_index].get('processes')
-                    logger.info("Combining process with %s" % \
-                      other_processes[0].nice_string().replace('Process: ', ''))
-                    other_processes.extend(matrix_element.get('processes'))
-                except ValueError:
-                    # Otherwise, if the matrix element has any diagrams,
-                    # add this matrix element.
-                    if matrix_element.get('processes') and \
-                           matrix_element.get('color_flows'):
-                        matrix_elements.append(matrix_element)
+                # If the matrix element has no diagrams,
+                # remove this matrix element.
+                if not matrix_element.get('processes') or \
+                       not matrix_element.get('color_flows'):
+                    continue
+                # Otherwise, add this matrix element to list
+                matrix_elements.append(matrix_element)
 
         return matrix_elements
 

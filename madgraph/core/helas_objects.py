@@ -4067,6 +4067,12 @@ class HelasMultiProcess(base_objects.PhysicsObject):
     generates the HelasMatrixElements for the Amplitudes, identifying
     processes with identical matrix elements"""
 
+    # Matrix element class
+    matrix_element_class = HelasMatrixElement
+
+    # Tag class to compare matrix elements
+    identify_tag_class = IdentifyMETag
+
     def default_setup(self):
         """Default values for all properties"""
 
@@ -4141,8 +4147,6 @@ class HelasMultiProcess(base_objects.PhysicsObject):
     # generate_matrix_elements
     #===========================================================================
 
-    matrix_element_class = HelasMatrixElement
-
     @classmethod
     def generate_matrix_elements(cls, amplitudes, gen_color = True,
                                 decay_ids = [], combine_matrix_elements = True):
@@ -4188,7 +4192,7 @@ class HelasMultiProcess(base_objects.PhysicsObject):
                 # Create tag identifying the matrix element using
                 # IdentifyMETag. If two amplitudes have the same tag,
                 # they have the same matrix element
-                amplitude_tag = IdentifyMETag.create_tag(amplitude)
+                amplitude_tag = cls.identify_tag_class.create_tag(amplitude)
                 try:
                     me_index = amplitude_tags.index(amplitude_tag)
                 except ValueError:
@@ -4217,6 +4221,7 @@ class HelasMultiProcess(base_objects.PhysicsObject):
                         amplitude_tag[-1][0].get_external_numbers()))
                     # Go on to next amplitude
                     continue
+
             # Deal with newly generated matrix element
             for matrix_element in copy.copy(matrix_element_list):
                 assert isinstance(matrix_element, HelasMatrixElement), \
@@ -4281,10 +4286,10 @@ class HelasMultiProcess(base_objects.PhysicsObject):
         """Reorder the legs in the process according to the difference
         between org_perm and proc_perm"""
 
-        leglist = base_objects.LegList(\
-                  [copy.copy(process.get('legs')[i]) for i in \
-                   diagram_generation.DiagramTag.reorder_permutation(\
-                       proc_perm, org_perm)])
+        leglist = copy.copy(process.get('legs'))
+        leglist[:] = [copy.copy(leglist[i]) for i in \
+                       diagram_generation.DiagramTag.reorder_permutation(\
+                       proc_perm, org_perm)]
         new_proc = copy.copy(process)
         new_proc.set('legs', leglist)
         return new_proc
