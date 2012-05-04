@@ -59,8 +59,7 @@ C
     EXTERNAL PERMFACT%(proc_id)s
     INTEGER PERMS(NEXTERNAL,LMAXCONFIGS)
     INCLUDE 'symperms.inc'
-    REAL     XRAN1
-    EXTERNAL XRAN1
+    REAL*8   RVEC
 C  
 C GLOBAL VARIABLES
 C  
@@ -148,7 +147,8 @@ c     Start loop over permutations
 c     Set perm selection info
       FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1d0/TOTFACT
 C     Decide whether to use this permutation
-        IF(XRAN1(IDUM).GT.FRAC) CYCLE
+        CALL RANMAR(RVEC)
+        IF(RVEC.GT.FRAC) CYCLE
 c     Get permutation
         CALL GETPERM%(proc_id)s(IPERM,PERM)
 c     Start loop over helicities
@@ -194,7 +194,8 @@ c        print *,'ANS: ',ANS
 C     If no permutation was chosen, repeat
       IF(FIRSTFLOW) GOTO 10
       IF (ISHEL(IMIRROR) .NE. 1) THEN
-        R=XRAN1(IDUM)*ANS
+        CALL RANMAR(RVEC)
+        R=RVEC*ANS
         SUMHEL=0D0
         DO I=1,NCOMB
           SUMHEL=SUMHEL+TS(I)
