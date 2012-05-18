@@ -24,7 +24,6 @@ generate only color-ordered diagrams.
 ColorOrderedModel adds color singlets coupling only to triplets for
 each color octet in the model.
 """
-
 import array
 import copy
 import fractions
@@ -289,26 +288,47 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
         [depth, external number] (if external)."""
 
         if self.end_link:
-            return [[0] + self.get_external_numbers()]
+            return [[0] + self.get_external_numbers() + \
+                        [self.links[0][0][1]]]
 
         res_array = []
         links = self.links
         left_links = []
         depth = self.depth
         if amp_link:
+            # This is the amplitude (i.e., the original call)
             depths = sorted([(d,i) for (i,d) in \
                              enumerate([l.depth for l in self.links])])
             depth = depths[0][0]+depths[1][0]+1
+            # links are the first two links (out of 3)
             links = [self.links[d[1]] for d in depths[:2]]
+            # left_links is the last link (with largest depth)
             left_links.append(self.links[depths[2][1]])
         for link in links:
+            # Recursive call
             res_array.extend(link.fill_comp_array(False, identify_depth))
         res_array.sort()
         if depth <= identify_depth:
-            res_array.insert(0,depth)
+            #print "depth: ",depth,"res_array: ",res_array
+            res_array.insert(0, [depth])
+            # Remove particle id, since not needed
+            for i,entry in enumerate(res_array):
+                if len(entry) == 3:
+                    res_array[i].pop(2)
             res_array = [self.flatten(res_array)]
+            #print "flattened res_array: ",res_array
+        else:
+            # Remove number and keep only id
+            res_array.sort()
+            res_array.insert(0, [depth])
+            for i,entry in enumerate(res_array):
+                if len(entry) == 3:
+                    res_array[i].pop(1)
+            res_array = [self.flatten(res_array)]
+            #print "large depth: ",depth,"res_array: ",res_array
         for link in left_links:
             res_array.extend(link.fill_comp_array(False, identify_depth))
+        #print "final res_array before sort: ",res_array
         res_array.sort()
         return res_array
 
@@ -372,6 +392,7 @@ class PeriferalDiagramTag(OrderDiagramTag):
 
         comp_list = self.tag.fill_comp_array(amp_link = True,
                                              identify_depth = identify_depth)
+        #print "comp_array: ",comp_list
         return array.array('i', sum(comp_list, []))
 
 #===============================================================================
@@ -696,6 +717,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     # basic_diagrams
                     if tag_array not in basic_tags and \
                            tag.pass_restrictions(model, tch_depth = tch_depth):
+                        
+                        print tag_array
                         # Append tag to basic_tag
                         basic_tags.append(tag_array)
                         # Append diagram to basic_diagrams
@@ -736,6 +759,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     # Check if this diagram passes the rules to be used
                     # for phase space integration
                     if tag.pass_restrictions(model, tch_depth = tch_depth):
+                        print tag_array
                         all_tags.append(tag_array)
                         all_diagrams.append(diag)
                         flow_permutations.append([(iflow,iperm)])
