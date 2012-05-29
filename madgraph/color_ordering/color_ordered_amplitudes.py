@@ -715,8 +715,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                                        identify_depth)
                     # If the diagram is not already represented, add it to
                     # basic_diagrams
-                    if tag_array not in basic_tags and \
-                           tag.pass_restrictions(model, tch_depth = tch_depth):
+                    if tag_array not in basic_tags:# and \
+                           #tag.pass_restrictions(model, tch_depth = tch_depth):
                         
                         print tag_array
                         # Append tag to basic_tag

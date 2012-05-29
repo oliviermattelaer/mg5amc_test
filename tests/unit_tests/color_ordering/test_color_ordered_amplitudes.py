@@ -1038,10 +1038,10 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             self.assertEqual(len(diagrams), goal_ndiags[ngluon - 3])
         # print goal_ndiags
 
-    def test_periferal_diagrams_gluons_tch_1_id_1(self):
+    def test_periferal_diagrams_gluons_tch_10_id_1(self):
         """Test periferal diagrams for gg>ng"""
 
-        goal_ndiags = [6, 24, 80, 300]
+        goal_ndiags = [6, 12, 20, 30]
 
         # Time for 6 gluons: 5 min
 
@@ -1064,12 +1064,12 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             diagrams, flow_perms, tch_depth = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
-                            include_all_t = True, tch_depth = 1,
+                            include_all_t = True, tch_depth = 10,
                             identify_depth = 1)
 
             print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
-                                              "allperiferal11%i.eps" % ngluon, 
+                                              "allperiferal101%i.eps" % ngluon, 
                                               model=self.mymodel)
             plot.draw()
             goal_ndiags.append(len(diagrams))

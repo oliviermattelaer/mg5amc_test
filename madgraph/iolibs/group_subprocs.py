@@ -309,6 +309,33 @@ class SubProcessGroup(base_objects.PhysicsObject):
                     diagram_maps[ime].append(0)
                     continue
                 
+                if False:
+                    # Use only periferal diagrams
+                    tag = color_ordered_amplitudes.PeriferalDiagramTag(diagram)
+                    # Use get_comp_array for very fast comparison between tags
+                    tag_array = tag.get_comp_array(identify_depth = 1)
+                    # Check if diagram already failed
+                    if tag_array in failed_tags:
+                        diagram_maps[ime].append(0)
+                        continue
+                    # Check if the diagram is already represented,
+                    # otherwise append tag, diagram, and (flow, permutation)
+                    try:
+                        index = used_tags.index(tag_array)
+                    except ValueError:
+                        # Check if this diagram passes the rules to be used
+                        # for phase space integration
+                        if tag.pass_restrictions(model, tch_depth = 10):
+                            used_tags.append(tag_array)
+                            used_diagrams.append(diagram)
+                        else:
+                            failed_tags.append(tag_array)
+                            diagram_maps[ime].append(0)
+                            continue
+                    else:
+                            diagram_maps[ime].append(0)
+                            continue
+
                 # Create the equivalent diagram, in the format
                 # [[((ext_number1, mass_width_id1), ..., )],
                 #  ...]                 (for each vertex)
