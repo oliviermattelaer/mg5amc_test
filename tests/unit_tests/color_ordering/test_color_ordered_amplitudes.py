@@ -470,11 +470,13 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_color_ordered_uux_uuxng(self):
         """Test the number of color flows and diagrams for uu~>uu~+ng
         """
-        goal_ndiags = [[1, 1], [3, 2, 3, 2], [10, 5, 11, 4, 10, 5],[37, 16, 41, 10, 41, 10, 37, 16]]
+        goal_ndiags = [[1, 1], [3, 3, 2, 2], [10, 11, 10, 5, 4, 5], [37, 41, 41, 37, 16, 10, 10, 16]]
         goal_nflows = [2, 4, 6, 8]
         goal_nperms = [[2] * 2, [2] * 4, [4] * 6, [12] * 8]
+        
+        #goal_ndiags = []
 
-        for ngluons in range(0, 3):
+        for ngluons in range(0, 4):
 
             myleglist = base_objects.LegList()
 
@@ -507,7 +509,9 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             perms = self.myamplitude.get('color_flows')[0].get('permutations')
             perms_0 = [base_objects.reorder_permutation(perm, perms[0]) for \
                        perm in perms]
+            #diags = []
             for iflow, flow in enumerate(self.myamplitude.get('color_flows')):
+                #diags.append(len(flow.get('diagrams')))
                 self.assertEqual(len(flow.get('diagrams')),
                              goal_ndiags[ngluons][iflow])
                 self.assertEqual(len(flow.get('permutations')),
@@ -517,7 +521,9 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                 perms = [base_objects.reorder_permutation(perm, flow.get('permutations')[0]) for \
                        perm in flow.get('permutations')]
                 self.assertEqual(perms, perms_0)
-            
+            #goal_ndiags.append(diags)
+        #print 'goal_ndiags = ',goal_ndiags
+
     def test_color_ordered_uux_ddxng(self):
         """Test the number of color flows and diagrams for uu~>dd~+ng
         """
@@ -564,14 +570,14 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_color_ordered_uux_ddxssxng(self):
         """Test the number of color flows and diagrams for uu~>dd~ssx+ng
         """
-        goal_ndiags = [[4, 4, 4, 6, 4, 4],
-                       [16, 16, 14, 8, 16, 14, 14, 14, 14, 14, 8, 14, 16, 16, 8, 14, 16, 14],
-                       [63, 69, 63, 50, 28, 20, 69, 69, 56, 28, 63, 50, 50, 56, 50, 38, 32, 38, 28, 28, 32, 32, 20, 38, 63, 69, 63, 20, 28, 50, 69, 69, 28, 56, 63, 50]]
+        goal_ndiags = [[4, 4, 4, 4, 4, 6], 
+                       [16, 16, 16, 16, 16, 16, 14, 8, 14, 14, 14, 8, 8, 14, 14, 14, 14, 14], 
+                       [63, 69, 63, 69, 69, 63, 63, 69, 63, 69, 69, 63, 50, 28, 20, 56, 28, 50, 50, 56, 50, 28, 28, 20, 20, 28, 50, 28, 56, 50, 38, 32, 38, 32, 32, 38]]
         
         goal_nflows = [6, 18, 36]
         #goal_nflows = []
         #goal_ndiags = []
-        for ngluons in range(0, 3):
+        for ngluons in range(0, 2):
 
             myleglist = base_objects.LegList()
 
@@ -622,9 +628,9 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_color_ordered_uux_uuxddxng(self):
         """Test number of color flows and diagrams for uu~>uu~dd~+ng
         """
-        goal_ndiags =  [[4, 4, 4, 6, 4, 4],
-                        [16, 14, 16, 14, 14, 14, 8, 14, 16, 8, 14, 14, 16, 8, 16, 14, 16, 14],
-                        [63, 50, 69, 56, 63, 50, 50, 38, 28, 32, 20, 38, 69, 28, 69, 28, 56, 32, 28, 32, 63, 20, 50, 38, 63, 20, 69, 28, 63, 50, 69, 28, 69, 56, 63, 50]]
+        goal_ndiags =  [[4, 4, 4, 4, 4, 6], 
+                        [16, 16, 16, 16, 16, 16, 14, 14, 14, 8, 8, 14, 8, 14, 14, 14, 14, 14], 
+                        [63, 69, 63, 69, 69, 63, 63, 69, 63, 69, 69, 63, 50, 56, 50, 50, 28, 20, 28, 28, 56, 28, 20, 50, 20, 28, 50, 28, 56, 50, 38, 32, 38, 32, 32, 38]]
         
         goal_nflows = [6, 18, 36]
         #goal_nflows = []
@@ -782,8 +788,10 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_color_ordered_uux_uuxepemng(self):
         """Test color flows and diagrams for uu~>uu~e+e-+ng with n up to 2
         """
-        goal_ndiags = [[4, 4], [14, 10, 14, 10], [50, 28, 56, 24, 50, 28]]
+        goal_ndiags = [[4, 4], [14, 14, 10, 10], [50, 56, 50, 28, 24, 28]]
         goal_nflows = [2, 4, 6]
+
+        #goal_ndiags = []
 
         for ngluons in range(0, 2):
 
@@ -818,10 +826,15 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.assertEqual(len(self.myamplitude.get('color_flows')),
                              goal_nflows[ngluons])
+            #diags = []
             for iflow, flow in enumerate(self.myamplitude.get('color_flows')):
+                #diags.append(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')))
                 self.assertEqual(len(self.myamplitude.get('color_flows')[iflow].get('diagrams')),
                              goal_ndiags[ngluons][iflow])
                 
+            #goal_ndiags.append(diags)
+        #print "goal_ndiags = ",goal_ndiags
+
     def test_color_ordered_gg_h_nglue(self):
         """Test the number of color ordered diagrams gg>h+ng with n up to 3"""
 
@@ -1008,7 +1021,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         # Time for 6 gluons: 5 min
 
         # Test 2, 3, 4 and 5 gluons in the final state
-        for ngluon in range (3, 7):
+        for ngluon in range (3, 6):
 
             # Create the amplitude
             myleglist = base_objects.LegList([base_objects.Leg({'id':21,
@@ -1046,7 +1059,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         # Time for 6 gluons: 5 min
 
         # Test 3, 4 and 5 gluons in the final state
-        for ngluon in range (3, 7):
+        for ngluon in range (3, 6):
 
             # Create the amplitude
             myleglist = base_objects.LegList([base_objects.Leg({'id':21,
@@ -1084,7 +1097,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         # Time for 6 gluons: 5 min
 
         # Test 3, 4 and 5 gluons in the final state
-        for ngluon in range (3, 7):
+        for ngluon in range (3, 6):
 
             # Create the amplitude
             myleglist = base_objects.LegList([base_objects.Leg({'id':21,
@@ -1122,7 +1135,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         # Time for 6 gluons: 5 min
 
         # Test 3, 4 and 5 gluons in the final state
-        for ngluon in range (3, 7):
+        for ngluon in range (3, 6):
 
             # Create the amplitude
             myleglist = base_objects.LegList([base_objects.Leg({'id':21,
@@ -1160,7 +1173,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
         # Time for 6 gluons: 5 min
 
         # Test 3, 4 and 5 gluons in the final state
-        for ngluon in range (3, 7):
+        for ngluon in range (3, 6):
 
             # Create the amplitude
             myleglist = base_objects.LegList([base_objects.Leg({'id':21,

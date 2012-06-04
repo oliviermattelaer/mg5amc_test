@@ -608,29 +608,31 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         # group, and each entry in the chain has a unique color flow
         # flag {chain:(n,n)}
 
-        for iperm, perm in enumerate(leg_perms):
-            colegs = base_objects.LegList([ColorOrderedLeg(l) for l in legs])
-            # Keep track of number of triplets
-            ichain = 0
-            ileg = 0
-            # Set color ordering flags for all colored legs
-            for perm_leg in list(perm) + last_leg:
-                leg = colegs[perm_leg[0]-1]
-                if perm_leg[2] == 3:
-                    ichain += 1
-                    ileg = 0
-                ileg += 1
-                leg.set('color_ordering', {ichain: (ileg, ileg)})
+        ntriplets = len(triplet_legs)
+        # Create the color ordered flows for all combinations
+        # numbers of octet and singlet gluon
+        for iflow in range(max(1, ntriplets)):
+            for iperm, perm in enumerate(leg_perms):
+                colegs = base_objects.LegList([ColorOrderedLeg(l) for l in legs])
+                # Keep track of number of triplets
+                ichain = 0
+                ileg = 0
+                # Set color ordering flags for all colored legs
+                for perm_leg in list(perm) + last_leg:
+                    leg = colegs[perm_leg[0]-1]
+                    if perm_leg[2] == 3:
+                        ichain += 1
+                        ileg = 0
+                    ileg += 1
+                    leg.set('color_ordering', {ichain: (ileg, ileg)})
 
-            # Restore initial state leg identities
-            for leg in colegs:
-                if not leg.get('state'):
-                    leg.set('id', model.get_particle(leg.get('id')).\
-                            get_anti_pdg_code())
+                # Restore initial state leg identities
+                for leg in colegs:
+                    if not leg.get('state'):
+                        leg.set('id', model.get_particle(leg.get('id')).\
+                                get_anti_pdg_code())
 
-            # Create the color ordered flows for all combinations
-            # numbers of octet and singlet gluon
-            for iflow in range(max(1, ichain)):
+                # Create the color ordered process
                 coprocess = copy.copy(process)
                 coprocess.set('orders', copy.copy(process.get('orders')))
                 coprocess.set('legs', colegs)
@@ -640,7 +642,10 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     if coprocess.get('orders')['QCD'] < 0:
                         continue
                 coprocess.get('orders')['singlet_QCD'] = 2*iflow
+
+                # Create and generate diagrams for the color flow
                 flow = ColorOrderedFlow(coprocess)
+                
                 if flow.get('diagrams'):
                     # Set permutation information for this flow
                     # (relative to first permutation)
@@ -661,7 +666,11 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                         flow.get('diagrams')[idiag] = \
                                       OrderDiagramTag(diag).\
                                                          diagram_from_tag(model)
-                    
+            # If there are no diagrams for singlet_QCD=0, there are no
+            # diagrams at all for this process. Cancel generation.
+            if iflow == 0 and not color_flows:
+                break
+
         self.set('color_flows', color_flows)
         return self.get('diagrams')
 
@@ -688,6 +697,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         process = self.get('color_flows')[0].get('process')
         nfinal = len([l for l in process.get('legs') if l.get('state')])
         model = process.get('model')
+        all_gluons = not any([l.get('id') != 21 for l in process.get('legs')])
 
         basic_diagrams = []
         basic_tags = []
@@ -714,16 +724,20 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     tag_array = tag.get_comp_array(identify_depth = \
                                                        identify_depth)
                     # If the diagram is not already represented, add it to
-                    # basic_diagrams
-                    if tag_array not in basic_tags:# and \
-                           #tag.pass_restrictions(model, tch_depth = tch_depth):
-                        
-                        print tag_array
+                    # basic_diagrams. If this is all-gluon amplitude, keep
+                    # only t-channel diagrams.
+                    if tag_array not in basic_tags and \
+                       (not all_gluons or \
+                        tag.pass_restrictions(model, tch_depth = tch_depth)):
                         # Append tag to basic_tag
                         basic_tags.append(tag_array)
                         # Append diagram to basic_diagrams
                         basic_diagrams.append(diag)
-            if not basic_diagrams and tch_depth > 0:
+            
+            # Check that there are some t-channel diagrams in the base flows
+            if not any([PeriferalDiagramTag(diag).pass_restrictions(model, 
+                                                    tch_depth = tch_depth) \
+                            for diag in basic_diagrams]) and tch_depth > 0:
                 tch_depth -= 1
             else:
                 done = True
@@ -759,7 +773,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     # Check if this diagram passes the rules to be used
                     # for phase space integration
                     if tag.pass_restrictions(model, tch_depth = tch_depth):
-                        print tag_array
                         all_tags.append(tag_array)
                         all_diagrams.append(diag)
                         flow_permutations.append([(iflow,iperm)])
