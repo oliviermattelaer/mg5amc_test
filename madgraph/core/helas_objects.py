@@ -3519,15 +3519,23 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                                     amplitude.get('number')))
             return [col_amp]
 
+        # Find leading component
+        color_basis = self.get('color_basis')
+        max_Nc = max(sum([[v[4] for v in val] for val in color_basis.values()],
+                         []))
+
+
         # There is a color basis - create a list of coefficients and
         # amplitude numbers
 
         col_amp_list = []
         for i, col_basis_elem in \
-                enumerate(sorted(self.get('color_basis').keys())):
+                enumerate(sorted(color_basis.keys())):
 
             col_amp = []
             for diag_tuple in self.get('color_basis')[col_basis_elem]:
+                # Only include leading color contributions
+                if False and diag_tuple[4] < max_Nc: continue
                 res_amps = filter(lambda amp: \
                           tuple(amp.get('color_indices')) == diag_tuple[1],
                           self.get('diagrams')[diag_tuple[0]].get('amplitudes'))
@@ -4258,6 +4266,12 @@ class HelasMultiProcess(base_objects.PhysicsObject):
                     col_basis.build()
                     list_color_basis.append(col_basis)
                     col_matrix = color_amp.ColorMatrix(col_basis)
+                    if False and col_matrix:
+                        # Pick out only leading contributions color
+                        max_color = max([e[0].Nc_power for e in col_matrix.values() if e])
+                        col_matrix = color_amp.ColorMatrix(col_basis,
+                                                           Nc_power_min = max_color)
+                        
                     list_color_matrices.append(col_matrix)
                     col_index = -1
                     logger.info(\

@@ -50,13 +50,8 @@ C
     REAL*8 TOTFACT,FACTNUL
     INTEGER JHELBK,NUPPER
     LOGICAL FIRSTFLOW
-    REAL*8 COMBANS,PERMANS(NPERMS)
-    INTEGER IPERMFACT(NPERMS)
-    INTEGER PERMFACT%(proc_id)s
-    EXTERNAL PERMFACT%(proc_id)s
-    INTEGER PERMS(NEXTERNAL,LMAXCONFIGS)
-    INCLUDE 'symperms.inc'
     REAL*8   RVEC
+    SAVE FRAC,FACTNUL
 C  
 C GLOBAL VARIABLES
 C  
@@ -102,19 +97,17 @@ C ----------
     DO I=1,NCOMB
        TS(I)=0d0
     ENDDO
-      COMBANS=0d0
+    IF(NTRY.EQ.1)THEN
 c     Calculate summed permutation weight
-      TOTFACT=0
+      TOTFACT=NPERMS
+      FRAC=MIN(NUMPERMS,NPERMS)*1D0/TOTFACT
       FACTNUL=1d0
-      DO IPERM=1,NPERMS
-         CALL GETPERM%(proc_id)s(IPERM,PERM)
-         IPERMFACT(IPERM)=PERMFACT%(proc_id)s(PERM)
-         TOTFACT=TOTFACT+IPERMFACT(IPERM)
 C     Correction factor for events where no permutation is selected
-         FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1D0/TOTFACT
+      DO IPERM=1,NPERMS
          FACTNUL=FACTNUL*(1-FRAC)
       ENDDO
       FACTNUL=1-FACTNUL
+    ENDIF
 c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
       JHELBK=JHEL
       IF (ISUM_HEL .EQ. 0 .OR. NTRY .LE. MAXTRIES) THEN
@@ -128,8 +121,6 @@ c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
 c     Start loop over permutations
       DO IPERM=1,NPERMS
         JHEL=JHELBK
-c     Set perm selection info
-      FRAC=MIN(NUMPERMS,NPERMS)*IPERMFACT(IPERM)*1d0/TOTFACT
 C     Decide whether to use this permutation
         CALL RANMAR(RVEC)
         IF(RVEC.GT.FRAC) CYCLE
@@ -164,7 +155,7 @@ c        print *,'ANS: ',ANS
               GOODHEL(I)=.TRUE.
               NGOOD = NGOOD +1
               IGOOD(NGOOD) = I
-              PRINT *,'Adding good helicity ',I,TS(I)/ANS
+              PRINT *,'Added good helicity ',I,TS(I)/ANS,' in event ',NTRY(IMIRROR)
             ENDIF
           ENDDO
         ENDIF
@@ -180,6 +171,7 @@ C     If no permutation was chosen, repeat
       IF (ISUM_HEL .NE. 1) THEN
         CALL RANMAR(RVEC)
         R=RVEC*ANS
+        SUMHEL=0d0
         DO I=1,NCOMB
           SUMHEL=SUMHEL+TS(I)
           IF(R.LT.SUMHEL)THEN
@@ -196,7 +188,7 @@ C     If no permutation was chosen, repeat
         ENDDO
 c        print *,'XTOT,AMP2: ',XTOT,AMP2(SUBDIAG(1))
         IF (XTOT.NE.0D0) THEN
-          ANS=ANS*AMP2(SUBDIAG(1))/XTOT
+%(set_amp2_line)s
         ELSE
           ANS=0D0
         ENDIF
@@ -246,9 +238,7 @@ C
       INTEGER I,J,IC(NEXTERNAL),IP(NEXTERNAL)
       COMPLEX*16 ZTEMP
       COMPLEX*16 AMP(NGRAPHS)
-      COMPLEX*16 W(18,NWAVEFUNCS)
-      COMPLEX*16 DUM0,DUM1
-      DATA DUM0, DUM1/(0d0, 0d0), (1d0, 0d0)/
+      COMPLEX*16 W(%(wavefunctionsize)d,NWAVEFUNCS)
 %(ic_data_line)s
 %(ip_data_line)s
 C
@@ -376,46 +366,5 @@ C ----------
 	 ENDDO
          IF(OK) I=I+1
       ENDDO
-      END
-
-C     ------------------------------------
-      FUNCTION PERMFACT%(proc_id)s(PERM)
-C     ------------------------------------
-C     
-C     Gives color factor for permutation PERM
-C     
-C     Process: g g > g g g g QCD=4 QED=0 WEIGHTED=4 singlet_QCD=0
-C     
-      IMPLICIT NONE
-C     
-C     CONSTANTS
-C     
-      INCLUDE 'nexternal.inc'
-      INCLUDE 'genps.inc'
-      INTEGER NPAIRS
-      PARAMETER(NPAIRS=%(npairs)d)
-C     
-C     ARGUMENTS 
-C     
-      INTEGER PERMFACT%(proc_id)s,PERM(NEXTERNAL)
-C     
-C     LOCAL VARIABLES 
-C     
-      INTEGER I,J,IPAIRS
-      LOGICAL OK
-      INTEGER COMP(2,NPAIRS)
-      DATA COMP/%(comp_pairs)s/
-C     ----------
-C     BEGIN CODE
-C     ----------
-      IPAIRS=0
-      IF(NPAIRS.GT.0.AND.PERM(NEXTERNAL).EQ.COMP(2,1)) IPAIRS=IPAIRS+1
-      DO I=1,NPAIRS
-         DO J=1,NEXTERNAL-1
-            IF(PERM(J).EQ.COMP(1,I).AND.PERM(J+1).EQ.COMP(2,I).OR.PERM(J).EQ.COMP(2,I).AND.PERM(J+1).EQ.COMP(1,I)) IPAIRS=IPAIRS+1
-         ENDDO
-      ENDDO
-      PERMFACT%(proc_id)s=IFACT**IPAIRS
-      RETURN
       END
 

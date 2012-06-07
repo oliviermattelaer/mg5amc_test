@@ -840,6 +840,8 @@ class ColorOrderedMultiProcess(diagram_generation.MultiProcess):
             color_flows.append(diagram_generation.MultiProcess.\
                              cross_amplitude(flow, org_perm, new_perm))
         new_amp.set('color_flows', color_flows)
+        # Make sure to reset mirror process
+        new_amp.set('has_mirror_process', False)
         return new_amp
 
 #===============================================================================

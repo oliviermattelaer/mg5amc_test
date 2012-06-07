@@ -1419,7 +1419,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
 
     def __init__(self, argument=None, gen_color = 1, optimization = 3,
                  gen_periferal_diagrams = False,
-                 include_all_t = True, tch_depth = 1, identify_depth = 1):
+                 include_all_t = True, tch_depth = 10, identify_depth = 1):
         """Allow initialization with AmplitudeList"""
 
         if isinstance(argument,

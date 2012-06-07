@@ -293,6 +293,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
 
         for ime, me in enumerate(matrix_elements):
             diagrams = me.get('base_amplitude').get('diagrams')
+            print me.get('processes')[0].nice_string()
             used_diagrams = []
             used_tags = []
             failed_tags = []

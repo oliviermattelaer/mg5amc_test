@@ -32,7 +32,6 @@ import madgraph.iolibs.export_v4 as export_v4
 import madgraph.iolibs.files as files
 import madgraph.iolibs.group_subprocs as group_subprocs
 import madgraph.iolibs.helas_call_writers as helas_call_writers
-import madgraph.iolibs.misc as misc
 import madgraph.iolibs.file_writers as writers
 import madgraph.iolibs.gen_infohtml as gen_infohtml
 import madgraph.iolibs.template_files as iolibs_template_files
@@ -43,6 +42,7 @@ import madgraph.color_ordering.color_ordered_helas_objects as \
 import madgraph.color_ordering.template_files as template_files
 import madgraph.iolibs.ufo_expression_parsers as parsers
 import madgraph.various.diagram_symmetry as diagram_symmetry
+import madgraph.various.misc as misc
 
 import aloha.create_aloha as create_aloha
 import models.write_param_card as param_writer
