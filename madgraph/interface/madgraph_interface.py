@@ -3590,11 +3590,6 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                [me.get('base_amplitude') for me in \
                 matrix_elements])
 
-        # Upload memory profiling info to web
-        from pympler import web
-        from madgraph import tracker
-        web.start_profiler(debug=True, stats=tracker.stats)
-
     def finalize(self, nojpeg, online = False):
         """Make the html output, write proc_card_mg5.dat and create
         madevent.tar.gz for a MadEvent directory"""
