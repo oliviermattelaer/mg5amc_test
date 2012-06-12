@@ -63,6 +63,7 @@ class IdentifyMETag(diagram_generation.DiagramTag):
     # This is needed since we don't want to merge different decays,
     # in order to get the right factor for identical/non-identical particles
     dec_number = 1
+    bool_to_int_dict = {False: 0, True: 1, None: -1}
     
     @staticmethod
     def create_tag(amplitude, identical_particle_factor = 0):
@@ -99,9 +100,15 @@ class IdentifyMETag(diagram_generation.DiagramTag):
         if leg.get('state'): number = 0
         else: number = leg.get('number')
         # Include also onshell, since this specifies forbidden s-channel
-        return [((number, id, part.get('spin'), leg.get('onshell'),
-                  part.get('is_part'), part.get('self_antipart'),
-                  part.get('mass'), part.get('width'), part.get('color')),
+        # Use array, to reduce memory maximally
+        return [(array.array('i', 
+                             [number, id, part.get('spin'), 
+                              IdentifyMETag.bool_to_int_dict[leg.get('onshell')],
+                              IdentifyMETag.bool_to_int_dict[part.get('is_part')],
+                              IdentifyMETag.bool_to_int_dict[part.get('self_antipart')],
+                              model.get('mass_dict')[part.get('mass')], 
+                              model.get('width_dict')[part.get('width')], 
+                              part.get('color')]),
                  leg.get('number'))]
         
     @staticmethod

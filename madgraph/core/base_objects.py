@@ -671,6 +671,9 @@ class Model(PhysicsObject):
         self['coupling_orders'] = None
         self['expansion_order'] = None
         self['version_tag'] = None # position of the directory (for security)
+        # mass_dict and width_dict gives a number for each mass/width parameter
+        self['mass_dict'] = None
+        self['width_dict'] = None
 
     def filter(self, name, value):
         """Filter for model property values"""
@@ -768,6 +771,10 @@ class Model(PhysicsObject):
                 self['expansion_order'] = \
                    dict([(order, -1) for order in self.get('coupling_orders')])
 
+        if (name == 'mass_dict' or name == 'width_dict') and self[name] == None:
+            if self['particles']:
+                self.get_mass_and_width_dicts()
+
         return Model.__bases__[0].get(self, name) # call the mother routine
 
     def set(self, name, value):
@@ -781,6 +788,8 @@ class Model(PhysicsObject):
             self['particle_dict'] = {}
             self['ref_dict_to0'] = {}
             self['got_majoranas'] = None
+            self['mass_dict'] = None
+            self['width_dict'] = None
 
         if name == 'interactions':
             # Ensure no doublets in interaction list
@@ -886,6 +895,22 @@ class Model(PhysicsObject):
                                       for inter in interactions[-1]], [])))
 
         return particles, hierarchy
+
+    def get_mass_and_width_dicts(self):
+        """Set the mass and width dictionaries"""
+        mass_dict = {}
+        width_dict = {}
+        mass_num = 0
+        width_num = 0
+        for part in self.get('particles'):
+            if not part.get('mass') in mass_dict:
+                mass_dict[part.get('mass')] = mass_num
+                mass_num += 1
+            if not part.get('width') in width_dict:
+                width_dict[part.get('width')] = width_num
+                width_num += 1
+        self.set('mass_dict', mass_dict)
+        self.set('width_dict', width_dict)
 
     def check_majoranas(self):
         """Return True if there is fermion flow violation, False otherwise"""
