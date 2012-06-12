@@ -101,7 +101,7 @@ class IdentifyMETag(diagram_generation.DiagramTag):
         else: number = leg.get('number')
         # Include also onshell, since this specifies forbidden s-channel
         # Use array, to reduce memory maximally
-        return [(array.array('i', 
+        return [(array.array('h', 
                              [number, id, part.get('spin'), 
                               IdentifyMETag.bool_to_int_dict[leg.get('onshell')],
                               IdentifyMETag.bool_to_int_dict[part.get('is_part')],

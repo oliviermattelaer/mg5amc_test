@@ -41,7 +41,7 @@ import madgraph.iolibs.group_subprocs as group_subprocs
 import madgraph.color_ordering.color_ordered_amplitudes as \
        color_ordered_amplitudes
 from madgraph import MadGraph5Error
-#from madgraph import tracker
+from madgraph import tracker
 
 logger = logging.getLogger('madgraph.color_ordered_amplitudes')
 
@@ -1550,6 +1550,8 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                         amplitude_tag[-1][0].get_external_numbers()))
                     # Go on to next amplitude
                     continue
+                # Memory profiling snapshot
+                tracker.create_snapshot()
             # Deal with newly generated matrix element
             for matrix_element in matrix_element_list:
                 assert isinstance(matrix_element, helas_objects.HelasMatrixElement), \
@@ -1605,6 +1607,22 @@ class COSubProcessGroup(group_subprocs.SubProcessGroup):
             raise self.PhysicsObjectError, \
                   "Need amplitudes to generate matrix_elements"
 
+        # Memory profiling info
+        tracker.track_class(COHelasMultiProcess)
+        tracker.track_class(COHelasMatrixElement)
+        tracker.track_class(COHelasFlow)
+        tracker.track_class(COHelasWavefunction)
+        tracker.track_class(COHelasAmplitude)
+        tracker.track_class(BGHelasCurrent)
+        tracker.track_class(helas_objects.IdentifyMETag)
+        tracker.track_class(helas_objects.HelasDiagram)
+        tracker.track_class(helas_objects.HelasAmplitude)
+        tracker.track_class(helas_objects.HelasWavefunction)
+        tracker.track_class(diagram_generation.DiagramTagChainLink)
+        tracker.track_class(color_amp.ColorMatrix)
+        tracker.track_class(color_amp.ColorBasis)
+        tracker.create_snapshot()
+
         amplitudes = copy.copy(self.get('amplitudes'))
 
         self.set('matrix_elements',
@@ -1619,3 +1637,5 @@ class COSubProcessGroup(group_subprocs.SubProcessGroup):
 
         self.set('amplitudes', diagram_generation.AmplitudeList())
 
+        # Memory profiling snapshot
+        tracker.create_snapshot()

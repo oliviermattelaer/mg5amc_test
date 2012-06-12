@@ -25,3 +25,6 @@ import os
 MG5DIR = os.path.realpath(os.path.join(os.path.dirname(__file__),
                                                                 os.path.pardir))
 MG4DIR = MG5DIR
+
+from pympler.classtracker import ClassTracker
+tracker = ClassTracker()
