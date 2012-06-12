@@ -41,8 +41,10 @@ import madgraph.iolibs.group_subprocs as group_subprocs
 import madgraph.color_ordering.color_ordered_amplitudes as \
        color_ordered_amplitudes
 from madgraph import MadGraph5Error
+#from madgraph import tracker
 
 logger = logging.getLogger('madgraph.color_ordered_amplitudes')
+
 
 # Dictionary from spin number to name used in the wavefunction sum functions
 spin_dict = {1:'S', 2:'F', 3:'V', 4:'T'}
@@ -608,14 +610,15 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                                                          decay_ids)
 
         # Collect all wavefunctions and turn into COHelasWavefunctions
-        all_wavefunctions = self.get_all_wavefunctions()
         co_wavefunctions = helas_objects.HelasWavefunctionList(\
-            [COHelasWavefunction(wf) for wf in all_wavefunctions])
+            [COHelasWavefunction(wf) for wf in self.get_all_wavefunctions()])
 
         # Same thing for amplitudes
         for diag in self.get('diagrams'):
             diag.set('amplitudes', helas_objects.HelasAmplitudeList(\
                 [COHelasAmplitude(amp) for amp in diag.get('amplitudes')]))
+            # Remove old wavefunctions to free some memory
+            diag.set('wavefunctions', helas_objects.HelasWavefunctionList())
 
         # current_arrays for combined wfs
         combined_wf_arrays = []
@@ -758,10 +761,21 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         # Set wf number for all wavefunctions
         for i, wf in enumerate(combined_currents):
             wf.set('number', i+1)
+            # Clean wfs to reduce memory
+            wf.set('compare_array',[])
+            wf.set('current_array', [])
+            wf.set('external_numbers', array.array('I'))
+            wf.set('color_string', color.ColorString())
+            wf.set('lastleg_number', 0)
+            wf.set('external_fermion_numbers', [])
+            wf.set('all_orders', {})
+            
 
         # Set amplitude number for all amplitudes
         for i, amp in enumerate(self.get_all_amplitudes()):
             amp.set('number', i+1)
+            # Clean amps to reduce memory
+            amp.set('compare_array', [])
 
         # Set wavefunctions in first diagram
         self.get('diagrams')[0].set('wavefunctions', combined_currents)
@@ -1071,7 +1085,6 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         self['include_all_t'] = False
         self['tch_depth'] = 0
         self['identify_depth'] = 0
-        self['periferal_flow_perms'] = []
 
     def filter(self, name, value):
         """Filter for valid diagram property values."""
@@ -1086,7 +1099,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid integer" % str(value)
 
-        elif name in ['permutations', 'periferal_flow_perms']:
+        elif name in ['permutations']:
             if not isinstance(value, list):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid list" % str(value)
@@ -1119,6 +1132,9 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 self.set('has_mirror_process',
                          amplitude.get('has_mirror_process'))
                 for iflow, flow in enumerate(amplitude.get('color_flows')):
+                    if gen_color == 1 and \
+                            flow.get('process').get('orders')['singlet_QCD'] > 0:
+                        continue
                     self.get('color_flows').append(COHelasFlow(flow,
                                                    optimization = optimization,
                                                    gen_color = False,
@@ -1314,7 +1330,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         # Get all periferal diagrams as well as a list of color flows and
         # permutations that contribute to each diagram from the amplitude
-        periferal_diagrams, flow_permutations, tch_depth= \
+        periferal_diagrams, tch_depth= \
                             amplitude.get_periferal_diagrams_from_flows(\
                              include_all_t = self.get('include_all_t'),
                              tch_depth = self.get('tch_depth'),
@@ -1324,8 +1340,6 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         periferal_amplitude.set('process', amplitude.get('process'))
         periferal_amplitude.set('diagrams', periferal_diagrams)
 
-        self.set('periferal_flow_perms', flow_permutations)
-        
         self.generate_helas_diagrams(periferal_amplitude,
                                      optimization = 1,
                                      decay_ids = decay_ids)
@@ -1493,9 +1507,6 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                 matrix_element_list = helas_objects.HelasDecayChainProcess(amplitude).\
                                       combine_decay_chain_processes()
             else:
-                logger.info("Generating Helas calls for color ordered %s" % \
-                         amplitude.get('process').nice_string().\
-                                           replace('Process', 'process'))
                 # Create tag identifying the matrix element using
                 # IdentifyMETag. If two amplitudes have the same tag,
                 # they have the same matrix element
@@ -1503,18 +1514,22 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                 try:
                     me_index = amplitude_tags.index(amplitude_tag)
                 except ValueError:
+                    logger.info("Generating Helas calls for color ordered %s" % \
+                         amplitude.get('process').nice_string().\
+                                           replace('Process', 'process'))
                     # Create matrix element for this amplitude
                     matrix_element_list = [cls.matrix_element_class(amplitude,
                                                    decay_ids=decay_ids,
                                                    gen_color=gen_color,
                                                    optimization = optimization,
                                                    gen_periferal_diagrams = \
-                                                              gen_periferal_diagrams,
+                                                          gen_periferal_diagrams,
                                                    include_all_t = include_all_t,
                                                    tch_depth = tch_depth,
-                                                   identify_depth = identify_depth)]
+                                                   identify_depth = \
+                                                                 identify_depth)]
                     me = matrix_element_list[0]
-                    if me.get('processes') and me.get('diagrams'):
+                    if me.get('processes') and me.get('color_flows'):
                         # Keep track of amplitude tags
                         amplitude_tags.append(amplitude_tag)
                         identified_matrix_elements.append(me)
@@ -1524,16 +1539,17 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                     # Identical matrix element found
                     other_processes = identified_matrix_elements[me_index].\
                                       get('processes')
-                    logger.info("Combining process with %s" % \
-                                other_processes[0].nice_string().\
-                                replace('Process: ', ''))
+                    logger.info("Combining %s with %s" % \
+                                (amplitude.get('process').nice_string().\
+                                     replace('Process: ', ''),
+                                 other_processes[0].nice_string().\
+                                     replace('Process: ', '')))
                     other_processes.append(cls.reorder_process(\
                         amplitude.get('process'),
                         permutations[me_index],
                         amplitude_tag[-1][0].get_external_numbers()))
                     # Go on to next amplitude
                     continue
-                
             # Deal with newly generated matrix element
             for matrix_element in matrix_element_list:
                 assert isinstance(matrix_element, helas_objects.HelasMatrixElement), \
@@ -1602,3 +1618,4 @@ class COSubProcessGroup(group_subprocs.SubProcessGroup):
                          identify_depth = self.identify_depth))
 
         self.set('amplitudes', diagram_generation.AmplitudeList())
+

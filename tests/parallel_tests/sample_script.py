@@ -59,7 +59,7 @@ if '__main__' == __name__:
                      'u u~ > u u~ u u~', 'u u~ > u u~ d d~ g', 'u~ u > u u~ u u~ g',
                      'u u~ > u u~ d d~ g g', 'u u~ > u u~ u u~ u u~']
 
-    my_proc_list = ['g g > g g g', 'g g > g g g g', 'g g > g g g g g']
+    my_proc_list = ['g g > g g g', 'u u~ > u u~ g g']
 
     # Set the model we are working with
     model = 'sm'
@@ -102,7 +102,8 @@ if '__main__' == __name__:
 
     # Create and setup a comparator
     my_comp = me_comparator.MEComparator()
-    my_comp.set_me_runners(my_mg5_co_31,
+    my_comp.set_me_runners(my_mg5_ufo,
+                           my_mg5_co_31,
                            my_mg5_co_33,
                            my_mg5_co_35)
 

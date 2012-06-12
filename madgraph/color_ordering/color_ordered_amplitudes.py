@@ -703,7 +703,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         basic_tags = []
         all_diagrams = []
         all_tags = []
-        flow_permutations = []
         failed_tags = []
 
         # Pick out the periferal diagrams from the basic flows
@@ -745,16 +744,16 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         assert(basic_diagrams)
         
         # Now go through all permutations to get the full set of diagrams
-        permutations = []
+        first_perm = None
         iperm = 0
         comp_list = self.get_comp_list(process)
         for perm in itertools.permutations(range(1,len(process.get('legs'))+1)):
             if any([comp_list[perm[i]-1] != comp_list[i] for i in \
                     range(len(process.get('legs')))]): continue
-            permutations.append(perm)
+            if not first_perm: first_perm = perm
             iperm = iperm + 1
             # Go through the basic diagrams and replace indices.
-            perm_dict = dict(zip(permutations[0],perm))
+            perm_dict = dict(zip(first_perm, perm))
             for basic_diag in basic_diagrams:
                 diag = basic_diag.renumber_legs(perm_dict,
                                               process.get('legs'))
@@ -775,14 +774,10 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     if tag.pass_restrictions(model, tch_depth = tch_depth):
                         all_tags.append(tag_array)
                         all_diagrams.append(diag)
-                        flow_permutations.append([(iflow,iperm)])
                     else:
                         failed_tags.append(tag_array)
-                else:
-                    flow_permutations[index].append((iflow, iperm))
-        self.get('color_flows')[0].set('permutations', permutations)
-        return base_objects.DiagramList(all_diagrams), flow_permutations, \
-            tch_depth
+
+        return base_objects.DiagramList(all_diagrams), tch_depth
 
     @staticmethod
     def get_comp_list(process):

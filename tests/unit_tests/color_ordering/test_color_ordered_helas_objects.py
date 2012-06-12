@@ -656,7 +656,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
                 base_tags.remove(tag)
             self.assertEqual(base_tags, [])
 
-            for cf in matrix_element.get('color_flows')[1:]:
+            for cf in matrix_element.get('color_flows'):
                 self.assertEqual(cf.get('permutations'),
                                  mycolorflow.get('permutations'))
 
@@ -1483,7 +1483,6 @@ class COHelasMatrixElementTest(unittest.TestCase):
         """Test the matrix element for all-gluon amplitudes"""
 
         goal_ndiags = [12, 66, 180, 990]
-        goal_nflowperms = [8, 16, 32, 64]
 
         for ngluon in range(3,5):
 
@@ -1514,17 +1513,4 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #     color_ordered_export_v4.COFortranUFOHelasCallWriter(self.mymodel).\
             #     get_matrix_element_calls(matrix_element))
             self.assertEqual(len(diagrams), goal_ndiags[ngluon-3])
-
-            flows_in_perms = []
-            for idiag, flowperms in \
-                    enumerate(matrix_element.get('periferal_flow_perms')):
-                #if idiag == 0:
-                #    goal_nflowperms.append(len(flowperms))
-                self.assertEqual(len(flowperms), goal_nflowperms[ngluon-3])
-                flows_in_perms.extend([p for (f,p) in flowperms])
-                #print 'Diagram: ',idiag+1,' has flow_perms ', flowperms
-            self.assertEqual(set(flows_in_perms),
-                            set(range(len(matrix_element.get('permutations')))))
-
-        #print goal_nflowperms
 
