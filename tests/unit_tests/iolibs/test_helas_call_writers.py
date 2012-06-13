@@ -511,7 +511,7 @@ class HelasModelTest(HelasModelTestSetup):
 
         wf = helas_objects.HelasWavefunction()
         wf.set('particle', -2, self.mybasemodel)
-        wf.set('state', 'incoming')
+        wf.set('state', 4)
         wf.set('interaction_id', 0)
         wf.set('number_external', 1)
         wf.set('lorentz', [''])

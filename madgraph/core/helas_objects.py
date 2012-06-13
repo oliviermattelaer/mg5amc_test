@@ -211,9 +211,9 @@ class HelasWavefunction(base_objects.PhysicsObject):
         # The color index used in this wavefunction
         self['color_key'] = 0
         # Properties relating to the leg/vertex
-        # state = initial/final (for external bosons),
-        #         intermediate (for intermediate bosons),
-        #         incoming/outgoing (for fermions)
+        # state = (1)initial/(2)final (for external bosons),
+        #         (3)intermediate (for intermediate bosons),
+        #         (4)incoming/(5)outgoing (for fermions)
         # leg_state = initial/final for initial/final legs
         #             intermediate for non-external wavefunctions
         # number_external = the 'number' property of the corresponding Leg,
@@ -222,7 +222,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
         # fermionflow = 1    fermions have +-1 for flow (bosons always +1),
         #                    -1 is used only if there is a fermion flow clash
         #                    due to a Majorana particle 
-        self['state'] = 'initial'
+        self['state'] = 1
         self['leg_state'] = True
         self['mothers'] = HelasWavefunctionList()
         self['number_external'] = 0
@@ -261,7 +261,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
                 self.set('particle', leg.get('id'), model)
                 self.set('number_external', leg.get('number'))
                 self.set('number', leg.get('number'))
-                self.set('state', {False: 'initial', True: 'final'}[leg.get('state')])
+                self.set('state', {False: 1, True: 2}[leg.get('state')])
                 if leg.get('onshell') == False:
                     # Denotes forbidden s-channel
                     self.set('onshell', leg.get('onshell'))
@@ -270,7 +270,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
                 # decayed later, in order to not combine such processes
                 # although they might have identical matrix elements before
                 # the decay is applied
-                if self['state'] == 'final' and self.get('pdg_code') in decay_ids:
+                if self['state'] == 2 and self.get('pdg_code') in decay_ids:
                     self.set('decay', True)
 
                 # Set fermion flow state. Initial particle and final
@@ -281,9 +281,9 @@ class HelasWavefunction(base_objects.PhysicsObject):
                            self.get('is_part') or \
                            leg.get('state') == True and \
                            not self.get('is_part'):
-                        self.set('state', 'incoming')
+                        self.set('state', 4)
                     else:
-                        self.set('state', 'outgoing')
+                        self.set('state', 5)
                 self.set('interaction_id', interaction_id, model)
         elif arguments:
             super(HelasWavefunction, self).__init__(arguments[0])
@@ -369,15 +369,14 @@ class HelasWavefunction(base_objects.PhysicsObject):
                       "%s is not a valid integer" % str(value)
 
         if name == 'state':
-            if not isinstance(value, str):
+            if not isinstance(value, int):
                 raise self.PhysicsObjectError, \
-                        "%s is not a valid string for wavefunction state" % \
+                        "%s is not a valid int for wavefunction state" % \
                                                                     str(value)
-            if value not in ['incoming', 'outgoing',
-                             'intermediate', 'initial', 'final']:
+            if value not in [1, 2, 3, 4, 5]:
                 raise self.PhysicsObjectError, \
-                        "%s is not a valid wavefunction " % str(value) + \
-                        "state (incoming|outgoing|intermediate)"
+              "%s is not a valid wavefunction " % str(value) + \
+              "state 1(initial)|2(final)|3(intermediate)|4(incoming)|5(outgoing)"
         if name == 'leg_state':
             if value not in [False, True]:
                 raise self.PhysicsObjectError, \
@@ -599,7 +598,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
         # Start by setting the state of the wavefunction
         if self.is_boson():
             # For boson, set state to intermediate
-            self.set('state', 'intermediate')
+            self.set('state', 3)
         else:
             # For fermion, set state to same as other fermion (in the
             # right way)
@@ -612,10 +611,10 @@ class HelasWavefunction(base_objects.PhysicsObject):
                 self.set('state', mother.get('state'))
                 self.set('fermionflow', mother.get('fermionflow'))
                 # Check that the state is compatible with particle/antiparticle
-                if self.get('is_part') and self.get('state') == 'incoming' or \
-                   not self.get('is_part') and self.get('state') == 'outgoing':
-                    self.set('state', {'incoming':'outgoing',
-                                      'outgoing':'incoming'}[self.get('state')])
+                if self.get('is_part') and self.get('state') == 4 or \
+                   not self.get('is_part') and self.get('state') == 5:
+                    self.set('state', {4:5,
+                                      5:4}[self.get('state')])
                     self.set('fermionflow', -self.get('fermionflow'))
         return True
 
@@ -785,7 +784,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
                 # (to keep particle identity * flow state)
                 new_wf.set('state', filter(lambda state: \
                                            state != new_wf.get('state'),
-                                           ['incoming', 'outgoing'])[0])
+                                           [4, 5])[0])
                 new_wf.set('is_part', not new_wf.get('is_part'))
             try:
                 # Use the copy in wavefunctions instead.
@@ -886,15 +885,15 @@ class HelasWavefunction(base_objects.PhysicsObject):
             return not self.get('is_part')
         if name == 'state':
             return filter(lambda state: state != self.get('state'),
-                          ['incoming', 'outgoing'])[0]
+                          [4, 5])[0]
         return self.get(name)
 
     def get_spin_state_number(self):
         """Returns the number corresponding to the spin state, with a
         minus sign for incoming fermions"""
 
-        state_number = {'incoming':-1, 'outgoing': 1,
-                        'intermediate': 1, 'initial': 1, 'final': 1}
+        state_number = {4:-1, 5: 1,
+                        3: 1, 1: 1, 2: 1}
         return self.get('fermionflow') * \
                state_number[self.get('state')] * \
                self.get('spin')
@@ -1198,7 +1197,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
             me = copy.copy(self)
             # Flip incoming/outgoing to make me equivalent to mother
             # as needed by majorana_conjugates
-            me.set('state', [state for state in ['incoming', 'outgoing'] \
+            me.set('state', [state for state in [4, 5] \
                              if state != me.get('state')][0])
             fermions.insert(self_index, me)
 
@@ -2423,7 +2422,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         # since all bosons should be treated as outgoing
         for key in external_wavefunctions.keys():
             wf = external_wavefunctions[key]
-            if wf.is_boson() and wf.get('state') == 'initial' and \
+            if wf.is_boson() and wf.get('state') == 1 and \
                not wf.get('self_antipart'):
                 wf.set('is_part', not wf.get('is_part'))
 
@@ -3458,7 +3457,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         incoming particles)"""
 
         external_wfs = filter(lambda wf: wf.get('leg_state') != \
-                              'intermediate',
+                              3,
                               self.get_all_wavefunctions())
 
         return (len(set([wf.get('number_external') for wf in \

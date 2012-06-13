@@ -83,7 +83,7 @@ class HelasWavefunctionTest(unittest.TestCase):
                         'right_list':[1, 2, 3, 4, 5],
                         'wrong_list':['a', {}]},
                        {'prop':'state',
-                        'right_list':['incoming', 'outgoing', 'intermediate'],
+                        'right_list':[4, 5, 3],
                         'wrong_list':[0, 'wrong']}
                        ]
 
@@ -952,7 +952,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions1.append(helas_objects.HelasWavefunction())
         wavefunctions1[5].set('particle', -2, self.mymodel)
         wavefunctions1[5].set('number_external', 1)
-        wavefunctions1[5].set('state', 'incoming')
+        wavefunctions1[5].set('state', 4)
         wavefunctions1[5].set('is_part',
                               False)
         wavefunctions1[5].set('mothers',
@@ -963,7 +963,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions1.append(helas_objects.HelasWavefunction())
         wavefunctions1[6].set('particle', 22, self.mymodel)
         wavefunctions1[6].set('number_external', 4)
-        wavefunctions1[6].set('state', 'intermediate')
+        wavefunctions1[6].set('state', 3)
         wavefunctions1[6].set('mothers', helas_objects.HelasWavefunctionList(
                          [wavefunctions1[3], wavefunctions1[4]]))
         wavefunctions1[6].set('interaction_id', 7, self.mymodel)
@@ -982,7 +982,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions2.append(helas_objects.HelasWavefunction())
         wavefunctions2[0].set('particle', 2, self.mymodel)
         wavefunctions2[0].set('number_external', 2)
-        wavefunctions2[0].set('state', 'outgoing')
+        wavefunctions2[0].set('state', 5)
         wavefunctions2[0].set('is_part', True)
         wavefunctions2[0].set('mothers', helas_objects.HelasWavefunctionList(\
                          [wavefunctions1[1], wavefunctions1[2]]))
@@ -1060,7 +1060,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions1.append(helas_objects.HelasWavefunction())
         wavefunctions1[5].set('particle', -2, self.mymodel)
         wavefunctions1[5].set('number_external', 1)
-        wavefunctions1[5].set('state', 'incoming')
+        wavefunctions1[5].set('state', 4)
         wavefunctions1[5].set('is_part', False)
         wavefunctions1[5].set('mothers',
                               helas_objects.HelasWavefunctionList(\
@@ -1070,7 +1070,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions1.append(helas_objects.HelasWavefunction())
         wavefunctions1[6].set('particle', 22, self.mymodel)
         wavefunctions1[6].set('number_external', 4)
-        wavefunctions1[6].set('state', 'intermediate')
+        wavefunctions1[6].set('state', 3)
         wavefunctions1[6].set('mothers', helas_objects.HelasWavefunctionList(
                          [wavefunctions1[3], wavefunctions1[4]]))
         wavefunctions1[6].set('interaction_id', 7, self.mymodel)
@@ -1101,7 +1101,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions2.append(helas_objects.HelasWavefunction())
         wavefunctions2[5].set('particle', 2, self.mymodel)
         wavefunctions2[5].set('number_external', 2)
-        wavefunctions2[5].set('state', 'outgoing')
+        wavefunctions2[5].set('state', 5)
         wavefunctions2[5].set('is_part', True)
         wavefunctions2[5].set('mothers', helas_objects.HelasWavefunctionList(\
                          [wavefunctions1[1], wavefunctions1[2]]))
@@ -1110,7 +1110,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions2.append(helas_objects.HelasWavefunction())
         wavefunctions2[6].set('particle', 22, self.mymodel)
         wavefunctions2[6].set('number_external', 4)
-        wavefunctions2[6].set('state', 'intermediate')
+        wavefunctions2[6].set('state', 3)
         wavefunctions2[6].set('mothers', helas_objects.HelasWavefunctionList(
                          [wavefunctions1[3], wavefunctions1[4]]))
         wavefunctions2[6].set('interaction_id', 7, self.mymodel)
@@ -1184,7 +1184,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions1.append(helas_objects.HelasWavefunction())
         wavefunctions1[4].set('particle', 11, self.mymodel)
         wavefunctions1[4].set('interaction_id', 7, self.mymodel)
-        wavefunctions1[4].set('state', 'incoming')
+        wavefunctions1[4].set('state', 4)
         wavefunctions1[4].set('number_external', 1)
         wavefunctions1[4].set('mothers',
                               helas_objects.HelasWavefunctionList(\
@@ -1210,7 +1210,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions2.append(helas_objects.HelasWavefunction())
         wavefunctions2[0].set('particle', -11, self.mymodel)
         wavefunctions2[0].set('interaction_id', 7, self.mymodel)
-        wavefunctions2[0].set('state', 'outgoing')
+        wavefunctions2[0].set('state', 5)
         wavefunctions2[0].set('number_external', 1)
         wavefunctions2[0].set('mothers',
                               helas_objects.HelasWavefunctionList(\
@@ -1280,7 +1280,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions1[4].set('particle', 11, self.mymodel)
         wavefunctions1[4].set('interaction_id', 7, self.mymodel)
         wavefunctions1[4].set('number_external', 1)
-        wavefunctions1[4].set('state', 'incoming')
+        wavefunctions1[4].set('state', 4)
         wavefunctions1[4].set('mothers',
                               helas_objects.HelasWavefunctionList(\
                          [wavefunctions1[0], wavefunctions1[1]]))
@@ -1306,7 +1306,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wavefunctions2[0].set('particle', 11, self.mymodel)
         wavefunctions2[0].set('interaction_id', 7, self.mymodel)
         wavefunctions2[0].set('number_external', 1)
-        wavefunctions2[0].set('state', 'incoming')
+        wavefunctions2[0].set('state', 4)
         wavefunctions2[0].set('mothers',
                               helas_objects.HelasWavefunctionList(\
                          [wavefunctions1[0], wavefunctions1[2]]))
@@ -2219,13 +2219,13 @@ class HelasMatrixElementTest(unittest.TestCase):
         wfn1.set('mothers', mothers)
         wfn1.set('pdg_codes', [1000022,1000023,23])
 
-        wfn1.set('state', 'incoming')
-        wfn2.set('state', 'incoming')
+        wfn1.set('state', 4)
+        wfn2.set('state', 4)
         # n2 is incoming mother (so n1 is incoming result) -> need conj.
         self.assertEqual(wfn1.get_conjugate_index(), (1,))
 
-        wfn1.set('state', 'outgoing')
-        wfn2.set('state', 'outgoing')
+        wfn1.set('state', 5)
+        wfn2.set('state', 5)
         # n2 is outgoing mother -> don't need conj.
         self.assertEqual(wfn1.get_conjugate_index(), ())
 
@@ -2233,13 +2233,13 @@ class HelasMatrixElementTest(unittest.TestCase):
         wfn2.set('mothers', mothers)
         wfn2.set('pdg_codes', [1000022,1000023,23])
 
-        wfn1.set('state', 'incoming')
-        wfn2.set('state', 'incoming')
+        wfn1.set('state', 4)
+        wfn2.set('state', 4)
         # n1 is incoming mother -> don't need conj.
         self.assertEqual(wfn2.get_conjugate_index(), ())
 
-        wfn1.set('state', 'outgoing')
-        wfn2.set('state', 'outgoing')
+        wfn1.set('state', 5)
+        wfn2.set('state', 5)
         # n2 is outgoing mother -> need conj.
         self.assertEqual(wfn2.get_conjugate_index(), (1,))
 
@@ -2247,11 +2247,11 @@ class HelasMatrixElementTest(unittest.TestCase):
         wfn1.set('mothers', mothers)
         wfn1.set('pdg_codes', [1000022,1000024,-24])
 
-        wfn1.set('state', 'incoming')
+        wfn1.set('state', 4)
         # only one Majorana
         self.assertEqual(wfn1.get_conjugate_index(), ())
 
-        wfn1.set('state', 'outgoing')
+        wfn1.set('state', 5)
         # only one Majorana
         self.assertEqual(wfn1.get_conjugate_index(), ())
 
@@ -2264,13 +2264,13 @@ class HelasMatrixElementTest(unittest.TestCase):
         wfxm.set('mothers', mothers)
         wfxm.set('pdg_codes', [1000022,1000024,-24])
 
-        wfxm.set('state', 'incoming')
-        wfn1.set('state', 'incoming')
+        wfxm.set('state', 4)
+        wfn1.set('state', 4)
         # only one Majorana
         self.assertEqual(wfxm.get_conjugate_index(), ())
 
-        wfxm.set('state', 'outgoing')
-        wfn1.set('state', 'outgoing')
+        wfxm.set('state', 5)
+        wfn1.set('state', 5)
         # only one Majorana
         self.assertEqual(wfxm.get_conjugate_index(), ())
 
@@ -2283,7 +2283,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wfn2.set('mothers', mothers)
         wfn2.set('pdg_codes', [1000024,-1000024,1000022,1000023])
 
-        wfn2.set('state', 'incoming')
+        wfn2.set('state', 4)
         # n1 is incoming mother -> don't need conj.
         self.assertEqual(wfn2.get_conjugate_index(), ())
 
@@ -2292,7 +2292,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         self.assertEqual(wfn2.get_conjugate_index(), (1,))
         wfxm.set('fermionflow', 1)
 
-        wfn2.set('state', 'outgoing')
+        wfn2.set('state', 5)
         # n1 is outgoing mother -> need conj.
         self.assertEqual(wfn2.get_conjugate_index(), (2,))
 
@@ -2305,7 +2305,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         wfn2.set('mothers', mothers)
         wfn2.set('pdg_codes', [1000022,1000023,1000024,-1000024])
 
-        wfn2.set('state', 'incoming')
+        wfn2.set('state', 4)
         # n1 is incoming mother -> don't need conj.
         self.assertEqual(wfn2.get_conjugate_index(), ())
 
@@ -2314,7 +2314,7 @@ class HelasMatrixElementTest(unittest.TestCase):
         self.assertEqual(wfn2.get_conjugate_index(), (2,))
         wfxm.set('fermionflow', 1)
 
-        wfn2.set('state', 'outgoing')
+        wfn2.set('state', 5)
         # n1 is outgoing mother -> need conj.
         self.assertEqual(wfn2.get_conjugate_index(), (1,))
 
@@ -2327,11 +2327,11 @@ class HelasMatrixElementTest(unittest.TestCase):
         wfn2.set('mothers', mothers)
         wfn2.set('pdg_codes', [1000022,1000024,1000023,-1000024])
 
-        wfn2.set('state', 'incoming')
+        wfn2.set('state', 4)
         # only one Majorana in fermion line -> don't need conj.
         self.assertEqual(wfn2.get_conjugate_index(), ())
 
-        wfn2.set('state', 'outgoing')
+        wfn2.set('state', 5)
         # only one Majorana in fermion line -> don't need conj.
         self.assertEqual(wfn2.get_conjugate_index(), ())
 
@@ -2350,8 +2350,8 @@ class HelasMatrixElementTest(unittest.TestCase):
         amp.set('mothers', mothers)
         amp.set('pdg_codes', [1000022,1000023,1000024,-1000024])
 
-        wfn1.set('state', 'incoming')
-        wfn2.set('state', 'outgoing')
+        wfn1.set('state', 4)
+        wfn2.set('state', 5)
         # n1 is incoming mother -> don't need conj.
         self.assertEqual(amp.get_conjugate_index(), ())
 
@@ -2360,8 +2360,8 @@ class HelasMatrixElementTest(unittest.TestCase):
         self.assertEqual(amp.get_conjugate_index(), (2,))
         wfxp.set('fermionflow', 1)
 
-        wfn1.set('state', 'outgoing')
-        wfn2.set('state', 'incoming')
+        wfn1.set('state', 5)
+        wfn2.set('state', 4)
         # n1 is outgoing mother -> need conj.
         self.assertEqual(amp.get_conjugate_index(), (1,))
 

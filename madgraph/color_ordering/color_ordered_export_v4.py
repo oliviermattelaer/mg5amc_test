@@ -134,7 +134,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 ret_line += "%d" % (- (-1) ** wf.get('is_part'))
             else:
                 # For boson, need initial/final
-                ret_line += "%d" % ((-1) ** (wf.get('state') == 'initial'))
+                ret_line += "%d" % ((-1) ** (wf.get('state') == 1))
             ret_line += ','
 
         ret_line = ret_line[:-1] + '/'

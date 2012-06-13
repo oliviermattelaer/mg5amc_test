@@ -1037,7 +1037,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.generate_diagrams()
 
-            diagrams, flow_perms, tch_depth = \
+            diagrams, tch_depth = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
                                  include_all_t = False, tch_depth = 1,
                                  identify_depth = 10)
@@ -1075,7 +1075,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.generate_diagrams()
 
-            diagrams, flow_perms, tch_depth = \
+            diagrams, tch_depth = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
                             include_all_t = True, tch_depth = 10,
                             identify_depth = 1)
@@ -1113,7 +1113,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.generate_diagrams()
 
-            diagrams, flow_perms, tch_depth = \
+            diagrams, tch_depth = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
                             include_all_t = True, tch_depth = 2,
                             identify_depth = 1)
@@ -1151,7 +1151,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.generate_diagrams()
 
-            diagrams, flow_perms, tch_depth = \
+            diagrams, tch_depth = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
                             include_all_t = True, tch_depth = 2,
                             identify_depth = 2)
@@ -1189,7 +1189,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.generate_diagrams()
 
-            diagrams, flow_perms, tch_depth = \
+            diagrams, tch_depth = \
                       self.myamplitude.get_periferal_diagrams_from_flows(\
                             include_all_t = True, tch_depth = 3,
                             identify_depth = 2)
@@ -1232,7 +1232,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
 
             self.myamplitude.generate_diagrams()
 
-            diagrams, flow_perms, tch_depth = \
+            diagrams, tch_depth = \
                       self.myamplitude.get_periferal_diagrams_from_flows(identify_depth=1)
 
             print diagrams.nice_string()
@@ -1271,7 +1271,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                               model=self.mymodel)
             plot.draw()
 
-        diagrams, flow_perms, tch_depth = \
+        diagrams, tch_depth = \
                   self.myamplitude.get_periferal_diagrams_from_flows(True,
                                                                      10,
                                                                      1)
@@ -1306,7 +1306,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                               model=self.mymodel)
             plot.draw()
 
-        diagrams, flow_perms, tch_depth = \
+        diagrams, tch_depth = \
                   self.myamplitude.get_periferal_diagrams_from_flows(True,
                                                                      10,
                                                                      1)
