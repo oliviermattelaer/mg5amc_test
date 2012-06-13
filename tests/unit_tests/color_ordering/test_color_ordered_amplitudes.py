@@ -1042,7 +1042,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                  include_all_t = False, tch_depth = 1,
                                  identify_depth = 10)
 
-            print diagrams.nice_string()
+            #print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
                                               "allperiferal%i.eps" % ngluon,
                                               model=self.mymodel)
@@ -1080,7 +1080,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                             include_all_t = True, tch_depth = 10,
                             identify_depth = 1)
 
-            print diagrams.nice_string()
+            #print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
                                               "allperiferal101%i.eps" % ngluon, 
                                               model=self.mymodel)
@@ -1092,7 +1092,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
     def test_periferal_diagrams_gluons_tch_2_id_1(self):
         """Test periferal diagrams for gg>ng"""
 
-        goal_ndiags = [6, 24, 80, 300]
+        goal_ndiags = [6, 24, 140, 300]
 
         # Time for 6 gluons: 5 min
 
@@ -1118,7 +1118,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                             include_all_t = True, tch_depth = 2,
                             identify_depth = 1)
 
-            print diagrams.nice_string()
+            #print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
                                               "allperiferal21%i.eps" % ngluon, 
                                               model=self.mymodel)
@@ -1156,7 +1156,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                             include_all_t = True, tch_depth = 2,
                             identify_depth = 2)
 
-            print diagrams.nice_string()
+            #print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
                                               "allperiferal22%i.eps" % ngluon, 
                                               model=self.mymodel)
@@ -1194,7 +1194,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                             include_all_t = True, tch_depth = 3,
                             identify_depth = 2)
 
-            print diagrams.nice_string()
+            #print diagrams.nice_string()
             plot = draw.MultiEpsDiagramDrawer(diagrams,
                                               "allperiferal22%i.eps" % ngluon, 
                                               model=self.mymodel)
@@ -1235,14 +1235,14 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
             diagrams, tch_depth = \
                       self.myamplitude.get_periferal_diagrams_from_flows(identify_depth=1)
 
-            print diagrams.nice_string()
-            plot = draw.MultiEpsDiagramDrawer(diagrams,
-                                              "uuxddxperiferal%i.eps" % ngluon,
-                                              model=self.mymodel)
-            plot.draw()
+            #print diagrams.nice_string()
+            #plot = draw.MultiEpsDiagramDrawer(diagrams,
+            #                                  "uuxddxperiferal%i.eps" % ngluon,
+            #                                  model=self.mymodel)
+            #plot.draw()
             goal_ndiags.append(len(diagrams))
             self.assertEqual(len(diagrams), goal_ndiags[ngluon - 1])
-        print goal_ndiags
+        #print goal_ndiags
 
     def test_periferal_diagrams_gu_wpgd(self):
         """Test periferal diagrams for uu~>dd~+ng"""
@@ -1276,7 +1276,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                                                      10,
                                                                      1)
 
-        print diagrams.nice_string()
+        #print diagrams.nice_string()
         self.assertEqual(len(diagrams), 3)
 
     def test_periferal_diagrams_gdx_wpgux(self):
@@ -1311,7 +1311,7 @@ class ColorOrderedAmplitudeTest(unittest.TestCase):
                                                                      10,
                                                                      1)
 
-        print diagrams.nice_string()
+        #print diagrams.nice_string()
         self.assertEqual(len(diagrams), 3)
 
 #===============================================================================
@@ -1999,9 +1999,15 @@ class TestPeriferalDiagramTag(unittest.TestCase):
         """Test the PeriferalDiagramTag for g g > n g with order=2 including t
         """
 
-        goal_periferals = []
+        goal_periferals = [[1, 2, 4, 5, 7],
+                           [2, 3, 5, 6, 8, 12, 13, 15, 16, 18, 22, 24, 25, 28],
+                           [1, 5, 6, 8, 9, 11, 13, 14, 19, 20, 21, 22, 24, 28, 39, 43, 44, 46, 47, 49, 51, 52, 57, 58, 59, 60, 62, 66, 77, 81, 82, 83, 84, 86, 90, 92, 94, 102, 105, 106, 108, 114],
+                           [2, 6, 8, 9, 14, 15, 16, 17, 19, 20, 22, 26, 28, 30, 40, 43, 45, 46, 54, 55, 57, 58, 60, 64, 65, 67, 68, 70, 78, 80, 81, 85, 86, 88, 98, 99, 101, 106, 107, 109, 113, 121, 156, 160, 162, 163, 168, 169, 170, 171, 173, 174, 176, 180, 182, 184, 194, 197, 199, 200, 208, 209, 211, 212, 214, 218, 219, 221, 222, 224, 232, 234, 235, 239, 240, 242, 252, 253, 255, 260, 261, 263, 267, 275, 310, 314, 315, 317, 321, 322, 324, 325, 327, 335, 337, 338, 342, 349, 350, 352, 353, 355, 360, 361, 363, 367, 369, 370, 381, 384, 387, 388, 416, 420, 421, 423, 428, 430, 431, 434, 443, 445, 446, 450, 451, 454, 474, 479, 480, 482, 486, 497]]
 
-        goal_pass = []
+        goal_pass = [[4, 5, 7],
+                     [12, 13, 16, 25, 28],
+                     [39, 44, 47, 51, 58, 82, 92, 105],
+                     [156, 162, 169, 173, 182, 197, 211, 221, 324, 352, 384, 420, 443]]
 
         maxgluons = 6
 
@@ -2045,19 +2051,20 @@ class TestPeriferalDiagramTag(unittest.TestCase):
                 if dtag.pass_restrictions(self.mymodel):
                     pass_restrictions.append(i+1)
                     pass_diagrams.append(d)
-            plot = draw.MultiEpsDiagramDrawer(periferal_diagrams,
-                                              "periferal%i.eps" % ngluon,
-                                              model=self.mymodel)
-            plot.draw()
-            plot = draw.MultiEpsDiagramDrawer(pass_diagrams,
-                                              "pass%i.eps" % ngluon,
-                                              model=self.mymodel)
-            plot.draw()
+            #plot = draw.MultiEpsDiagramDrawer(periferal_diagrams,
+            #                                  "periferal%i.eps" % ngluon,
+            #                                  model=self.mymodel)
+            #plot.draw()
+            #plot = draw.MultiEpsDiagramDrawer(pass_diagrams,
+            #                                  "pass%i.eps" % ngluon,
+            #                                  model=self.mymodel)
+            #plot.draw()
             
-            goal_periferals.append(periferals)
-            goal_pass.append(pass_restrictions)
+            #goal_periferals.append(periferals)
+            #goal_pass.append(pass_restrictions)
             self.assertEqual(periferals, goal_periferals[ngluon])
+            self.assertEqual(pass_restrictions, goal_pass[ngluon])
 
-        print 'goal_periferals = ',goal_periferals
-        print 'goal_pass = ',goal_pass
+        #print 'goal_periferals = ',goal_periferals
+        #print 'goal_pass = ',goal_pass
 
