@@ -101,7 +101,7 @@ class IdentifyMETag(diagram_generation.DiagramTag):
         else: number = leg.get('number')
         # Include also onshell, since this specifies forbidden s-channel
         # Use array, to reduce memory maximally
-        return [(array.array('h', 
+        return [(array.array('i', 
                              [number, id, part.get('spin'), 
                               IdentifyMETag.bool_to_int_dict[leg.get('onshell')],
                               IdentifyMETag.bool_to_int_dict[part.get('is_part')],
@@ -124,10 +124,13 @@ class IdentifyMETag(diagram_generation.DiagramTag):
 
         inter = model.get_interaction(vertex.get('id'))
         coup_keys = sorted(inter.get('couplings').keys())
-        ret_list = tuple([(key, inter.get('couplings')[key]) for key in \
-                          coup_keys] + \
-                         [str(c) for c in inter.get('color')] + \
-                         inter.get('lorentz'))
+        ret_list = array.array('i',sum([list(key) +  
+                         [model.get('coup_dict')[inter.get('couplings')[key]]] \
+                         for key in coup_keys], []) + \
+                         [model.get('color_dict')[str(c)] for c in \
+                                  inter.get('color')] + \
+                         [model.get('lorentz_dict')[l] for l in \
+                                  inter.get('lorentz')])
                    
         if last_vertex:
             return (ret_list,)
@@ -141,9 +144,13 @@ class IdentifyMETag(diagram_generation.DiagramTag):
             if s_pdg and (part.get('width').lower() == 'zero' or \
                vertex.get('legs')[-1].get('onshell') == False):
                 s_pdg = 0
-            return ((part.get('spin'), part.get('color'),
-                     part.get('self_antipart'),
-                     part.get('mass'), part.get('width'), s_pdg),
+            return (array.array('i',
+                               [part.get('spin'), 
+                                part.get('color'),
+                     IdentifyMETag.bool_to_int_dict[part.get('self_antipart')],
+                                model.get('mass_dict')[part.get('mass')], 
+                                model.get('width_dict')[part.get('width')], 
+                                s_pdg]),
                     ret_list)
 
     @staticmethod

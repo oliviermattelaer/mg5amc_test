@@ -671,9 +671,12 @@ class Model(PhysicsObject):
         self['coupling_orders'] = None
         self['expansion_order'] = None
         self['version_tag'] = None # position of the directory (for security)
-        # mass_dict and width_dict gives a number for each mass/width parameter
+        # dictionaries giving a number for each parameter
         self['mass_dict'] = None
         self['width_dict'] = None
+        self['coup_dict'] = None
+        self['color_dict'] = None
+        self['lorentz_dict'] = None
 
     def filter(self, name, value):
         """Filter for model property values"""
@@ -775,6 +778,10 @@ class Model(PhysicsObject):
             if self['particles']:
                 self.get_mass_and_width_dicts()
 
+        if (name == 'coup_dict' or name == 'color_dict' or name == 'lorentz_dict') and self[name] == None:
+            if self['interactions']:
+                self.get_coup_color_lorentz_dicts()
+
         return Model.__bases__[0].get(self, name) # call the mother routine
 
     def set(self, name, value):
@@ -802,6 +809,9 @@ class Model(PhysicsObject):
             self['coupling_orders'] = None
             self['order_hierarchy'] = {}
             self['expansion_order'] = None
+            self['coup_dict'] = None
+            self['color_dict'] = None
+            self['lorentz_dict'] = None
 
         Model.__bases__[0].set(self, name, value) # call the mother routine
 
@@ -911,6 +921,31 @@ class Model(PhysicsObject):
                 width_num += 1
         self.set('mass_dict', mass_dict)
         self.set('width_dict', width_dict)
+
+    def get_coup_color_lorentz_dicts(self):
+        """Set the mass and width dictionaries"""
+        coup_dict = {}
+        color_dict = {}
+        lorentz_dict = {}
+        coup_num = 0
+        color_num = 0
+        lorentz_num = 0
+        for inter in self.get('interactions'):
+            for coup in inter.get('couplings').values():
+                if not coup in coup_dict:
+                    coup_dict[coup] = coup_num
+                    coup_num += 1
+            for color in inter.get('color'):
+                if not str(color) in color_dict:
+                    color_dict[str(color)] = color_num
+                    color_num += 1
+            for lorentz in inter.get('lorentz'):
+                if not lorentz in lorentz_dict:
+                    lorentz_dict[lorentz] = lorentz_num
+                    lorentz_num += 1
+        self.set('coup_dict', coup_dict)
+        self.set('color_dict', color_dict)
+        self.set('lorentz_dict', lorentz_dict)
 
     def check_majoranas(self):
         """Return True if there is fermion flow violation, False otherwise"""
