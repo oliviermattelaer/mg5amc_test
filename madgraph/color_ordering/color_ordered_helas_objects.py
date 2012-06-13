@@ -1509,31 +1509,31 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                 # Create tag identifying the matrix element using
                 # IdentifyMETag. If two amplitudes have the same tag,
                 # they have the same matrix element
-                amplitude_tag = cls.identify_tag_class.create_tag(amplitude)
+                #amplitude_tag = cls.identify_tag_class.create_tag(amplitude)
+                # Create matrix element for this amplitude
+                logger.info("Generating Helas calls for color ordered %s" % \
+                     amplitude.get('process').nice_string().\
+                                       replace('Process', 'process'))
+                matrix_element_list = [cls.matrix_element_class(amplitude,
+                                               decay_ids=decay_ids,
+                                               gen_color=gen_color,
+                                               optimization = optimization,
+                                               gen_periferal_diagrams = \
+                                                      gen_periferal_diagrams,
+                                               include_all_t = include_all_t,
+                                               tch_depth = tch_depth,
+                                               identify_depth = \
+                                                             identify_depth)]
+                me = matrix_element_list[0]
                 try:
-                    me_index = amplitude_tags.index(amplitude_tag)
+                    me_index = identified_matrix_elements.index(me)
                 except ValueError:
-                    logger.info("Generating Helas calls for color ordered %s" % \
-                         amplitude.get('process').nice_string().\
-                                           replace('Process', 'process'))
-                    # Create matrix element for this amplitude
-                    matrix_element_list = [cls.matrix_element_class(amplitude,
-                                                   decay_ids=decay_ids,
-                                                   gen_color=gen_color,
-                                                   optimization = optimization,
-                                                   gen_periferal_diagrams = \
-                                                          gen_periferal_diagrams,
-                                                   include_all_t = include_all_t,
-                                                   tch_depth = tch_depth,
-                                                   identify_depth = \
-                                                                 identify_depth)]
-                    me = matrix_element_list[0]
                     if me.get('processes') and me.get('color_flows'):
                         # Keep track of amplitude tags
-                        amplitude_tags.append(amplitude_tag)
+                        #amplitude_tags.append(amplitude_tag)
                         identified_matrix_elements.append(me)
-                        permutations.append(amplitude_tag[-1][0].\
-                                            get_external_numbers())
+                        #permutations.append(amplitude_tag[-1][0].\
+                        #                    get_external_numbers())
                 else:
                     # Identical matrix element found
                     other_processes = identified_matrix_elements[me_index].\
@@ -1543,10 +1543,11 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                                      replace('Process: ', ''),
                                  other_processes[0].nice_string().\
                                      replace('Process: ', '')))
-                    other_processes.append(cls.reorder_process(\
-                        amplitude.get('process'),
-                        permutations[me_index],
-                        amplitude_tag[-1][0].get_external_numbers()))
+                    other_processes.append(amplitude.get('process'))
+                        #cls.reorder_process(\
+                        #amplitude.get('process'),
+                        #permutations[me_index],
+                        #amplitude_tag[-1][0].get_external_numbers()))
                     # Go on to next amplitude
                     continue
             # Deal with newly generated matrix element
