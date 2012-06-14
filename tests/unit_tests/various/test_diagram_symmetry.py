@@ -181,9 +181,10 @@ class TestDiagramSymmetry(unittest.TestCase):
             amplitudes.append(my_amplitude)
             decay_amps.append(my_decay)
 
-        amplitudes = diagram_generation.DecayChainAmplitude({\
-            'amplitudes': amplitudes,
-            'decay_chains': decay_amps})
+        amplitudes = diagram_generation.DecayChainAmplitudeList([\
+                diagram_generation.DecayChainAmplitude({\
+                        'amplitudes': amplitudes,
+                        'decay_chains': decay_amps})])
 
         subproc_groups = \
                   group_subprocs.DecayChainSubProcessGroup.group_amplitudes(group_subprocs.SubProcessGroup,

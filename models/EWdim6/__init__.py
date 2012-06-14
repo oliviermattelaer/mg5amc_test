@@ -17,6 +17,6 @@ all_orders = coupling_orders.all_orders
 all_functions = function_library.all_functions
 
 
-__author__ = "Benjamin Fuks"
-__version__ = "1.0.6"
-__email__ = "fuks@cern.ch"
+__author__ = "C. Degrande"
+__version__ = "1.0"
+__email__ = "celine.degrande@uclouvain.be"

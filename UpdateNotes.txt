@@ -1,5 +1,41 @@
 Update notes for MadGraph 5 (in reverse time order)
 
+1.4.7 (XX/06/12)  JA: Change the random seed treatment to ensure that the original 
+                      seed is stored in the banner (this was broken in v. 1.4.0).
+                      If a non-zero seed is given in the run_card, this seed
+                      is used as starting value for the SubProcesses/randinit file,
+                      while the seed in the run_card is set to 0.
+                      This way, the seed for a multi_run is automatically
+                      updated in the same way as for individual runs.
+                  JA: Turn off automatic checking for minimal coupling
+                      hierarchy in decay processes A > B C ...
+                  JA: Optimize phase space integration and event generation
+                      for decay processes with very squeezed mass spectrum.
+                  JA: Ensure that identical matrix element in different process 
+                      definitions are combined also when using the decay chain 
+                      formalism (thanks to Zhen Liu for pointing this out).
+                  JA+BF: Updated the NMSSM model to the latest FR version.
+                  JA: Fixed minor typo in myamp.f.
+                  
+1.4.6 (16/05/12)  JA: Added cuts on lepton pt for each of the 4 hardest leptons
+                  OM: allow bin/madevent script to be run with a single line command:
+		      example ./bin/madevent multi_run 10 
+		  OM: Adding the 4 higgs interactions in the standard model UFO model
+                  JA: Added new restriction card for the sm model with massive
+                      muon and electron, and non-zero tau decay width
+                  JA: Ensure assignment of colors to intermediate propagators
+                      works also in fermion flow- and color flow-violating 
+                      RPV processes (thanks Brock Tweedie for finding this).
+                  JA: Fix crash for certain fermion flow violating decay chains
+                      (introduced in v. 1.3.27) (again thanks to Brock Tweedie).
+                  JA: Fix crash for decay chains with multiple decays involving 
+                      the same particles (thanks Steve Blanchet for reporting)
+                  JA+OM: Fix crash for Pythia8 output with multiparticle vertices
+                      (thanks to Moritz Huck for reporting this.)
+                  OM: Fixing ALOHA output for C++/python.
+                  OM: Fix a crash occuring when trying to create an output on 
+                      an existing directory (thanks Celine)
+
 1.4.5 (11/04/12)  OM: Change the seed automatically in multi_run. (Even if the seed
                       was set to a non automatic value in the card.)
                   OM: correct a minor bug #975647 (SLAH convention problem) 

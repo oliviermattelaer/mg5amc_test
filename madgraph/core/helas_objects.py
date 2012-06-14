@@ -2971,6 +2971,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                         for i, wf in enumerate(final_decay_wfs):
                             final_decay_wfs[i] = \
                                                decay_diag_wfs[decay_diag_wfs.index(wf)]
+                            
                         # Remove final wavefunctions from decay_diag_wfs,
                         # since these will be replaced separately by
                         # replace_wavefunctions
@@ -3091,7 +3092,6 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                                                    final_decay_wfs,
                                                    diagrams,
                                                    numbers)
-
             # Now that we are done with this set of diagrams, we need
             # to clean out duplicate wavefunctions (i.e., remove
             # identical wavefunctions which are already present in
@@ -3277,7 +3277,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         is possible only if there is only one diagram in the decay."""
 
         for key in old_wf.keys():
-            old_wf.set(key, new_wf.get(key))
+            old_wf.set(key, new_wf[key])
 
     def identical_decay_chain_factor(self, decay_chains):
         """Calculate the denominator factor from identical decay chains"""
@@ -3575,7 +3575,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         """Return a list of (lorentz_name, conjugate, outgoing) with
         all lorentz structures used by this HelasMatrixElement."""
 
-        return [(tuple(wa.get('lorentz')), tuple(wa.get_conjugate_index()),
+        return [(tuple(wa.get('lorentz')), tuple(wa.get('conjugate_indices')),
                  wa.find_outgoing_number()) for wa in \
                 self.get_all_wavefunctions() + self.get_all_amplitudes() \
                 if wa.get('interaction_id') != 0]
@@ -4180,7 +4180,7 @@ class HelasMultiProcess(base_objects.PhysicsObject):
         matrix element is identical."""
 
         assert isinstance(amplitudes, diagram_generation.AmplitudeList), \
-                  "%s is not valid AmplitudeList" % repr(amplitudes)
+                  "%s is not valid AmplitudeList" % type(amplitudes)
 
         # Keep track of already generated color objects, to reuse as
         # much as possible
@@ -4243,7 +4243,7 @@ class HelasMultiProcess(base_objects.PhysicsObject):
                     # Go on to next amplitude
                     continue
 
-            # Deal with newly generated matrix element
+            # Deal with newly generated matrix elements
             for matrix_element in copy.copy(matrix_element_list):
                 assert isinstance(matrix_element, HelasMatrixElement), \
                           "Not a HelasMatrixElement: %s" % matrix_element
@@ -4253,6 +4253,24 @@ class HelasMultiProcess(base_objects.PhysicsObject):
                 if not matrix_element.get('processes') or \
                        not matrix_element.get('diagrams'):
                     continue
+
+                # Check if identical matrix element already present
+                if matrix_element in matrix_elements:
+                    me = matrix_elements[matrix_elements.index(matrix_element)]
+                    me_procs = me.get('processes')
+                    logger.info("Combining process %s with %s" % \
+                            (matrix_element.get('processes')[0].nice_string().\
+                                 replace('Process: ', ''),
+                             me.get('processes')[0].nice_string().\
+                                 replace('Process: ', '')))
+                    for proc in  matrix_element.get('processes'):
+                        if proc not in me_procs:
+                            me_procs.append(proc)
+                        else:
+                            logger.warning("Found duplicate process %s" % \
+                                   proc.nice_string().replace('Process: ', ''))
+                    continue
+
                 # Otherwise, add this matrix element to list
                 matrix_elements.append(matrix_element)
 
