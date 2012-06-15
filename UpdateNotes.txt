@@ -14,8 +14,14 @@ Update notes for MadGraph 5 (in reverse time order)
                   JA: Ensure that identical matrix element in different process 
                       definitions are combined also when using the decay chain 
                       formalism (thanks to Zhen Liu for pointing this out).
-                  JA+BF: Updated the NMSSM model to the latest FR version.
+                  BF+JA: Updated the NMSSM model to the latest FR version.
                   JA: Fixed minor typo in myamp.f.
+                  OM: fixed minor behavior restriction of multi_run (Thanks to
+                      Joachim Kopp)
+                  OM: Improved condor cluster support when the cluster is 
+                      unresponsive (should avoid some crashes)
+                  JA: Fixed support for color sextets in addmothers.f
+                      (thanks Nicolas Deutschmann for reporting).          
                   
 1.4.6 (16/05/12)  JA: Added cuts on lepton pt for each of the 4 hardest leptons
                   OM: allow bin/madevent script to be run with a single line command:
