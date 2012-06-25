@@ -1187,6 +1187,10 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         if col_matrix:
             return
 
+        logger.info("Building color matrix for %s" % \
+                     self.get('processes')[0].nice_string().\
+                                       replace('Process', 'process'))
+
         # Build the color matrix based on the color_basis elements
         # corresponding to all permutations of all flows
         # but only include non-zero entries (to the wanted color order).

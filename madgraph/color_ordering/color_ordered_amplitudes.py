@@ -833,7 +833,8 @@ class ColorOrderedMultiProcess(diagram_generation.MultiProcess):
         color_flows = ColorOrderedFlowList()
         for flow in amplitude.get('color_flows'):
             color_flows.append(diagram_generation.MultiProcess.\
-                             cross_amplitude(flow, org_perm, new_perm))
+                               cross_amplitude(flow, org_perm, new_perm))
+            color_flows[-1].reorder_permutations(perm_map)
         new_amp.set('color_flows', color_flows)
         # Make sure to reset mirror process
         new_amp.set('has_mirror_process', False)
@@ -1014,6 +1015,25 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
 
         return vert_ids
 
+    def reorder_permutations(self, perm_map):
+        """Reorder permutations according to perm_map."""
+
+        # Replace numbers in the first permutation
+        first_perm = [(v,i) for (i,v) in enumerate([perm_map[p] for p in \
+                      self.get('permutations')[0]])]
+        # Get the ordering to sort the first permutations
+        first_perm_order = [i for (v, i) in sorted(first_perm)]
+        new_perms = []
+        for perm in self.get('permutations'):
+            # First replace numbers
+            replaced_perm = [perm_map[p] for p in perm]
+            # Then reorder permutation according to first permutation order
+            new_perms.append([replaced_perm[first_perm_order[i]] for i in \
+                              range(len(perm))])
+        # Replace old permutations with new ones
+        self.set('permutations', new_perms)
+
+    
 #===============================================================================
 # ColorOrderedFlowList
 #===============================================================================
