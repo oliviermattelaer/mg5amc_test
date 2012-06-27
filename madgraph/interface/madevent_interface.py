@@ -1919,7 +1919,6 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
             self.results[main_name][-1]['cross'] = crossoversig/inv_sq_err
             self.results[main_name][-1]['error'] = math.sqrt(1.0/inv_sq_err)
         self.results.def_current(main_name)
-        
         self.run_name = main_name
         self.update_status("Merging LHE files", level='parton')
         try:
@@ -2013,10 +2012,10 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                 self.launch_job('./%s' % job, cwd=Pdir, remaining=(len(alljobs)-i-1), 
                                                     run_type='survey on %s (%s/%s)' % (subdir,nb_proc+1,len(subproc)))
                 if os.path.exists(pjoin(self.me_dir,'error')):
-                    self.monitor()
+                    self.monitor(html=True)
                     raise MadEventError, 'Error detected Stop running: %s' % \
                                          open(pjoin(self.me_dir,'error')).read()
-        self.monitor(run_type='All jobs submitted for survey')
+        self.monitor(run_type='All jobs submitted for survey', html=True)
         self.update_status('End survey', 'parton', makehtml=False)
 
     ############################################################################      
@@ -2075,8 +2074,10 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                 for i, job in enumerate(alljobs):
                     job = os.path.basename(job)
                     self.launch_job('./%s' % job, cwd=Pdir, remaining=(nb_tot-i-1), 
-                             run_type='Refine number %s on %s (%s/%s)' % (self.nb_refine, subdir, nb_proc+1, len(subproc)))
-        self.monitor(run_type='All job submitted for refine number %s' % self.nb_refine)
+                             run_type='Refine number %s on %s (%s/%s)' % 
+                             (self.nb_refine, subdir, nb_proc+1, len(subproc)))
+        self.monitor(run_type='All job submitted for refine number %s' % self.nb_refine, 
+                     html=False)
         
         self.update_status("Combining runs", level='parton')
         try:
@@ -2247,7 +2248,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                          self.run_name, self.run_tag],
                         cwd=self.me_dir)
         misc.call(['./bin/internal/clean'], cwd=self.me_dir)
-        misc.compile(['gridpack.tar.gz'], cwd=self.me_dir)
+        misc.call(['./bin/internal/make_gridpack'], cwd=self.me_dir)
         files.mv(pjoin(self.me_dir, 'gridpack.tar.gz'), 
                 pjoin(self.me_dir, '%s_gridpack.tar.gz' % self.run_name))
         os.system("sed -i.bak \"s/\s*.true.*=.*GridRun/  .false.  =  GridRun/g\" %s/Cards/grid_card.dat" \
@@ -2703,7 +2704,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
         self.update_status('prepare PGS run', level=None)  
         # Wait that the gunzip of the files is finished (if any)
         if hasattr(self, 'control_thread') and self.control_thread[0]:
-            self.monitor(mode=2,html=False)
+            self.monitor(mode=2)
 
         pgsdir = pjoin(self.options['pythia-pgs_path'], 'src')
         eradir = self.options['exrootanalysis_path']
@@ -2819,7 +2820,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
         self.update_status('Running Delphes', level=None)  
         # Wait that the gunzip of the files is finished (if any)
         if hasattr(self, 'control_thread') and self.control_thread[0]:
-            self.monitor(mode=2,html=False)        
+            self.monitor(mode=2)        
 
 
  
@@ -2952,7 +2953,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
             return 'v4'
     
     ############################################################################
-    def monitor(self, run_type='monitor', mode=None, html=True):
+    def monitor(self, run_type='monitor', mode=None, html=False):
         """ monitor the progress of running job """
         
         if mode is None:
@@ -3264,7 +3265,9 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
         """ change random number"""
         
         self.random += 3
-        assert self.random < 31328*30081 # cann't use too big random number
+        if self.random > 30081*30081: # can't use too big random number
+            raise MadGraph5Error,\
+                  'Random seed too large ' + str(self.random) + ' > 30081*30081'
 
     ############################################################################
     def save_random(self):
@@ -3447,6 +3450,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
     
     def clean_pointless_card(self, mode):
         """ Clean the pointless card """
+
         if mode == 'parton':
             if os.path.exists(pjoin(self.me_dir,'Cards','pythia_card.dat')):
                 os.remove(pjoin(self.me_dir,'Cards','pythia_card.dat'))
@@ -3505,9 +3509,11 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                     mode = 'delphes'
                 else: 
                     mode = 'pythia'
+            else:
+                self.clean_pointless_card(mode)                
         logger.info('Will run in mode %s' % mode)
                                                                      
-        self.clean_pointless_card(mode)
+
         # Now that we know in which mode we are check that all the card
         #exists (copy default if needed)
 
@@ -4014,9 +4020,10 @@ class GridPackCmd(MadEventCmd):
                 for i, job in enumerate(alljobs):
                     job = os.path.basename(job)
                     self.launch_job('./%s' % job, cwd=Pdir, remaining=(nb_tot-i-1), 
-                                 run_type='Refine number %s on %s (%s/%s)' % (self.nb_refine, subdir, nb_proc+1, len(subproc)))
-        self.monitor(run_type='All job submitted for refine number %s' % self.nb_refine,
-                     html=True)
+                             run_type='Refine number %s on %s (%s/%s)' %
+                             (self.nb_refine, subdir, nb_proc+1, len(subproc)))
+        self.monitor(run_type='All job submitted for refine number %s' % 
+                                                                 self.nb_refine)
         
         self.update_status("Combining runs", level='parton')
         try:
@@ -4029,9 +4036,11 @@ class GridPackCmd(MadEventCmd):
                                           cwd=pjoin(self.me_dir,'SubProcesses'),
                                           stdout=devnull)
         
-        #misc.call([pjoin(self.dirbin, 'sumall')], 
-        #                                 cwd=pjoin(self.me_dir,'SubProcesses'),
-        #                                 stdout=devnull)
+        #update html output
+        cross, error = sum_html.make_all_html_results(self)
+        self.results.add_detail('cross', cross)
+        self.results.add_detail('error', error)
+        
         
         self.update_status('finish refine', 'parton', makehtml=False)
 
