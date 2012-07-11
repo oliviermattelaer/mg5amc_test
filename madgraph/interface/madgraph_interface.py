@@ -415,7 +415,7 @@ class HelpToCmd(cmd.HelpCmd):
         logger.info("     These processes give negligible contribution to the")
         logger.info("     cross section but have subprocesses/channels.")
         logger.info("   color_ordering number")
-        logger.info("     (default 0) set order in 1/Nc used in color ordered generation.")
+        logger.info("     (default 0) set order in 1/Nc^2 used in color ordered generation.")
         logger.info("   optimization number")
         logger.info("     (default 1) regular (1) or BG current (3) color ordered amps.")
         logger.info("   stdout_level DEBUG|INFO|WARNING|ERROR|CRITICAL")
@@ -3422,7 +3422,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                                    color_ordered_helas_objects.COSubProcessGroup.group_amplitudes(\
                                                color_ordered_helas_objects.COSubProcessGroup,
                                                non_dc_amps,
-                                               gen_color = self.options['color_ordering'],
+                                               color_order = self.options['color_ordering'],
                                                optimization = self.options['optimization'],
                                                gen_periferal_diagrams = gen_periferal_diagrams))
                     ndiags = sum([len(m.get('diagrams')) for m in \
@@ -3444,7 +3444,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                         self._curr_matrix_elements = \
                             color_ordered_helas_objects.COHelasMultiProcess(\
                                self._curr_amps,
-                               gen_color = self.options['color_ordering'],
+                               color_order = self.options['color_ordering'],
                                optimization = self.options['optimization'],
                                gen_periferal_diagrams = gen_periferal_diagrams)
                     else: # Not grouped subprocesses

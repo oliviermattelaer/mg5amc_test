@@ -6,9 +6,8 @@ C
 C 
 C Color-ordered MadGraph for Madevent Version
 C 
-C Returns amplitude squared summed/avg over colors
-c and helicities
-c for the point in phase space P(0:3,NEXTERNAL)
+C Returns AMP2s and matrix element for a given helicity and permutation
+c (color flow) at the color order specified by ICO
 C  
 %(process_lines)s
 C  
@@ -32,6 +31,8 @@ C
     PARAMETER (NPERMS=%(nperms)d) 
     INTEGER    NFLOWS
     PARAMETER (NFLOWS=%(nflows)d) 
+    INTEGER    ICO
+    PARAMETER (ICO=%(color_order)d)
 C  
 C ARGUMENTS 
 C  
@@ -136,7 +137,7 @@ c     Start loop over helicities
             IF (JHEL .GT. NGOOD) JHEL=1
             I = IGOOD(JHEL)
           ENDIF
-          T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW)
+          T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,ICO)
           DO JJ=1,NINCOMING
             IF(POL(JJ).NE.1D0.AND.NHEL(JJ,I).EQ.INT(SIGN(1D0,POL(JJ)))) THEN
               T=T*ABS(POL(JJ))
@@ -196,12 +197,12 @@ c        print *,'XTOT,AMP2: ',XTOT,AMP2(SUBDIAG(1))
       ANS=ANS/DBLE(IDEN)
       END
 
-C     --------------------------------------------------------
-      REAL*8 FUNCTION MATRIX%(proc_id)s(P,NHEL,PERM,FIRSTFLOW)
-C     --------------------------------------------------------
+C     ------------------------------------------------------------
+      REAL*8 FUNCTION MATRIX%(proc_id)s(P,NHEL,PERM,FIRSTFLOW,ICO)
+C     ------------------------------------------------------------
 C
-C Returns amplitude squared summed/avg over colors
-c for the point with external momenta P(0:3,NEXTERNAL)
+C Returns the color flows for a given helicity and permutation, 
+C at color order given by ICO
 C  
 %(process_lines)s
 C  
@@ -225,7 +226,7 @@ C
 C ARGUMENTS 
 C  
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL),PERM(NEXTERNAL)
+      INTEGER NHEL(NEXTERNAL),PERM(NEXTERNAL),ICO
       LOGICAL FIRSTFLOW
 C  
 C GLOBAL VARIABLES
@@ -257,15 +258,15 @@ c     Skip calculating amp2s for PS if secondary flows
       ENDDO
 
  10   ZTEMP = (0.D0,0.D0)
-      ZTEMP=ZTEMP+ONEPERM%(proc_id)s(P,NHEL,PERM)
+      ZTEMP=ZTEMP+ONEPERM%(proc_id)s(P,NHEL,PERM,ICO)
       MATRIX%(proc_id)s=REAL(ZTEMP)
 
       RETURN
       END
       
-C     --------------------------------------
-      COMPLEX*16 FUNCTION ONEPERM%(proc_id)s(P,NHEL,PM)
-C     --------------------------------------
+C     -----------------------------------------------------
+      COMPLEX*16 FUNCTION ONEPERM%(proc_id)s(P,NHEL,PM,ICO)
+C     -----------------------------------------------------
 C
 C Returns amplitude squared summed/avg over colors
 c for the point with external lines W(0:6,NEXTERNAL)
@@ -288,6 +289,7 @@ C
       REAL*8 P(0:3,NEXTERNAL)
       INTEGER NHEL(NEXTERNAL)
       INTEGER PM(NEXTERNAL)
+      INTEGER ICO
 C  
 C GLOBAL VARIABLES
 C  

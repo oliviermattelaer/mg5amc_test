@@ -2077,7 +2077,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                              run_type='Refine number %s on %s (%s/%s)' % 
                              (self.nb_refine, subdir, nb_proc+1, len(subproc)))
         self.monitor(run_type='All job submitted for refine number %s' % self.nb_refine, 
-                     html=False)
+                     html=True)
         
         self.update_status("Combining runs", level='parton')
         try:

@@ -157,6 +157,21 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         nperms = len(needed_perms)
         all_perms = matrix_element.get('permutations')
 
+        # Get maximum color factor Nc
+        max_Nc = max([max([c.Nc_power for c in color_matrix[(icol, irow)]]) \
+                      for (icol, irow) in color_matrix.keys()])
+        
+        # Get maximum color factor for each flow in each perm
+        # (for comments see below)
+        perm_flow_factors = {}
+        for (icol, irow) in sorted(color_matrix.keys()):
+            iperm = icol / nflows
+            iflow = icol % nflows
+            flow_Nc = max([c.Nc_power for c in \
+                                  color_matrix[(icol, irow)]]) - max_Nc
+            perm_flow_factors[(iperm,iflow)] = \
+              max(flow_Nc, perm_flow_factors.setdefault((iperm,iflow), flow_Nc))
+
         # Each row in the color matrix corresponds to one of the basic
         # flows, while each column corresponds to a flow. Keep track
         # of the needed flows for each permutation
@@ -172,25 +187,32 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             iperm = icol / nflows
             # iflow is the flow number (for this permutation)
             iflow = icol % nflows
+
+            # Calculate Nc for this flow in this row
+            row_Nc = max([c.Nc_power for c in color_matrix[(icol, irow)]])
+            flow_Nc = row_Nc - max_Nc
+
             # Add this flow to the needed flows for this permutation
             # (used for the flow call lines generated below)
-            if not iflow in [i for (i,n) in \
+            if not iflow in [i for (i,n,c) in \
                              perm_needed_flows.setdefault(iperm, [])]:
                 jamp += 1
-                perm_needed_flows[iperm].append((iflow, jamp))
+                perm_needed_flows[iperm].append((iflow, jamp,
+                                         perm_flow_factors[(iperm, iflow)]))
                 if iperm == 0: flow_jamp_dict[iflow] = jamp
 
             # Make sure that also the basic flow is included
-            if not irow in [i for (i,n) in perm_needed_flows[0]]:
+            if not irow in [i for (i,n,c) in perm_needed_flows[0]]:
                 jamp += 1
-                perm_needed_flows[0].append((irow, jamp))
+                perm_needed_flows[0].append((irow, jamp, 
+                                             perm_flow_factors[(0, irow)]))
                 flow_jamp_dict[irow] = jamp
             # Add the factor needed for this JAMP
             row_flow_factors.setdefault(irow, []).append(\
-                            (max([c.Nc_power for c in \
-                                  color_matrix[(icol, irow)]]),
+                            (row_Nc,
                              jamp if iperm > 0 else flow_jamp_dict[iflow],
-                             color_matrix.col_matrix_fixed_Nc[(icol, irow)][0]))
+                             color_matrix.col_matrix_fixed_Nc[(icol, irow)][0],
+                             flow_Nc))
 
 
         return jamp, needed_perms, perm_needed_flows, row_flow_factors, \
@@ -238,65 +260,105 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         fermion permutation factor for this color flow to get right
         sign."""
 
-        # Generate the calls to all needed flows
+        # Generate the calls to all needed flows, by color order
         flow_call_lines = []
-        for iperm, perm in enumerate(needed_perms):
-            # Set the perm needed in the flow calls
-            flow_call_lines.append("DO I=1,NEXTERNAL")
-            flow_call_lines.append("PERM(I)=PM(PERMS(I,%d))" % (iperm + 1))
-            flow_call_lines.append("ENDDO")
-            # Now generate the flow calls
-            for iflow, jmp in perm_needed_flows[perm]:
-                flow_call_lines.append(\
-                    "JAMP(%d)=IFERM(%d)*FLOW%s%d(P,NHEL,PERM)" \
-                    % (jmp, iperm+1, me_flag, iflow+1))
+        # First calculate minimum color order from color orders in 
+        # perm_needed_flows
+        min_color_order = min(sum([[c for (i,j,c) in perm_needed_flows[key]] \
+                                    for key in perm_needed_flows.keys()], []))
+
+        # Write out the calls to the color flows, order by order
+        for color_order in range(0, min_color_order - 1, -2):
+            # We only want to separate odd orders, since even
+            # correspond to singlet gluon contributions only
+            flow_call_lines.append("IF(ICO.EQ.%d) THEN" % \
+                                       (1 - (color_order / 2)))
+            for iperm, perm in enumerate(needed_perms):
+                orders = max([c/2 for (i,j,c) in perm_needed_flows[perm]])
+                # Only include permutations with relevant flows
+                if color_order/2 > orders: continue
+
+                # Set the perm needed in the flow calls
+                flow_call_lines.append("DO I=1,NEXTERNAL")
+                flow_call_lines.append("PERM(I)=PM(PERMS(I,%d))" % \
+                                       (iperm + 1))
+                flow_call_lines.append("ENDDO")
+                # Now generate the flow calls
+                for iflow, jmp, co in perm_needed_flows[perm]:
+                    if co < color_order: 
+                        continue
+                    flow_call_lines.append(\
+                        "JAMP(%d)=IFERM(%d)*FLOW%s%d(P,NHEL,PERM)" \
+                        % (jmp, iperm+1, me_flag, iflow+1))
+
+            if color_order % 2 == 0:
+                flow_call_lines.append("ENDIF")
 
         return flow_call_lines
 
     def get_color_flow_lines(self, row_flow_factors, flow_jamp_dict):
-        """Write out the calls to all color flows. Need to multiply by
+        """Write summation of all color flows. Need to multiply by
         fermion permutation factor for this color flow to get right
         sign."""
         
-        # Now output the color matrix summation lines for the basic color flows
+        # The color matrix summation lines for the basic color flows
         color_sum_lines = []
         
+        min_color_order = min(sum([[n for (i,j,c,n) in row_flow_factors[key]] \
+                                    for key in row_flow_factors.keys()], []))
+
         # Go through the rows and output the explicit color matrix
         # summation for this line
-        for irow in sorted(row_flow_factors.keys()):
-            den, factor_dict = self.organize_row(row_flow_factors[irow])
-            color_sum_lines.append(\
-                'ZTEMP = ZTEMP+%(den)s*JAMP(%(jamp)d)*DCONJG(%(flows)s)' % \
-                {'den': self.fraction_to_string(den),
-                 'jamp': flow_jamp_dict[irow],
-                 'flows': "+".join(['%s*(%s)' % \
-                                (self.fraction_to_string(fact),\
-                                 "+".join(["%d*JAMP(%d)" % i for i in \
-                                           factor_dict[fact]])) for fact \
-                                in sorted(factor_dict.keys(), reverse=True)])})
-            color_sum_lines[-1] = color_sum_lines[-1].replace('+-1*', '-')
-            color_sum_lines[-1] = color_sum_lines[-1].replace('+1*', '+')
-            color_sum_lines[-1] = color_sum_lines[-1].replace('(-1*', '(-')
-            color_sum_lines[-1] = color_sum_lines[-1].replace('(1*', '(')
-            color_sum_lines[-1] = color_sum_lines[-1].replace('+-', '-')
-            color_sum_lines[-1] = color_sum_lines[-1].replace('+1D0*', '+')
-            color_sum_lines[-1] = color_sum_lines[-1].replace('/1*', '*')
-
+        for color_order in range(0, min_color_order - 1, -2):
+            color_sum_lines.append("IF(ICO.EQ.%d) THEN" % \
+                                       (1 - (color_order / 2)))
+            for irow in sorted(row_flow_factors.keys()):
+                orders = [n for (i,j,c,n) in row_flow_factors[irow] if \
+                          n/2 == color_order/2]
+                # Only include lines with relevant flows
+                if not orders: continue
+                # Get denominator and flows for this color_order
+                den, factor_dict = self.organize_row(row_flow_factors[irow],
+                                                     color_order)
+                color_sum_lines.append(\
+                    'ZTEMP = ZTEMP+%(den)s*JAMP(%(jamp)d)*DCONJG(%(flows)s)' % \
+                    {'den': self.fraction_to_string(den),
+                     'jamp': flow_jamp_dict[irow],
+                     'flows': "+".join(['%s*(%s)' % \
+                                    (self.fraction_to_string(fact),\
+                                     "+".join(["%d*JAMP(%d)" % i for i in \
+                                               factor_dict[fact]])) for fact \
+                                    in sorted(factor_dict.keys(), reverse=True)])})
+                color_sum_lines[-1] = color_sum_lines[-1].replace('+-1*', '-')
+                color_sum_lines[-1] = color_sum_lines[-1].replace('+1*', '+')
+                color_sum_lines[-1] = color_sum_lines[-1].replace('(-1*', '(-')
+                color_sum_lines[-1] = color_sum_lines[-1].replace('(1*', '(')
+                color_sum_lines[-1] = color_sum_lines[-1].replace('+-', '-')
+                color_sum_lines[-1] = color_sum_lines[-1].replace('+1D0*', '+')
+                color_sum_lines[-1] = color_sum_lines[-1].replace('/1*', '*')
+            color_sum_lines.append("ENDIF")
         return color_sum_lines
 
     @staticmethod
-    def organize_row(flow_factors):
+    def organize_row(flow_factors, color_order):
         """Organize the information for this row to get a nice output.
         The elements of flow_factors is Nc_power, jamp number, fraction.
         Return the common denominator and a dictionary from value to
-        sorted list of jamp numbers"""
+        sorted list of jamp numbers. Only include jamps with the correct
+        color order (color_order or color_order + 1)"""
 
-        # First get common denominators for this row
+        # First pick out only the relevant factors, based on color_order
+        orders = [(i,j,c) for (i,j,c,n) in flow_factors if \
+                  n/2 == color_order/2]
+        assert(orders)
+        co_flow_factors = orders
+
+        # Then get common denominators for this row
         den = color_amp.ColorMatrix.lcmm(*[fact[2].denominator \
-                                           for fact in flow_factors])
+                                           for fact in co_flow_factors])
         if not den or den > 100000: den = 1
         return_dict = {}
-        for facttuple in flow_factors:
+        for facttuple in co_flow_factors:
             fact = facttuple[2]*den
             if fact == int(fact): fact = int(fact)
             return_dict.setdefault(abs(fact), []).append((fact/abs(fact),
@@ -511,7 +573,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         replace_dict['flow_call_lines'] = '\n'.join(flow_call_lines)
         replace_dict['color_sum_lines'] = '\n'.join(color_sum_lines)
         replace_dict['nflows'] = nflows
-
+        replace_dict['color_order'] = matrix_element.get('color_order')
 
         # Extract the info about which particles should be permuted
         comp_data_line = self.get_comp_data_line(matrix_element)
@@ -978,6 +1040,9 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         comp_data_line = self.get_comp_data_line(matrix_element)
         replace_dict['comp_data_line'] = comp_data_line
 
+        # Set color order
+        replace_dict['color_order'] = matrix_element.get('color_order')
+
         # Create file contents
         file = open(os.path.join(_file_path, \
                                  'color_ordering/template_files/%s' % \
@@ -998,9 +1063,9 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         flows = matrix_element.get('color_flows')
         jamp2_lines = []
         max_Nc = max([flows[iflow].get('color_string').Nc_power \
-                      for (iflow, j) in perm_needed_flows[0]])
+                      for (iflow, j, co) in perm_needed_flows[0]])
         # The present color flows are in the first permutation
-        for iflow, jamp in perm_needed_flows[0]:
+        for iflow, jamp, co in perm_needed_flows[0]:
             if flows[iflow].get('color_string').Nc_power == max_Nc:
                 nflows += 1
                 jamp2_lines.append(('JAMP2(%(nflow)d)=JAMP2(%(nflow)d)+' + \

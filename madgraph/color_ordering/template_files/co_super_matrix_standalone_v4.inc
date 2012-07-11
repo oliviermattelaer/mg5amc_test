@@ -20,6 +20,8 @@ C
       PARAMETER (NEXTERNAL=%(nexternal)d)
       INTEGER                 NCOMB         
       PARAMETER (             NCOMB=%(ncomb)d)
+      INTEGER    ICO
+      PARAMETER (ICO=%(color_order)d)
 C  
 C ARGUMENTS 
 C  
@@ -43,7 +45,7 @@ C ----------
       ANS = 0D0
           DO IHEL=1,NCOMB
              IF (GOODHEL(IHEL) .OR. NTRY .LT. 2) THEN
-                 T=MATRIX(P ,NHEL(1,IHEL))            
+                 T=MATRIX(P ,NHEL(1,IHEL), ICO)            
                ANS=ANS+T
                IF (T .NE. 0D0 .AND. .NOT.    GOODHEL(IHEL)) THEN
                    GOODHEL(IHEL)=.TRUE.
@@ -53,9 +55,9 @@ C ----------
       ANS=ANS/DBLE(IDEN)
       END
        
-C     ------------------------------
-      REAL*8 FUNCTION MATRIX(P,NHEL)
-C     ------------------------------
+C     -----------------------------------
+      REAL*8 FUNCTION MATRIX(P,NHEL, ICO)
+C     -----------------------------------
 C
 C Returns amplitude squared summed/avg over colors
 c for the point with external momenta P(0:3,NEXTERNAL)
@@ -74,7 +76,7 @@ C
 C ARGUMENTS 
 C  
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL)
+      INTEGER NHEL(NEXTERNAL),ICO
 C  
 C LOCAL VARIABLES 
 C  
@@ -89,7 +91,7 @@ C
       ZTEMP = (0.D0,0.D0)
       DO I=1,NPERMS
         CALL GETPERM(I,PERM)
-	ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM)
+	ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM,ICO)
       ENDDO
       MATRIX=REAL(ZTEMP)
 
@@ -97,7 +99,7 @@ C
       END
       
 C     --------------------------------------
-      COMPLEX*16 FUNCTION ONEPERM(P,NHEL,PM)
+      COMPLEX*16 FUNCTION ONEPERM(P,NHEL,PM,ICO)
 C     --------------------------------------
 C
 C Returns amplitude squared summed/avg over colors
@@ -121,6 +123,7 @@ C
       REAL*8 P(0:3,NEXTERNAL)
       INTEGER NHEL(NEXTERNAL)
       INTEGER PM(NEXTERNAL)
+      INTEGER ICO
 C  
 C LOCAL VARIABLES 
 C  

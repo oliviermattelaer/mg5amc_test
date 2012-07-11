@@ -1084,7 +1084,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         self['include_all_t'] = False
         self['tch_depth'] = 0
         self['identify_depth'] = 0
-
+        self['color_order'] = 0
+        
     def filter(self, name, value):
         """Filter for valid diagram property values."""
 
@@ -1108,7 +1109,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid bool" % str(value)
         
-        elif name in ['tch_depth', 'identify_depth']:
+        elif name in ['tch_depth', 'identify_depth', 'color_order']:
             if not isinstance(value, int):
                 raise self.PhysicsObjectError, \
                         "%s is not a valid integer" % str(value)
@@ -1119,7 +1120,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         return True
     
     def __init__(self, amplitude = None, optimization = 3, decay_ids = [],
-                 gen_color = 1, gen_periferal_diagrams = False,
+                 color_order = 1, gen_periferal_diagrams = False,
                  include_all_t = True, tch_depth = 1, identify_depth = 1):
         """Initialize a COHelasMatrixElement with a ColorOrderedAmplitude"""
         
@@ -1131,8 +1132,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 self.set('has_mirror_process',
                          amplitude.get('has_mirror_process'))
                 for iflow, flow in enumerate(amplitude.get('color_flows')):
-                    if gen_color == 1 and \
-                            flow.get('process').get('orders')['singlet_QCD'] > 0:
+                    if flow.get('process').get('orders')['singlet_QCD'] > \
+                            (color_order - 1) * 2:
                         continue
                     self.get('color_flows').append(COHelasFlow(flow,
                                                    optimization = optimization,
@@ -1142,15 +1143,16 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 if self.get('color_flows'):
                     self.set('permutations',
                              self.get('color_flows')[0].get('permutations'))
-                if gen_color and not self.get('color_basis'):
+                if color_order and not self.get('color_basis'):
                     self.set_color_basis()
-                if gen_color and not self.get('color_matrix'):
-                    self.build_color_matrix(gen_color)
+                if color_order and not self.get('color_matrix'):
+                    self.build_color_matrix(color_order*2 - 1)
                 if gen_periferal_diagrams:
                     self.set('include_all_t', include_all_t)
                     self.set('tch_depth', tch_depth)
                     self.set('identify_depth', identify_depth)
                     self.generate_periferal_diagrams(amplitude, decay_ids)
+                self.set('color_order', color_order)
             else:
                 # In this case, try to use amplitude as a dictionary
                 super(COHelasMatrixElement, self).__init__(amplitude)
@@ -1174,12 +1176,12 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # Build the color basis
         self.get('color_basis').build()
 
-    def build_color_matrix(self, gen_color):
+    def build_color_matrix(self, color_order):
         """Build the relevant lines of the color matrix, to the order
-        in color given in gen_color (0 = none, 1 = leading, 
-        2 = next-to-leading, etc)"""
+        in color given in color_order (0 = none, 1 = leading, 
+        2 = 1/Nc^2, etc)"""
         
-        if not gen_color:
+        if not color_order:
             return
 
         col_matrix = self.get('color_matrix')
@@ -1211,11 +1213,11 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             # result now has all Nc powers
             Nc_powers.extend([cs.Nc_power for cs in result])
 
-        # Set min Nc power to max(Nc_powers) - (gen_color - 1),
+        # Set min Nc power to max(Nc_powers) - (color_order - 1),
         # i.e., Nc^Nmax for leading, Nc^(Nmax-1) to subleading, etc.
         min_Nc_power = 0
         if Nc_powers:
-            min_Nc_power = max(Nc_powers) - (gen_color - 1)
+            min_Nc_power = max(Nc_powers) - (color_order - 1)
             self.set('min_Nc_power', min_Nc_power)
 
         # Check if this is an all-octet amplitude
@@ -1230,7 +1232,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         basic_immutable_factors = []
         # canonical_dict to store previous calculation results
         canonical_dict = {}
-        if gen_color == 1:
+        if color_order == 1:
             permutations = self.get('permutations')[:1]
         else:
             permutations = self.get('permutations')
@@ -1270,7 +1272,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
                     # For color octets, pick leading order contribution,
                     # and multiply by 1-1/Nc^2
-                    if all_octets and gen_color == 1:
+                    if all_octets and color_order == 1:
                         col_matrix[(icol, irow)][:] = \
                                       [copy.copy(result[0]),
                                        copy.copy(result[0])]
@@ -1434,7 +1436,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
     # Tag class to compare matrix elements
     identify_tag_class = IdentifyCOMETag
 
-    def __init__(self, argument=None, gen_color = 1, optimization = 3,
+    def __init__(self, argument=None, color_order = 1, optimization = 3,
                  gen_periferal_diagrams = False,
                  include_all_t = True, tch_depth = 10, identify_depth = 1):
         """Allow initialization with AmplitudeList"""
@@ -1444,7 +1446,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
             super(COHelasMultiProcess, self).__init__()
             self.set('matrix_elements',
                      self.generate_matrix_elements(argument.get('amplitudes'),
-                                                   gen_color, optimization,
+                                                   color_order, optimization,
                                                    gen_periferal_diagrams,
                                                    include_all_t, tch_depth,
                                                    identify_depth))
@@ -1452,7 +1454,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
             super(COHelasMultiProcess, self).__init__()
             self.set('matrix_elements',
                      self.generate_matrix_elements(argument,
-                                                   gen_color = gen_color,
+                                                   color_order = color_order,
                                                    optimization = optimization,
                                                    gen_periferal_diagrams = \
                                                    gen_periferal_diagrams,
@@ -1470,7 +1472,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
     # generate_matrix_elements
     #===========================================================================
     @classmethod
-    def generate_matrix_elements(cls, amplitudes, gen_color = 3,
+    def generate_matrix_elements(cls, amplitudes, color_order = 3,
                                  optimization = 1, decay_ids = [],
                                  gen_periferal_diagrams = False,
                                  include_all_t = True, tch_depth = 1,
@@ -1520,7 +1522,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                                        replace('Process', 'process'))
                 matrix_element_list = [cls.matrix_element_class(amplitude,
                                                decay_ids=decay_ids,
-                                               gen_color=gen_color,
+                                               color_order=color_order,
                                                optimization = optimization,
                                                gen_periferal_diagrams = \
                                                       gen_periferal_diagrams,
@@ -1580,7 +1582,7 @@ class COSubProcessGroup(group_subprocs.SubProcessGroup):
     helas_multi_process_class = COHelasMultiProcess
 
     @staticmethod
-    def group_amplitudes(cls, amplitudes, gen_color, optimization,
+    def group_amplitudes(cls, amplitudes, color_order, optimization,
                          gen_periferal_diagrams,
                          include_all_t = True, tch_depth = 10, identify_depth = 1):
         """Return a SubProcessGroupList with the color ordered amplitudes divided
@@ -1589,7 +1591,7 @@ class COSubProcessGroup(group_subprocs.SubProcessGroup):
         groups = group_subprocs.SubProcessGroup.group_amplitudes(cls,
                                                                  amplitudes)
         for group in groups:
-            group.gen_color = gen_color
+            group.color_order = color_order
             group.optimization = optimization
             group.gen_periferal_diagrams = gen_periferal_diagrams
             group.include_all_t = include_all_t
@@ -1614,7 +1616,7 @@ class COSubProcessGroup(group_subprocs.SubProcessGroup):
         self.set('matrix_elements',
                  self.helas_multi_process_class.\
                          generate_matrix_elements(amplitudes,
-                         gen_color = self.gen_color,
+                         color_order = self.color_order,
                          optimization = self.optimization,
                          gen_periferal_diagrams = self.gen_periferal_diagrams,
                          include_all_t = self.include_all_t,

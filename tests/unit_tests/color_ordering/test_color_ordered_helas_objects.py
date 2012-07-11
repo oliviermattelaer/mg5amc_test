@@ -341,7 +341,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #print "Generated diagrams for ", myproc.nice_string()
 
             matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-                self.myamplitude, gen_color=3, optimization=3)
+                self.myamplitude, color_order=2, optimization=3)
 
             #print "Generated matrix element"
 
@@ -436,7 +436,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             self.myamplitude.generate_diagrams()
 
             matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-                self.myamplitude, gen_color=False, optimization=1)
+                self.myamplitude, color_order=1, optimization=1)
 
             mycolorflow = matrix_element.get('color_flows')[0]
 
@@ -635,7 +635,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
             matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-                self.myamplitude, gen_color=False, optimization=3)
+                self.myamplitude, color_order=1, optimization=3)
 
             mycolorflow = matrix_element.get('color_flows')[0]
 
@@ -729,7 +729,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
             matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-                self.myamplitude, gen_color=False, optimization=1)
+                self.myamplitude, color_order=1, optimization=1)
 
             mycolorflow = matrix_element.get('color_flows')[0]
 
@@ -803,7 +803,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
             matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-                self.myamplitude, gen_color=False, optimization=3)
+                self.myamplitude, color_order=1, optimization=3)
 
             mycolorflow = matrix_element.get('color_flows')[0]
 
@@ -1363,7 +1363,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
                 #print mycolorflow.nice_string()
                 
                 matrix_element = color_ordered_helas_objects.COHelasFlow(\
-                    mycolorflow, gen_color=1, optimization = 3)
+                    mycolorflow, gen_color=False, optimization = 3)
 
                 #print "\n".join(\
                 #    color_ordered_export_v4.COFortranUFOHelasCallWriter(self.mymodel).\
@@ -1438,9 +1438,9 @@ class COHelasMatrixElementTest(unittest.TestCase):
         """Test color flow matrix elements for uu~>uu~ng
         """
 
-        goal_matrices = [{(0, 1): (Fraction(3, 1), 0), (2, 0): (Fraction(3, 1), 0), (1, 0): (Fraction(3, 1), 0), (0, 0): (Fraction(9, 1), 0)},
-                         {(1, 3): (Fraction(4, 1), 0), (3, 1): (Fraction(4, 1), 0), (0, 2): (Fraction(4, 1), 0), (2, 0): (Fraction(4, 1), 0), (0, 0): (Fraction(12, 1), 0), (5, 0): (Fraction(4, 1), 0), (5, 1): (Fraction(4, 1), 0), (4, 1): (Fraction(4, 1), 0), (1, 1): (Fraction(12, 1), 0), (4, 0): (Fraction(4, 1), 0)},
-                         {(12, 2): (Fraction(16, 3), 0), (2, 5): (Fraction(16, 3), 0), (0, 0): (Fraction(16, 1), 0), (12, 1): (Fraction(16, 3), 0), (12, 0): (Fraction(16, 3), 0), (3, 0): (Fraction(16, 3), 0), (5, 2): (Fraction(16, 3), 0), (19, 1): (Fraction(16, 3), 0), (1, 4): (Fraction(16, 3), 0), (19, 2): (Fraction(16, 3), 0), (14, 0): (Fraction(16, 3), 0), (13, 1): (Fraction(16, 3), 0), (2, 2): (Fraction(16, 1), 0), (20, 1): (Fraction(16, 3), 0), (0, 3): (Fraction(16, 3), 0), (14, 2): (Fraction(16, 3), 0), (4, 1): (Fraction(16, 3), 0), (1, 1): (Fraction(16, 1), 0), (13, 0): (Fraction(16, 3), 0)}]
+        goal_matrices = [{(0, 1): (Fraction(3, 1), 0), (0, 0): (Fraction(9, 1), 0), (3, 0): (Fraction(1, 1), 0), (2, 1): (Fraction(1, 1), 0), (2, 0): (Fraction(3, 1), 0), (1, 0): (Fraction(3, 1), 0), (1, 1): (Fraction(1, 1), 0)},
+                         {(0, 0): (Fraction(12, 1), 0), (7, 0): (Fraction(4, 3), 0), (3, 3): (Fraction(4, 3), 0), (7, 1): (Fraction(4, 3), 0), (5, 2): (Fraction(4, 3), 0), (6, 1): (Fraction(4, 3), 0), (3, 1): (Fraction(4, 1), 0), (6, 0): (Fraction(4, 3), 0), (0, 2): (Fraction(4, 1), 0), (2, 0): (Fraction(4, 1), 0), (1, 3): (Fraction(4, 1), 0), (4, 3): (Fraction(4, 3), 0), (2, 2): (Fraction(4, 3), 0), (5, 1): (Fraction(4, 1), 0), (4, 2): (Fraction(4, 3), 0), (5, 0): (Fraction(4, 1), 0), (5, 3): (Fraction(4, 3), 0), (4, 1): (Fraction(4, 1), 0), (1, 1): (Fraction(12, 1), 0), (4, 0): (Fraction(4, 1), 0)},
+                         {(12, 1): (Fraction(16, 3), 0), (3, 0): (Fraction(16, 3), 0), (13, 4): (Fraction(16, 9), 0), (8, 0): (Fraction(2, 1), 0), (19, 4): (Fraction(16, 9), 0), (15, 1): (Fraction(16, 9), 0), (12, 5): (Fraction(16, 9), 0), (6, 2): (Fraction(2, 1), 0), (14, 0): (Fraction(16, 3), 0), (2, 5): (Fraction(16, 3), 0), (0, 3): (Fraction(16, 3), 0), (12, 2): (Fraction(16, 3), 0), (22, 2): (Fraction(16, 9), 0), (3, 3): (Fraction(16, 9), 0), (14, 5): (Fraction(16, 9), 0), (13, 3): (Fraction(16, 9), 0), (4, 4): (Fraction(16, 9), 0), (15, 0): (Fraction(16, 9), 0), (17, 2): (Fraction(16, 9), 0), (2, 2): (Fraction(16, 1), 0), (20, 4): (Fraction(16, 9), 0), (4, 1): (Fraction(16, 3), 0), (1, 1): (Fraction(16, 1), 0), (12, 3): (Fraction(16, 9), 0), (0, 0): (Fraction(16, 1), 0), (8, 2): (Fraction(-2, 1), 0), (7, 1): (Fraction(2, 1), 0), (20, 1): (Fraction(16, 3), 0), (6, 0): (Fraction(-2, 1), 0), (1, 4): (Fraction(16, 3), 0), (19, 2): (Fraction(16, 3), 0), (16, 0): (Fraction(16, 9), 0), (23, 1): (Fraction(16, 9), 0), (14, 2): (Fraction(16, 3), 0), (5, 5): (Fraction(16, 9), 0), (13, 1): (Fraction(16, 3), 0), (15, 2): (Fraction(16, 9), 0), (12, 0): (Fraction(16, 3), 0), (17, 0): (Fraction(16, 9), 0), (19, 5): (Fraction(16, 9), 0), (16, 1): (Fraction(16, 9), 0), (2, 0): (Fraction(2, 1), 0), (12, 4): (Fraction(16, 9), 0), (14, 3): (Fraction(16, 9), 0), (22, 1): (Fraction(16, 9), 0), (19, 1): (Fraction(16, 3), 0), (5, 2): (Fraction(16, 3), 0), (0, 2): (Fraction(2, 1), 0), (13, 0): (Fraction(16, 3), 0)}]
 
         # Test 0-3 gluons in the final state
         for ngluon in range(0, 3):
@@ -1462,10 +1462,10 @@ class COHelasMatrixElementTest(unittest.TestCase):
             myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
             matrix_element1 = color_ordered_helas_objects.COHelasMatrixElement(\
-                myamplitude, gen_color=2, optimization=1)
+                myamplitude, color_order=2, optimization=1)
 
             matrix_element3 = color_ordered_helas_objects.COHelasMatrixElement(\
-                myamplitude, gen_color=2, optimization=3)
+                myamplitude, color_order=2, optimization=3)
 
             for i,(cf1,cf3) in enumerate(zip(matrix_element1.get('color_flows'),
                                              matrix_element3.get('color_flows'))):
@@ -1504,7 +1504,7 @@ class COHelasMatrixElementTest(unittest.TestCase):
             #print "Generated diagrams for ", myproc.nice_string()
 
             matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-                self.myamplitude, gen_color = 3, optimization = 3,
+                self.myamplitude, color_order = 2, optimization = 3,
                 gen_periferal_diagrams = True)
 
             # Check that we get back the correct number of periferal diagrams

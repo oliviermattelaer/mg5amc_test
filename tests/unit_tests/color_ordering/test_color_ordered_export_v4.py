@@ -17,7 +17,7 @@
 
 import StringIO
 import copy
-import fractions
+from fractions import Fraction
 import os 
 import sys
 
@@ -347,7 +347,7 @@ class COExportV4Test(unittest.TestCase,
         self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
         matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-            self.myamplitude, gen_color=3, optimization=1)
+            self.myamplitude, color_order=2, optimization=1)
 
         process_exporter = color_ordered_export_v4.ProcessExporterFortranCOSA()
 
@@ -1201,7 +1201,7 @@ C     ----------
         self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
         matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-            self.myamplitude, gen_color=3, optimization=3)
+            self.myamplitude, color_order=2, optimization=3)
 
         process_exporter = color_ordered_export_v4.ProcessExporterFortranCOSA()
 
@@ -1668,7 +1668,7 @@ C     ----------
         self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
 
         matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
-            self.myamplitude, gen_color=3, optimization=3,
+            self.myamplitude, color_order=2, optimization=3,
             gen_periferal_diagrams = True)
 
         process_exporter = color_ordered_export_v4.ProcessExporterFortranCOME()
@@ -2540,3 +2540,161 @@ C     ----------
         #print open(self.give_pos('test')).read()
         self.assertFileContains('test', goal_matrix_f)
 
+
+    def test_export_co_madevent_uux_uuxgg(self):
+        """Test the result of exporting u u~ > u u~ g g to madevent"""
+
+        # Create the amplitude
+        myleglist = base_objects.LegList([\
+            base_objects.Leg({'id':2, 'state':False}),
+            base_objects.Leg({'id':-2, 'state':False}),
+            base_objects.Leg({'id':2, 'state':True}),
+            base_objects.Leg({'id':-2, 'state':True}),
+            base_objects.Leg({'id':21, 'state':True}),
+            base_objects.Leg({'id':21, 'state':True})])
+
+        myproc = base_objects.Process({'legs':myleglist,
+                                       'orders':{'QED': 0},
+                                       'model':self.mymodel})
+
+        self.myamplitude = color_ordered_amplitudes.ColorOrderedAmplitude(myproc)
+
+        matrix_element = color_ordered_helas_objects.COHelasMatrixElement(\
+            self.myamplitude, color_order=3, optimization=1)
+
+        process_exporter = color_ordered_export_v4.ProcessExporterFortranCOME()
+
+        jamp, needed_perms, perm_needed_flows, row_flow_factors, \
+               flow_jamp_dict = process_exporter.get_flow_info(matrix_element)
+
+        self.assertEqual(jamp, 24)
+        self.assertEqual(needed_perms, [0,1,2,3])
+        self.assertEqual(perm_needed_flows,
+                         {0: [(0, 1, 0), (2, 2, 0), (3, 3, -1), (5, 4, -1), (1, 5, 0), (4, 6, -1)], 
+                          1: [(0, 7, -2), (1, 8, -2), (2, 9, -2), (3, 10, -3), (4, 11, -3), (5, 12, -3)], 
+                          2: [(0, 13, -1), (1, 14, -1), (2, 15, -1), (3, 16, -2), (4, 17, -2), (5, 18, -2)], 
+                          3: [(0, 19, -3), (1, 20, -1), (2, 21, -1), (3, 22, -4), (4, 23, -2), (5, 24, -2)]})
+        self.assertEqual(row_flow_factors,
+                         {0: [(4, 1, Fraction(16, 1), 0), (2, 2, Fraction(2, 1), -2), (3, 3, Fraction(16, 3), -1), (1, 4, Fraction(2, 3), -3), (2, 7, Fraction(-2, 1), -2), (2, 9, Fraction(2, 1), -2), (1, 10, Fraction(-2, 3), -3), (1, 12, Fraction(2, 3), -3), (3, 13, Fraction(16, 3), -1), (3, 14, Fraction(16, 3), -1), (3, 15, Fraction(16, 3), -1), (2, 16, Fraction(16, 9), -2), (2, 17, Fraction(16, 9), -2), (2, 18, Fraction(16, 9), -2), (1, 19, Fraction(-2, 3), -3), (1, 20, Fraction(-2, 3), -3), (1, 21, Fraction(-2, 3), -3), (0, 22, Fraction(-2, 9), -4), (0, 23, Fraction(-2, 9), -4), (0, 24, Fraction(-2, 9), -4)], 
+                          1: [(4, 5, Fraction(16, 1), 0), (3, 6, Fraction(16, 3), -1), (2, 8, Fraction(2, 1), -2), (1, 11, Fraction(2, 3), -3), (3, 13, Fraction(16, 3), -1), (3, 14, Fraction(16, 3), -1), (1, 15, Fraction(-2, 3), -3), (2, 16, Fraction(16, 9), -2), (2, 17, Fraction(16, 9), -2), (0, 18, Fraction(-2, 9), -4), (1, 19, Fraction(-2, 3), -3), (3, 20, Fraction(16, 3), -1), (3, 21, Fraction(16, 3), -1), (0, 22, Fraction(-2, 9), -4), (2, 23, Fraction(16, 9), -2), (2, 24, Fraction(16, 9), -2)], 
+                          2: [(2, 1, Fraction(2, 1), -2), (4, 2, Fraction(16, 1), 0), (1, 3, Fraction(2, 3), -3), (3, 4, Fraction(16, 3), -1), (2, 7, Fraction(2, 1), -2), (2, 9, Fraction(-2, 1), -2), (1, 10, Fraction(2, 3), -3), (1, 12, Fraction(-2, 3), -3), (3, 13, Fraction(16, 3), -1), (1, 14, Fraction(-2, 3), -3), (3, 15, Fraction(16, 3), -1), (2, 16, Fraction(16, 9), -2), (0, 17, Fraction(-2, 9), -4), (2, 18, Fraction(16, 9), -2), (1, 19, Fraction(-2, 3), -3), (3, 20, Fraction(16, 3), -1), (1, 21, Fraction(-2, 3), -3), (0, 22, Fraction(-2, 9), -4), (2, 23, Fraction(16, 9), -2), (0, 24, Fraction(-2, 9), -4)], 
+                          3: [(3, 1, Fraction(16, 3), -1), (1, 2, Fraction(2, 3), -3), (2, 3, Fraction(16, 9), -2), (0, 4, Fraction(2, 9), -4), (1, 7, Fraction(-2, 3), -3), (1, 9, Fraction(2, 3), -3), (0, 10, Fraction(-2, 9), -4), (0, 12, Fraction(2, 9), -4), (2, 13, Fraction(16, 9), -2), (2, 14, Fraction(16, 9), -2), (2, 15, Fraction(16, 9), -2), (1, 16, Fraction(16, 27), -3), (1, 17, Fraction(16, 27), -3), (1, 18, Fraction(16, 27), -3), (0, 19, Fraction(-2, 9), -4), (0, 20, Fraction(-2, 9), -4), (0, 21, Fraction(-2, 9), -4)], 
+                          4: [(3, 5, Fraction(16, 3), -1), (2, 6, Fraction(16, 9), -2), (1, 8, Fraction(2, 3), -3), (0, 11, Fraction(2, 9), -4), (2, 13, Fraction(16, 9), -2), (2, 14, Fraction(16, 9), -2), (0, 15, Fraction(-2, 9), -4), (1, 16, Fraction(16, 27), -3), (1, 17, Fraction(16, 27), -3), (0, 19, Fraction(-2, 9), -4), (2, 20, Fraction(16, 9), -2), (2, 21, Fraction(16, 9), -2), (1, 23, Fraction(16, 27), -3), (1, 24, Fraction(16, 27), -3)], 
+                          5: [(1, 1, Fraction(2, 3), -3), (3, 2, Fraction(16, 3), -1), (0, 3, Fraction(2, 9), -4), (2, 4, Fraction(16, 9), -2), (1, 7, Fraction(2, 3), -3), (1, 9, Fraction(-2, 3), -3), (0, 10, Fraction(2, 9), -4), (0, 12, Fraction(-2, 9), -4), (2, 13, Fraction(16, 9), -2), (0, 14, Fraction(-2, 9), -4), (2, 15, Fraction(16, 9), -2), (1, 16, Fraction(16, 27), -3), (1, 18, Fraction(16, 27), -3), (0, 19, Fraction(-2, 9), -4), (2, 20, Fraction(16, 9), -2), (0, 21, Fraction(-2, 9), -4), (1, 23, Fraction(16, 27), -3)]})
+        self.assertEqual(flow_jamp_dict, {0: 1, 1: 5, 2: 2, 3: 3, 4: 6, 5: 4})
+
+        flow_call_lines = process_exporter.get_flow_call_lines(needed_perms,
+                                                               perm_needed_flows)
+        self.assertEqual("\n".join(flow_call_lines),
+                         """IF(ICO.EQ.1) THEN
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,1))
+ENDDO
+JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+JAMP(2)=IFERM(1)*FLOW3(P,NHEL,PERM)
+JAMP(5)=IFERM(1)*FLOW2(P,NHEL,PERM)
+ENDIF
+IF(ICO.EQ.2) THEN
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,1))
+ENDDO
+JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+JAMP(2)=IFERM(1)*FLOW3(P,NHEL,PERM)
+JAMP(3)=IFERM(1)*FLOW4(P,NHEL,PERM)
+JAMP(4)=IFERM(1)*FLOW6(P,NHEL,PERM)
+JAMP(5)=IFERM(1)*FLOW2(P,NHEL,PERM)
+JAMP(6)=IFERM(1)*FLOW5(P,NHEL,PERM)
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,2))
+ENDDO
+JAMP(7)=IFERM(2)*FLOW1(P,NHEL,PERM)
+JAMP(8)=IFERM(2)*FLOW2(P,NHEL,PERM)
+JAMP(9)=IFERM(2)*FLOW3(P,NHEL,PERM)
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,3))
+ENDDO
+JAMP(13)=IFERM(3)*FLOW1(P,NHEL,PERM)
+JAMP(14)=IFERM(3)*FLOW2(P,NHEL,PERM)
+JAMP(15)=IFERM(3)*FLOW3(P,NHEL,PERM)
+JAMP(16)=IFERM(3)*FLOW4(P,NHEL,PERM)
+JAMP(17)=IFERM(3)*FLOW5(P,NHEL,PERM)
+JAMP(18)=IFERM(3)*FLOW6(P,NHEL,PERM)
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,4))
+ENDDO
+JAMP(20)=IFERM(4)*FLOW2(P,NHEL,PERM)
+JAMP(21)=IFERM(4)*FLOW3(P,NHEL,PERM)
+JAMP(23)=IFERM(4)*FLOW5(P,NHEL,PERM)
+JAMP(24)=IFERM(4)*FLOW6(P,NHEL,PERM)
+ENDIF
+IF(ICO.EQ.3) THEN
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,1))
+ENDDO
+JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+JAMP(2)=IFERM(1)*FLOW3(P,NHEL,PERM)
+JAMP(3)=IFERM(1)*FLOW4(P,NHEL,PERM)
+JAMP(4)=IFERM(1)*FLOW6(P,NHEL,PERM)
+JAMP(5)=IFERM(1)*FLOW2(P,NHEL,PERM)
+JAMP(6)=IFERM(1)*FLOW5(P,NHEL,PERM)
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,2))
+ENDDO
+JAMP(7)=IFERM(2)*FLOW1(P,NHEL,PERM)
+JAMP(8)=IFERM(2)*FLOW2(P,NHEL,PERM)
+JAMP(9)=IFERM(2)*FLOW3(P,NHEL,PERM)
+JAMP(10)=IFERM(2)*FLOW4(P,NHEL,PERM)
+JAMP(11)=IFERM(2)*FLOW5(P,NHEL,PERM)
+JAMP(12)=IFERM(2)*FLOW6(P,NHEL,PERM)
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,3))
+ENDDO
+JAMP(13)=IFERM(3)*FLOW1(P,NHEL,PERM)
+JAMP(14)=IFERM(3)*FLOW2(P,NHEL,PERM)
+JAMP(15)=IFERM(3)*FLOW3(P,NHEL,PERM)
+JAMP(16)=IFERM(3)*FLOW4(P,NHEL,PERM)
+JAMP(17)=IFERM(3)*FLOW5(P,NHEL,PERM)
+JAMP(18)=IFERM(3)*FLOW6(P,NHEL,PERM)
+DO I=1,NEXTERNAL
+PERM(I)=PM(PERMS(I,4))
+ENDDO
+JAMP(19)=IFERM(4)*FLOW1(P,NHEL,PERM)
+JAMP(20)=IFERM(4)*FLOW2(P,NHEL,PERM)
+JAMP(21)=IFERM(4)*FLOW3(P,NHEL,PERM)
+JAMP(22)=IFERM(4)*FLOW4(P,NHEL,PERM)
+JAMP(23)=IFERM(4)*FLOW5(P,NHEL,PERM)
+JAMP(24)=IFERM(4)*FLOW6(P,NHEL,PERM)
+ENDIF""")
+
+        color_flow_lines = process_exporter.get_color_flow_lines(row_flow_factors,
+                                                                flow_jamp_dict)
+        self.assertEqual("\n".join(color_flow_lines),
+                         """IF(ICO.EQ.1) THEN
+ZTEMP = ZTEMP+JAMP(1)*DCONJG(16D0*(JAMP(1)))
+ZTEMP = ZTEMP+JAMP(5)*DCONJG(16D0*(JAMP(5)))
+ZTEMP = ZTEMP+JAMP(2)*DCONJG(16D0*(JAMP(2)))
+ENDIF
+IF(ICO.EQ.2) THEN
+ZTEMP = ZTEMP+1/9D0*JAMP(1)*DCONJG(48D0*(JAMP(3)+JAMP(13)+JAMP(14)+JAMP(15))+18D0*(JAMP(2)-JAMP(7)+JAMP(9))+16D0*(JAMP(16)+JAMP(17)+JAMP(18)))
+ZTEMP = ZTEMP+1/9D0*JAMP(5)*DCONJG(48D0*(JAMP(6)+JAMP(13)+JAMP(14)+JAMP(20)+JAMP(21))+18D0*(JAMP(8))+16D0*(JAMP(16)+JAMP(17)+JAMP(23)+JAMP(24)))
+ZTEMP = ZTEMP+1/9D0*JAMP(2)*DCONJG(48D0*(JAMP(4)+JAMP(13)+JAMP(15)+JAMP(20))+18D0*(JAMP(1)+JAMP(7)-JAMP(9))+16D0*(JAMP(16)+JAMP(18)+JAMP(23)))
+ZTEMP = ZTEMP+1/9D0*JAMP(3)*DCONJG(48D0*(JAMP(1))+16D0*(JAMP(3)+JAMP(13)+JAMP(14)+JAMP(15)))
+ZTEMP = ZTEMP+1/9D0*JAMP(6)*DCONJG(48D0*(JAMP(5))+16D0*(JAMP(6)+JAMP(13)+JAMP(14)+JAMP(20)+JAMP(21)))
+ZTEMP = ZTEMP+1/9D0*JAMP(4)*DCONJG(48D0*(JAMP(2))+16D0*(JAMP(4)+JAMP(13)+JAMP(15)+JAMP(20)))
+ENDIF
+IF(ICO.EQ.3) THEN
+ZTEMP = ZTEMP+1/9D0*JAMP(1)*DCONJG(6D0*(JAMP(4)-JAMP(10)+JAMP(12)-JAMP(19)-JAMP(20)-JAMP(21))+2D0*(-JAMP(22)-JAMP(23)-JAMP(24)))
+ZTEMP = ZTEMP+1/9D0*JAMP(5)*DCONJG(6D0*(JAMP(11)-JAMP(15)-JAMP(19))+2D0*(-JAMP(18)-JAMP(22)))
+ZTEMP = ZTEMP+1/9D0*JAMP(2)*DCONJG(6D0*(JAMP(3)+JAMP(10)-JAMP(12)-JAMP(14)-JAMP(19)-JAMP(21))+2D0*(-JAMP(17)-JAMP(22)-JAMP(24)))
+ZTEMP = ZTEMP+1/27D0*JAMP(3)*DCONJG(18D0*(JAMP(2)-JAMP(7)+JAMP(9))+16D0*(JAMP(16)+JAMP(17)+JAMP(18))+6D0*(JAMP(4)-JAMP(10)+JAMP(12)-JAMP(19)-JAMP(20)-JAMP(21)))
+ZTEMP = ZTEMP+1/27D0*JAMP(6)*DCONJG(18D0*(JAMP(8))+16D0*(JAMP(16)+JAMP(17)+JAMP(23)+JAMP(24))+6D0*(JAMP(11)-JAMP(15)-JAMP(19)))
+ZTEMP = ZTEMP+1/27D0*JAMP(4)*DCONJG(18D0*(JAMP(1)+JAMP(7)-JAMP(9))+16D0*(JAMP(16)+JAMP(18)+JAMP(23))+6D0*(JAMP(3)+JAMP(10)-JAMP(12)-JAMP(14)-JAMP(19)-JAMP(21)))
+ENDIF""")
+
+        nflows, jamp2_lines = process_exporter.get_jamp2_lines(matrix_element,
+                                                              perm_needed_flows)
+        self.assertEqual(nflows, 3)
+        self.assertEqual("\n".join(jamp2_lines),
+                         """JAMP2(1)=JAMP2(1)+JAMP(1)*DCONJG(JAMP(1))
+JAMP2(2)=JAMP2(2)+JAMP(2)*DCONJG(JAMP(2))
+JAMP2(3)=JAMP2(3)+JAMP(5)*DCONJG(JAMP(5))""")
