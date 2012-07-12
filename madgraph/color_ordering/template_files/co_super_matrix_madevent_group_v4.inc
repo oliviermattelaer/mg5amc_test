@@ -52,10 +52,11 @@ C
     INTEGER JHEL(2),J,JJ,ISEL
     REAL*8 TOTFACT
     INTEGER JHELBK,NUPPER
-    INTEGER NSELPERM(NPERMS)
+    INTEGER NSELPERM(NPERMS),NSELPERMS,NLCPERM
     LOGICAL FIRSTFLOW
     REAL*8   RVEC
     SAVE FRAC
+    DATA NLCPERM/0/
 C  
 C GLOBAL VARIABLES
 C  
@@ -107,10 +108,12 @@ C ----------
     DO I=1,NCOMB
        TS(I)=0d0
     ENDDO
+    NSELPERMS=MIN(NUMPERMS,NPERMS)
+    IF(NSELPERMS.EQ.0) NSELPERMS=NPERMS
     IF(NTRY(IMIRROR).EQ.1)THEN
 c     Calculate summed permutation weight
       TOTFACT=NPERMS
-      FRAC=MIN(NUMPERMS,NPERMS)*1D0/TOTFACT
+      FRAC=NSELPERMS*1D0/TOTFACT
     ENDIF
 c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
       JHELBK=JHEL(IMIRROR)
@@ -122,10 +125,9 @@ c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
          HWGT = REAL(NGOOD(IMIRROR))/REAL(ISHEL(IMIRROR))
       ENDIF
  10 FIRSTFLOW=.TRUE.
-c     Start loop over chosen permutations
-      DO ISEL=1,MIN(NPERMS,NUMPERMS)
-        JHEL(IMIRROR)=JHELBK
-        IF(NUMPERMS.GE.NPERMS.OR.NUMPERMS.EQ.0) THEN
+c     Choose permutations
+      DO ISEL=1,NSELPERMS
+        IF(NSELPERMS.EQ.NPERMS) THEN
            IPERM=ISEL
         ELSE
 c          Pick a permutation
@@ -139,6 +141,16 @@ c     Note that this requires NSELPERM to be sorted
 c     Add IPERM to NSELPERM
            CALL INSORT(IPERM,ISEL-1,NSELPERM)
         ENDIF
+      ENDDO
+      IF(ICO.GT.1)THEN
+C     Pick a permutation to run NLC on
+         CALL RANMAR(RVEC)
+         NLCPERM=INT(RVEC*NSELPERMS)+1
+      ENDIF
+c     Start loop over chosen permutations
+      DO ISEL=1,NSELPERMS
+c     Reset helicity info
+        JHEL(IMIRROR)=JHELBK
 c     Get permutation
         CALL GETPERM%(proc_id)s(IPERM,PERM)
 c     Start loop over helicities
@@ -151,7 +163,12 @@ c     Start loop over helicities
             IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
             I = IGOOD(JHEL(IMIRROR),IMIRROR)
           ENDIF
-          T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,ICO)
+          T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
+          IF(ISEL.EQ.NLCPERM) THEN
+             DO JJ=2,ICO
+                T=T+NSELPERMS*MATRIX1(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)
+             ENDDO
+          ENDIF
           DO JJ=1,NINCOMING
             IF(POL(JJ).NE.1D0.AND.NHEL(JJ,I).EQ.INT(SIGN(1D0,POL(JJ)))) THEN
               T=T*ABS(POL(JJ))
@@ -166,7 +183,7 @@ c     Start loop over helicities
 c        print *,'ANS: ',ANS
         IF(NTRY(IMIRROR).LE.MAXTRIES)THEN
           DO I=1,NCOMB
-            IF (.NOT.GOODHEL(I,IMIRROR) .AND. (TS(I).GT.ANS*LIMHEL/NCOMB)) THEN
+            IF (.NOT.GOODHEL(I,IMIRROR) .AND. (DABS(TS(I)).GT.DABS(ANS)*LIMHEL/NCOMB)) THEN
               GOODHEL(I,IMIRROR)=.TRUE.
               NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
               IGOOD(NGOOD(IMIRROR),IMIRROR) = I
@@ -206,6 +223,10 @@ c        print *,'ANS: ',ANS
         ENDIF
       ENDIF
       ANS=ANS/DBLE(IDEN)
+      IF(ANS.LT.0d0)THEN
+         PRINT *,'Warning: ANS = ',ANS
+         ANS=0d0
+      ENDIF
       END
 
 C     ------------------------------------------------------------
