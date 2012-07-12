@@ -83,14 +83,14 @@ if '__main__' == __name__:
     #my_mg5_co_32.setup(mg5_path, mg4_path, optimization=3, color_ordering=2)
     #my_mg5_co_13 = me_comparator.MG5_CO_Runner()
     #my_mg5_co_13.setup(mg5_path, mg4_path, optimization=1, color_ordering=3)
-    my_mg5_co_33 = me_comparator.MG5_CO_Runner()
-    my_mg5_co_33.setup(mg5_path, mg4_path, optimization=3, color_ordering=3)
+    my_mg5_co_32 = me_comparator.MG5_CO_Runner()
+    my_mg5_co_32.setup(mg5_path, mg4_path, optimization=3, color_ordering=2)
     #my_mg5_co_15 = me_comparator.MG5_CO_Runner()
     #my_mg5_co_15.setup(mg5_path, mg4_path, optimization=1, color_ordering=5)
     #my_mg5_co_34 = me_comparator.MG5_CO_Runner()
     #my_mg5_co_34.setup(mg5_path, mg4_path, optimization=3, color_ordering=4)
-    my_mg5_co_35 = me_comparator.MG5_CO_Runner()
-    my_mg5_co_35.setup(mg5_path, mg4_path, optimization=3, color_ordering=5)
+    my_mg5_co_33 = me_comparator.MG5_CO_Runner()
+    my_mg5_co_33.setup(mg5_path, mg4_path, optimization=3, color_ordering=3)
 
     # Create a MERunner object for UFO-ALOHA-MG5
     my_mg5_ufo = me_comparator.MG5_UFO_Runner()
@@ -104,8 +104,8 @@ if '__main__' == __name__:
     my_comp = me_comparator.MEComparator()
     my_comp.set_me_runners(my_mg5_ufo,
                            my_mg5_co_31,
-                           my_mg5_co_33,
-                           my_mg5_co_35)
+                           my_mg5_co_32,
+                           my_mg5_co_33)
 
     #my_mg5_ufo, my_mg5_co_17, my_mg5_co_37,
 

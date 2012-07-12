@@ -49,12 +49,13 @@ C
     LOGICAL GOODHEL(NCOMB,2)
     REAL*8 HWGT,XTOT,XTRY,XREJ,XR,YFRAC(0:NCOMB),FRAC
     INTEGER IDUM,IPERM,NGOOD(2),IGOOD(NCOMB,2)
-    INTEGER JHEL(2),J,JJ
-    REAL*8 TOTFACT,FACTNUL
+    INTEGER JHEL(2),J,JJ,ISEL
+    REAL*8 TOTFACT
     INTEGER JHELBK,NUPPER
+    INTEGER NSELPERM(NPERMS)
     LOGICAL FIRSTFLOW
     REAL*8   RVEC
-    SAVE FRAC,FACTNUL
+    SAVE FRAC
 C  
 C GLOBAL VARIABLES
 C  
@@ -110,12 +111,6 @@ C ----------
 c     Calculate summed permutation weight
       TOTFACT=NPERMS
       FRAC=MIN(NUMPERMS,NPERMS)*1D0/TOTFACT
-C     Correction factor for events where no permutation is selected
-      FACTNUL=1d0
-      DO IPERM=1,NPERMS
-         FACTNUL=FACTNUL*(1-FRAC)
-      ENDDO
-      FACTNUL=1-FACTNUL
     ENDIF
 c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
       JHELBK=JHEL(IMIRROR)
@@ -127,12 +122,23 @@ c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
          HWGT = REAL(NGOOD(IMIRROR))/REAL(ISHEL(IMIRROR))
       ENDIF
  10 FIRSTFLOW=.TRUE.
-c     Start loop over permutations
-      DO IPERM=1,NPERMS
+c     Start loop over chosen permutations
+      DO ISEL=1,MIN(NPERMS,NUMPERMS)
         JHEL(IMIRROR)=JHELBK
-C     Decide whether to use this permutation
-        CALL RANMAR(RVEC)
-        IF(RVEC.GT.FRAC) CYCLE
+        IF(NUMPERMS.GE.NPERMS.OR.NUMPERMS.EQ.0) THEN
+           IPERM=ISEL
+        ELSE
+c          Pick a permutation
+           CALL RANMAR(RVEC)
+           IPERM=INT(RVEC*(NPERMS-ISEL+1)+1)
+c     Shift IPERM according to already chosen permutations
+c     Note that this requires NSELPERM to be sorted
+           DO J=1,ISEL-1
+              IF(IPERM.GE.NSELPERM(J)) IPERM=IPERM+1
+           ENDDO
+c     Add IPERM to NSELPERM
+           CALL INSORT(IPERM,ISEL-1,NSELPERM)
+        ENDIF
 c     Get permutation
         CALL GETPERM%(proc_id)s(IPERM,PERM)
 c     Start loop over helicities
@@ -153,8 +159,8 @@ c     Start loop over helicities
               T=T*(2D0-ABS(POL(JJ)))
             ENDIF
           ENDDO
-          ANS=ANS+T*HWGT/FRAC*FACTNUL
-          TS(I)=T*HWGT/FRAC*FACTNUL
+          ANS=ANS+T*HWGT/FRAC
+          TS(I)=T*HWGT/FRAC
         ENDDO
         FIRSTFLOW=.FALSE.
 c        print *,'ANS: ',ANS
@@ -175,8 +181,6 @@ c        print *,'ANS: ',ANS
           WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
         ENDIF
       ENDDO
-C     If no permutation was chosen, repeat
-      IF(FIRSTFLOW) GOTO 10
       IF (ISHEL(IMIRROR) .NE. 1) THEN
         CALL RANMAR(RVEC)
         R=RVEC*ANS

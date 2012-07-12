@@ -137,7 +137,10 @@ c     Start loop over helicities
             IF (JHEL .GT. NGOOD) JHEL=1
             I = IGOOD(JHEL)
           ENDIF
-          T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,ICO)
+          T=0d0
+          DO I=1,ICO
+             T=T+MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,ICO)
+          ENDDO
           DO JJ=1,NINCOMING
             IF(POL(JJ).NE.1D0.AND.NHEL(JJ,I).EQ.INT(SIGN(1D0,POL(JJ)))) THEN
               T=T*ABS(POL(JJ))

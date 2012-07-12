@@ -1,52 +1,71 @@
 C
-C ipnext gives the next permutation given a permutation with n elements
+C IPNEXT gives the next permutation given a permutation with N elements
 C
-      subroutine ipnext(ia, n, flag)
+      SUBROUTINE IPNEXT(IA, N, FLAG)
 
-      implicit none
+      IMPLICIT NONE
 
-      integer ia(*)
-      integer n
-      integer flag
+      INTEGER IA(*)
+      INTEGER N
+      INTEGER FLAG
       
-      integer i,j
-      integer itemp
+      INTEGER I,J
+      INTEGER ITEMP
 
 
-      i = n-1
+      I = N-1
 
-      do while (i.ge.1 .and. ia(i).gt.ia(i+1))
-         i = i-1
-      enddo
+      DO WHILE (I.GE.1 .AND. IA(I).GT.IA(I+1))
+         I = I-1
+      ENDDO
 
-      if (i<1) then
-c      if (i.lt.1) then
-         flag = -1
-         return
-      endif
+      IF (I<1) THEN
+C      IF (I.LT.1) THEN
+         FLAG = -1
+         RETURN
+      ENDIF
 
-      j = n
+      J = N
 
-      do while (ia(i).gt.ia(j))
-         j = j-1
-      enddo
+      DO WHILE (IA(I).GT.IA(J))
+         J = J-1
+      ENDDO
 
-      itemp = ia(i)
-      ia(i) = ia(j)
-      ia(j) = itemp
+      ITEMP = IA(I)
+      IA(I) = IA(J)
+      IA(J) = ITEMP
 
-      i = i+1
-      j = n
+      I = I+1
+      J = N
 
-      do while (i.lt.j)
-         itemp = ia(i)
-         ia(i) = ia(j)
-         ia(j) = itemp
-         i = i+1
-         j = j-1
-      enddo
+      DO WHILE (I.LT.J)
+         ITEMP = IA(I)
+         IA(I) = IA(J)
+         IA(J) = ITEMP
+         I = I+1
+         J = J-1
+      ENDDO
 
-      flag = 1
+      FLAG = 1
 
-      return
-      end
+      RETURN
+      END
+
+
+C
+C     INSORT inserts INEW in the sorted array IA with N entries
+C
+      SUBROUTINE INSORT(INEW,N,IA)
+      IMPLICIT NONE
+      INTEGER INEW,N,IA(*),I,ITMP
+      
+      DO I=N,2,-1
+         IF(INEW.GE.IA(I))THEN
+            IA(I+1)=INEW
+            EXIT
+         ELSE
+            IA(I+1)=IA(I)
+         ENDIF
+      ENDDO
+      END
+

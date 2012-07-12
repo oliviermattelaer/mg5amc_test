@@ -45,7 +45,10 @@ C ----------
       ANS = 0D0
           DO IHEL=1,NCOMB
              IF (GOODHEL(IHEL) .OR. NTRY .LT. 2) THEN
-                 T=MATRIX(P ,NHEL(1,IHEL), ICO)            
+               T=0d0
+               DO I=1,ICO
+                  T=T+MATRIX(P ,NHEL(1,IHEL), I)
+               ENDDO
                ANS=ANS+T
                IF (T .NE. 0D0 .AND. .NOT.    GOODHEL(IHEL)) THEN
                    GOODHEL(IHEL)=.TRUE.

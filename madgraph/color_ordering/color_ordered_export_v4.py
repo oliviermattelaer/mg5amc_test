@@ -879,11 +879,12 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')],
                         stdout = devnull)
 
-        # Run "make" to generate madevent.tar.gz file
+        # Generate madevent.tar.gz file
         if os.path.exists(os.path.join('SubProcesses', 'subproc.mg')):
             if os.path.exists('madevent.tar.gz'):
                 os.remove('madevent.tar.gz')
-            subprocess.call(['make'], stdout = devnull)
+            subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'internal', 'make_madevent_tar')],
+                        stdout = devnull)
 
 
         if online:
