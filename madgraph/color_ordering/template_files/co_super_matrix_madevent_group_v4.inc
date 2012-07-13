@@ -129,7 +129,7 @@ c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
 c     Choose permutations
       DO ISEL=1,NSELPERMS
         IF(NSELPERMS.EQ.NPERMS) THEN
-           IPERM=ISEL
+           NSELPERM(ISEL)=ISEL
         ELSE
 c          Pick a permutation
            CALL RANMAR(RVEC)
@@ -153,6 +153,7 @@ c     Start loop over chosen permutations
 c     Reset helicity info
         JHEL(IMIRROR)=JHELBK
 c     Get permutation
+        IPERM=NSELPERM(ISEL)
         CALL GETPERM%(proc_id)s(IPERM,PERM)
 c     Start loop over helicities
         DO J=1,NUPPER
