@@ -166,7 +166,7 @@ c     Start loop over helicities
           T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
           IF(ISEL.EQ.NLCPERM) THEN
              DO JJ=2,ICO
-                T=T+NSELPERMS*MATRIX1(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)
+                T=T+NSELPERMS*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)
              ENDDO
           ENDIF
           DO JJ=1,NINCOMING
@@ -176,14 +176,14 @@ c     Start loop over helicities
               T=T*(2D0-ABS(POL(JJ)))
             ENDIF
           ENDDO
-          ANS=ANS+T*HWGT/FRAC
-          TS(I)=T*HWGT/FRAC
+          ANS=ANS+DABS(T)*HWGT/FRAC
+          TS(I)=TS(I)+T*HWGT/FRAC
         ENDDO
         FIRSTFLOW=.FALSE.
 c        print *,'ANS: ',ANS
         IF(NTRY(IMIRROR).LE.MAXTRIES)THEN
           DO I=1,NCOMB
-            IF (.NOT.GOODHEL(I,IMIRROR) .AND. (DABS(TS(I)).GT.DABS(ANS)*LIMHEL/NCOMB)) THEN
+            IF (.NOT.GOODHEL(I,IMIRROR) .AND. (DABS(TS(I)).GT.ANS*LIMHEL/NCOMB)) THEN
               GOODHEL(I,IMIRROR)=.TRUE.
               NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
               IGOOD(NGOOD(IMIRROR),IMIRROR) = I
@@ -196,16 +196,19 @@ c        print *,'ANS: ',ANS
         ENDIF
         IF (ISHEL(IMIRROR) .EQ. 1) THEN
           WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
+c         Set right sign for ANS, based on sign of chosen helicity
+          ANS=DSIGN(ANS,TS(I))
         ENDIF
       ENDDO
       IF (ISHEL(IMIRROR) .NE. 1) THEN
         CALL RANMAR(RVEC)
-        R=RVEC*ANS
         SUMHEL=0D0
         DO I=1,NCOMB
-          SUMHEL=SUMHEL+TS(I)
-          IF(R.LT.SUMHEL)THEN
+          SUMHEL=SUMHEL+DABS(TS(I))/ANS
+          IF(RVEC.LT.SUMHEL)THEN
             WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
+c           Set right sign for ANS, based on sign of chosen helicity
+            ANS=DSIGN(ANS,TS(I))
             GOTO 20
           ENDIF
         ENDDO
@@ -223,10 +226,6 @@ c        print *,'ANS: ',ANS
         ENDIF
       ENDIF
       ANS=ANS/DBLE(IDEN)
-      IF(ANS.LT.0d0)THEN
-         PRINT *,'Warning: ANS = ',ANS
-         ANS=0d0
-      ENDIF
       END
 
 C     ------------------------------------------------------------
