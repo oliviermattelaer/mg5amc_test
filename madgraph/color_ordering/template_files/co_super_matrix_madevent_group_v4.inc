@@ -164,7 +164,10 @@ c     Start loop over helicities
             IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
             I = IGOOD(JHEL(IMIRROR),IMIRROR)
           ENDIF
-          T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
+          IF(T_IDENT(I,IMIRROR).LT.0.OR.TS(T_IDENT(I,IMIRROR)).EQ.0)THEN
+C         Calculate matrix element if no identical helicity
+             T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
+          ENDIF
           IF(ISEL.EQ.NLCPERM) THEN
              DO JJ=2,ICO
                 T=T+NSELPERMS*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)
@@ -193,6 +196,10 @@ c     First reset helicity info
             IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
             I = IGOOD(JHEL(IMIRROR),IMIRROR)
          ENDIF
+         IF(T_IDENT(I,IMIRROR).GT.0.AND.TS(T_IDENT(I,IMIRROR)).NE.0)THEN
+C        If identical helicity, set TS(I) to that value
+            TS(I)=TS(T_IDENT(I,IMIRROR))
+         ENDIF
          ANS=ANS+DABS(TS(I))
       ENDDO
 c     Determine which helicities to include
@@ -202,7 +209,17 @@ c     Determine which helicities to include
               GOODHEL(I,IMIRROR)=.TRUE.
               NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
               IGOOD(NGOOD(IMIRROR),IMIRROR) = I
-              PRINT *,'Added good helicity ',I,TS(I)/ANS,' in event ',NTRY(IMIRROR)
+c             Look for identical helicities
+              DO J=1,I-1
+                 IF(DABS(TS(I)/TS(J)-1d0).LT.1D-12)THEN
+                    PRINT *,'Found identical helicity ',I,J,TS(I)/ANS
+                    T_IDENT(I,IMIRROR)=J
+                    EXIT
+                 ENDIF
+              ENDDO
+              IF(T_IDENT(I,IMIRROR).LT.0)THEN
+                 PRINT *,'Added good helicity ',I,TS(I)/ANS,' in event ',NTRY(IMIRROR)
+              ENDIF
             ENDIF
          ENDDO
       ENDIF
