@@ -44,7 +44,7 @@ C
     INTEGER ISHEL(2)
     REAL*8 T, MATRIX%(proc_id)s
     REAL*8 R,SUMHEL,TS(NCOMB)
-    INTEGER I,IDEN
+    INTEGER I,IDEN,T_IDENT(NCOMB,2)
     INTEGER IPROC,II
     LOGICAL GOODHEL(NCOMB,2)
     REAL*8 HWGT,XTOT,XTRY,XREJ,XR,YFRAC(0:NCOMB),FRAC
@@ -55,7 +55,7 @@ C
     INTEGER NSELPERM(NPERMS),NSELPERMS,NLCPERM
     LOGICAL FIRSTFLOW
     REAL*8   RVEC
-    SAVE FRAC
+    SAVE FRAC,GOODHEL,T_IDENT
     DATA NLCPERM/0/
 C  
 C GLOBAL VARIABLES
@@ -87,6 +87,7 @@ C
     DATA ISHEL /0,0/
     SAVE YFRAC, IGOOD, JHEL
     DATA GOODHEL/THEL*.FALSE./
+    DATA T_IDENT/THEL*-1/
 %(helicity_lines)s
 %(den_factor_line)s
 C ----------
@@ -176,31 +177,45 @@ c     Start loop over helicities
               T=T*(2D0-ABS(POL(JJ)))
             ENDIF
           ENDDO
-          ANS=ANS+DABS(T)*HWGT/FRAC
           TS(I)=TS(I)+T*HWGT/FRAC
         ENDDO
         FIRSTFLOW=.FALSE.
-c        print *,'ANS: ',ANS
-        IF(NTRY(IMIRROR).LE.MAXTRIES)THEN
-          DO I=1,NCOMB
+      ENDDO
+C     Calculate ANS (needs to be done after summing over flows)
+c     First reset helicity info
+      JHEL(IMIRROR)=JHELBK
+      DO J=1,NUPPER
+         IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
+            I=J
+            IF(.NOT.GOODHEL(I,IMIRROR) .AND. NTRY(IMIRROR) .GT. MAXTRIES) CYCLE
+         ELSE
+            JHEL(IMIRROR)=JHEL(IMIRROR)+1
+            IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
+            I = IGOOD(JHEL(IMIRROR),IMIRROR)
+         ENDIF
+         ANS=ANS+DABS(TS(I))
+      ENDDO
+c     Determine which helicities to include
+      IF(NTRY(IMIRROR).LE.MAXTRIES)THEN
+         DO I=1,NCOMB
             IF (.NOT.GOODHEL(I,IMIRROR) .AND. (DABS(TS(I)).GT.ANS*LIMHEL/NCOMB)) THEN
               GOODHEL(I,IMIRROR)=.TRUE.
               NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
               IGOOD(NGOOD(IMIRROR),IMIRROR) = I
               PRINT *,'Added good helicity ',I,TS(I)/ANS,' in event ',NTRY(IMIRROR)
             ENDIF
-          ENDDO
-        ENDIF
-        IF(NTRY(IMIRROR).EQ.MAXTRIES)THEN
-          ISHEL(IMIRROR)=MIN(ISUM_HEL,NGOOD(IMIRROR))
-        ENDIF
-        IF (ISHEL(IMIRROR) .EQ. 1) THEN
-          WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
+         ENDDO
+      ENDIF
+c     Set how many helicities to sum over
+      IF(NTRY(IMIRROR).EQ.MAXTRIES)THEN
+         ISHEL(IMIRROR)=MIN(ISUM_HEL,NGOOD(IMIRROR))
+      ENDIF
+c     Choose a helicity to write out
+      IF (ISHEL(IMIRROR) .EQ. 1) THEN
+         WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
 c         Set right sign for ANS, based on sign of chosen helicity
-          ANS=DSIGN(ANS,TS(I))
-        ENDIF
-      ENDDO
-      IF (ISHEL(IMIRROR) .NE. 1) THEN
+         ANS=DSIGN(ANS,TS(I))
+      ELSE
         CALL RANMAR(RVEC)
         SUMHEL=0D0
         DO I=1,NCOMB
@@ -214,6 +229,7 @@ c           Set right sign for ANS, based on sign of chosen helicity
         ENDDO
  20     CONTINUE
       ENDIF
+C     Multiply by the appropriate AMP2 factor
       IF (MULTI_CHANNEL) THEN
         XTOT=0D0
         DO I=1,NDIAGS
