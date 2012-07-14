@@ -59,7 +59,11 @@ C
       IMPLICIT NONE
       INTEGER INEW,N,IA(*),I,ITMP
       
-      DO I=N,2,-1
+      IF(N.EQ.0)THEN
+         IA(1)=INEW
+         RETURN
+      ENDIF
+      DO I=N,1,-1
          IF(INEW.GE.IA(I))THEN
             IA(I+1)=INEW
             EXIT
@@ -67,5 +71,6 @@ C
             IA(I+1)=IA(I)
          ENDIF
       ENDDO
+      IF(INEW.LT.IA(1)) IA(1)=INEW
       END
 
