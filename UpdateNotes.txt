@@ -1,5 +1,9 @@
 Update notes for MadGraph 5 (in reverse time order)
 
+2.0.0 (XX/XX/XX)  JA+YT: Implemented color ordered recursion relations and 
+                      new phase space mapping to allow generation of up to
+                      6 final-state partons in multiparton processes.
+
 1.4.8 (XX/06/12)  JA: Fixed subprocess group combination also for the case
                       when different process flags @N are given to different
                       decays of the same core process (sorry, this was missed
