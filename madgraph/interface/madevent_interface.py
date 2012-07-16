@@ -1276,6 +1276,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
     # survey options, dict from name to type, default value, and help text
     _survey_options = {'points':('int', 1000,'Number of points for first iteration'),
                        'iterations':('int', 5, 'Number of iterations'),
+                       'min_iterations':('int', 3, 'Min number of iterations'),
                        'accuracy':('float', 0.1, 'Required accuracy'),
                        'gridpack':('str', '.false.', 'Gridpack generation')}
     # Variables to store object information
@@ -1995,7 +1996,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
             p = misc.Popen(['./gensym'], stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, 
                                  stderr=subprocess.STDOUT, cwd=Pdir)
-            sym_input = "%(points)d %(iterations)d %(accuracy)f %(gridpack)s\n" % self.opts
+            sym_input = "%(points)d %(min_iterations)d %(iterations)d %(accuracy)f %(gridpack)s\n" % self.opts
             (stdout, stderr) = p.communicate(sym_input)
             if not os.path.exists(pjoin(Pdir, 'ajob1')) or p.returncode:
                 logger.critical(stdout)

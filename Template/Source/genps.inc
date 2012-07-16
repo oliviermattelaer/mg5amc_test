@@ -33,5 +33,6 @@ c*************************************************************************
       PARAMETER(LIMHEL=1e-6)
       INTEGER MAXTRIES,NUMPERMS
       PARAMETER(MAXTRIES=100,NUMPERMS=10)
-      INTEGER IFACT
-      PARAMETER(IFACT=6)
+      INTEGER NLCFACT
+      PARAMETER(NLCFACT=10)
+      

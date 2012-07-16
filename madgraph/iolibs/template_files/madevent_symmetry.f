@@ -110,7 +110,7 @@ c
 c
 c     local
 c
-      integer npoints,itmax
+      integer npoints,itmax,itmin
       double precision acc
       character*20 param(maxpara),value(maxpara)
       integer npara, nreq
@@ -122,12 +122,12 @@ c
 c-----
 c  Begin Code
 c-----
-      write(*,*) 'Give npoints, max iter, accuracy, and gridpack (T/F)'
-      read(*,*)  npoints,itmax,acc,gridpack
+      write(*,*) 'Give npoints, min iter, max iter, accuracy, and gridpack (T/F)'
+      read(*,*)  npoints,itmin,itmax,acc,gridpack
 
       open (unit=26, file = 'input_app.txt', status='unknown',
      $     err=99)
-      write(26,*) npoints,itmax,3,
+      write(26,*) npoints,itmax,itmin,
      &     '     !Number of events and max and min iterations'      
       write(26,'(f8.4,a)') acc, '    !Accuracy'
       write(26,*) ' 2       !Grid Adjustment 0=none, 2=adjust'

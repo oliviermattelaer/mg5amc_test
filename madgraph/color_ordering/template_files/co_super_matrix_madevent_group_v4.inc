@@ -52,11 +52,12 @@ C
     INTEGER JHEL(2),J,JJ,ISEL
     REAL*8 TOTFACT
     INTEGER JHELBK,NUPPER
-    INTEGER NSELPERM(NPERMS),NSELPERMS,NLCPERM
+    INTEGER NSELPERM(NPERMS),NSORTPERM(NPERMS),NSELPERMS
     LOGICAL FIRSTFLOW
     REAL*8   RVEC
-    SAVE FRAC,GOODHEL,T_IDENT
-    DATA NLCPERM/0/
+    INTEGER ICOUNT
+    SAVE FRAC,GOODHEL,T_IDENT,ICOUNT
+    DATA ICOUNT/0/
 C  
 C GLOBAL VARIABLES
 C  
@@ -128,26 +129,18 @@ c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
  10 FIRSTFLOW=.TRUE.
 c     Choose permutations
       DO ISEL=1,NSELPERMS
-        IF(NSELPERMS.EQ.NPERMS) THEN
-           NSELPERM(ISEL)=ISEL
-        ELSE
-c          Pick a permutation
-           CALL RANMAR(RVEC)
-           IPERM=INT(RVEC*(NPERMS-ISEL+1)+1)
+c     Pick a permutation
+         CALL RANMAR(RVEC)
+         IPERM=INT(RVEC*(NPERMS-ISEL+1)+1)
 c     Shift IPERM according to already chosen permutations
 c     Note that this requires NSELPERM to be sorted
-           DO J=1,ISEL-1
-              IF(IPERM.GE.NSELPERM(J)) IPERM=IPERM+1
-           ENDDO
-c     Add IPERM to NSELPERM
-           CALL INSORT(IPERM,ISEL-1,NSELPERM)
-        ENDIF
+         DO J=1,ISEL-1
+            IF(IPERM.GE.NSORTPERM(J)) IPERM=IPERM+1
+         ENDDO
+c     Add IPERM to NSELPERM and NSORTPERM
+         NSELPERM(ISEL)=IPERM
+         CALL INSORT(IPERM,ISEL-1,NSORTPERM)
       ENDDO
-      IF(ICO.GT.1)THEN
-C     Pick a permutation to run NLC on
-         CALL RANMAR(RVEC)
-         NLCPERM=INT(RVEC*NSELPERMS)+1
-      ENDIF
 c     Start loop over chosen permutations
       DO ISEL=1,NSELPERMS
 c     Reset helicity info
@@ -155,6 +148,12 @@ c     Reset helicity info
 c     Get permutation
         IPERM=NSELPERM(ISEL)
         CALL GETPERM%(proc_id)s(IPERM,PERM)
+        IF(ICO.GT.1)THEN
+C       Update ICOUNT to keep track of NLC contributions
+           ICOUNT=ICOUNT+1
+C       Reset if above highest relevant value
+           IF(ICOUNT.EQ.NLCFACT**(ICO-1)+1) ICOUNT=1
+        ENDIF
 c     Start loop over helicities
         DO J=1,NUPPER
           IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
@@ -169,10 +168,15 @@ c     Start loop over helicities
 C         Calculate matrix element if no identical helicity
              T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
           ENDIF
-          IF(ISEL.EQ.NLCPERM) THEN
-             DO JJ=2,ICO
-                T=T+NSELPERMS*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)
-             ENDDO
+          IF(ICO.GT.1.AND.MOD(ICOUNT,NLCFACT).EQ.0) THEN
+C         Sample NLC contributions
+            T=T+NLCFACT*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,2)
+            IF(ICO.GT.2.AND.MOD(ICOUNT,NLCFACT**2).EQ.0) THEN
+C         Sample NNLC and higher contributions
+              DO JJ=3,ICO
+                T=T+NLCFACT**2*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)
+              ENDDO
+            ENDIF
           ENDIF
           DO JJ=1,NINCOMING
             IF(POL(JJ).NE.1D0.AND.NHEL(JJ,I).EQ.INT(SIGN(1D0,POL(JJ)))) THEN
