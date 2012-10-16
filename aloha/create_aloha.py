@@ -673,7 +673,7 @@ class AbstractALOHAModel(dict):
                         
         # Loop on the structure to build exactly what is request
         for l_name, outgoing_info in request.items():
-            if l_name.startswith('sum') and outgoing_info[()] == [-1]:
+            if l_name.startswith('sum') and outgoing_info[()] == [(-1,[])]:
                 self.sum_routines.append((l_name[3], int(l_name[4:])))
                 continue
             
