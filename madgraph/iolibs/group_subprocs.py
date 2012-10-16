@@ -40,7 +40,7 @@ import madgraph.various.misc as misc
 
 import aloha.create_aloha as create_aloha
 
-import models.sm.write_param_card as write_param_card
+import models.write_param_card as write_param_card
 from madgraph import MG5DIR
 from madgraph.iolibs.files import cp, ln, mv
 _file_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0] + '/'
@@ -293,7 +293,6 @@ class SubProcessGroup(base_objects.PhysicsObject):
 
         for ime, me in enumerate(matrix_elements):
             diagrams = me.get('base_amplitude').get('diagrams')
-            print me.get('processes')[0].nice_string()
             used_diagrams = []
             used_tags = []
             failed_tags = []
@@ -444,8 +443,8 @@ class SubProcessGroup(base_objects.PhysicsObject):
             proc_class = [ [(p.is_fermion(), ) \
                             for p in is_parts], # p.get('is_part')
                            [(p.get('mass'), p.get('spin'),
-                             p.get('color') != 1) for p in \
-                            is_parts + fs_parts],
+                             abs(p.get('color')),l.get('onshell')) for (p, l) \
+                             in zip(is_parts + fs_parts, process.get('legs'))],
                            amplitude.get('process').get('id'),
                            process.get('id')]
             try:
@@ -581,8 +580,7 @@ class DecayChainSubProcessGroup(SubProcessGroup):
         return subproc_groups
 
     def assign_group_to_decay_process(self, process):
-        """Recursively identify which group process belongs to,
-        and determine the mapping_diagrams for the process."""
+        """Recursively identify which group process belongs to."""
 
         # Determine properties for the decay chains
         # The entries of group_assignments are:
@@ -615,17 +613,17 @@ class DecayChainSubProcessGroup(SubProcessGroup):
         # Now calculate the corresponding properties for process
 
         # Find core process group
-        ids = [l.get('id') for l in process.get('legs')]
+        ids = [(l.get('id'),l.get('onshell')) for l in process.get('legs')]
         core_groups = [(i, group) for (i, group) in \
                       enumerate(self.get('core_groups')) \
-                      if ids in [[l.get('id') for l in \
+                      if ids in [[(l.get('id'),l.get('onshell')) for l in \
                                   a.get('process').get('legs')] \
                                  for a in group.get('amplitudes')] \
                        and process.get('id') == group.get('number')]
 
         if not core_groups:
             return None
-
+        
         assert len(core_groups) == 1
         
         core_group = core_groups[0]
