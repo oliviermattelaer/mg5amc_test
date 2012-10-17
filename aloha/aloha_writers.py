@@ -854,14 +854,14 @@ class ALOHAWriterForFortran(WriteALOHA):
         
         text = """
         SUBROUTINE %(name)s(%(fct_args)s,Wout)
-        double complex Wout(18)
+        double complex Wout(*)
         %(coupling_def)s
         %(wave_def)s
         integer i
         
         Wout(%(p1)s) = W0(%(p1)s)
         Wout(%(p2)s) = W0(%(p2)s)
-        do i= 1,%(max)s
+        do i= %(min)s,%(max)s
             Wout(i) = %(add_coup)s
         enddo
         end
@@ -873,10 +873,11 @@ class ALOHAWriterForFortran(WriteALOHA):
             'coupling_def': 'double complex %s' % \
                               (','.join(['C%s' % (i) for i in range(nb_wave)])),
             'wave_def': 'double complex %s' % \
-                              (','.join(['W%s(18)' % (i) for i in range(nb_wave)])), 
-            'max': cls.type_to_size[spin]-2,
-            'p1': cls.type_to_size[spin]-1,
-            'p2': cls.type_to_size[spin],
+                              (','.join(['W%s(*)' % (i) for i in range(nb_wave)])), 
+            'min': 3,
+            'max': cls.type_to_size[spin],
+            'p1': 1,
+            'p2': 2,
             'add_coup': '+'.join(['C%(id)s * W%(id)s(i)' % {'id': i} for i in range(nb_wave)]) 
                     }
 

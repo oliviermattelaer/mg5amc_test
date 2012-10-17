@@ -1203,9 +1203,9 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
                     "W(1,%d))"
             call_function = lambda wf: call % \
                 (tuple(sum([[self.write_factor(mother.get('factor')),
-                             mother.get('number')] for \
+                             mother.get('me_id')] for \
                             mother in wf.get('mothers')], []) + \
-                [wf.get('number')]))
+                [wf.get('me_id')]))
             self.add_wavefunction(argument.get_call_key(), call_function)
             return
 
@@ -1226,7 +1226,7 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
                                 (wf.get('number_external'),
                                  1,
                                  wf.get('number_external'),
-                                 wf.get('number'))
+                                 wf.get('me_id'))
             elif argument.is_boson():
                 call_function = lambda wf: call % \
                                 (wf.get('number_external'),
@@ -1234,7 +1234,7 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
                                  wf.get('number_external'),
                                  1,
                                  wf.get('number_external'),
-                                 wf.get('number'))
+                                 wf.get('me_id'))
             else:
                 call_function = lambda wf: call % \
                                 (wf.get('number_external'),
@@ -1242,7 +1242,7 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
                                  wf.get('number_external'),
                                  wf.get('fermionflow'),
                                  wf.get('number_external'),
-                                 wf.get('number'))
+                                 wf.get('me_id'))
         # Add the constructed function to wavefunction or amplitude dictionary
             self.add_wavefunction(argument.get_call_key(), call_function)
             return

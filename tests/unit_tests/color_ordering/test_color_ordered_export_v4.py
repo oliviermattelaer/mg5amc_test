@@ -404,16 +404,16 @@ C     ----------
       CALL IXXXXX(P(0,IP(4)),ZERO,NHEL(IP(4)),1*IC(IP(4)),W(1,4))
       CALL VXXXXX(P(0,IP(5)),ZERO,NHEL(IP(5)),1*IC(IP(5)),W(1,5))
       CALL VXXXXX(P(0,IP(6)),ZERO,NHEL(IP(6)),1*IC(IP(6)),W(1,6))
-      CALL L1_3(W(1,4),W(1,3),GQQ,ZERO, ZERO, W(1,7))
-      CALL L1_3(W(1,1),W(1,2),GQQ,ZERO, ZERO, W(1,8))
-      CALL L1_1(W(1,6),W(1,8),G,ZERO, ZERO, W(1,9))
-      CALL L1_1(W(1,6),W(1,5),G,ZERO, ZERO, W(1,10))
-      CALL L1_2(W(1,4),W(1,8),GQQ,ZERO, ZERO, W(1,11))
-      CALL L1_1(W(1,3),W(1,5),GQQ,ZERO, ZERO, W(1,12))
-      CALL L1_2(W(1,1),W(1,6),GQQ,ZERO, ZERO, W(1,13))
-      CALL L1_3(W(1,13),W(1,2),GQQ,ZERO, ZERO, W(1,14))
-      CALL L1_2(W(1,13),W(1,5),GQQ,ZERO, ZERO, W(1,15))
-      CALL L1_2(W(1,1),W(1,10),GQQ,ZERO, ZERO, W(1,16))
+      CALL L1_3(W(1,4),W(1,3),GQQ,ZERO,ZERO,W(1,7))
+      CALL L1_3(W(1,1),W(1,2),GQQ,ZERO,ZERO,W(1,8))
+      CALL L1_1(W(1,6),W(1,8),G,ZERO,ZERO,W(1,9))
+      CALL L1_1(W(1,6),W(1,5),G,ZERO,ZERO,W(1,10))
+      CALL L1_2(W(1,4),W(1,8),GQQ,ZERO,ZERO,W(1,11))
+      CALL L1_1(W(1,3),W(1,5),GQQ,ZERO,ZERO,W(1,12))
+      CALL L1_2(W(1,1),W(1,6),GQQ,ZERO,ZERO,W(1,13))
+      CALL L1_3(W(1,13),W(1,2),GQQ,ZERO,ZERO,W(1,14))
+      CALL L1_2(W(1,13),W(1,5),GQQ,ZERO,ZERO,W(1,15))
+      CALL L1_2(W(1,1),W(1,10),GQQ,ZERO,ZERO,W(1,13))
 C     Amplitude(s) for diagram number 1
       CALL VVVV4_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(1))
       CALL VVVV1_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(2))
@@ -434,7 +434,7 @@ C     Amplitude(s) for diagram number 8
 C     Amplitude(s) for diagram number 9
       CALL L1_0(W(1,4),W(1,12),W(1,14),GQQ,AMP(10))
 C     Amplitude(s) for diagram number 10
-      CALL L1_0(W(1,16),W(1,2),W(1,7),GQQ,AMP(11))
+      CALL L1_0(W(1,13),W(1,2),W(1,7),GQQ,AMP(11))
       JAMP(1)=+1./2.*(-AMP(1)+AMP(2)-AMP(3)+AMP(4)-AMP(5)+IMAG1*AMP(6)
      $ -IMAG1*AMP(7)-IMAG1*AMP(8)-AMP(9)-AMP(10)-IMAG1*AMP(11))
 
@@ -495,16 +495,16 @@ C     ----------
       CALL IXXXXX(P(0,IP(4)),ZERO,NHEL(IP(4)),1*IC(IP(4)),W(1,4))
       CALL VXXXXX(P(0,IP(5)),ZERO,NHEL(IP(5)),1*IC(IP(5)),W(1,5))
       CALL VXXXXX(P(0,IP(6)),ZERO,NHEL(IP(6)),1*IC(IP(6)),W(1,6))
-      CALL L1_3(W(1,4),W(1,3),GQQ,ZERO, ZERO, W(1,7))
-      CALL L1_3(W(1,1),W(1,2),GQQ,ZERO, ZERO, W(1,8))
-      CALL L1_1(W(1,5),W(1,8),G,ZERO, ZERO, W(1,9))
-      CALL L1_1(W(1,6),W(1,8),G,ZERO, ZERO, W(1,10))
-      CALL L1_1(W(1,3),W(1,6),GQQ,ZERO, ZERO, W(1,11))
-      CALL L1_2(W(1,4),W(1,5),GQQ,ZERO, ZERO, W(1,12))
-      CALL L1_1(W(1,2),W(1,5),GQQ,ZERO, ZERO, W(1,13))
-      CALL L1_2(W(1,1),W(1,6),GQQ,ZERO, ZERO, W(1,14))
-      CALL L1_3(W(1,14),W(1,2),GQQ,ZERO, ZERO, W(1,15))
-      CALL L1_3(W(1,1),W(1,13),GQQ,ZERO, ZERO, W(1,16))
+      CALL L1_3(W(1,4),W(1,3),GQQ,ZERO,ZERO,W(1,7))
+      CALL L1_3(W(1,1),W(1,2),GQQ,ZERO,ZERO,W(1,8))
+      CALL L1_1(W(1,5),W(1,8),G,ZERO,ZERO,W(1,9))
+      CALL L1_1(W(1,6),W(1,8),G,ZERO,ZERO,W(1,10))
+      CALL L1_1(W(1,3),W(1,6),GQQ,ZERO,ZERO,W(1,11))
+      CALL L1_2(W(1,4),W(1,5),GQQ,ZERO,ZERO,W(1,12))
+      CALL L1_1(W(1,2),W(1,5),GQQ,ZERO,ZERO,W(1,13))
+      CALL L1_2(W(1,1),W(1,6),GQQ,ZERO,ZERO,W(1,14))
+      CALL L1_3(W(1,14),W(1,2),GQQ,ZERO,ZERO,W(1,15))
+      CALL L1_3(W(1,1),W(1,13),GQQ,ZERO,ZERO,W(1,2))
 C     Amplitude(s) for diagram number 1
       CALL VVVV4_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(1))
       CALL VVVV3_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(2))
@@ -525,9 +525,9 @@ C     Amplitude(s) for diagram number 8
 C     Amplitude(s) for diagram number 9
       CALL L1_0(W(1,12),W(1,3),W(1,15),GQQ,AMP(10))
 C     Amplitude(s) for diagram number 10
-      CALL L1_0(W(1,6),W(1,7),W(1,16),G,AMP(11))
+      CALL L1_0(W(1,6),W(1,7),W(1,2),G,AMP(11))
 C     Amplitude(s) for diagram number 11
-      CALL L1_0(W(1,4),W(1,11),W(1,16),GQQ,AMP(12))
+      CALL L1_0(W(1,4),W(1,11),W(1,2),GQQ,AMP(12))
       JAMP(1)=+1./2.*(+AMP(1)+AMP(2)+AMP(3)+AMP(4)-IMAG1*AMP(5)-AMP(6)
      $ +IMAG1*AMP(7)-AMP(8)+IMAG1*AMP(9)-AMP(10)-IMAG1*AMP(11)-AMP(12))
 
@@ -588,15 +588,15 @@ C     ----------
       CALL IXXXXX(P(0,IP(4)),ZERO,NHEL(IP(4)),1*IC(IP(4)),W(1,4))
       CALL VXXXXX(P(0,IP(5)),ZERO,NHEL(IP(5)),1*IC(IP(5)),W(1,5))
       CALL VXXXXX(P(0,IP(6)),ZERO,NHEL(IP(6)),1*IC(IP(6)),W(1,6))
-      CALL L1_3(W(1,4),W(1,3),GQQ,ZERO, ZERO, W(1,7))
-      CALL L1_3(W(1,1),W(1,2),GQQ,ZERO, ZERO, W(1,8))
-      CALL L1_1(W(1,5),W(1,8),G,ZERO, ZERO, W(1,9))
-      CALL L1_1(W(1,6),W(1,5),G,ZERO, ZERO, W(1,10))
-      CALL L1_1(W(1,3),W(1,8),GQQ,ZERO, ZERO, W(1,11))
-      CALL L1_2(W(1,4),W(1,6),GQQ,ZERO, ZERO, W(1,12))
-      CALL L1_1(W(1,2),W(1,5),GQQ,ZERO, ZERO, W(1,13))
-      CALL L1_3(W(1,1),W(1,13),GQQ,ZERO, ZERO, W(1,14))
-      CALL L1_2(W(1,1),W(1,7),GQQ,ZERO, ZERO, W(1,15))
+      CALL L1_3(W(1,4),W(1,3),GQQ,ZERO,ZERO,W(1,7))
+      CALL L1_3(W(1,1),W(1,2),GQQ,ZERO,ZERO,W(1,8))
+      CALL L1_1(W(1,5),W(1,8),G,ZERO,ZERO,W(1,9))
+      CALL L1_1(W(1,6),W(1,5),G,ZERO,ZERO,W(1,10))
+      CALL L1_1(W(1,3),W(1,8),GQQ,ZERO,ZERO,W(1,11))
+      CALL L1_2(W(1,4),W(1,6),GQQ,ZERO,ZERO,W(1,12))
+      CALL L1_1(W(1,2),W(1,5),GQQ,ZERO,ZERO,W(1,13))
+      CALL L1_3(W(1,1),W(1,13),GQQ,ZERO,ZERO,W(1,14))
+      CALL L1_2(W(1,1),W(1,7),GQQ,ZERO,ZERO,W(1,15))
 C     Amplitude(s) for diagram number 1
       CALL VVVV3_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(1))
       CALL VVVV1_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(2))
@@ -678,23 +678,23 @@ C     ----------
       CALL IXXXXX(P(0,IP(4)),ZERO,NHEL(IP(4)),1*IC(IP(4)),W(1,4))
       CALL VXXXXX(P(0,IP(5)),ZERO,NHEL(IP(5)),1*IC(IP(5)),W(1,5))
       CALL VXXXXX(P(0,IP(6)),ZERO,NHEL(IP(6)),1*IC(IP(6)),W(1,6))
-      CALL L1_2(W(1,1),W(1,6),GQQ,ZERO, ZERO, W(1,7))
-      CALL L1_2(W(1,7),W(1,5),GQQ,ZERO, ZERO, W(1,8))
-      CALL L1_3(W(1,4),W(1,2),GQQ,ZERO, ZERO, W(1,9))
-      CALL L1_1(W(1,3),W(1,5),GQQ,ZERO, ZERO, W(1,10))
-      CALL L1_2(W(1,1),W(1,9),GQQ,ZERO, ZERO, W(1,11))
-      CALL L1_1(W(1,6),W(1,5),G,ZERO, ZERO, W(1,12))
-      CALL L1_2(W(1,1),W(1,12),GQQ,ZERO, ZERO, W(1,13))
+      CALL L1_2(W(1,1),W(1,6),GQQ,ZERO,ZERO,W(1,7))
+      CALL L1_2(W(1,7),W(1,5),GQQ,ZERO,ZERO,W(1,8))
+      CALL L1_3(W(1,4),W(1,2),GQQ,ZERO,ZERO,W(1,9))
+      CALL L1_1(W(1,3),W(1,5),GQQ,ZERO,ZERO,W(1,4))
+      CALL L1_2(W(1,1),W(1,9),GQQ,ZERO,ZERO,W(1,2))
+      CALL L1_1(W(1,6),W(1,5),G,ZERO,ZERO,W(1,10))
+      CALL L1_2(W(1,1),W(1,10),GQQ,ZERO,ZERO,W(1,5))
 C     Amplitude(s) for diagram number 1
       CALL L1_0(W(1,8),W(1,3),W(1,9),GQQ,AMP(1))
 C     Amplitude(s) for diagram number 2
-      CALL L1_0(W(1,7),W(1,10),W(1,9),GQQ,AMP(2))
+      CALL L1_0(W(1,7),W(1,4),W(1,9),GQQ,AMP(2))
 C     Amplitude(s) for diagram number 3
-      CALL L1_0(W(1,11),W(1,10),W(1,6),GQQ,AMP(3))
+      CALL L1_0(W(1,2),W(1,4),W(1,6),GQQ,AMP(3))
 C     Amplitude(s) for diagram number 4
-      CALL L1_0(W(1,11),W(1,3),W(1,12),GQQ,AMP(4))
+      CALL L1_0(W(1,2),W(1,3),W(1,10),GQQ,AMP(4))
 C     Amplitude(s) for diagram number 5
-      CALL L1_0(W(1,13),W(1,3),W(1,9),GQQ,AMP(5))
+      CALL L1_0(W(1,5),W(1,3),W(1,9),GQQ,AMP(5))
       JAMP(1)=+1./2.*(-AMP(1)-AMP(2)-AMP(3)-IMAG1*AMP(4)-IMAG1*AMP(5))
 
       FLOW4=JAMP(1)
@@ -754,20 +754,20 @@ C     ----------
       CALL IXXXXX(P(0,IP(4)),ZERO,NHEL(IP(4)),1*IC(IP(4)),W(1,4))
       CALL VXXXXX(P(0,IP(5)),ZERO,NHEL(IP(5)),1*IC(IP(5)),W(1,5))
       CALL VXXXXX(P(0,IP(6)),ZERO,NHEL(IP(6)),1*IC(IP(6)),W(1,6))
-      CALL L1_2(W(1,1),W(1,6),GQQ,ZERO, ZERO, W(1,7))
-      CALL L1_3(W(1,7),W(1,3),GQQ,ZERO, ZERO, W(1,8))
-      CALL L1_1(W(1,2),W(1,5),GQQ,ZERO, ZERO, W(1,9))
-      CALL L1_2(W(1,4),W(1,5),GQQ,ZERO, ZERO, W(1,10))
-      CALL L1_1(W(1,3),W(1,6),GQQ,ZERO, ZERO, W(1,11))
-      CALL L1_3(W(1,1),W(1,11),GQQ,ZERO, ZERO, W(1,12))
+      CALL L1_2(W(1,1),W(1,6),GQQ,ZERO,ZERO,W(1,7))
+      CALL L1_3(W(1,7),W(1,3),GQQ,ZERO,ZERO,W(1,8))
+      CALL L1_1(W(1,2),W(1,5),GQQ,ZERO,ZERO,W(1,7))
+      CALL L1_2(W(1,4),W(1,5),GQQ,ZERO,ZERO,W(1,9))
+      CALL L1_1(W(1,3),W(1,6),GQQ,ZERO,ZERO,W(1,5))
+      CALL L1_3(W(1,1),W(1,5),GQQ,ZERO,ZERO,W(1,6))
 C     Amplitude(s) for diagram number 1
-      CALL L1_0(W(1,4),W(1,9),W(1,8),GQQ,AMP(1))
+      CALL L1_0(W(1,4),W(1,7),W(1,8),GQQ,AMP(1))
 C     Amplitude(s) for diagram number 2
-      CALL L1_0(W(1,10),W(1,2),W(1,8),GQQ,AMP(2))
+      CALL L1_0(W(1,9),W(1,2),W(1,8),GQQ,AMP(2))
 C     Amplitude(s) for diagram number 3
-      CALL L1_0(W(1,4),W(1,9),W(1,12),GQQ,AMP(3))
+      CALL L1_0(W(1,4),W(1,7),W(1,6),GQQ,AMP(3))
 C     Amplitude(s) for diagram number 4
-      CALL L1_0(W(1,10),W(1,2),W(1,12),GQQ,AMP(4))
+      CALL L1_0(W(1,9),W(1,2),W(1,6),GQQ,AMP(4))
       JAMP(1)=+1./2.*(-AMP(1)-AMP(2)-AMP(3)-AMP(4))
 
       FLOW5=JAMP(1)
@@ -828,21 +828,21 @@ C     ----------
       CALL VXXXXX(P(0,IP(5)),ZERO,NHEL(IP(5)),1*IC(IP(5)),W(1,5))
       CALL VXXXXX(P(0,IP(6)),ZERO,NHEL(IP(6)),1*IC(IP(6)),W(1,6))
       CALL L1_3(W(1,1),W(1,3),GQQ,ZERO,ZERO,W(1,7))
-      CALL L1_2(W(1,4),W(1,7),GQQ,ZERO,ZERO,W(1,8))
-      CALL L1_1(W(1,2),W(1,5),GQQ,ZERO,ZERO,W(1,9))
-      CALL L1_2(W(1,4),W(1,6),GQQ,ZERO,ZERO,W(1,10))
-      CALL L1_1(W(1,2),W(1,7),GQQ,ZERO,ZERO,W(1,11))
-      CALL L1_1(W(1,6),W(1,5),G,ZERO,ZERO,W(1,12))
+      CALL L1_2(W(1,4),W(1,7),GQQ,ZERO,ZERO,W(1,3))
+      CALL L1_1(W(1,2),W(1,5),GQQ,ZERO,ZERO,W(1,1))
+      CALL L1_2(W(1,4),W(1,6),GQQ,ZERO,ZERO,W(1,8))
+      CALL L1_1(W(1,2),W(1,7),GQQ,ZERO,ZERO,W(1,9))
+      CALL L1_1(W(1,6),W(1,5),G,ZERO,ZERO,W(1,10))
 C     Amplitude(s) for diagram number 1
-      CALL L1_0(W(1,8),W(1,9),W(1,6),GQQ,AMP(1))
+      CALL L1_0(W(1,3),W(1,1),W(1,6),GQQ,AMP(1))
 C     Amplitude(s) for diagram number 2
-      CALL L1_0(W(1,10),W(1,9),W(1,7),GQQ,AMP(2))
+      CALL L1_0(W(1,8),W(1,1),W(1,7),GQQ,AMP(2))
 C     Amplitude(s) for diagram number 3
-      CALL L1_0(W(1,10),W(1,11),W(1,5),GQQ,AMP(3))
+      CALL L1_0(W(1,8),W(1,9),W(1,5),GQQ,AMP(3))
 C     Amplitude(s) for diagram number 4
-      CALL L1_0(W(1,4),W(1,11),W(1,12),GQQ,AMP(4))
+      CALL L1_0(W(1,4),W(1,9),W(1,10),GQQ,AMP(4))
 C     Amplitude(s) for diagram number 5
-      CALL L1_0(W(1,8),W(1,2),W(1,12),GQQ,AMP(5))
+      CALL L1_0(W(1,3),W(1,2),W(1,10),GQQ,AMP(5))
       JAMP(1)=+1./2.*(-AMP(1)-AMP(2)-AMP(3)-IMAG1*AMP(4)-IMAG1*AMP(5))
 
       FLOW6=JAMP(1)
@@ -887,6 +887,8 @@ C
       PARAMETER (NEXTERNAL=6)
       INTEGER                 NCOMB
       PARAMETER (             NCOMB=64)
+      INTEGER    ICO
+      PARAMETER (ICO=2)
 C     
 C     ARGUMENTS 
 C     
@@ -973,7 +975,10 @@ C     ----------
       ANS = 0D0
       DO IHEL=1,NCOMB
         IF (GOODHEL(IHEL) .OR. NTRY .LT. 2) THEN
-          T=MATRIX(P ,NHEL(1,IHEL))
+          T=0D0
+          DO I=1,ICO
+            T=T+MATRIX(P ,NHEL(1,IHEL), I)
+          ENDDO
           ANS=ANS+T
           IF (T .NE. 0D0 .AND. .NOT.    GOODHEL(IHEL)) THEN
             GOODHEL(IHEL)=.TRUE.
@@ -983,9 +988,9 @@ C     ----------
       ANS=ANS/DBLE(IDEN)
       END
 
-C     ------------------------------
-      REAL*8 FUNCTION MATRIX(P,NHEL)
-C     ------------------------------
+C     -----------------------------------
+      REAL*8 FUNCTION MATRIX(P,NHEL, ICO)
+C     -----------------------------------
 C     
 C     Returns amplitude squared summed/avg over colors
 C     for the point with external momenta P(0:3,NEXTERNAL)
@@ -1004,7 +1009,7 @@ C
 C     ARGUMENTS 
 C     
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL)
+      INTEGER NHEL(NEXTERNAL),ICO
 C     
 C     LOCAL VARIABLES 
 C     
@@ -1019,7 +1024,7 @@ C
       ZTEMP = (0.D0,0.D0)
       DO I=1,NPERMS
         CALL GETPERM(I,PERM)
-        ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM)
+        ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM,ICO)
       ENDDO
       MATRIX=REAL(ZTEMP)
 
@@ -1027,7 +1032,7 @@ C
       END
 
 C     --------------------------------------
-      COMPLEX*16 FUNCTION ONEPERM(P,NHEL,PM)
+      COMPLEX*16 FUNCTION ONEPERM(P,NHEL,PM,ICO)
 C     --------------------------------------
 C     
 C     Returns amplitude squared summed/avg over colors
@@ -1051,6 +1056,7 @@ C
       REAL*8 P(0:3,NEXTERNAL)
       INTEGER NHEL(NEXTERNAL)
       INTEGER PM(NEXTERNAL)
+      INTEGER ICO
 C     
 C     LOCAL VARIABLES 
 C     
@@ -1075,53 +1081,70 @@ C
 C     ----------
 C     BEGIN CODE
 C     ----------
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,1))
-      ENDDO
-      JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
-      JAMP(2)=IFERM(1)*FLOW3(P,NHEL,PERM)
-      JAMP(3)=IFERM(1)*FLOW4(P,NHEL,PERM)
-      JAMP(4)=IFERM(1)*FLOW2(P,NHEL,PERM)
-      JAMP(5)=IFERM(1)*FLOW5(P,NHEL,PERM)
-      JAMP(6)=IFERM(1)*FLOW6(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,2))
-      ENDDO
-      JAMP(7)=IFERM(2)*FLOW1(P,NHEL,PERM)
-      JAMP(8)=IFERM(2)*FLOW2(P,NHEL,PERM)
-      JAMP(9)=IFERM(2)*FLOW3(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,3))
-      ENDDO
-      JAMP(10)=IFERM(3)*FLOW1(P,NHEL,PERM)
-      JAMP(11)=IFERM(3)*FLOW2(P,NHEL,PERM)
-      JAMP(12)=IFERM(3)*FLOW3(P,NHEL,PERM)
-      JAMP(13)=IFERM(3)*FLOW4(P,NHEL,PERM)
-      JAMP(14)=IFERM(3)*FLOW5(P,NHEL,PERM)
-      JAMP(15)=IFERM(3)*FLOW6(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,4))
-      ENDDO
-      JAMP(16)=IFERM(4)*FLOW2(P,NHEL,PERM)
-      JAMP(17)=IFERM(4)*FLOW3(P,NHEL,PERM)
-      JAMP(18)=IFERM(4)*FLOW5(P,NHEL,PERM)
-      JAMP(19)=IFERM(4)*FLOW6(P,NHEL,PERM)
+      IF(ICO.EQ.1) THEN
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,1))
+        ENDDO
+        JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+        JAMP(2)=IFERM(1)*FLOW3(P,NHEL,PERM)
+        JAMP(4)=IFERM(1)*FLOW2(P,NHEL,PERM)
+      ENDIF
+      IF(ICO.EQ.2) THEN
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,1))
+        ENDDO
+        JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+        JAMP(2)=IFERM(1)*FLOW3(P,NHEL,PERM)
+        JAMP(3)=IFERM(1)*FLOW4(P,NHEL,PERM)
+        JAMP(4)=IFERM(1)*FLOW2(P,NHEL,PERM)
+        JAMP(5)=IFERM(1)*FLOW5(P,NHEL,PERM)
+        JAMP(6)=IFERM(1)*FLOW6(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,2))
+        ENDDO
+        JAMP(7)=IFERM(2)*FLOW1(P,NHEL,PERM)
+        JAMP(8)=IFERM(2)*FLOW2(P,NHEL,PERM)
+        JAMP(9)=IFERM(2)*FLOW3(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,3))
+        ENDDO
+        JAMP(10)=IFERM(3)*FLOW1(P,NHEL,PERM)
+        JAMP(11)=IFERM(3)*FLOW2(P,NHEL,PERM)
+        JAMP(12)=IFERM(3)*FLOW3(P,NHEL,PERM)
+        JAMP(13)=IFERM(3)*FLOW4(P,NHEL,PERM)
+        JAMP(14)=IFERM(3)*FLOW5(P,NHEL,PERM)
+        JAMP(15)=IFERM(3)*FLOW6(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,4))
+        ENDDO
+        JAMP(16)=IFERM(4)*FLOW2(P,NHEL,PERM)
+        JAMP(17)=IFERM(4)*FLOW3(P,NHEL,PERM)
+        JAMP(18)=IFERM(4)*FLOW5(P,NHEL,PERM)
+        JAMP(19)=IFERM(4)*FLOW6(P,NHEL,PERM)
+      ENDIF
       ZTEMP = (0.D0,0.D0)
-      ZTEMP = ZTEMP+1/9D0*JAMP(1)*DCONJG(144D0*(JAMP(1))+48D0*(JAMP(3)
-     $ +JAMP(10)+JAMP(11)+JAMP(12))+18D0*(JAMP(2)-JAMP(7)+JAMP(9))
-     $ +16D0*(JAMP(13)+JAMP(14)+JAMP(15)))
-      ZTEMP = ZTEMP+1/9D0*JAMP(4)*DCONJG(144D0*(JAMP(4))+48D0*(JAMP(5)
-     $ +JAMP(10)+JAMP(11)+JAMP(16)+JAMP(17))+18D0*(JAMP(8))+16D0
-     $ *(JAMP(13)+JAMP(14)+JAMP(18)+JAMP(19)))
-      ZTEMP = ZTEMP+1/9D0*JAMP(2)*DCONJG(144D0*(JAMP(2))+48D0*(JAMP(6)
-     $ +JAMP(10)+JAMP(12)+JAMP(16))+18D0*(JAMP(1)+JAMP(7)-JAMP(9))
-     $ +16D0*(JAMP(13)+JAMP(15)+JAMP(18)))
-      ZTEMP = ZTEMP+1/9D0*JAMP(3)*DCONJG(48D0*(JAMP(1))+16D0*(JAMP(3)
-     $ +JAMP(10)+JAMP(11)+JAMP(12)))
-      ZTEMP = ZTEMP+1/9D0*JAMP(5)*DCONJG(48D0*(JAMP(4))+16D0*(JAMP(5)
-     $ +JAMP(10)+JAMP(11)+JAMP(16)+JAMP(17)))
-      ZTEMP = ZTEMP+1/9D0*JAMP(6)*DCONJG(48D0*(JAMP(2))+16D0*(JAMP(6)
-     $ +JAMP(10)+JAMP(12)+JAMP(16)))
+      IF(ICO.EQ.1) THEN
+        ZTEMP = ZTEMP+JAMP(1)*DCONJG(16D0*(JAMP(1)))
+        ZTEMP = ZTEMP+JAMP(4)*DCONJG(16D0*(JAMP(4)))
+        ZTEMP = ZTEMP+JAMP(2)*DCONJG(16D0*(JAMP(2)))
+      ENDIF
+      IF(ICO.EQ.2) THEN
+        ZTEMP = ZTEMP+1/9D0*JAMP(1)*DCONJG(48D0*(JAMP(3)+JAMP(10)
+     $   +JAMP(11)+JAMP(12))+18D0*(JAMP(2)-JAMP(7)+JAMP(9))+16D0
+     $   *(JAMP(13)+JAMP(14)+JAMP(15)))
+        ZTEMP = ZTEMP+1/9D0*JAMP(4)*DCONJG(48D0*(JAMP(5)+JAMP(10)
+     $   +JAMP(11)+JAMP(16)+JAMP(17))+18D0*(JAMP(8))+16D0*(JAMP(13)
+     $   +JAMP(14)+JAMP(18)+JAMP(19)))
+        ZTEMP = ZTEMP+1/9D0*JAMP(2)*DCONJG(48D0*(JAMP(6)+JAMP(10)
+     $   +JAMP(12)+JAMP(16))+18D0*(JAMP(1)+JAMP(7)-JAMP(9))+16D0
+     $   *(JAMP(13)+JAMP(15)+JAMP(18)))
+        ZTEMP = ZTEMP+1/9D0*JAMP(3)*DCONJG(48D0*(JAMP(1))+16D0
+     $   *(JAMP(3)+JAMP(10)+JAMP(11)+JAMP(12)))
+        ZTEMP = ZTEMP+1/9D0*JAMP(5)*DCONJG(48D0*(JAMP(4))+16D0
+     $   *(JAMP(5)+JAMP(10)+JAMP(11)+JAMP(16)+JAMP(17)))
+        ZTEMP = ZTEMP+1/9D0*JAMP(6)*DCONJG(48D0*(JAMP(2))+16D0
+     $   *(JAMP(6)+JAMP(10)+JAMP(12)+JAMP(16)))
+      ENDIF
       ONEPERM=ZTEMP
 
       RETURN
@@ -1267,37 +1290,37 @@ C     ----------
       CALL L1_1(W(1,4),W(1,8),GQQ,ZERO,ZERO,W(1,13))
       CALL L1_1(W(1,11),W(1,2),GQQ,ZERO,ZERO,W(1,14))
       CALL SUMF2(1.*IMAG1,W(1,13),1.*ONE,W(1,14),W(1,15))
-      CALL L1_3(W(1,3),W(1,11),GQQ,ZERO,ZERO,W(1,16))
-      CALL L1_1(W(1,7),W(1,1),G,ZERO,ZERO,W(1,17))
-      CALL SUMV2(1.*ONE,W(1,16),-1.*IMAG1,W(1,17),W(1,18))
-      CALL L1_1(W(1,5),W(1,8),G,ZERO,ZERO,W(1,19))
-      CALL L1_1(W(1,12),W(1,1),G,ZERO,ZERO,W(1,20))
-      CALL VVVV4_1(W(1,5),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,21))
-      CALL VVVV1_1(W(1,5),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,22))
-      CALL SUMV4(-2.*ONE,W(1,19),-2.*ONE,W(1,20),2.*ONE,W(1,21),
-     $ -2.*ONE,W(1,22),W(1,23))
+      CALL L1_3(W(1,3),W(1,11),GQQ,ZERO,ZERO,W(1,14))
+      CALL L1_1(W(1,7),W(1,1),G,ZERO,ZERO,W(1,13))
+      CALL SUMV2(1.*ONE,W(1,14),-1.*IMAG1,W(1,13),W(1,16))
+      CALL L1_1(W(1,5),W(1,8),G,ZERO,ZERO,W(1,13))
+      CALL L1_1(W(1,12),W(1,1),G,ZERO,ZERO,W(1,14))
+      CALL VVVV4_1(W(1,5),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,17))
+      CALL VVVV1_1(W(1,5),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,18))
+      CALL SUMV4(-2.*ONE,W(1,13),-2.*ONE,W(1,14),2.*ONE,W(1,17),
+     $ -2.*ONE,W(1,18),W(1,19))
 C     Amplitude(s) for diagram number 1
       CALL VVVV3_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(1))
       CALL VVVV1_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(2))
 C     Amplitude(s) for diagram number 2
-      CALL L1_0(W(1,6),W(1,7),W(1,23),G,AMP(3))
+      CALL L1_0(W(1,6),W(1,7),W(1,19),G,AMP(3))
 C     Amplitude(s) for diagram number 3
       CALL L1_0(W(1,9),W(1,7),W(1,8),G,AMP(4))
 C     Amplitude(s) for diagram number 4
       CALL L1_0(W(1,10),W(1,15),W(1,5),GQQ,AMP(5))
 C     Amplitude(s) for diagram number 5
-      CALL L1_0(W(1,10),W(1,4),W(1,23),GQQ,AMP(6))
+      CALL L1_0(W(1,10),W(1,4),W(1,19),GQQ,AMP(6))
 C     Amplitude(s) for diagram number 6
       CALL L1_0(W(1,3),W(1,15),W(1,9),GQQ,AMP(7))
 C     Amplitude(s) for diagram number 7
-      CALL L1_0(W(1,6),W(1,12),W(1,18),G,AMP(8))
+      CALL L1_0(W(1,6),W(1,12),W(1,16),G,AMP(8))
 C     Amplitude(s) for diagram number 8
       CALL L1_0(W(1,10),W(1,11),W(1,12),GQQ,AMP(9))
 C     Amplitude(s) for diagram number 9
-      CALL L1_0(W(1,9),W(1,2),W(1,18),G,AMP(10))
+      CALL L1_0(W(1,9),W(1,2),W(1,16),G,AMP(10))
 C     Amplitude(s) for diagram number 10
-      CALL VVVV4_0(W(1,6),W(1,5),W(1,2),W(1,18),GG,AMP(11))
-      CALL VVVV1_0(W(1,6),W(1,5),W(1,2),W(1,18),GG,AMP(12))
+      CALL VVVV4_0(W(1,6),W(1,5),W(1,2),W(1,16),GG,AMP(11))
+      CALL VVVV1_0(W(1,6),W(1,5),W(1,2),W(1,16),GG,AMP(12))
 C     Amplitude(s) for diagram number 11
       CALL VVVV3_0(W(1,6),W(1,7),W(1,12),W(1,1),GG,AMP(13))
       CALL VVVV1_0(W(1,6),W(1,7),W(1,12),W(1,1),GG,AMP(14))
@@ -1351,6 +1374,8 @@ C
       PARAMETER (NEXTERNAL=6)
       INTEGER                 NCOMB
       PARAMETER (             NCOMB=64)
+      INTEGER    ICO
+      PARAMETER (ICO=2)
 C     
 C     ARGUMENTS 
 C     
@@ -1437,7 +1462,10 @@ C     ----------
       ANS = 0D0
       DO IHEL=1,NCOMB
         IF (GOODHEL(IHEL) .OR. NTRY .LT. 2) THEN
-          T=MATRIX(P ,NHEL(1,IHEL))
+          T=0D0
+          DO I=1,ICO
+            T=T+MATRIX(P ,NHEL(1,IHEL), I)
+          ENDDO
           ANS=ANS+T
           IF (T .NE. 0D0 .AND. .NOT.    GOODHEL(IHEL)) THEN
             GOODHEL(IHEL)=.TRUE.
@@ -1447,9 +1475,9 @@ C     ----------
       ANS=ANS/DBLE(IDEN)
       END
 
-C     ------------------------------
-      REAL*8 FUNCTION MATRIX(P,NHEL)
-C     ------------------------------
+C     -----------------------------------
+      REAL*8 FUNCTION MATRIX(P,NHEL, ICO)
+C     -----------------------------------
 C     
 C     Returns amplitude squared summed/avg over colors
 C     for the point with external momenta P(0:3,NEXTERNAL)
@@ -1468,7 +1496,7 @@ C
 C     ARGUMENTS 
 C     
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL)
+      INTEGER NHEL(NEXTERNAL),ICO
 C     
 C     LOCAL VARIABLES 
 C     
@@ -1483,7 +1511,7 @@ C
       ZTEMP = (0.D0,0.D0)
       DO I=1,NPERMS
         CALL GETPERM(I,PERM)
-        ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM)
+        ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM,ICO)
       ENDDO
       MATRIX=REAL(ZTEMP)
 
@@ -1491,7 +1519,7 @@ C
       END
 
 C     --------------------------------------
-      COMPLEX*16 FUNCTION ONEPERM(P,NHEL,PM)
+      COMPLEX*16 FUNCTION ONEPERM(P,NHEL,PM,ICO)
 C     --------------------------------------
 C     
 C     Returns amplitude squared summed/avg over colors
@@ -1515,6 +1543,7 @@ C
       REAL*8 P(0:3,NEXTERNAL)
       INTEGER NHEL(NEXTERNAL)
       INTEGER PM(NEXTERNAL)
+      INTEGER ICO
 C     
 C     LOCAL VARIABLES 
 C     
@@ -1545,50 +1574,63 @@ C
 C     ----------
 C     BEGIN CODE
 C     ----------
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,1))
-      ENDDO
-      JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,2))
-      ENDDO
-      JAMP(2)=IFERM(2)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,3))
-      ENDDO
-      JAMP(3)=IFERM(3)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,4))
-      ENDDO
-      JAMP(4)=IFERM(4)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,5))
-      ENDDO
-      JAMP(5)=IFERM(5)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,6))
-      ENDDO
-      JAMP(6)=IFERM(6)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,7))
-      ENDDO
-      JAMP(7)=IFERM(7)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,8))
-      ENDDO
-      JAMP(8)=IFERM(8)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,9))
-      ENDDO
-      JAMP(9)=IFERM(9)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,10))
-      ENDDO
-      JAMP(10)=IFERM(10)*FLOW1(P,NHEL,PERM)
+      IF(ICO.EQ.1) THEN
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,1))
+        ENDDO
+        JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+      ENDIF
+      IF(ICO.EQ.2) THEN
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,1))
+        ENDDO
+        JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,2))
+        ENDDO
+        JAMP(2)=IFERM(2)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,3))
+        ENDDO
+        JAMP(3)=IFERM(3)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,4))
+        ENDDO
+        JAMP(4)=IFERM(4)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,5))
+        ENDDO
+        JAMP(5)=IFERM(5)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,6))
+        ENDDO
+        JAMP(6)=IFERM(6)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,7))
+        ENDDO
+        JAMP(7)=IFERM(7)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,8))
+        ENDDO
+        JAMP(8)=IFERM(8)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,9))
+        ENDDO
+        JAMP(9)=IFERM(9)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,10))
+        ENDDO
+        JAMP(10)=IFERM(10)*FLOW1(P,NHEL,PERM)
+      ENDIF
       ZTEMP = (0.D0,0.D0)
-      ZTEMP = ZTEMP+1/54D0*JAMP(1)*DCONJG(512D0*(JAMP(1))+80D0
-     $ *(JAMP(4)+JAMP(6))+71D0*(JAMP(7))+64D0*(-JAMP(2)-JAMP(3)
-     $ -JAMP(5))+62D0*(JAMP(8)+JAMP(9)+JAMP(10)))
+      IF(ICO.EQ.1) THEN
+        ZTEMP = ZTEMP+1/27D0*JAMP(1)*DCONJG(256D0*(JAMP(1)))
+      ENDIF
+      IF(ICO.EQ.2) THEN
+        ZTEMP = ZTEMP+1/54D0*JAMP(1)*DCONJG(80D0*(JAMP(4)+JAMP(6))
+     $   +71D0*(JAMP(7))+64D0*(-JAMP(2)-JAMP(3)-JAMP(5))+62D0*(JAMP(8)
+     $   +JAMP(9)+JAMP(10)))
+      ENDIF
       ONEPERM=ZTEMP
 
       RETURN
@@ -1738,18 +1780,18 @@ C     ----------
       CALL VVVV1_1(W(1,6),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,16))
       CALL SUMV4(2.*ONE,W(1,13),2.*ONE,W(1,14),2.*ONE,W(1,15),2.
      $ *ONE,W(1,16),W(1,17))
-      CALL L1_1(W(1,3),W(1,8),G,ZERO,ZERO,W(1,18))
-      CALL L1_1(W(1,11),W(1,1),G,ZERO,ZERO,W(1,19))
-      CALL VVVV4_1(W(1,3),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,20))
-      CALL VVVV1_1(W(1,3),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,21))
-      CALL SUMV4(-2.*ONE,W(1,18),-2.*ONE,W(1,19),2.*ONE,W(1,20),
-     $ -2.*ONE,W(1,21),W(1,22))
-      CALL L1_1(W(1,5),W(1,12),G,ZERO,ZERO,W(1,23))
-      CALL L1_1(W(1,9),W(1,1),G,ZERO,ZERO,W(1,24))
-      CALL VVVV4_1(W(1,6),W(1,5),W(1,1),GG,ZERO,ZERO,W(1,25))
-      CALL VVVV3_1(W(1,6),W(1,5),W(1,1),GG,ZERO,ZERO,W(1,26))
-      CALL SUMV4(-2.*ONE,W(1,23),2.*ONE,W(1,24),-2.*ONE,W(1,25),
-     $ -2.*ONE,W(1,26),W(1,27))
+      CALL L1_1(W(1,3),W(1,8),G,ZERO,ZERO,W(1,16))
+      CALL L1_1(W(1,11),W(1,1),G,ZERO,ZERO,W(1,15))
+      CALL VVVV4_1(W(1,3),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,14))
+      CALL VVVV1_1(W(1,3),W(1,2),W(1,1),GG,ZERO,ZERO,W(1,13))
+      CALL SUMV4(-2.*ONE,W(1,16),-2.*ONE,W(1,15),2.*ONE,W(1,14),
+     $ -2.*ONE,W(1,13),W(1,18))
+      CALL L1_1(W(1,5),W(1,12),G,ZERO,ZERO,W(1,13))
+      CALL L1_1(W(1,9),W(1,1),G,ZERO,ZERO,W(1,14))
+      CALL VVVV4_1(W(1,6),W(1,5),W(1,1),GG,ZERO,ZERO,W(1,15))
+      CALL VVVV3_1(W(1,6),W(1,5),W(1,1),GG,ZERO,ZERO,W(1,16))
+      CALL SUMV4(-2.*ONE,W(1,13),2.*ONE,W(1,14),-2.*ONE,W(1,15),
+     $ -2.*ONE,W(1,16),W(1,19))
 C     Amplitude(s) for diagram number 1
       CALL VVVV4_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(1))
       CALL VVVV1_0(W(1,6),W(1,5),W(1,7),W(1,8),GG,AMP(2))
@@ -1761,38 +1803,38 @@ C     Amplitude(s) for diagram number 4
       CALL VVVV4_0(W(1,6),W(1,10),W(1,3),W(1,8),GG,AMP(5))
       CALL VVVV1_0(W(1,6),W(1,10),W(1,3),W(1,8),GG,AMP(6))
 C     Amplitude(s) for diagram number 5
-      CALL L1_0(W(1,6),W(1,10),W(1,22),G,AMP(7))
+      CALL L1_0(W(1,6),W(1,10),W(1,18),G,AMP(7))
 C     Amplitude(s) for diagram number 6
       CALL L1_0(W(1,10),W(1,3),W(1,17),G,AMP(8))
 C     Amplitude(s) for diagram number 7
       CALL VVVV4_0(W(1,9),W(1,4),W(1,3),W(1,8),GG,AMP(9))
       CALL VVVV1_0(W(1,9),W(1,4),W(1,3),W(1,8),GG,AMP(10))
 C     Amplitude(s) for diagram number 8
-      CALL L1_0(W(1,9),W(1,4),W(1,22),G,AMP(11))
+      CALL L1_0(W(1,9),W(1,4),W(1,18),G,AMP(11))
 C     Amplitude(s) for diagram number 9
       CALL VVVV4_0(W(1,5),W(1,4),W(1,3),W(1,17),GG,AMP(12))
       CALL VVVV1_0(W(1,5),W(1,4),W(1,3),W(1,17),GG,AMP(13))
 C     Amplitude(s) for diagram number 10
-      CALL VVVV4_0(W(1,6),W(1,5),W(1,4),W(1,22),GG,AMP(14))
-      CALL VVVV1_0(W(1,6),W(1,5),W(1,4),W(1,22),GG,AMP(15))
+      CALL VVVV4_0(W(1,6),W(1,5),W(1,4),W(1,18),GG,AMP(14))
+      CALL VVVV1_0(W(1,6),W(1,5),W(1,4),W(1,18),GG,AMP(15))
 C     Amplitude(s) for diagram number 11
       CALL VVVV4_0(W(1,5),W(1,4),W(1,11),W(1,12),GG,AMP(16))
       CALL VVVV1_0(W(1,5),W(1,4),W(1,11),W(1,12),GG,AMP(17))
 C     Amplitude(s) for diagram number 12
-      CALL L1_0(W(1,4),W(1,11),W(1,27),G,AMP(18))
+      CALL L1_0(W(1,4),W(1,11),W(1,19),G,AMP(18))
 C     Amplitude(s) for diagram number 13
       CALL L1_0(W(1,10),W(1,11),W(1,12),G,AMP(19))
 C     Amplitude(s) for diagram number 14
       CALL VVVV4_0(W(1,5),W(1,7),W(1,2),W(1,12),GG,AMP(20))
       CALL VVVV1_0(W(1,5),W(1,7),W(1,2),W(1,12),GG,AMP(21))
 C     Amplitude(s) for diagram number 15
-      CALL L1_0(W(1,7),W(1,2),W(1,27),G,AMP(22))
+      CALL L1_0(W(1,7),W(1,2),W(1,19),G,AMP(22))
 C     Amplitude(s) for diagram number 16
       CALL VVVV4_0(W(1,10),W(1,3),W(1,2),W(1,12),GG,AMP(23))
       CALL VVVV1_0(W(1,10),W(1,3),W(1,2),W(1,12),GG,AMP(24))
 C     Amplitude(s) for diagram number 17
-      CALL VVVV4_0(W(1,4),W(1,3),W(1,2),W(1,27),GG,AMP(25))
-      CALL VVVV1_0(W(1,4),W(1,3),W(1,2),W(1,27),GG,AMP(26))
+      CALL VVVV4_0(W(1,4),W(1,3),W(1,2),W(1,19),GG,AMP(25))
+      CALL VVVV1_0(W(1,4),W(1,3),W(1,2),W(1,19),GG,AMP(26))
 C     Amplitude(s) for diagram number 18
       CALL VVVV4_0(W(1,6),W(1,10),W(1,11),W(1,1),GG,AMP(27))
       CALL VVVV1_0(W(1,6),W(1,10),W(1,11),W(1,1),GG,AMP(28))
@@ -1837,9 +1879,9 @@ C     Please visit us at https://launchpad.net/madgraph5
 C     
 C     Color-ordered MadGraph for Madevent Version
 C     
-C     Returns amplitude squared summed/avg over colors
-C     and helicities
-C     for the point in phase space P(0:3,NEXTERNAL)
+C     Returns AMP2s and matrix element for a given helicity and
+C      permutation
+C     (color flow) at the color order specified by ICO
 C     
 C     Process: g g > g g g g QCD=4 QED=0 WEIGHTED=4 singlet_QCD=0
 C     
@@ -1863,6 +1905,8 @@ C
       PARAMETER (NPERMS=120)
       INTEGER    NFLOWS
       PARAMETER (NFLOWS=1)
+      INTEGER    ICO
+      PARAMETER (ICO=2)
 C     
 C     ARGUMENTS 
 C     
@@ -2032,7 +2076,10 @@ C       Start loop over helicities
             IF (JHEL .GT. NGOOD) JHEL=1
             I = IGOOD(JHEL)
           ENDIF
-          T=MATRIX(P,NHEL(1,I),PERM,FIRSTFLOW)
+          T=0D0
+          DO I=1,ICO
+            T=T+MATRIX(P,NHEL(1,I),PERM,FIRSTFLOW,ICO)
+          ENDDO
           DO JJ=1,NINCOMING
             IF(POL(JJ).NE.1D0.AND.NHEL(JJ,I).EQ.INT(SIGN(1D0,POL(JJ)))
      $       ) THEN
@@ -2053,7 +2100,7 @@ C       print *,'ANS: ',ANS
               NGOOD = NGOOD +1
               IGOOD(NGOOD) = I
               PRINT *,'Added good helicity ',I,TS(I)/ANS,' in event '
-     $         ,NTRY(IMIRROR)
+     $         ,NTRY
             ENDIF
           ENDDO
         ENDIF
@@ -2094,12 +2141,12 @@ C       print *,'XTOT,AMP2: ',XTOT,AMP2(SUBDIAG(1))
       ANS=ANS/DBLE(IDEN)
       END
 
-C     --------------------------------------------------------
-      REAL*8 FUNCTION MATRIX(P,NHEL,PERM,FIRSTFLOW)
-C     --------------------------------------------------------
+C     ------------------------------------------------------------
+      REAL*8 FUNCTION MATRIX(P,NHEL,PERM,FIRSTFLOW,ICO)
+C     ------------------------------------------------------------
 C     
-C     Returns amplitude squared summed/avg over colors
-C     for the point with external momenta P(0:3,NEXTERNAL)
+C     Returns the color flows for a given helicity and permutation, 
+C     at color order given by ICO
 C     
 C     Process: g g > g g g g QCD=4 QED=0 WEIGHTED=4 singlet_QCD=0
 C     
@@ -2123,7 +2170,7 @@ C
 C     ARGUMENTS 
 C     
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL),PERM(NEXTERNAL)
+      INTEGER NHEL(NEXTERNAL),PERM(NEXTERNAL),ICO
       LOGICAL FIRSTFLOW
 C     
 C     GLOBAL VARIABLES
@@ -2154,155 +2201,155 @@ C     Skip calculating amp2s for PS if secondary flows
       CALL VXXXXX(P(0,IP(4)),ZERO,NHEL(IP(4)),1*IC(IP(4)),W(1,4))
       CALL VXXXXX(P(0,IP(5)),ZERO,NHEL(IP(5)),1*IC(IP(5)),W(1,5))
       CALL VXXXXX(P(0,IP(6)),ZERO,NHEL(IP(6)),1*IC(IP(6)),W(1,6))
-      CALL L1_1(W(1,6),W(1,1),G,ZERO, ZERO, W(1,7))
-      CALL L1_1(W(1,5),W(1,7),G,ZERO, ZERO, W(1,8))
-      CALL L1_1(W(1,3),W(1,2),G,ZERO, ZERO, W(1,9))
+      CALL L1_1(W(1,6),W(1,1),G,ZERO,ZERO,W(1,7))
+      CALL L1_1(W(1,5),W(1,7),G,ZERO,ZERO,W(1,8))
+      CALL L1_1(W(1,3),W(1,2),G,ZERO,ZERO,W(1,9))
 C     Amplitude(s) for diagram number 1
       CALL L1_0(W(1,4),W(1,9),W(1,8),G,AMP(1))
-      CALL L1_1(W(1,5),W(1,4),G,ZERO, ZERO, W(1,10))
+      CALL L1_1(W(1,5),W(1,4),G,ZERO,ZERO,W(1,10))
 C     Amplitude(s) for diagram number 2
       CALL L1_0(W(1,10),W(1,9),W(1,7),G,AMP(2))
-      CALL L1_1(W(1,4),W(1,3),G,ZERO, ZERO, W(1,11))
+      CALL L1_1(W(1,4),W(1,3),G,ZERO,ZERO,W(1,11))
 C     Amplitude(s) for diagram number 3
       CALL L1_0(W(1,11),W(1,2),W(1,8),G,AMP(3))
-      CALL L1_1(W(1,6),W(1,5),G,ZERO, ZERO, W(1,12))
-      CALL L1_1(W(1,12),W(1,1),G,ZERO, ZERO, W(1,13))
+      CALL L1_1(W(1,6),W(1,5),G,ZERO,ZERO,W(1,12))
+      CALL L1_1(W(1,12),W(1,1),G,ZERO,ZERO,W(1,13))
 C     Amplitude(s) for diagram number 4
       CALL L1_0(W(1,4),W(1,9),W(1,13),G,AMP(4))
 C     Amplitude(s) for diagram number 5
       CALL L1_0(W(1,11),W(1,2),W(1,13),G,AMP(5))
-      CALL L1_1(W(1,5),W(1,1),G,ZERO, ZERO, W(1,14))
-      CALL L1_1(W(1,6),W(1,14),G,ZERO, ZERO, W(1,15))
+      CALL L1_1(W(1,5),W(1,1),G,ZERO,ZERO,W(1,14))
+      CALL L1_1(W(1,6),W(1,14),G,ZERO,ZERO,W(1,15))
 C     Amplitude(s) for diagram number 6
       CALL L1_0(W(1,4),W(1,9),W(1,15),G,AMP(6))
-      CALL L1_1(W(1,6),W(1,4),G,ZERO, ZERO, W(1,16))
+      CALL L1_1(W(1,6),W(1,4),G,ZERO,ZERO,W(1,16))
 C     Amplitude(s) for diagram number 7
       CALL L1_0(W(1,16),W(1,9),W(1,14),G,AMP(7))
 C     Amplitude(s) for diagram number 8
       CALL L1_0(W(1,11),W(1,2),W(1,15),G,AMP(8))
-      CALL L1_1(W(1,4),W(1,7),G,ZERO, ZERO, W(1,17))
-      CALL L1_1(W(1,5),W(1,3),G,ZERO, ZERO, W(1,18))
+      CALL L1_1(W(1,4),W(1,7),G,ZERO,ZERO,W(1,17))
+      CALL L1_1(W(1,5),W(1,3),G,ZERO,ZERO,W(1,18))
 C     Amplitude(s) for diagram number 9
       CALL L1_0(W(1,18),W(1,2),W(1,17),G,AMP(9))
-      CALL L1_1(W(1,16),W(1,1),G,ZERO, ZERO, W(1,19))
+      CALL L1_1(W(1,16),W(1,1),G,ZERO,ZERO,W(1,19))
 C     Amplitude(s) for diagram number 10
       CALL L1_0(W(1,5),W(1,9),W(1,19),G,AMP(10))
 C     Amplitude(s) for diagram number 11
       CALL L1_0(W(1,18),W(1,2),W(1,19),G,AMP(11))
-      CALL L1_1(W(1,4),W(1,1),G,ZERO, ZERO, W(1,20))
-      CALL L1_1(W(1,6),W(1,20),G,ZERO, ZERO, W(1,21))
+      CALL L1_1(W(1,4),W(1,1),G,ZERO,ZERO,W(1,20))
+      CALL L1_1(W(1,6),W(1,20),G,ZERO,ZERO,W(1,21))
 C     Amplitude(s) for diagram number 12
       CALL L1_0(W(1,5),W(1,9),W(1,21),G,AMP(12))
 C     Amplitude(s) for diagram number 13
       CALL L1_0(W(1,12),W(1,9),W(1,20),G,AMP(13))
 C     Amplitude(s) for diagram number 14
       CALL L1_0(W(1,18),W(1,2),W(1,21),G,AMP(14))
-      CALL L1_1(W(1,4),W(1,14),G,ZERO, ZERO, W(1,22))
-      CALL L1_1(W(1,6),W(1,3),G,ZERO, ZERO, W(1,23))
+      CALL L1_1(W(1,4),W(1,14),G,ZERO,ZERO,W(1,22))
+      CALL L1_1(W(1,6),W(1,3),G,ZERO,ZERO,W(1,23))
 C     Amplitude(s) for diagram number 15
       CALL L1_0(W(1,23),W(1,2),W(1,22),G,AMP(15))
-      CALL L1_1(W(1,10),W(1,1),G,ZERO, ZERO, W(1,24))
+      CALL L1_1(W(1,10),W(1,1),G,ZERO,ZERO,W(1,24))
 C     Amplitude(s) for diagram number 16
       CALL L1_0(W(1,6),W(1,9),W(1,24),G,AMP(16))
 C     Amplitude(s) for diagram number 17
       CALL L1_0(W(1,23),W(1,2),W(1,24),G,AMP(17))
-      CALL L1_1(W(1,5),W(1,20),G,ZERO, ZERO, W(1,25))
+      CALL L1_1(W(1,5),W(1,20),G,ZERO,ZERO,W(1,9))
 C     Amplitude(s) for diagram number 18
-      CALL L1_0(W(1,23),W(1,2),W(1,25),G,AMP(18))
-      CALL L1_1(W(1,4),W(1,2),G,ZERO, ZERO, W(1,26))
+      CALL L1_0(W(1,23),W(1,2),W(1,9),G,AMP(18))
+      CALL L1_1(W(1,4),W(1,2),G,ZERO,ZERO,W(1,25))
 C     Amplitude(s) for diagram number 19
-      CALL L1_0(W(1,3),W(1,26),W(1,8),G,AMP(19))
+      CALL L1_0(W(1,3),W(1,25),W(1,8),G,AMP(19))
 C     Amplitude(s) for diagram number 20
-      CALL L1_0(W(1,18),W(1,26),W(1,7),G,AMP(20))
+      CALL L1_0(W(1,18),W(1,25),W(1,7),G,AMP(20))
 C     Amplitude(s) for diagram number 21
-      CALL L1_0(W(1,3),W(1,26),W(1,13),G,AMP(21))
+      CALL L1_0(W(1,3),W(1,25),W(1,13),G,AMP(21))
 C     Amplitude(s) for diagram number 22
-      CALL L1_0(W(1,3),W(1,26),W(1,15),G,AMP(22))
+      CALL L1_0(W(1,3),W(1,25),W(1,15),G,AMP(22))
 C     Amplitude(s) for diagram number 23
-      CALL L1_0(W(1,23),W(1,26),W(1,14),G,AMP(23))
-      CALL L1_1(W(1,3),W(1,7),G,ZERO, ZERO, W(1,27))
+      CALL L1_0(W(1,23),W(1,25),W(1,14),G,AMP(23))
+      CALL L1_1(W(1,3),W(1,7),G,ZERO,ZERO,W(1,15))
 C     Amplitude(s) for diagram number 24
-      CALL L1_0(W(1,10),W(1,2),W(1,27),G,AMP(24))
-      CALL L1_1(W(1,23),W(1,1),G,ZERO, ZERO, W(1,28))
+      CALL L1_0(W(1,10),W(1,2),W(1,15),G,AMP(24))
+      CALL L1_1(W(1,23),W(1,1),G,ZERO,ZERO,W(1,15))
 C     Amplitude(s) for diagram number 25
-      CALL L1_0(W(1,5),W(1,26),W(1,28),G,AMP(25))
-      CALL L1_1(W(1,3),W(1,1),G,ZERO, ZERO, W(1,29))
-      CALL L1_1(W(1,6),W(1,29),G,ZERO, ZERO, W(1,30))
+      CALL L1_0(W(1,5),W(1,25),W(1,15),G,AMP(25))
+      CALL L1_1(W(1,3),W(1,1),G,ZERO,ZERO,W(1,13))
+      CALL L1_1(W(1,6),W(1,13),G,ZERO,ZERO,W(1,8))
 C     Amplitude(s) for diagram number 26
-      CALL L1_0(W(1,5),W(1,26),W(1,30),G,AMP(26))
+      CALL L1_0(W(1,5),W(1,25),W(1,8),G,AMP(26))
 C     Amplitude(s) for diagram number 27
-      CALL L1_0(W(1,12),W(1,26),W(1,29),G,AMP(27))
+      CALL L1_0(W(1,12),W(1,25),W(1,13),G,AMP(27))
 C     Amplitude(s) for diagram number 28
-      CALL L1_0(W(1,10),W(1,2),W(1,30),G,AMP(28))
-      CALL L1_1(W(1,3),W(1,14),G,ZERO, ZERO, W(1,31))
+      CALL L1_0(W(1,10),W(1,2),W(1,8),G,AMP(28))
+      CALL L1_1(W(1,3),W(1,14),G,ZERO,ZERO,W(1,26))
 C     Amplitude(s) for diagram number 29
-      CALL L1_0(W(1,16),W(1,2),W(1,31),G,AMP(29))
-      CALL L1_1(W(1,18),W(1,1),G,ZERO, ZERO, W(1,32))
+      CALL L1_0(W(1,16),W(1,2),W(1,26),G,AMP(29))
+      CALL L1_1(W(1,18),W(1,1),G,ZERO,ZERO,W(1,26))
 C     Amplitude(s) for diagram number 30
-      CALL L1_0(W(1,6),W(1,26),W(1,32),G,AMP(30))
-      CALL L1_1(W(1,5),W(1,29),G,ZERO, ZERO, W(1,33))
+      CALL L1_0(W(1,6),W(1,25),W(1,26),G,AMP(30))
+      CALL L1_1(W(1,5),W(1,13),G,ZERO,ZERO,W(1,25))
 C     Amplitude(s) for diagram number 31
-      CALL L1_0(W(1,16),W(1,2),W(1,33),G,AMP(31))
-      CALL L1_1(W(1,5),W(1,2),G,ZERO, ZERO, W(1,34))
+      CALL L1_0(W(1,16),W(1,2),W(1,25),G,AMP(31))
+      CALL L1_1(W(1,5),W(1,2),G,ZERO,ZERO,W(1,27))
 C     Amplitude(s) for diagram number 32
-      CALL L1_0(W(1,3),W(1,34),W(1,17),G,AMP(32))
+      CALL L1_0(W(1,3),W(1,27),W(1,17),G,AMP(32))
 C     Amplitude(s) for diagram number 33
-      CALL L1_0(W(1,11),W(1,34),W(1,7),G,AMP(33))
+      CALL L1_0(W(1,11),W(1,27),W(1,7),G,AMP(33))
 C     Amplitude(s) for diagram number 34
-      CALL L1_0(W(1,3),W(1,34),W(1,19),G,AMP(34))
+      CALL L1_0(W(1,3),W(1,27),W(1,19),G,AMP(34))
 C     Amplitude(s) for diagram number 35
-      CALL L1_0(W(1,3),W(1,34),W(1,21),G,AMP(35))
+      CALL L1_0(W(1,3),W(1,27),W(1,21),G,AMP(35))
 C     Amplitude(s) for diagram number 36
-      CALL L1_0(W(1,23),W(1,34),W(1,20),G,AMP(36))
+      CALL L1_0(W(1,23),W(1,27),W(1,20),G,AMP(36))
 C     Amplitude(s) for diagram number 37
-      CALL L1_0(W(1,4),W(1,34),W(1,28),G,AMP(37))
+      CALL L1_0(W(1,4),W(1,27),W(1,15),G,AMP(37))
 C     Amplitude(s) for diagram number 38
-      CALL L1_0(W(1,4),W(1,34),W(1,30),G,AMP(38))
+      CALL L1_0(W(1,4),W(1,27),W(1,8),G,AMP(38))
 C     Amplitude(s) for diagram number 39
-      CALL L1_0(W(1,16),W(1,34),W(1,29),G,AMP(39))
-      CALL L1_1(W(1,3),W(1,20),G,ZERO, ZERO, W(1,35))
+      CALL L1_0(W(1,16),W(1,27),W(1,13),G,AMP(39))
+      CALL L1_1(W(1,3),W(1,20),G,ZERO,ZERO,W(1,16))
 C     Amplitude(s) for diagram number 40
-      CALL L1_0(W(1,12),W(1,2),W(1,35),G,AMP(40))
-      CALL L1_1(W(1,11),W(1,1),G,ZERO, ZERO, W(1,36))
+      CALL L1_0(W(1,12),W(1,2),W(1,16),G,AMP(40))
+      CALL L1_1(W(1,11),W(1,1),G,ZERO,ZERO,W(1,16))
 C     Amplitude(s) for diagram number 41
-      CALL L1_0(W(1,6),W(1,34),W(1,36),G,AMP(41))
-      CALL L1_1(W(1,4),W(1,29),G,ZERO, ZERO, W(1,37))
+      CALL L1_0(W(1,6),W(1,27),W(1,16),G,AMP(41))
+      CALL L1_1(W(1,4),W(1,13),G,ZERO,ZERO,W(1,27))
 C     Amplitude(s) for diagram number 42
-      CALL L1_0(W(1,12),W(1,2),W(1,37),G,AMP(42))
-      CALL L1_1(W(1,6),W(1,2),G,ZERO, ZERO, W(1,38))
+      CALL L1_0(W(1,12),W(1,2),W(1,27),G,AMP(42))
+      CALL L1_1(W(1,6),W(1,2),G,ZERO,ZERO,W(1,27))
 C     Amplitude(s) for diagram number 43
-      CALL L1_0(W(1,3),W(1,38),W(1,22),G,AMP(43))
+      CALL L1_0(W(1,3),W(1,27),W(1,22),G,AMP(43))
 C     Amplitude(s) for diagram number 44
-      CALL L1_0(W(1,11),W(1,38),W(1,14),G,AMP(44))
+      CALL L1_0(W(1,11),W(1,27),W(1,14),G,AMP(44))
 C     Amplitude(s) for diagram number 45
-      CALL L1_0(W(1,3),W(1,38),W(1,24),G,AMP(45))
+      CALL L1_0(W(1,3),W(1,27),W(1,24),G,AMP(45))
 C     Amplitude(s) for diagram number 46
-      CALL L1_0(W(1,3),W(1,38),W(1,25),G,AMP(46))
+      CALL L1_0(W(1,3),W(1,27),W(1,9),G,AMP(46))
 C     Amplitude(s) for diagram number 47
-      CALL L1_0(W(1,18),W(1,38),W(1,20),G,AMP(47))
+      CALL L1_0(W(1,18),W(1,27),W(1,20),G,AMP(47))
 C     Amplitude(s) for diagram number 48
-      CALL L1_0(W(1,4),W(1,38),W(1,32),G,AMP(48))
+      CALL L1_0(W(1,4),W(1,27),W(1,26),G,AMP(48))
 C     Amplitude(s) for diagram number 49
-      CALL L1_0(W(1,4),W(1,38),W(1,33),G,AMP(49))
+      CALL L1_0(W(1,4),W(1,27),W(1,25),G,AMP(49))
 C     Amplitude(s) for diagram number 50
-      CALL L1_0(W(1,10),W(1,38),W(1,29),G,AMP(50))
+      CALL L1_0(W(1,10),W(1,27),W(1,13),G,AMP(50))
 C     Amplitude(s) for diagram number 51
-      CALL L1_0(W(1,5),W(1,38),W(1,36),G,AMP(51))
+      CALL L1_0(W(1,5),W(1,27),W(1,16),G,AMP(51))
 
       DO I=1,NGRAPHS
         AMP2(I)=AMP2(I)+AMP(I)*DCONJG(AMP(I))
       ENDDO
 
  10   ZTEMP = (0.D0,0.D0)
-      ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM)
+      ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM,ICO)
       MATRIX=REAL(ZTEMP)
 
       RETURN
       END
 
-C     --------------------------------------
-      COMPLEX*16 FUNCTION ONEPERM(P,NHEL,PM)
-C     --------------------------------------
+C     -----------------------------------------------------
+      COMPLEX*16 FUNCTION ONEPERM(P,NHEL,PM,ICO)
+C     -----------------------------------------------------
 C     
 C     Returns amplitude squared summed/avg over colors
 C     for the point with external lines W(0:6,NEXTERNAL)
@@ -2325,6 +2372,7 @@ C
       REAL*8 P(0:3,NEXTERNAL)
       INTEGER NHEL(NEXTERNAL)
       INTEGER PM(NEXTERNAL)
+      INTEGER ICO
 C     
 C     GLOBAL VARIABLES
 C     
@@ -2375,108 +2423,121 @@ C
 C     ----------
 C     BEGIN CODE
 C     ----------
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,1))
-      ENDDO
-      JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,2))
-      ENDDO
-      JAMP(2)=IFERM(2)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,3))
-      ENDDO
-      JAMP(3)=IFERM(3)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,4))
-      ENDDO
-      JAMP(4)=IFERM(4)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,5))
-      ENDDO
-      JAMP(5)=IFERM(5)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,6))
-      ENDDO
-      JAMP(6)=IFERM(6)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,7))
-      ENDDO
-      JAMP(7)=IFERM(7)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,8))
-      ENDDO
-      JAMP(8)=IFERM(8)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,9))
-      ENDDO
-      JAMP(9)=IFERM(9)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,10))
-      ENDDO
-      JAMP(10)=IFERM(10)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,11))
-      ENDDO
-      JAMP(11)=IFERM(11)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,12))
-      ENDDO
-      JAMP(12)=IFERM(12)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,13))
-      ENDDO
-      JAMP(13)=IFERM(13)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,14))
-      ENDDO
-      JAMP(14)=IFERM(14)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,15))
-      ENDDO
-      JAMP(15)=IFERM(15)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,16))
-      ENDDO
-      JAMP(16)=IFERM(16)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,17))
-      ENDDO
-      JAMP(17)=IFERM(17)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,18))
-      ENDDO
-      JAMP(18)=IFERM(18)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,19))
-      ENDDO
-      JAMP(19)=IFERM(19)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,20))
-      ENDDO
-      JAMP(20)=IFERM(20)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,21))
-      ENDDO
-      JAMP(21)=IFERM(21)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,22))
-      ENDDO
-      JAMP(22)=IFERM(22)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,23))
-      ENDDO
-      JAMP(23)=IFERM(23)*FLOW1(P,NHEL,PERM)
-      DO I=1,NEXTERNAL
-        PERM(I)=PM(PERMS(I,24))
-      ENDDO
-      JAMP(24)=IFERM(24)*FLOW1(P,NHEL,PERM)
+      IF(ICO.EQ.1) THEN
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,1))
+        ENDDO
+        JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+      ENDIF
+      IF(ICO.EQ.2) THEN
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,1))
+        ENDDO
+        JAMP(1)=IFERM(1)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,2))
+        ENDDO
+        JAMP(2)=IFERM(2)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,3))
+        ENDDO
+        JAMP(3)=IFERM(3)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,4))
+        ENDDO
+        JAMP(4)=IFERM(4)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,5))
+        ENDDO
+        JAMP(5)=IFERM(5)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,6))
+        ENDDO
+        JAMP(6)=IFERM(6)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,7))
+        ENDDO
+        JAMP(7)=IFERM(7)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,8))
+        ENDDO
+        JAMP(8)=IFERM(8)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,9))
+        ENDDO
+        JAMP(9)=IFERM(9)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,10))
+        ENDDO
+        JAMP(10)=IFERM(10)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,11))
+        ENDDO
+        JAMP(11)=IFERM(11)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,12))
+        ENDDO
+        JAMP(12)=IFERM(12)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,13))
+        ENDDO
+        JAMP(13)=IFERM(13)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,14))
+        ENDDO
+        JAMP(14)=IFERM(14)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,15))
+        ENDDO
+        JAMP(15)=IFERM(15)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,16))
+        ENDDO
+        JAMP(16)=IFERM(16)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,17))
+        ENDDO
+        JAMP(17)=IFERM(17)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,18))
+        ENDDO
+        JAMP(18)=IFERM(18)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,19))
+        ENDDO
+        JAMP(19)=IFERM(19)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,20))
+        ENDDO
+        JAMP(20)=IFERM(20)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,21))
+        ENDDO
+        JAMP(21)=IFERM(21)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,22))
+        ENDDO
+        JAMP(22)=IFERM(22)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,23))
+        ENDDO
+        JAMP(23)=IFERM(23)*FLOW1(P,NHEL,PERM)
+        DO I=1,NEXTERNAL
+          PERM(I)=PM(PERMS(I,24))
+        ENDDO
+        JAMP(24)=IFERM(24)*FLOW1(P,NHEL,PERM)
+      ENDIF
       ZTEMP = (0.D0,0.D0)
-      ZTEMP = ZTEMP+1/648D0*JAMP(1)*DCONJG(3641D0*(JAMP(1))+572D0
-     $ *(JAMP(4)+JAMP(6)+JAMP(13)+JAMP(16)+JAMP(22)+JAMP(24))
-     $ +554D0*(JAMP(7)+JAMP(14))+454D0*(-JAMP(2)-JAMP(3)-JAMP(5)
-     $ -JAMP(11)-JAMP(12)-JAMP(21))+428D0*(JAMP(8)+JAMP(9)+JAMP(10)
-     $ +JAMP(15)+JAMP(17)+JAMP(18)+JAMP(19)+JAMP(20)+JAMP(23)))
+      IF(ICO.EQ.1) THEN
+        ZTEMP = ZTEMP+1/648D0*JAMP(1)*DCONJG(3641D0*(JAMP(1)))
+      ENDIF
+      IF(ICO.EQ.2) THEN
+        ZTEMP = ZTEMP+1/324D0*JAMP(1)*DCONJG(286D0*(JAMP(4)+JAMP(6)
+     $   +JAMP(13)+JAMP(16)+JAMP(22)+JAMP(24))+277D0*(JAMP(7)
+     $   +JAMP(14))+227D0*(-JAMP(2)-JAMP(3)-JAMP(5)-JAMP(11)-JAMP(12)
+     $   -JAMP(21))+214D0*(JAMP(8)+JAMP(9)+JAMP(10)+JAMP(15)+JAMP(17)
+     $   +JAMP(18)+JAMP(19)+JAMP(20)+JAMP(23)))
+      ENDIF
       ONEPERM=ZTEMP
 
       JAMP2(1)=JAMP2(1)+JAMP(1)*DCONJG(JAMP(1))
