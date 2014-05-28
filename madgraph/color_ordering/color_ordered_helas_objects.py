@@ -1124,6 +1124,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                  include_all_t = True, tch_depth = 1, identify_depth = 1):
         """Initialize a COHelasMatrixElement with a ColorOrderedAmplitude"""
         
+
         if amplitude != None:
             if isinstance(amplitude,
                           color_ordered_amplitudes.ColorOrderedAmplitude):
@@ -1340,6 +1341,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                              include_all_t = self.get('include_all_t'),
                              tch_depth = self.get('tch_depth'),
                              identify_depth = self.get('identify_depth'))
+                            
         self.set('tch_depth', tch_depth)
         periferal_amplitude = diagram_generation.Amplitude()
         periferal_amplitude.set('process', amplitude.get('process'))

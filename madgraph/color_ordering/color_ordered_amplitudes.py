@@ -36,6 +36,7 @@ import madgraph.core.color_algebra as color
 import madgraph.core.color_amp as color_amp
 import madgraph.core.diagram_generation as diagram_generation
 from madgraph import MadGraph5Error
+import madgraph.various.misc as misc
 
 logger = logging.getLogger('madgraph.color_ordered_amplitudes')
 
@@ -237,7 +238,6 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
         # # Decay vertices can't fail
         # if decay_vertex:
         #     return True
-
         if self.depth == 1:
             # Only (1,2) is forbidden among 2-particle combinations
             return sorted(self.get_external_numbers()) != [1,2]
@@ -268,16 +268,17 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
             return [depths[0][1][0],depths[1][1][0]] != [1,2]
 
         # This checks tch_depth for s-channel mergings for wf-like vertices
-        if not amp_link and depths[1][0] < tch_depth and \
-               (depths[0][0] == 0 and depths[0][1][0] <= 2 or \
-                depths[0][0] > 0 and depths[1][0] < tch_depth-1):
-            return False
+        #if not amp_link and depths[1][0] < tch_depth and \
+        #       (depths[0][0] == 0 and depths[0][1][0] <= 2 or \
+        #        depths[0][0] > 0 and depths[1][0] < tch_depth-1):
+        #    return False
 
         # This checks that final vertex is t-channel
-        if amp_link and depths[1][0] < tch_depth:
-            if depths[0][0] == 0 and depths[0][1][0] <= 2 or \
-               depths[0][0] > 0 and depths[1][0] < tch_depth-1:
-                return False
+        #if amp_link and depths[1][0] < tch_depth:
+        #    if depths[0][0] == 0 and depths[0][1][0] <= 2 or \
+        #       depths[0][0] > 0 and depths[1][0] < tch_depth-1:
+        #        print 'fail 282'
+        #        return True
 
         # Otherwise, return True
         return True
@@ -367,6 +368,7 @@ class PeriferalDiagramTag(OrderDiagramTag):
 
         if nallowed < 0:
             nallowed = 1 if order == 1 else 0
+                                             
         return self.tag.check_periferal_legs(model,
                                              order,
                                              nallowed,
@@ -383,7 +385,7 @@ class PeriferalDiagramTag(OrderDiagramTag):
         - If not allow_12_sch, initial state legs must couple directly
           to external particles (not to s-channel propagators).
         """
-        
+        #return True
         return self.tag.pass_restrictions(model, True, tch_depth)
 
     def get_comp_array(self, identify_depth = 1):
@@ -719,6 +721,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                                            include_all_t):
                         # This diagram is not periferal
                         continue
+
                     idiag += 1
                     tag_array = tag.get_comp_array(identify_depth = \
                                                        identify_depth)
