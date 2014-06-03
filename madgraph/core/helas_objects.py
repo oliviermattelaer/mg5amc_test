@@ -818,19 +818,6 @@ class HelasWavefunction(base_objects.PhysicsObject):
                     diagram_wavefunctions[old_wf_index] = new_wf
                 except ValueError:
                     diagram_wavefunctions.append(new_wf)
-                    # Make sure that new_wf comes before any wavefunction
-                    # which has it as mother
-                    for i, wf in enumerate(diagram_wavefunctions):
-                        if self in wf.get('mothers'):
-                            # Remove new_wf, in order to insert it below
-                            diagram_wavefunctions.pop()
-                            # Update wf numbers
-                            new_wf.set('number', wf.get('number'))
-                            for w in diagram_wavefunctions[i:]:
-                                w.set('number', w.get('number') + 1)
-                            # Insert wavefunction
-                            diagram_wavefunctions.insert(i, new_wf)
-                            break
 
             # Set new mothers
             new_wf.set('mothers', mothers)
@@ -1249,7 +1236,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
 
             # Add s- and t-channels going down towards leg 1
             mother_s, tchannels = \
-                      init_mothers1.get_s_and_t_channels(ninitial, legs[1])
+                      init_mothers1.get_s_and_t_channels(ninitial, legs[-2])
             schannels.extend(mother_s)
 
             # Add vertex
@@ -2731,13 +2718,29 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                     helas_diagram.get('amplitudes').append(amp)
 
             # After generation of all wavefunctions and amplitudes,
-            # add wavefunctions to diagram
+            # first sort the wavefunctions according to number
+            diagram_wavefunctions.sort(lambda wf1, wf2: \
+                                       wf1.get('number') - wf2.get('number'))
+            
+            # Then make sure that all mothers come before daughters
+            iwf = len(diagram_wavefunctions) - 1
+            while iwf > 0:
+                this_wf = diagram_wavefunctions[iwf]
+                moved = False
+                for i,wf in enumerate(diagram_wavefunctions[:iwf]):
+                    if this_wf in wf.get('mothers'):
+                        diagram_wavefunctions.pop(iwf)
+                        diagram_wavefunctions.insert(i, this_wf)
+                        this_wf.set('number', wf.get('number'))
+                        for w in diagram_wavefunctions[i+1:]:
+                            w.set('number',w.get('number')+1)
+                        moved = True
+                        break
+                if not moved: iwf -= 1
+
+            # Finally, add wavefunctions to diagram
             helas_diagram.set('wavefunctions', diagram_wavefunctions)
 
-            # Sort the wavefunctions according to number
-            diagram_wavefunctions.sort(lambda wf1, wf2: \
-                          wf1.get('number') - wf2.get('number'))
-            
             if optimization:
                 wavefunctions.extend(diagram_wavefunctions)
                 wf_mother_arrays.extend([wf.to_array() for wf \
@@ -4446,18 +4449,28 @@ class HelasMultiProcess(base_objects.PhysicsObject):
                 if matrix_element in matrix_elements:
                     me = matrix_elements[matrix_elements.index(matrix_element)]
                     me_procs = me.get('processes')
-                    logger.info("Combining process %s with %s" % \
-                            (matrix_element.get('processes')[0].nice_string().\
-                                 replace('Process: ', ''),
-                             me.get('processes')[0].nice_string().\
-                                 replace('Process: ', '')))
-                    for proc in matrix_element.get('processes'):
-                        if proc not in me_procs:
-                            me_procs.append(proc)
-                        else:
-                            raise InvalidCmd, "Duplicate process %s found. Please check your processes." % \
-                                proc.nice_string().replace('Process: ', '')
-                    continue
+                    procs = matrix_element.get('processes')
+                    if me_procs[0].get_ninitial() > 1 or \
+                            procs[0].get_initial_ids() == \
+                            me_procs[0].get_initial_ids():
+                        logger.info("Combining process %s with %s" % \
+                                (procs[0].nice_string().\
+                                     replace('Process: ', ''),
+                                 me_procs[0].nice_string().\
+                                     replace('Process: ', '')))
+                        for proc in procs:
+                            if proc not in me_procs:
+                                me_procs.append(proc)
+                            else:
+                                raise InvalidCmd,("Duplicate process %s found."\
+                                           +" Please check your processes.") % \
+                                    proc.nice_string().replace('Process: ', '')
+                        # Remove this matrix element from the lists
+                        if combine_matrix_elements and amplitude_tags:
+                            amplitude_tags.pop(-1)
+                            identified_matrix_elements.pop(-1)
+                            permutations.pop(-1)
+                        continue
 
                 # Otherwise, add this matrix element to list
                 matrix_elements.append(matrix_element)
