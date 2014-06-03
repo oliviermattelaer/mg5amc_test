@@ -43,7 +43,7 @@ C
     INTEGER NHEL(NEXTERNAL,NCOMB),NTRY(2)
     INTEGER ISHEL(2)
     REAL*8 T, MATRIX%(proc_id)s
-    REAL*8 R,SUMHEL,TS(NCOMB)
+    REAL*8 R,SUMHEL,TS(NCOMB),TSCF(NCOMB,NPERMS)
     INTEGER I,IDEN,T_IDENT(NCOMB,2)
     INTEGER IPROC,II
     LOGICAL GOODHEL(NCOMB,2)
@@ -53,11 +53,13 @@ C
     REAL*8 TOTFACT
     INTEGER JHELBK,NUPPER
     INTEGER NSELPERM(NPERMS),NSORTPERM(NPERMS),NSELPERMS
+    DOUBLE PRECISION JAC(NPERMS)
     LOGICAL FIRSTFLOW
     REAL*8   RVEC
     INTEGER ICOUNT
     SAVE FRAC,GOODHEL,T_IDENT,ICOUNT
     DATA ICOUNT/0/
+    DOUBLE PRECISION ANSCF(NPERMS)
 C  
 C GLOBAL VARIABLES
 C  
@@ -80,6 +82,9 @@ C
     INTEGER IMIRROR
     COMMON/TO_MIRROR/ IMIRROR
 
+    LOGICAL CF_BASIS(NDIAGS,NPERMS)
+    COMMON/TO_CF_BASIS/CF_BASIS
+
 %(define_iconfigs_lines)s
     DATA IDUM /0/
     DATA XTRY, XREJ /0,0/
@@ -96,6 +101,10 @@ C BEGIN CODE
 C ----------
     NTRY(IMIRROR)=NTRY(IMIRROR)+1
 
+    IF (NTRY(IMIRROR).eq.1) THEN
+        call generate_CF_integration_basis()
+    ENDIF    
+    
     IF (multi_channel) THEN
         DO I=1,NDIAGS
             AMP2(I)=0D0
@@ -105,17 +114,23 @@ C ----------
             JAMP2(I)=0D0
         ENDDO
     ENDIF
+    DO I=1,NPERMS
+        ANSCF(I) = 0d0
+    ENDDO   
     ANS = 0D0
     WRITE(HEL_BUFF,'(20I5)') (0,I=1,NEXTERNAL)
     DO I=1,NCOMB
        TS(I)=0d0
+       DO J=1,NPERMS
+          TSCF(I,J)=0d0
+       ENDDO 
     ENDDO
     NSELPERMS=MIN(NUMPERMS,NPERMS)
     IF(NSELPERMS.EQ.0) NSELPERMS=NPERMS
     IF(NTRY(IMIRROR).EQ.1)THEN
 c     Calculate summed permutation weight
       TOTFACT=NPERMS
-      FRAC=NSELPERMS*1D0/TOTFACT
+c      FRAC=NSELPERMS*1D0/TOTFACT
     ENDIF
 c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
       JHELBK=JHEL(IMIRROR)
@@ -127,20 +142,8 @@ c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
          HWGT = REAL(NGOOD(IMIRROR))/REAL(ISHEL(IMIRROR))
       ENDIF
  10 FIRSTFLOW=.TRUE.
-c     Choose permutations
-      DO ISEL=1,NSELPERMS
-c     Pick a permutation
-         CALL RANMAR(RVEC)
-         IPERM=INT(RVEC*(NPERMS-ISEL+1)+1)
-c     Shift IPERM according to already chosen permutations
-c     Note that this requires NSELPERM to be sorted
-         DO J=1,ISEL-1
-            IF(IPERM.GE.NSORTPERM(J)) IPERM=IPERM+1
-         ENDDO
-c     Add IPERM to NSELPERM and NSORTPERM
-         NSELPERM(ISEL)=IPERM
-         CALL INSORT(IPERM,ISEL-1,NSORTPERM)
-      ENDDO
+c     Choose permutations completely randomly ! need to be improve!
+      CALL SELECT_COLOR_FLOW(NSELPERMS, .true., SUBDIAG(1), NSELPERM, JAC)
 c     Start loop over chosen permutations
       DO ISEL=1,NSELPERMS
 c     Reset helicity info
@@ -164,8 +167,10 @@ c     Start loop over helicities
             IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
             I = IGOOD(JHEL(IMIRROR),IMIRROR)
           ENDIF
-          IF(T_IDENT(I,IMIRROR).LT.0.OR.TS(T_IDENT(I,IMIRROR)).EQ.0)THEN
+          IF(T_IDENT(I,IMIRROR).LT.0) THEN
 C         Calculate matrix element if no identical helicity
+             T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
+          ELSE IF(TS(T_IDENT(I,IMIRROR)).EQ.0)THEN
              T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
           ENDIF
           IF(ICO.GT.1.AND.MOD(ICOUNT,NLCFACT).EQ.0) THEN
@@ -185,53 +190,81 @@ C         Sample NNLC and higher contributions
               T=T*(2D0-ABS(POL(JJ)))
             ENDIF
           ENDDO
-          TS(I)=TS(I)+T*HWGT/FRAC
+          TSCF(I,IPERM) = TSCF(I,IPERM) + T*HWGT*JAC(ISEL)
         ENDDO
         FIRSTFLOW=.FALSE.
-      ENDDO
-C     Calculate ANS (needs to be done after summing over flows)
-c     First reset helicity info
-      JHEL(IMIRROR)=JHELBK
-      DO J=1,NUPPER
-         IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
+C       Calculate ANSCF 
+c       First reset helicity info
+c        JHEL(IMIRROR)=JHELBK
+        DO J=1,NUPPER
+          IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
             I=J
             IF(.NOT.GOODHEL(I,IMIRROR) .AND. NTRY(IMIRROR) .GT. MAXTRIES) CYCLE
-         ELSE
+          ELSE
             JHEL(IMIRROR)=JHEL(IMIRROR)+1
             IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
             I = IGOOD(JHEL(IMIRROR),IMIRROR)
-         ENDIF
-         IF(T_IDENT(I,IMIRROR).GT.0.AND.TS(T_IDENT(I,IMIRROR)).NE.0)THEN
-C        If identical helicity, set TS(I) to that value
-            TS(I)=TS(T_IDENT(I,IMIRROR))
-         ENDIF
-         ANS=ANS+DABS(TS(I))
-      ENDDO
-c     Determine which helicities to include
+          ENDIF
+          IF(T_IDENT(I,IMIRROR).GT.0.AND.TSCF(MAX(1,T_IDENT(I,IMIRROR)),IPERM).NE.0)THEN                                                                                                                    
+C           If identical helicity, set TS(I) to that value                                                                                                                                                    
+            TSCF(I,IPERM)=TSCF(T_IDENT(I,IMIRROR),IPERM)
+          ENDIF
+          ANSCF(IPERM)=ANSCF(IPERM)+DABS(TSCF(I,IPERM))
+        ENDDO
+C     Determine which helicities to include
       IF(NTRY(IMIRROR).LE.MAXTRIES)THEN
-         DO I=1,NCOMB
-            IF (.NOT.GOODHEL(I,IMIRROR) .AND. (DABS(TS(I)).GT.ANS*LIMHEL/NCOMB)) THEN
-              GOODHEL(I,IMIRROR)=.TRUE.
-              NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
-              IGOOD(NGOOD(IMIRROR),IMIRROR) = I
-c             Look for identical helicities
-              DO J=1,I-1
-                 IF(DABS(TS(I)/TS(J)-1d0).LT.1D-12)THEN
-                    PRINT *,'Found identical helicity ',I,J,TS(I)/ANS
-                    T_IDENT(I,IMIRROR)=J
-                    EXIT
-                 ENDIF
-              ENDDO
-              IF(T_IDENT(I,IMIRROR).LT.0)THEN
-                 PRINT *,'Added good helicity ',I,TS(I)/ANS,' in event ',NTRY(IMIRROR)
+        DO I=1,NCOMB
+          IF (.NOT.GOODHEL(I,IMIRROR) .AND. (DABS(TSCF(I,IPERM)).GT.ANSCF(IPERM)*LIMHEL/NCOMB)) THEN
+            GOODHEL(I,IMIRROR)=.TRUE.
+            NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
+            IGOOD(NGOOD(IMIRROR),IMIRROR) = I
+C           Look for identical helicities
+            DO J=1,I-1
+              IF (TSCF(J,IPERM).ne.0d0)then
+              IF(DABS(TSCF(I,IPERM)/TSCF(J,IPERM)-1D0).LT.1D-12)THEN
+                PRINT *,'Found identical helicity ',I,J,TSCF(I,IPERM)/ANSCF(IPERM)
+                T_IDENT(I,IMIRROR)=J
+                EXIT
               ENDIF
+              endif
+            ENDDO
+            IF(T_IDENT(I,IMIRROR).LT.0)THEN
+              PRINT *,'Added good helicity ',I,TSCF(I,IPERM)/ANSCF(IPERM), ' in event ',NTRY(IMIRROR)
             ENDIF
-         ENDDO
-      ENDIF
-c     Set how many helicities to sum over
+          ENDIF
+        ENDDO
+      ENDIF        
+C     Set how many helicities to sum over
       IF(NTRY(IMIRROR).EQ.MAXTRIES)THEN
-         ISHEL(IMIRROR)=MIN(ISUM_HEL,NGOOD(IMIRROR))
+        ISHEL(IMIRROR)=MIN(ISUM_HEL,NGOOD(IMIRROR))
       ENDIF
+
+
+      IF (MULTI_CHANNEL) THEN
+          IF (CF_BASIS(SUBDIAG(1),IPERM).AND.AMP2(SUBDIAG(1)).GT.0D0)THEN
+            XTOT=0D0
+            DO J=1,NDIAGS
+              IF (CF_BASIS(J,IPERM))THEN
+                XTOT = XTOT + AMP2(J)
+              ENDIF
+            ENDDO
+
+            ANSCF(IPERM) = ANSCF(IPERM)*AMP2(SUBDIAG(1))/XTOT
+          ELSE
+            ANSCF(IPERM) = 0D0
+          ENDIF
+      ENDIF
+      ENDDO        
+      DO I = 1,NPERMS
+        ANS = ANS +ANSCF(I)
+      ENDDO
+      do i = 1,NCOMB
+         do j = 1,NPERMS
+            TS(i) = TS(i) +TSCF(i,j)
+         enddo
+      enddo        
+        
+
 c     Choose a helicity to write out
       IF (ISHEL(IMIRROR) .EQ. 1) THEN
          WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
@@ -250,18 +283,6 @@ c           Set right sign for ANS, based on sign of chosen helicity
           ENDIF
         ENDDO
  20     CONTINUE
-      ENDIF
-C     Multiply by the appropriate AMP2 factor
-      IF (MULTI_CHANNEL) THEN
-        XTOT=0D0
-        DO I=1,NDIAGS
-          XTOT=XTOT+AMP2(I)
-        ENDDO
-        IF (XTOT.NE.0D0) THEN
-%(set_amp2_line)s
-        ELSE
-          ANS=0D0
-        ENDIF
       ENDIF
       ANS=ANS/DBLE(IDEN)
       END
@@ -439,3 +460,227 @@ C ----------
       ENDDO
       END
 
+    SUBROUTINE SELECT_COLOR_FLOW(NB_TO_SELECT, FLAT, CHANNEL, NSELPERM, JAC)
+    IMPLICIT NONE  
+c     PARAMETER      
+      INTEGER    NPERMS
+      PARAMETER (NPERMS=%(nperms)d)
+      INTEGER    NDIAGS
+      PARAMETER (NDIAGS=%(ndiags)d)  
+c     INPUT
+      INTEGER NB_TO_SELECT ! can be change if impossible to reach taht number.
+      LOGICAL FLAT
+      INTEGER CHANNEL ! current diagram under consideration
+c     OUTPUT
+      INTEGER NSELPERM(*)
+      DOUBLE PRECISION JAC(NPERMS)
+c     LOCAL
+      INTEGER ISEL,I,J,K
+      INTEGER  TOT_PICK, ALLOWED
+      DOUBLE PRECISION TOTAL,TMP
+      DOUBLE PRECISION LIMIT(0:NPERMS)
+      DOUBLE PRECISION RANDOM
+      DOUBLE PRECISION LOC_JAC       
+c     GLOBAL
+      LOGICAL CF_BASIS(NDIAGS, NPERMS)
+      COMMON/TO_CF_BASIS/CF_BASIS  
+c
+      INTEGER FACTORIAL
+      include 'maxamps.inc' ! define MAXAMPS and MAXFLOW       
+      DOUBLE PRECISION AMP2(MAXAMPS),JAMP2(0:MAXFLOW)
+      COMMON/TO_AMPS/  AMP2, JAMP2       
+       
+      TOTAL=0d0
+      JAC=1d0
+c      
+c    PREPARE GRID FOR PICKING COLOR FLOW RANDOMLY
+c   
+      LIMIT(0) = 0d0
+      ALLOWED=0
+      IF (FLAT) THEN
+        DO I=1,NPERMS
+           IF (CF_BASIS(CHANNEL,I)) THEN
+                ALLOWED = ALLOWED +1
+                TOTAL = TOTAL + 1d0
+           ENDIF
+           LIMIT(I) = TOTAL  
+        ENDDO
+c
+c     WEIGHTED CASE
+c        
+      ELSE
+        DO I=1,NPERMS
+           TMP = 0d0
+           IF (CF_BASIS(CHANNEL, I)) THEN
+                DO J=1,NDIAGS
+                    IF (CF_BASIS(J, I)) THEN
+                        TMP = TMP + AMP2(J)
+                    ENDIF
+                ENDDO
+           ENDIF
+           IF (TMP.ne.0d0) THEN
+               TOTAL = TOTAL + 1d0/TMP
+               ALLOWED = ALLOWED + 1
+           ENDIF     
+           LIMIT(I) = TOTAL  
+        ENDDO
+      ENDIF
+       
+      
+      IF (ALLOWED.le.NB_TO_SELECT)then
+c        select all
+         ISEL = 0
+         DO I=1,NPERMS
+           if (LIMIT(I).ne.LIMIT(I-1))then
+              ISEL = ISEL +1
+              NSELPERM(ISEL)=I
+              JAC(ISEL) =1 
+           endif        
+        ENDDO
+        DO I= ISEL+1, NB_TO_SELECT
+            NSELPERM(I) = 0
+            JAC(I) = 0
+        ENDDO
+        NB_TO_SELECT = ALLOWED
+      ELSE
+       
+c     Choose permutations 
+      LOC_JAC =1d0
+      TOT_PICK = 0
+      DO ISEL=1,NB_TO_SELECT
+c     Pick a permutation
+ 20        TOT_PICK = TOT_PICK + 1
+           CALL RANMAR(RANDOM)
+           DO J=1,NPERMS
+             IF ((LIMIT(J)/TOTAL)>RANDOM) THEN
+                LOC_JAC =  TOTAL/(LIMIT(J)-LIMIT(J-1))
+                do k=1,ISEL-1
+                    if (NSELPERM(K).eq.J) then
+                        JAC(K) = JAC(k) + LOC_JAC
+                        goto 20
+                    endif   
+                enddo     
+                NSELPERM(ISEL)=J
+                JAC(ISEL) = LOC_JAC
+c               FORBID THIS PICK TO BE TAKEN A SECOND TIME.                
+c                TMP = LIMIT(J) - LIMIT(J-1)
+c                TOTAL = TOTAL - TMP
+c                DO K=J,NPERMS
+c                    LIMIT(K) = LIMIT(K) - TMP
+c                ENDDO
+                GOTO 10
+             ENDIF
+         ENDDO
+         IF (LIMIT(NPERMS).eq.0d0) THEN
+             NSELPERM(ISEL)=0d0
+             NB_TO_SELECT = ISEL - 1
+             TOT_PICK = TOT_PICK - 1
+             goto 30
+         ELSE
+             STOP 1
+         ENDIF
+ 10    ENDDO 
+c         
+c     COMPUTE GLOBAL JAC FACTOR         
+c
+ 30    DO ISEL=1,NB_TO_SELECT
+         JAC(ISEL) = JAC(ISEL) / TOT_PICK
+     ENDDO
+     ENDIF
+          
+      RETURN
+    END                  
+  
+    SUBROUTINE generate_CF_integration_basis()
+    IMPLICIT NONE
+    INTEGER NDIAGS
+    PARAMETER (NDIAGS=%(ndiags)d) 
+    INTEGER    NPERMS
+    PARAMETER (NPERMS=%(nperms)d) 
+    
+    INTEGER I,J
+    
+    LOGICAL CF_BASIS(NDIAGS,NPERMS)
+    COMMON/TO_CF_BASIS/CF_BASIS    
+
+c    DO I=1,24
+c        DO J=1,12
+c            CF_BASIS(J,I)=.true.
+c        ENDDO
+c    ENDDO
+
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 1),I=1,6) / .true., .false., .false., .false., .false., .false./                                                                                                                        
+      DATA (CF_BASIS(I, 1),I=7,12) / .true., .false., .false., .true., .false., .false./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 2),I=1,6) / .false., .true., .false., .false., .false., .false./                                                                                                                        
+      DATA (CF_BASIS(I, 2),I=7,12) / .false., .true., .false., .true., .false., .false./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 3),I=1,6) / .false., .false., .true., .false., .false., .false./                                                                                                                        
+      DATA (CF_BASIS(I, 3),I=7,12) / .true., .false., .false., .false., .true., .false./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 4),I=1,6) / .false., .false., .false., .true., .false., .false./                                                                                                                        
+      DATA (CF_BASIS(I, 4),I=7,12) / .false., .false., .true., .false., .true., .false./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 5),I=1,6) / .false., .false., .false., .false., .true., .false./                                                                                                                        
+      DATA (CF_BASIS(I, 5),I=7,12) / .false., .true., .false., .false., .false., .true./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 6),I=1,6) / .false., .false., .false., .false., .false., .true./                                                                                                                        
+      DATA (CF_BASIS(I, 6),I=7,12) / .false., .false., .true., .false., .false., .true./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 7),I=1,6) / .true., .false., .true., .true., .false., .false./                                                                                                                          
+      DATA (CF_BASIS(I, 7),I=7,12) / .false., .false., .true., .true., .false., .false./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 8),I=1,6) / .false., .true., .false., .false., .true., .true./                                                                                                                          
+      DATA (CF_BASIS(I, 8),I=7,12) / .false., .false., .true., .true., .false., .false./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 13),I=1,6) / .true., .true., .true., .false., .false., .false./                                                                                                                         
+      DATA (CF_BASIS(I, 13),I=7,12) / .false., .true., .false., .false., .true., .false./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 19),I=1,6) / .false., .false., .false., .true., .true., .true./                                                                                                                         
+      DATA (CF_BASIS(I, 19),I=7,12) / .false., .true., .false., .false., .true., .false./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 14),I=1,6) / .true., .true., .false., .false., .true., .false./                                                                                                                         
+      DATA (CF_BASIS(I, 14),I=7,12) / .true., .false., .false., .false., .false., .true./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 20),I=1,6) / .false., .false., .true., .true., .false., .true./                                                                                                                         
+      DATA (CF_BASIS(I, 20),I=7,12) / .true., .false., .false., .false., .false., .true./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 9),I=1,6) / .false., .false., .true., .true., .false., .true./                                                                                                                          
+      DATA (CF_BASIS(I, 9),I=7,12) / .true., .false., .false., .false., .false., .true./                                                                                                                        
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 10),I=1,6) / .false., .false., .false., .true., .true., .true./                                                                                                                         
+      DATA (CF_BASIS(I, 10),I=7,12) / .false., .true., .false., .false., .true., .false./  
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 15),I=1,6) / .true., .true., .false., .false., .true., .false./                                                                                                                         
+      DATA (CF_BASIS(I, 15),I=7,12) / .true., .false., .false., .false., .false., .true./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 21),I=1,6) / .false., .true., .false., .false., .true., .true./                                                                                                                         
+      DATA (CF_BASIS(I, 21),I=7,12) / .false., .false., .true., .true., .false., .false./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 16),I=1,6) / .true., .true., .true., .false., .false., .false./                                                                                                                         
+      DATA (CF_BASIS(I, 16),I=7,12) / .false., .true., .false., .false., .true., .false./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 22),I=1,6) / .true., .false., .true., .true., .false., .false./                                                                                                                         
+      DATA (CF_BASIS(I, 22),I=7,12) / .false., .false., .true., .true., .false., .false./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 11),I=1,6) / .false., .false., .false., .false., .false., .true./                                                                                                                       
+      DATA (CF_BASIS(I, 11),I=7,12) / .false., .false., .true., .false., .false., .true./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 12),I=1,6) / .false., .false., .false., .true., .false., .false./                                                                                                                       
+      DATA (CF_BASIS(I, 12),I=7,12) / .false., .false., .true., .false., .true., .false./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 17),I=1,6) / .false., .false., .false., .false., .true., .false./                                                                                                                       
+      DATA (CF_BASIS(I, 17),I=7,12) / .false., .true., .false., .false., .false., .true./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 23),I=1,6) / .false., .true., .false., .false., .false., .false./                                                                                                                       
+      DATA (CF_BASIS(I, 23),I=7,12) / .false., .true., .false., .true., .false., .false./                                                                                                                       
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 18),I=1,6) / .false., .false., .true., .false., .false., .false./                                                                                                                       
+      DATA (CF_BASIS(I, 18),I=7,12) / .true., .false., .false., .false., .true., .false./ 
+c                                 1/7     2/8      3/9       4/10    5/11     6/12                                                                                                                          
+      DATA (CF_BASIS(I, 24),I=1,6) / .true., .false., .false., .false., .false., .false./                                                                                                                       
+      DATA (CF_BASIS(I, 24),I=7,12) / .true., .false., .false., .true., .false., .false./ 
+
+
+    END

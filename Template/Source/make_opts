@@ -2,7 +2,7 @@
 
 ifeq ($(origin FFLAGS),undefined)
   FFLAGS= -O -w
-  #FFLAGS+= -g -fbounds-check -ffpe-trap=invalid,zero,overflow,underflow,denormal -Wall
+  FFLAGS+= -g -fbounds-check -ffpe-trap=invalid,zero,overflow,underflow,denormal -Wall
 endif
 FFLAGS+= -ffixed-line-length-132
 
