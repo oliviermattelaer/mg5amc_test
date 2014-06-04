@@ -487,7 +487,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         self.write_pmass_file(writers.FortranWriter(filename),
                          matrix_element)
 
-        linkfiles = ['check_sa.f', 'ipnext.f', 'coupl.inc', 'makefile']
+        linkfiles = ['check_sa.f', 'ipnext.f', 'coupl.inc', 'makefile', 'idenparts.f']
 
 
         for file in linkfiles:
@@ -776,6 +776,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                      'genps.f',
                      'genps.inc',
                      'initcluster.f',
+                     'idenparts.f',
                      'ipnext.f',
                      'makefile',
                      'message.inc',
