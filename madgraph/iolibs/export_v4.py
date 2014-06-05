@@ -50,7 +50,7 @@ import models.import_ufo as import_ufo
 import models.write_param_card as param_writer
 import models.check_param_card as check_param_card
 
-from madgraph import MadGraph5Error, MG5DIR
+from madgraph import MadGraph5Error, MG5DIR, ReadWrite
 from madgraph.iolibs.files import cp, ln, mv
 
 pjoin = os.path.join
@@ -117,11 +117,11 @@ class ProcessExporterFortran(object):
             logger.info('remove old information in %s' % \
                                                   os.path.basename(self.dir_path))
             if os.environ.has_key('MADGRAPH_BASE'):
-                subprocess.call([pjoin('bin', 'internal', 'clean_template'),
+                misc.call([pjoin('bin', 'internal', 'clean_template'),
                                  '--web'], cwd=self.dir_path)
             else:
                 try:
-                    subprocess.call([pjoin('bin', 'internal', 'clean_template')], \
+                    misc.call([pjoin('bin', 'internal', 'clean_template')], \
                                                                        cwd=self.dir_path)
                 except Exception, why:
                     raise MadGraph5Error('Failed to clean correctly %s: \n %s' \
@@ -554,10 +554,16 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
                 line = "AMP2(%(num)d)=AMP2(%(num)d)+" % \
                        {"num": (config_to_diag_dict[config][0] + 1)}
 
-                line += "+".join(["AMP(%(num)d)*dconjg(AMP(%(num)d))" % \
-                                  {"num": a.get('number')} for a in \
+                amp = "+".join(["AMP(%(num)d)" % {"num": a.get('number')} for a in \
                                   sum([diagrams[idiag].get('amplitudes') for \
                                        idiag in config_to_diag_dict[config]], [])])
+                
+                # Not using \sum |M|^2 anymore since this creates troubles
+                # when ckm is not diagonal due to the JIM mechanism.
+                if '+' in amp:
+                    line += "(%s)*dconjg(%s)" % (amp, amp)
+                else:
+                    line += "%s*dconjg(%s)" % (amp, amp)
                 ret_lines.append(line)
         else:
             for idiag, diag in enumerate(matrix_element.get('diagrams')):
@@ -774,21 +780,26 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         logger.info('Use Fortran compiler ' + compiler)
         self.replace_make_opt_compiler(compiler)
         # Replace also for Template but not for cluster
-        if not os.environ.has_key('MADGRAPH_DATA'):
+        if not os.environ.has_key('MADGRAPH_DATA') and ReadWrite:
             self.replace_make_opt_compiler(compiler, pjoin(MG5DIR, 'Template'))
 
     def replace_make_opt_compiler(self, compiler, root_dir = ""):
         """Set FC=compiler in Source/make_opts"""
 
+        mod = False #avoid to rewrite the file if not needed
         if not root_dir:
             root_dir = self.dir_path
         make_opts = pjoin(root_dir, 'Source', 'make_opts')
         lines = open(make_opts).read().split('\n')
-        FC_re = re.compile('^(\s*)FC\s*=\s*.+\s*$')
+        FC_re = re.compile('^(\s*)FC\s*=\s*(.+)\s*$')
         for iline, line in enumerate(lines):
             FC_result = FC_re.match(line)
             if FC_result:
+                if compiler != FC_result.group(2):
+                    mod = True
                 lines[iline] = FC_result.group(1) + "FC=" + compiler
+        if not mod:
+            return
         try:
             outfile = open(make_opts, 'w')
         except IOError:
@@ -1111,6 +1122,9 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         # Add the driver.f 
         filename = pjoin(self.dir_path,'SubProcesses','driver.f')
         self.write_driver(writers.FortranWriter(filename))
+        #
+        filename = pjoin(self.dir_path,'SubProcesses','addmothers.f')
+        self.write_addmothers(writers.FortranWriter(filename))
         # Copy the different python file in the Template
         self.copy_python_file()
         
@@ -1344,9 +1358,8 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         self.write_symswap_file(writers.FortranWriter(filename),
                                 ident_perms)
 
-        filename = 'symfact.dat'
-        self.write_symfact_file(writers.FortranWriter(filename),
-                           symmetry)
+        filename = 'symfact_orig.dat'
+        self.write_symfact_file(open(filename, 'w'), symmetry)
 
         # Generate diagrams
         filename = "matrix.ps"
@@ -1455,18 +1468,18 @@ class ProcessExporterFortranME(ProcessExporterFortran):
             for Pdir in P_dir_list:
                 os.chdir(Pdir)
                 try:
-                    subprocess.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_jpeg-pl')],
+                    misc.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_jpeg-pl')],
                                 stdout = devnull)
                 except:
                     os.system('chmod +x %s ' % pjoin(old_pos, self.dir_path, 'bin', 'internal', '*'))
-                    subprocess.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_jpeg-pl')],
+                    misc.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_jpeg-pl')],
                                 stdout = devnull)
                 os.chdir(os.path.pardir)
 
         logger.info("Generate web pages")
         # Create the WebPage using perl script
 
-        subprocess.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')], \
+        misc.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')], \
                                                                 stdout = devnull)
 
         os.chdir(os.path.pardir)
@@ -1487,17 +1500,17 @@ class ProcessExporterFortranME(ProcessExporterFortran):
             output_file.write(text)
             output_file.close()
 
-        subprocess.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')],
+        misc.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')],
                         stdout = devnull)
 
         # Run "make" to generate madevent.tar.gz file
         if os.path.exists(pjoin('SubProcesses', 'subproc.mg')):
             if os.path.exists('madevent.tar.gz'):
                 os.remove('madevent.tar.gz')
-            subprocess.call([os.path.join(old_pos, self.dir_path, 'bin', 'internal', 'make_madevent_tar')],
+            misc.call([os.path.join(old_pos, self.dir_path, 'bin', 'internal', 'make_madevent_tar')],
                         stdout = devnull)
 
-        subprocess.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')],
+        misc.call([pjoin(old_pos, self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')],
                         stdout = devnull)
 
         #return to the initial dir
@@ -2042,6 +2055,20 @@ c           This is dummy particle used in multiparticle vertices
         return True
 
     #===========================================================================
+    # write_addmothers
+    #===========================================================================
+    def write_addmothers(self, writer):
+        """Write the SubProcess/addmothers.f"""
+
+        path = pjoin(_file_path,'iolibs','template_files','addmothers.f')
+
+        text = open(path).read() % {'iconfig': 'diag_number'}
+        writer.write(text)
+        
+        return True
+
+
+    #===========================================================================
     # write_combine_events
     #===========================================================================
     def write_combine_events(self, writer):
@@ -2358,9 +2385,9 @@ c           This is dummy particle used in multiparticle vertices
         # Write out lines for symswap.inc file (used to permute the
         # external leg momenta
         lines = [ form %(i+1, s) for i,s in enumerate(symmetry) if s != 0] 
-
         # Write the file
-        writer.writelines(lines)
+        writer.write('\n'.join(lines))
+        writer.write('\n')
 
         return True
 
@@ -2584,9 +2611,8 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
         self.write_symswap_file(writers.FortranWriter(filename),
                                 ident_perms)
 
-        filename = 'symfact.dat'
-        self.write_symfact_file(writers.FortranWriter(filename),
-                           symmetry)
+        filename = 'symfact_orig.dat'
+        self.write_symfact_file(open(filename, 'w'), symmetry)
 
         filename = 'symperms.inc'
         self.write_symperms_file(writers.FortranWriter(filename),
@@ -2710,6 +2736,20 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
                                 me in matrix_elements])))
         # Write the file
         writer.writelines(lines)
+
+    #===========================================================================
+    # write_addmothers
+    #===========================================================================
+    def write_addmothers(self, writer):
+        """Write the SubProcess/addmothers.f"""
+
+        path = pjoin(_file_path,'iolibs','template_files','addmothers.f')
+
+        text = open(path).read() % {'iconfig': 'iconfig'}
+        writer.write(text)
+        
+        return True
+
 
     #===========================================================================
     # write_coloramps_file
@@ -3088,7 +3128,7 @@ class UFO_model_to_mg4(object):
         # Write complex mass for complex mass scheme (if activated)
         if self.opt['complex_mass']:
             fsock.writelines('double complex '+', '.join(complex_mass)+'\n')
-            fsock.writelines('common/couplings/ '+', '.join(complex_mass)+'\n')            
+            fsock.writelines('common/complex_mass/ '+', '.join(complex_mass)+'\n')            
         
     def create_write_couplings(self):
         """ write the file coupl_write.inc """
@@ -3166,7 +3206,13 @@ class UFO_model_to_mg4(object):
                                             self.p_to_f.parse(param.expr)))
 
         fsock.write_comments("\nDefinition of the EW coupling used in the write out of aqed\n")
-        fsock.writelines(""" gal(1) = 1d0
+        if ('aEWM1',) in self.model['parameters']:
+            fsock.writelines(""" gal(1) = 3.5449077018110318 / DSQRT(aEWM1)
+                                 gal(2) = 1d0
+                         """)            
+        else:
+            logger.warning('$RED aEWM1 not define in MODEL. AQED will not be written correcty in LHE FILE')
+            fsock.writelines(""" gal(1) = 1d0
                              gal(2) = 1d0
                          """)
 

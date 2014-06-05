@@ -65,7 +65,7 @@ try:
     import madgraph.various.combine_runs as combine_runs
 
     import models.check_param_card as check_param_card    
-    from madgraph import InvalidCmd, MadGraph5Error, MG5DIR
+    from madgraph import InvalidCmd, MadGraph5Error, MG5DIR, ReadWrite
     MADEVENT = False
 except Exception, error:
     if __debug__:
@@ -74,7 +74,7 @@ except Exception, error:
     import internal.extended_cmd as cmd
     import internal.banner as banner_mod
     import internal.misc as misc    
-    from internal import InvalidCmd, MadGraph5Error
+    from internal import InvalidCmd, MadGraph5Error, ReadWrite
     import internal.files as files
     import internal.gen_crossxhtml as gen_crossxhtml
     import internal.save_load_object as save_load_object
@@ -499,7 +499,12 @@ class HelpToCmd(object):
         logger.info("-- run pythia on RUN (current one by default)")
         self.run_options_help([('-f','answer all question by default'),
                                ('--tag=', 'define the tag for the pythia run'),
-                               ('--no_default', 'not run if pythia_card not present')])        
+                               ('--no_default', 'not run if pythia_card not present')]) 
+        
+    def help_print_result(self):
+        logger.info("syntax: print_result [RUN] [TAG]")
+        logger.info("-- show in text format the status of the run (cross-section/nb-event/...)")
+               
                 
     def help_pgs(self):
         logger.info("syntax: pgs [RUN] [--run_options]")
@@ -598,7 +603,7 @@ class CheckValidForCmd(object):
         
         if len(args) == 0:
             args.append('options')
-        
+
         if args[0] not in self._save_opts:
             raise self.InvalidCmd('wrong \"save\" format')
         
@@ -637,7 +642,7 @@ class CheckValidForCmd(object):
                         
     def check_set(self, args):
         """ check the validity of the line"""
-        
+
         if len(args) < 2:
             self.help_set()
             raise self.InvalidCmd('set needs an option and an argument')
@@ -1064,7 +1069,7 @@ class CheckValidForCmd(object):
         if tag: 
             args.remove(tag[0])
             tag = tag[0][6:]
-        
+
         if len(args) == 0 and not self.run_name:
             if self.results.lastrun:
                 args.insert(0, self.results.lastrun)
@@ -1485,6 +1490,15 @@ class CompleteForCmd(CheckValidForCmd):
         
         opts = self._run_options + self._calculate_decay_options
         return  self.list_completion(text, opts, line)
+    
+    def complete_display(self, text, line, begidx, endidx):
+        """ Complete the display command"""    
+        
+        args = self.split_arg(line[0:begidx], error=False)
+        if len(args) >= 2 and args[1] =='results':
+            start = line.find('results')
+            return self.complete_print_results(text, 'print_results '+line[start+7:], begidx+2+start, endidx+2+start)
+        return super(CompleteForCmd, self).complete_display(text, line, begidx, endidx)
 
     def complete_multi_run(self, text, line, begidx, endidx):
         """complete multi run command"""
@@ -1583,6 +1597,21 @@ class CompleteForCmd(CheckValidForCmd):
 
     complete_delphes = complete_pgs        
 
+    def complete_print_results(self,text, line, begidx, endidx):
+        "Complete the print results command"
+        args = self.split_arg(line[0:begidx], error=False) 
+        if len(args) == 1:
+            #return valid run_name
+            data = glob.glob(pjoin(self.me_dir, 'Events', '*','unweighted_events.lhe.gz'))
+            data = [n.rsplit('/',2)[1] for n in data]
+            tmp1 =  self.list_completion(text, data)
+            return tmp1        
+        else:
+            data = glob.glob(pjoin(self.me_dir, 'Events', args[0], '*_pythia_events.hep.gz'))
+            data = [os.path.basename(p).rsplit('_',1)[0] for p in data]
+            tmp1 =  self.list_completion(text, data)
+            return tmp1
+            
 
 class MadEventAlreadyRunning(InvalidCmd):
     pass
@@ -1590,7 +1619,7 @@ class MadEventAlreadyRunning(InvalidCmd):
 #===============================================================================
 # MadEventCmd
 #===============================================================================
-class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
+class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd):
     """The command line processor of MadGraph"""    
     
     # Truth values
@@ -1602,7 +1631,8 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
     _set_options = ['stdout_level','fortran_compiler','timeout']
     _plot_mode = ['all', 'parton','pythia','pgs','delphes','channel', 'banner']
     _clean_mode = _plot_mode
-    _display_opts = ['run_name', 'options', 'variable']
+    _display_opts = ['run_name', 'options', 'variable', 'results']
+    _save_opts = ['options']
     # survey options, dict from name to type, default value, and help text
     _survey_options = {'points':('int', 1000,'Number of points for first iteration'),
                        'iterations':('int', 5, 'Number of iterations'),
@@ -1656,7 +1686,9 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                          'run_mode':2,
                          'cluster_queue':'madgraph',
                          'nb_core': None,
-                         'cluster_temp_path':None}
+                         'cluster_temp_path':None,
+                         'cluster_nb_retry':1,
+                         'cluster_retry_wait':300}
     
     helporder = ['Main commands', 'Documented commands', 'Require MG5 directory',
                    'Advanced commands']
@@ -1764,7 +1796,8 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
             args.remove(arg)
 
         if args and args[0] in ["run_mode", "cluster_mode", "cluster_queue", 
-                                "cluster_temp_path", "nb_core"]:
+                                "cluster_temp_path", "nb_core", "cluster_nb_retry",
+                                "cluster_retry_wait"]:
             return args
 
         if self.cluster_mode == 2 and not self.nb_core:
@@ -1776,6 +1809,8 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
             cluster_name = opt['cluster_type']
             self.cluster = cluster.from_name[cluster_name](opt['cluster_queue'],
                                                         opt['cluster_temp_path'])
+            self.cluster.nb_retry = opt['cluster_nb_retry']
+            self.cluster.cluster_retry_wait = int(opt['cluster_retry_wait'])
         return args
     
     ############################################################################            
@@ -1875,18 +1910,23 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                         continue
                 self.options[key] = None
             elif key.startswith('cluster'):
+                if key in ('cluster_nb_retry','cluster_wait_retry'):
+                    self.options[key] = int(self.options[key])
+                if hasattr(self,'cluster'):
+                    del self.cluster
+
                 pass              
             elif key == 'automatic_html_opening':
                 if self.options[key] in ['False', 'True']:
                     self.options[key] =eval(self.options[key])
-            elif key not in ['text_editor','eps_viewer','web_browser','stdout_level']:
+            elif key not in ['text_editor','eps_viewer','web_browser','stdout_level',
+                             'complex_mass_scheme', 'gauge', 'group_subprocesses']:
                 # Default: try to set parameter
                 try:
                     self.do_set("%s %s --no_save" % (key, self.options[key]), log=False)
                 except self.InvalidCmd:
                     logger.warning("Option %s from config file not understood" \
                                    % key)
-        
         # Configure the way to open a file:
         misc.open_file.configure(self.options)
           
@@ -2031,6 +2071,8 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                 else:
                     outstr += "  %25s \t:\t%s (user set)\n" % (key,value)
             output.write(outstr)
+        elif  args[0] == 'results':
+            self.do_print_results(' '.join(args[1:]))
         else:
             super(MadEventCmd, self).do_display(line, output)
  
@@ -2097,6 +2139,37 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
         
         misc.open_file(file_path)
 
+    ############################################################################ 
+    def do_print_results(self, line):
+        """Not in help:Print the cross-section/ number of events for a given run"""
+        
+        args = self.split_arg(line)
+        if len(args) > 0:
+            run_name = args[0]
+        else:
+            if not self.results.current:
+                raise self.InvalidCmd('no run currently defined. Please specify one.')
+            else:
+                run_name = self.results.current['run_name']
+        if run_name not in self.results:
+            raise self.InvalidCmd('%s is not a valid run_name or it doesn\'t have any information' \
+                                  % run_name)
+        if len(args) == 2:
+            tag = args[1]
+            if tag.isdigit():
+                tag = int(tag) - 1
+                if len(self.results[run_name]) < tag:
+                    raise self.InvalidCmd('Only %s different tag available' % \
+                                                    len(self.results[run_name]))
+                data = self.results[run_name][tag]
+            else:
+                data = self.results[run_name].return_tag(tag)
+        else:
+            data = self.results[run_name].return_tag(None) # return the last
+        
+        self.print_results_in_shell(data)
+        
+
     ############################################################################
     def do_set(self, line, log=True):
         """Set an option, which will be default for coming generations/outputs
@@ -2134,6 +2207,14 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
             opt = self.options
             self.cluster = cluster.from_name[opt['cluster_type']](\
                                  opt['cluster_queue'], opt['cluster_temp_path'])
+            self.cluster.nb_retry = self.options['cluster_nb_retry']
+            self.cluster.cluster_retry_wait = int(self.options['cluster_retry_wait'])
+        elif args[0] in ['cluster_nb_retry', 'cluster_retry_wait']:
+            self.options[args[0]] = int(args[1])
+            if args[0] == 'cluster_nb_retry':
+                self.cluster.nb_retry = int(args[1])
+            else:
+                self.cluster.cluster_retry_wait = int(args[1])
         elif args[0] == 'nb_core':
             if args[1] == 'None':
                 import multiprocessing
@@ -2402,7 +2483,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                 if particle and particle not in decay_info:
                     # No decays given, only total width       
                     decay_info[particle] = [[[], width]]
-            else: # Not decay                              
+            else: # Not decay
                 line_number += 1
         # Clean out possible remaining comments at the end of the card
         while not param_card[-1] or param_card[-1].startswith('#'):
@@ -2516,7 +2597,9 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                     mg5_param = pjoin(self.me_dir, 'Source', 'MODEL', 'MG5_param.dat')
                     check_param_card.convert_to_mg5card(param_card, mg5_param)
                     check_param_card.check_valid_param_card(mg5_param)
-                    opt['param_card'] = pjoin(self.me_dir, 'Source', 'MODEL', 'MG5_param.dat')            
+                    opt['param_card'] = pjoin(self.me_dir, 'Source', 'MODEL', 'MG5_param.dat')
+            else:
+                check_param_card.check_valid_param_card(opt['param_card'])            
             
             logger.debug('write compile file for card: %s' % opt['param_card']) 
             param_card = check_param_card.ParamCard(opt['param_card'])
@@ -2532,7 +2615,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                 fsock.close()
                 return
             else:
-                subprocess.call(['python', 'write_param_card.py'], 
+                subprocess.call([sys.executable, 'write_param_card.py'], 
                              cwd=pjoin(self.me_dir,'bin','internal','ufomodel'))
                 default = pjoin(self.me_dir,'bin','internal','ufomodel','param_card.dat')
             param_card.write_inc_file(outfile, ident_card, default)
@@ -2568,6 +2651,11 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
         subproc = [l.strip() for l in open(pjoin(self.me_dir,'SubProcesses', 
                                                                  'subproc.mg'))]
         
+        #check difficult PS case
+        if float(self.run_card['mmjj']) > 150:
+            self.pass_in_difficult_integration_mode()
+          
+        
         P_zero_result = [] # check the number of times where they are no phase-space
         for nb_proc,subdir in enumerate(subproc):
             subdir = subdir.strip()
@@ -2582,7 +2670,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                     os.remove(pjoin(match, 'results.dat'))
             
             #compile gensym
-            misc.compile(['gensym'], cwd=Pdir)
+            self.compile(['gensym'], cwd=Pdir)
             if not os.path.exists(pjoin(Pdir, 'gensym')):
                 raise MadEventError, 'Error make gensym not successful'
 
@@ -2602,7 +2690,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
                 raise MadEventError, 'Error gensym run not successful'
 
 
-            misc.compile(['madevent'], cwd=Pdir)
+            self.compile(['madevent'], cwd=Pdir)
             
             alljobs = glob.glob(pjoin(Pdir,'ajob*'))
             self.total_jobs += len(alljobs)
@@ -2631,6 +2719,40 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
         self.results.add_detail('error', error) 
         self.update_status('End survey', 'parton', makehtml=False)
 
+    ############################################################################
+    def pass_in_difficult_integration_mode(self):
+        """be more secure for the integration to not miss it due to strong cut"""
+        
+        # improve survey options if default
+        if self.opts['points'] == self._survey_options['points'][1]:
+            self.opts['points'] = 3 * self._survey_options['points'][1]
+        if self.opts['iterations'] == self._survey_options['iterations'][1]:
+            self.opts['iterations'] = 2 + self._survey_options['iterations'][1]
+        if self.opts['accuracy'] == self._survey_options['accuracy'][1]:
+            self.opts['accuracy'] = self._survey_options['accuracy'][1]/3  
+            
+        # Modify run_config.inc in order to improve the refine
+        conf_path = pjoin(self.me_dir, 'Source','run_config.inc')
+        files.cp(conf_path, conf_path + '.bk')
+
+        text = open(conf_path).read()
+        text = re.sub('''\(min_events = \d+\)''', '''(min_events = 10000 )''', text)
+        text = re.sub('''\(max_events = \d+\)''', '''(max_events = 25000 )''', text)
+        fsock = open(conf_path, 'w')
+        fsock.write(text)
+        fsock.close()
+        
+        # Compile
+        for name in ['../bin/internal/gen_ximprove', 'all', 
+                     '../bin/internal/combine_events']:
+            self.compile(arg=[name], cwd=os.path.join(self.me_dir, 'Source'))
+        
+        
+        
+        
+        
+        
+        
     ############################################################################      
     def do_refine(self, line):
         """Advanced commands: launch survey for the current process """
@@ -2678,7 +2800,7 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
             proc.communicate('%s %s T\n' % (precision, max_process))
 
             if os.path.exists(pjoin(Pdir, 'ajob1')):
-                misc.compile(['madevent'], cwd=Pdir)
+                self.compile(['madevent'], cwd=Pdir)
                 alljobs = glob.glob(pjoin(Pdir,'ajob*'))
                 
                 #remove associated results.dat (ensure to not mix with all data)
@@ -2732,7 +2854,8 @@ class MadEventCmd(CmdExtended, HelpToCmd, CompleteForCmd):
         if self.cluster_mode == 1:
             self.cluster.launch_and_wait('../bin/internal/run_combine', 
                                         cwd=pjoin(self.me_dir,'SubProcesses'),
-                                        stdout=pjoin(self.me_dir,'SubProcesses', 'combine.log'))
+                                        stdout=pjoin(self.me_dir,'SubProcesses', 'combine.log'),
+                                        required_output=[pjoin(self.me_dir,'SubProcesses', 'combine.log')])
         else:
             misc.call(['../bin/internal/run_combine'],
                          cwd=pjoin(self.me_dir,'SubProcesses'), 
@@ -2955,14 +3078,22 @@ calculator."""
             args.remove('--no_default')
         else:
             no_default = False
+            
+        if not self.run_name:
+            self.check_pythia(args)
+            self.configure_directory(html_opening =False)
+        else:
+            # initialize / remove lhapdf mode        
+            self.configure_directory(html_opening =False)
+            self.check_pythia(args)        
         
-        # initialize / remove lhapdf mode        
-        self.configure_directory()
-                               
-        self.check_pythia(args)        
         # the args are modify and the last arg is always the mode 
         if not no_default:
             self.ask_pythia_run_configuration(args[-1])
+
+        if self.options['automatic_html_opening']:
+            misc.open_file(os.path.join(self.me_dir, 'crossx.html'))
+            self.options['automatic_html_opening'] = False
 
         # Update the banner with the pythia card
         if not self.banner:
@@ -3407,7 +3538,7 @@ calculator."""
         # Compile pgs if not there       
         if not misc.is_executable(pjoin(pgsdir, 'pgs')):
             logger.info('No PGS executable -- running make')
-            misc.compile(cwd=pgsdir)
+            self.compile(cwd=pgsdir)
         
 
             
@@ -3549,8 +3680,7 @@ calculator."""
                         cwd=pjoin(self.me_dir,'Events'))
         else:
             delphes_log = open(pjoin(self.me_dir, 'Events', self.run_name, "%s_delphes.log" % tag),'w')
-            misc.call([prog, delphes_dir, 
-                                self.run_name, tag, str(cross)],
+            misc.call([prog, delphes_dir, self.run_name, tag, str(cross)],
                                 stdout= delphes_log, stderr=subprocess.STDOUT,
                                 cwd=pjoin(self.me_dir,'Events'))
                 
@@ -3588,7 +3718,6 @@ calculator."""
         # ensure that exe is executable
         if os.path.exists(exe) and not os.access(exe, os.X_OK):
             os.system('chmod +x %s ' % exe)
-
         elif (cwd and os.path.exists(pjoin(cwd, exe))) and not \
                                             os.access(pjoin(cwd, exe), os.X_OK):
             os.system('chmod +x %s ' % pjoin(cwd, exe))
@@ -3634,6 +3763,8 @@ calculator."""
                 input_files = ['madevent','input_app.txt','symfact.dat','iproc.dat',
                                pjoin(self.me_dir, 'SubProcesses','randinit')]
                 output_files = []
+                required_output = []
+                
 
                 #Find the correct PDF input file
                 if self.pdffile:
@@ -3667,14 +3798,17 @@ calculator."""
                     data = ' '.join(data).split()
                     for nb in data:
                         output_files.append('G%s' % nb)
+                        required_output.append('G%s/results.dat' % nb)
                 else:
                     for G in output_files:
                         if os.path.isdir(pjoin(cwd,G)):
                             input_files.append(G)
+                            required_output.append('%s/results.dat' % G)
                 
                 #submitting
                 self.cluster.submit2(exe, stdout=stdout, cwd=cwd, 
-                             input_files=input_files, output_files=output_files)
+                             input_files=input_files, output_files=output_files,
+                             required_output=required_output)
             
             else:
                 self.cluster.submit(exe, stdout=stdout, cwd=cwd)
@@ -3783,7 +3917,7 @@ calculator."""
         return name % (max(data+[0])+1) 
 
     ############################################################################   
-    def configure_directory(self):
+    def configure_directory(self, html_opening=True):
         """ All action require before any type of run """   
 
 
@@ -3799,7 +3933,7 @@ calculator."""
         else:
             self.configured = time.time()
         self.update_status('compile directory', level=None)
-        if self.options['automatic_html_opening']:
+        if self.options['automatic_html_opening'] and html_opening:
             misc.open_file(os.path.join(self.me_dir, 'crossx.html'))
             self.options['automatic_html_opening'] = False
             #open only once the web page
@@ -3824,7 +3958,7 @@ calculator."""
             del os.environ['lhapdf']
         self.pdffile = None
         #remove lhapdf stuff
-        misc.compile(arg=['clean_lhapdf'], cwd=os.path.join(self.me_dir, 'Source'))
+        self.compile(arg=['clean_lhapdf'], cwd=os.path.join(self.me_dir, 'Source'))
             
         # set random number
         if self.run_card['iseed'] != '0':
@@ -3854,7 +3988,7 @@ calculator."""
         # Compile
         for name in ['../bin/internal/gen_ximprove', 'all', 
                      '../bin/internal/combine_events']:
-            misc.compile(arg=[name], cwd=os.path.join(self.me_dir, 'Source'))
+            self.compile(arg=[name], cwd=os.path.join(self.me_dir, 'Source'))
         
         
     ############################################################################
@@ -4883,15 +5017,17 @@ class AskforEditCard(cmd.OneLinePathCompletion):
         cmd.OneLinePathCompletion.__init__(self, *args, **opt)
         self.me_dir = self.mother_interface.me_dir
         self.run_card = banner_mod.RunCard(pjoin(self.me_dir,'Cards','run_card.dat'))
+        run_card_def = banner_mod.RunCard(pjoin(self.me_dir,'Cards','run_card_default.dat'))
         try:
-            self.param_card = check_param_card.ParamCard(pjoin(self.me_dir,'Cards','param_card.dat'))   
-        except check_param_card.InvalidParamCard:
+            self.param_card = check_param_card.ParamCard(pjoin(self.me_dir,'Cards','param_card.dat'))
+        except (check_param_card.InvalidParamCard, ValueError) as e:
             logger.error('Current param_card is not valid. We are going to use the default one.')
+            logger.error('problem detected: %s' % e)
             files.cp(pjoin(self.me_dir,'Cards','param_card_default.dat'), 
                      pjoin(self.me_dir,'Cards','param_card.dat'))
             self.param_card = check_param_card.ParamCard(pjoin(self.me_dir,'Cards','param_card.dat'))
+
         default_param = check_param_card.ParamCard(pjoin(self.me_dir,'Cards','param_card_default.dat'))   
-    
         self.pname2block = {}
         self.conflict = []
         self.restricted_value = {}
@@ -4929,10 +5065,10 @@ class AskforEditCard(cmd.OneLinePathCompletion):
                     else:
                         self.pname2block[var] = [(bname, lha_id)]
         
-                    
+        self.run_set = run_card_def.keys() + self.run_card.hidden_param
         # check for conflict with run_card
         for var in self.pname2block:                
-            if var in self.run_card:
+            if var in self.run_set:
                 self.conflict.append(var)        
                             
     
@@ -4980,7 +5116,7 @@ class AskforEditCard(cmd.OneLinePathCompletion):
                           self.list_completion(text, ['run_card', 'param_card'])
         
         if 'run_card' in allowed.keys():
-            opts = self.run_card.keys()
+            opts = self.run_set
             if allowed['run_card'] == 'default':
                 opts.append('default')
             
@@ -5052,6 +5188,10 @@ class AskforEditCard(cmd.OneLinePathCompletion):
                 logging.info('replace %s by the default card' % args[0])
                 files.cp(pjoin(self.me_dir,'Cards','%s_default.dat' % args[0]),
                         pjoin(self.me_dir,'Cards','%s.dat'% args[0]))
+                if args[0] == 'param_card':
+                    self.param_card = check_param_card.ParamCard(pjoin(self.me_dir,'Cards','param_card.dat'))
+                elif args[0] == 'run_card':
+                    self.run_card = banner_mod.RunCard(pjoin(self.me_dir,'Cards','run_card.dat'))
                 return
             else:
                 card = args[0]
@@ -5061,7 +5201,7 @@ class AskforEditCard(cmd.OneLinePathCompletion):
                 return
 
         #### RUN CARD
-        if args[start] in self.run_card.keys() and card != 'param_card':
+        if (args[start] in self.run_set) and card != 'param_card':
             if args[start+1] in self.conflict and card == '':
                 text = 'ambiguous name (present in both param_card and run_card. Please specify'
                 logger.warning(text)
@@ -5072,6 +5212,7 @@ class AskforEditCard(cmd.OneLinePathCompletion):
                 if args[start] in default.keys():
                     self.setR(args[start],default[args[start]]) 
                 else:
+                    logger.info('remove information %s from the run_card' % args[start])
                     del self.run_card[args[start]]
             elif  args[start+1] in ['t','.true.']:
                 self.setR(args[start], '.true.')

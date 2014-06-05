@@ -118,7 +118,7 @@ c     Set stot
 c
 c     Start reading use_config from symfact.dat written by MG5
 c
-      open(unit=25, file='symfact.dat', status='old')
+      open(unit=25, file='symfact_orig.dat', status='old')
       i=0
       do j=1,mapconfig(0)
          do while(i.lt.mapconfig(j))
@@ -651,7 +651,7 @@ c-----
 c
 c     Now write the commands
 c      
-      write(lun,20) 'echo $i >& run.$script'
+c      write(lun,20) 'echo $i >& run.$script'
       write(lun,20) 'j=G$i'
       write(lun,20) 'if [[ ! -e $j ]]; then'
       write(lun,25) 'mkdir $j'
@@ -661,14 +661,23 @@ c
       write(lun,20) 'rm -f $k'
       write(lun,20) 'cat ../input_app.txt >& input_app.txt'
       write(lun,20) 'echo $i >> input_app.txt'
+      write(lun,20) 'for try in $(seq 1 10);'
+      write(lun,20) 'do'
       write(lun,20) '../madevent > $k <input_app.txt'
+      write(lun,20) 'if [ -s $k ]'
+      write(lun,20) 'then'
+      write(lun,20) '    break'
+      write(lun,20) 'else'
+      write(lun,20) 'sleep 1'
+c      write(lun,20) 'rm -rf $k; ../madevent > $k <input_app.txt'
+      write(lun,20) 'fi'
+      write(lun,20) 'done'
       write(lun,20) 'rm -f ftn25 ftn99'
       if(.not.gridpack) write(lun,20) 'rm -f ftn26'
+      write(lun,20) 'echo "" >> $k; echo "ls status:" >> $k; ls >> $k'
       write(lun,20) 'cp $k log.txt'
       write(lun,20) 'cd ../'
       write(lun,15) 'done'
-      write(lun,15) 'rm -f run.$script'
-      write(lun,15) 'touch done.$script'
  15   format(a)
  20   format(5x,a)
  25   format(10x,a)

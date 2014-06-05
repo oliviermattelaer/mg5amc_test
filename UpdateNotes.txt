@@ -5,6 +5,85 @@ Update notes for MadGraph 5 (in reverse time order)
                       new phase space mapping to allow generation of up to
                       6 final-state partons in multiparton processes.
 
+1.5.15 (11/12/13) OM: Fix the auto-update function in order to allow to pass to 2.0.0
+
+1.5.14 (27/11/13) OM: Add warning about the fact that newprocess_mg5 is going to be remove in MG5_aMC_V2.0.0
+                  OM: Improved cluster submision/re-submition control. 
+
+1.5.13 (04/11/13) OM: Implement a function which check if jobs submitted to cluster are correctly runned.
+                      In case of failure, you can re-submitted the failing jobs automatically. The maximal 
+                      number of re-submission for a job can be parametrize (default 1) and how long you have to
+                      wait before this resubmission [to avoid slow filesystem problem, i.e. condor](default 300s)
+                      Supported cluster for this function: condor, lsf, pbs
+                  OM: Fix a problem when more than 10k diagrams are present for a given subprocesses.
+                      (tt~+4jets).
+                  BF: Change nmssm model (The couplings orders were not correctly assigned for some triple 
+                      Higgs interactions) 
+                  OM: use evince by default to open eps file instead of gv.
+		  OM: Fix a problem with the set command for the card edition for the mssm model.
+                  OM: Update EWdim6 paper according to the snowmass paper. (3 more operator)
+                      The default model is restricted in order to exclude those operators. In order
+                      to have those you have to use import model EWdim6-full
+                  OM: Fix bug #1243189, impossible to load v4 model if a local directory has the name of
+                      the models (which is present in the models directory)
+                  OM: Fix a bug in the complex mass scheme in the reading of the param_card (it was clearly stated)
+                  OM: Improve numerical stability of the phase-space point generation. (thanks Z. Surujon)
+
+1.5.12 (21/08/13) OM: Improve phase-space integration for processes with strong MMJJ cut. Cases where
+                      the cross-section were slightly (~4%) under-evaluated due to such strong cut.
+                  OM: Add a command print_results in the madevent interface. This command print the 
+                      cross-section/number of events/... 
+                  OM: change the way prompt color is handle (no systematic reset). Which provides better
+                      result when the log is printed to a file. (thanks Bae Taegil) 
+                  OM: Fix Bug #1199514: Wrong assignment of mass in the lhe events file if the initial 
+                      state has one massive and one massless particles. (Thanks Wojciech Kotlarski)
+                  OM: Fix a compilation problem for SLC6 for the installation of pythia-pgs
+                  OM: Fix a crash linked to bug #1209113.
+                  OM: Fix a crash if python is not a valid executation (Bug #1211777)
+		  OM: Fix a bug in the edition of the run_card if some parameters were missing in the cards
+                      (Bug #1183334)
+
+1.5.11 (21/06/13) OM: Fix CRITICAL bug (returning wrong cross-section) for processes with more than
+                      one W decaying leptonically. For such processes the lepton cuts were also used
+                      on the neutrino particle reducing the cross-section. This bug was present only
+                      for group_subprocesses=True (the default)
+                  OM: Fix Bug #1184213: crash in presence of JIL mechanism (occur on some 
+                      LINUX computer only)
+                  OM: The compilation of madevent is now performed by the number of core specify
+                      in the configuration file. Same for pythia, ...
+                  OM: Improve support for Read-Only system
+                  OM: Fix a bug with the detection of the compiler when user specifiy a specific
+                      compiler.
+                  OM: Fix a problem that MG5 fails to compute the cross-section/width after that 
+                      a first computation fails to integrate due to a wrong mass spectrum. 
+                  OM: Fix a wrong output (impossible to compile) for pythia in presence of photon/gluon
+                      propagator (introduce in 1.5.8)
+                  OM: Allow to have UFO model with "goldstone" attribute instead of "GoldstoneBoson", since
+                      FR change convention in order to match the UFO paper.
+
+1.5.10 (16/05/13) OM: Fix Bug #1170417: fix crash for conjugate routine in presence of 
+                      massless propagator. (introduce in 1.5.9)
+                  OM: Fix question #226810: checking that patch program exists before
+                      trying to update MG5 code.
+                  OM: Fix Bug #1171049: an error in the order of wavefunctions 
+                      making the code to crash (introduce in 1.5.7)
+		  OM: Allow to use an additional syntax for the set command.
+                      set gauge = Feynman is now valid. (Was not valid before due to the '=')
+                  OM: Fix By Arian Abrahantes. Fix SGE cluster which was not working when
+                      running full simulation (PGS/Delphes).
+                  OM: adding txxxxx.cc (Thanks to Aurelijus Rinkevicius for having 
+                      written the routine) 
+                  OM: Fix Bug #1177442. This crash occurs only for very large model. 
+                      None of the model shipped with MG5 are impacted.
+                  OM: Fix Question #228315. On some filesystem, some of the executable 
+                      loose the permission to be executable. Recover those errors 
+                      automatically.
+                  OM: Modify the diagram enhancement technique. When more diagram have 
+                      the same propagator structure we still combine them but we now include
+                      the interference term in the enhancement technique for those diagrams.
+                      This fix a crash for some multi-jet process in presence of non diagonal
+                      ckm matrices.
+
 1.5.9 (01/04/13)  JA: Fix bug in identification of symmetric diagrams, which could
                       give the wrong propagators included in event files for certain
                       processes (such as p p > z z j, z > l+ l-). Apart from the 

@@ -49,7 +49,7 @@ def read_from_file(filename, myfunct, *args, **opt):
 #===============================================================================
 # write_to_file
 #===============================================================================
-def write_to_file(filename, myfunct, *args):
+def write_to_file(filename, myfunct, *args, **opts):
     """Open a file for writing, apply the function myfunct (with sock as an arg) 
     on its content and return the result. Deals properly with errors and
     returns None if something goes wrong. 
@@ -62,7 +62,8 @@ def write_to_file(filename, myfunct, *args):
         finally:
             sock.close()
     except IOError, (errno, strerror):
-        logger.error("I/O error (%s): %s" % (errno, strerror))
+        if 'log' not in opts or opts['log']:
+            logger.error("I/O error (%s): %s" % (errno, strerror))
         return None
 
     return ret_value
@@ -130,13 +131,15 @@ def format_path(path):
     else:
         return os.path.sep + os.path.join(*path.split('/'))
     
-def cp(path1, path2, log=True):
+def cp(path1, path2, log=True, error=False):
     """ simple cp taking linux or mix entry"""
     path1 = format_path(path1)
     path2 = format_path(path2)
     try:
         shutil.copy(path1, path2)
     except IOError, why:
+        if error:
+            raise
         if log:
             logger.warning(why)
     except shutil.Error:
