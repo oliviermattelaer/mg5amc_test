@@ -703,7 +703,7 @@ class Model(PhysicsObject):
         self['coupling_orders'] = None
         self['expansion_order'] = None
         self['version_tag'] = None # position of the directory (for security)
-	self['gauge'] = [0, 1]
+        self['gauge'] = [0, 1]
         # dictionaries giving a number for each parameter
         self['mass_dict'] = None
         self['width_dict'] = None
@@ -845,13 +845,12 @@ class Model(PhysicsObject):
             self['got_majoranas'] = None
             self['coupling_orders'] = None
             self['order_hierarchy'] = {}
-            self['expansion_order'] = None
             self['coup_dict'] = None
             self['color_dict'] = None
             self['lorentz_dict'] = None
 
         Model.__bases__[0].set(self, name, value) # call the mother routine
-
+        
         if name == 'particles':
             # Recreate particle_dict
             self.get('particle_dict')
