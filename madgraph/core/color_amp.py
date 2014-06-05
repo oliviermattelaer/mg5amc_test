@@ -354,7 +354,6 @@ class ColorBasis(dict):
 
         # Create a new color factor to allow for simplification
         my_cf = color_algebra.ColorFactor([my_color_string])
-
         # Add one T per external octet
         for indices in octet_indices:
             if indices[0] == -6:
@@ -375,6 +374,7 @@ class ColorBasis(dict):
                 my_cf[0].append(color_algebra.T(indices[1],
                                                 indices[2],
                                                 indices[3]))
+
         # Simplify the whole thing
         my_cf = my_cf.full_simplify()
 
@@ -385,9 +385,7 @@ class ColorBasis(dict):
         # Return the string with the highest N coefficient 
         # (leading N decomposition), and the value of this coeff
         max_coeff = max([cs.Nc_power for cs in my_cf])
-
         res_cs = [cs for cs in my_cf if cs.Nc_power == max_coeff]
-
         # If more than one string at leading N...
         if len(res_cs) > 1 and any([not cs.near_equivalent(res_cs[0]) \
                                     for cs in res_cs]):
