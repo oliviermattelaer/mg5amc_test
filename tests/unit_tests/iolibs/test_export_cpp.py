@@ -1,15 +1,15 @@
 ################################################################################
 #
-# Copyright (c) 2009 The MadGraph Development team and Contributors
+# Copyright (c) 2009 The MadGraph5_aMC@NLO Development team and Contributors
 #
-# This file is a part of the MadGraph 5 project, an application which 
+# This file is a part of the MadGraph5_aMC@NLO project, an application which 
 # automatically generates Feynman diagrams and matrix elements for arbitrary
 # high-energy processes in the Standard Model and beyond.
 #
-# It is subject to the MadGraph license which should accompany this 
+# It is subject to the MadGraph5_aMC@NLO license which should accompany this 
 # distribution.
 #
-# For more information, please visit: http://madgraph.phys.ucl.ac.be
+# For more information, visit madgraph.phys.ucl.ac.be and amcatnlo.web.cern.ch
 #
 ################################################################################
 
@@ -324,9 +324,9 @@ int id4Mass() const {return 4;}""")
         goal_string = \
 """//==========================================================================
 // This file has been automatically generated for Pythia 8
-// MadGraph 5 v. %(version)s, %(date)s
-// By the MadGraph Development Team
-// Please visit us at https://launchpad.net/madgraph5
+// MadGraph5_aMC@NLO v. %(version)s, %(date)s
+// By the MadGraph5_aMC@NLO Development Team
+// Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #ifndef Pythia8_Sigma_sm_qqx_qqx_H
@@ -343,7 +343,7 @@ namespace Pythia8
 {
 //==========================================================================
 // A class for calculating the matrix elements for
-// Process: u u~ > u u~ QCD=2 QED=2 QSIX=0 WEIGHTED=2
+// Process: u u~ > u u~ QSIX=0
 // Process: c c~ > c c~ QSIX=0
 //--------------------------------------------------------------------------
 
@@ -406,7 +406,7 @@ class Sigma_sm_qqx_qqx : public Sigma2Process
 
 }; 
 
-}  // end namespace Pythia
+}  // end namespace Pythia8
 
 #endif  // Pythia8_Sigma_sm_qqx_qqx_H
 """ % misc.get_pkg_info()
@@ -423,9 +423,9 @@ class Sigma_sm_qqx_qqx : public Sigma2Process
         goal_string = \
 """//==========================================================================
 // This file has been automatically generated for Pythia 8 by
-// MadGraph 5 v. %(version)s, %(date)s
-// By the MadGraph Development Team
-// Please visit us at https://launchpad.net/madgraph5
+// MadGraph5_aMC@NLO v. %(version)s, %(date)s
+// By the MadGraph5_aMC@NLO Development Team
+// Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #include "Sigma_sm_qqx_qqx.h"
@@ -438,7 +438,7 @@ namespace Pythia8
 
 //==========================================================================
 // Class member functions for calculating the matrix elements for
-// Process: u u~ > u u~ QCD=2 QED=2 QSIX=0 WEIGHTED=2
+// Process: u u~ > u u~ QSIX=0
 // Process: c c~ > c c~ QSIX=0
 
 //--------------------------------------------------------------------------
@@ -717,7 +717,7 @@ double Sigma_sm_qqx_qqx::matrix_uux_uux()
 }
 
 
-}  // end namespace Pythia
+}  // end namespace Pythia8
 """ % misc.get_pkg_info()
 
         exporter = export_cpp.ProcessExporterPythia8(self.mymatrixelement,
@@ -758,9 +758,9 @@ double Sigma_sm_qqx_qqx::matrix_uux_uux()
         goal_string = \
 """//==========================================================================
 // This file has been automatically generated for Pythia 8 by
-// MadGraph 5 v. %(version)s, %(date)s
-// By the MadGraph Development Team
-// Please visit us at https://launchpad.net/madgraph5
+// MadGraph5_aMC@NLO v. %(version)s, %(date)s
+// By the MadGraph5_aMC@NLO Development Team
+// Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #include "Sigma_sm_qq_six.h"
@@ -773,7 +773,7 @@ namespace Pythia8
 
 //==========================================================================
 // Class member functions for calculating the matrix elements for
-// Process: u u > six QCD=0 QED=0 QSIX=1 WEIGHTED=1
+// Process: u u > six QSIX=1 WEIGHTED=1 QED=0 QCD=0
 
 //--------------------------------------------------------------------------
 // Initialize process.
@@ -1019,7 +1019,7 @@ double Sigma_sm_qq_six::matrix_uu_six()
 }
 
 
-}  // end namespace Pythia
+}  // end namespace Pythia8
 """ % misc.get_pkg_info()
 
         exporter.write_process_cc_file(\
@@ -1280,9 +1280,9 @@ double Sigma_sm_qq_six::matrix_uu_six()
 
         goal_string = """//==========================================================================
 // This file has been automatically generated for Pythia 8
-// MadGraph 5 v. %(version)s, %(date)s
-// By the MadGraph Development Team
-// Please visit us at https://launchpad.net/madgraph5
+// MadGraph5_aMC@NLO v. %(version)s, %(date)s
+// By the MadGraph5_aMC@NLO Development Team
+// Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #ifndef Pythia8_Sigma_sm_gd_ddxd_H
@@ -1299,42 +1299,42 @@ namespace Pythia8
 {
 //==========================================================================
 // A class for calculating the matrix elements for
-// Process: g d > z d QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-// Process: g s > z s QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-// Process: g d > z d QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-// Process: g s > z s QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-// Process: g d > z d QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-// Process: g s > z s QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-// Process: g u > z u QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-// Process: g u > z u QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-// Process: g u > z u QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-// Process: g d~ > z d~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-// Process: g s~ > z s~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-// Process: g d~ > z d~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-// Process: g s~ > z s~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-// Process: g d~ > z d~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-// Process: g s~ > z s~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-// Process: g u~ > z u~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-// Process: g u~ > z u~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-// Process: g u~ > z u~ QCD=1 QED=1 WEIGHTED=3
-// *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
+// Process: g d > z d WEIGHTED=3
+// *   Decay: z > d d~ WEIGHTED=2
+// Process: g s > z s WEIGHTED=3
+// *   Decay: z > d d~ WEIGHTED=2
+// Process: g d > z d WEIGHTED=3
+// *   Decay: z > u u~ WEIGHTED=2
+// Process: g s > z s WEIGHTED=3
+// *   Decay: z > u u~ WEIGHTED=2
+// Process: g d > z d WEIGHTED=3
+// *   Decay: z > s s~ WEIGHTED=2
+// Process: g s > z s WEIGHTED=3
+// *   Decay: z > s s~ WEIGHTED=2
+// Process: g u > z u WEIGHTED=3
+// *   Decay: z > d d~ WEIGHTED=2
+// Process: g u > z u WEIGHTED=3
+// *   Decay: z > s s~ WEIGHTED=2
+// Process: g u > z u WEIGHTED=3
+// *   Decay: z > u u~ WEIGHTED=2
+// Process: g d~ > z d~ WEIGHTED=3
+// *   Decay: z > d d~ WEIGHTED=2
+// Process: g s~ > z s~ WEIGHTED=3
+// *   Decay: z > d d~ WEIGHTED=2
+// Process: g d~ > z d~ WEIGHTED=3
+// *   Decay: z > u u~ WEIGHTED=2
+// Process: g s~ > z s~ WEIGHTED=3
+// *   Decay: z > u u~ WEIGHTED=2
+// Process: g d~ > z d~ WEIGHTED=3
+// *   Decay: z > s s~ WEIGHTED=2
+// Process: g s~ > z s~ WEIGHTED=3
+// *   Decay: z > s s~ WEIGHTED=2
+// Process: g u~ > z u~ WEIGHTED=3
+// *   Decay: z > d d~ WEIGHTED=2
+// Process: g u~ > z u~ WEIGHTED=3
+// *   Decay: z > s s~ WEIGHTED=2
+// Process: g u~ > z u~ WEIGHTED=3
+// *   Decay: z > u u~ WEIGHTED=2
 //--------------------------------------------------------------------------
 
 class Sigma_sm_gd_ddxd : public Sigma3Process 
@@ -1405,7 +1405,7 @@ class Sigma_sm_gd_ddxd : public Sigma3Process
 
 }; 
 
-}  // end namespace Pythia
+}  // end namespace Pythia8
 
 #endif  // Pythia8_Sigma_sm_gd_ddxd_H
 """ % misc.get_pkg_info()
@@ -1418,42 +1418,42 @@ class Sigma_sm_gd_ddxd : public Sigma3Process
 
         goal_string = """//==========================================================================
 // Class member functions for calculating the matrix elements for
-# Process: g d > z d QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-# Process: g s > z s QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-# Process: g d > z d QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-# Process: g s > z s QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-# Process: g d > z d QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-# Process: g s > z s QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-# Process: g u > z u QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-# Process: g u > z u QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-# Process: g u > z u QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-# Process: g d~ > z d~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-# Process: g s~ > z s~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-# Process: g d~ > z d~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-# Process: g s~ > z s~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
-# Process: g d~ > z d~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-# Process: g s~ > z s~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-# Process: g u~ > z u~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > d d~ QCD=0 QED=1 WEIGHTED=2
-# Process: g u~ > z u~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > s s~ QCD=0 QED=1 WEIGHTED=2
-# Process: g u~ > z u~ QCD=1 QED=1 WEIGHTED=3
-# *   Decay: z > u u~ QCD=0 QED=1 WEIGHTED=2
+# Process: g d > z d WEIGHTED=3
+# *   Decay: z > d d~ WEIGHTED=2
+# Process: g s > z s WEIGHTED=3
+# *   Decay: z > d d~ WEIGHTED=2
+# Process: g d > z d WEIGHTED=3
+# *   Decay: z > u u~ WEIGHTED=2
+# Process: g s > z s WEIGHTED=3
+# *   Decay: z > u u~ WEIGHTED=2
+# Process: g d > z d WEIGHTED=3
+# *   Decay: z > s s~ WEIGHTED=2
+# Process: g s > z s WEIGHTED=3
+# *   Decay: z > s s~ WEIGHTED=2
+# Process: g u > z u WEIGHTED=3
+# *   Decay: z > d d~ WEIGHTED=2
+# Process: g u > z u WEIGHTED=3
+# *   Decay: z > s s~ WEIGHTED=2
+# Process: g u > z u WEIGHTED=3
+# *   Decay: z > u u~ WEIGHTED=2
+# Process: g d~ > z d~ WEIGHTED=3
+# *   Decay: z > d d~ WEIGHTED=2
+# Process: g s~ > z s~ WEIGHTED=3
+# *   Decay: z > d d~ WEIGHTED=2
+# Process: g d~ > z d~ WEIGHTED=3
+# *   Decay: z > u u~ WEIGHTED=2
+# Process: g s~ > z s~ WEIGHTED=3
+# *   Decay: z > u u~ WEIGHTED=2
+# Process: g d~ > z d~ WEIGHTED=3
+# *   Decay: z > s s~ WEIGHTED=2
+# Process: g s~ > z s~ WEIGHTED=3
+# *   Decay: z > s s~ WEIGHTED=2
+# Process: g u~ > z u~ WEIGHTED=3
+# *   Decay: z > d d~ WEIGHTED=2
+# Process: g u~ > z u~ WEIGHTED=3
+# *   Decay: z > s s~ WEIGHTED=2
+# Process: g u~ > z u~ WEIGHTED=3
+# *   Decay: z > u u~ WEIGHTED=2
 
 //--------------------------------------------------------------------------
 // Initialize process. 
@@ -2445,9 +2445,9 @@ return matrix;
         goal_string = \
 """//==========================================================================
 // This file has been automatically generated for C++ Standalone by
-// MadGraph 5 v. %(version)s, %(date)s
-// By the MadGraph Development Team
-// Please visit us at https://launchpad.net/madgraph5
+// MadGraph5_aMC@NLO v. %(version)s, %(date)s
+// By the MadGraph5_aMC@NLO Development Team
+// Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #include "CPPProcess.h"
@@ -2457,7 +2457,7 @@ using namespace MG5_sm;
 
 //==========================================================================
 // Class member functions for calculating the matrix elements for
-// Process: u u~ > go go QCD=2 QED=0 QSIX=0 WEIGHTED=2
+// Process: u u~ > go go QSIX=0 WEIGHTED=2 QED=0 QCD=2
 
 //--------------------------------------------------------------------------
 // Initialize process.
@@ -2826,9 +2826,9 @@ double CPPProcess::matrix_uux_gogo()
         goal_string = \
 """//==========================================================================
 // This file has been automatically generated for Pythia 8
-// MadGraph 5 v. %(version)s, %(date)s
-// By the MadGraph Development Team
-// Please visit us at https://launchpad.net/madgraph5
+// MadGraph5_aMC@NLO v. %(version)s, %(date)s
+// By the MadGraph5_aMC@NLO Development Team
+// Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #ifndef Pythia8_Sigma__uu_ttg_H
@@ -2845,7 +2845,7 @@ namespace Pythia8
 {
 //==========================================================================
 // A class for calculating the matrix elements for
-// Process: u u > t t g NP=2 QCD=1 WEIGHTED=3
+// Process: u u > t t g NP=2 WEIGHTED=3 QCD=1
 //--------------------------------------------------------------------------
 
 class Sigma__uu_ttg : public Sigma3Process 
@@ -2908,7 +2908,7 @@ class Sigma__uu_ttg : public Sigma3Process
 
 }; 
 
-}  // end namespace Pythia
+}  // end namespace Pythia8
 
 #endif  // Pythia8_Sigma__uu_ttg_H
 """ % misc.get_pkg_info()
@@ -2925,9 +2925,9 @@ class Sigma__uu_ttg : public Sigma3Process
         goal_string = \
 """//==========================================================================
 // This file has been automatically generated for Pythia 8 by
-// MadGraph 5 v. %(version)s, %(date)s
-// By the MadGraph Development Team
-// Please visit us at https://launchpad.net/madgraph5
+// MadGraph5_aMC@NLO v. %(version)s, %(date)s
+// By the MadGraph5_aMC@NLO Development Team
+// Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #include "Sigma__uu_ttg.h"
@@ -2940,7 +2940,7 @@ namespace Pythia8
 
 //==========================================================================
 // Class member functions for calculating the matrix elements for
-// Process: u u > t t g NP=2 QCD=1 WEIGHTED=3
+// Process: u u > t t g NP=2 WEIGHTED=3 QCD=1
 
 //--------------------------------------------------------------------------
 // Initialize process.
@@ -3241,7 +3241,7 @@ double Sigma__uu_ttg::matrix_uu_ttg()
 }
 
 
-}  // end namespace Pythia
+}  // end namespace Pythia8
 """% misc.get_pkg_info()
 
 
@@ -3293,9 +3293,9 @@ class ExportUFOModelPythia8Test(unittest.TestCase,
         goal_file_h = \
 """//==========================================================================
 // This file has been automatically generated for Pythia 8
-#  MadGraph 5 v. %(version)s, %(date)s
-#  By the MadGraph Development Team
-#  Please visit us at https://launchpad.net/madgraph5
+#  MadGraph5_aMC@NLO v. %(version)s, %(date)s
+#  By the MadGraph5_aMC@NLO Development Team
+#  Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #ifndef Pythia8_parameters_sm_H
@@ -3358,9 +3358,9 @@ static Parameters_sm* instance;
         goal_file_cc = \
 """//==========================================================================
 // This file has been automatically generated for Pythia 8 by
-#  MadGraph 5 v. %(version)s, %(date)s
-#  By the MadGraph Development Team
-#  Please visit us at https://launchpad.net/madgraph5
+#  MadGraph5_aMC@NLO v. %(version)s, %(date)s
+#  By the MadGraph5_aMC@NLO Development Team
+#  Visit launchpad.net/madgraph5 and amcatnlo.web.cern.ch
 //==========================================================================
 
 #include <iostream>

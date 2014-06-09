@@ -1,15 +1,15 @@
 ################################################################################
 #
-# Copyright (c) 2009 The MadGraph Development team and Contributors
+# Copyright (c) 2009 The MadGraph5_aMC@NLO Development team and Contributors
 #
-# This file is a part of the MadGraph 5 project, an application which 
+# This file is a part of the MadGraph5_aMC@NLO project, an application which 
 # automatically generates Feynman diagrams and matrix elements for arbitrary
 # high-energy processes in the Standard Model and beyond.
 #
-# It is subject to the MadGraph license which should accompany this 
+# It is subject to the MadGraph5_aMC@NLO license which should accompany this 
 # distribution.
 #
-# For more information, please visit: http://madgraph.phys.ucl.ac.be
+# For more information, visit madgraph.phys.ucl.ac.be and amcatnlo.web.cern.ch
 #
 ################################################################################
 
@@ -470,15 +470,15 @@ class SubProcessGroupTest(unittest.TestCase):
 
         #print dc_subproc_group.nice_string()
         
-        self.assertEqual(dc_subproc_group.nice_string(),
+        self.assertEqual(dc_subproc_group.nice_string().split('\n'),
 """Group 1:
-  Process: d d~ > u u~ z QCD=2 QED=1 WEIGHTED=4
+  Process: d d~ > u u~ z QED=1
   4 diagrams:
   1  ((1(-1),2(1)>1(21),id:5),(3(2),5(23)>3(2),id:8),(1(21),3(2),4(-2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
   2  ((1(-1),2(1)>1(21),id:5),(4(-2),5(23)>4(-2),id:8),(1(21),3(2),4(-2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
   3  ((1(-1),5(23)>1(-1),id:9),(3(2),4(-2)>3(21),id:3),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
   4  ((2(1),5(23)>2(1),id:9),(3(2),4(-2)>3(21),id:3),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
-  Process: u u > u u z QCD=2 QED=1 WEIGHTED=4
+  Process: u u > u u z QED=1
   8 diagrams:
   1  ((1(-2),3(2)>1(21),id:3),(2(-2),5(23)>2(-2),id:8),(1(21),2(-2),4(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
   2  ((1(-2),3(2)>1(21),id:3),(4(2),5(23)>4(2),id:8),(1(21),2(-2),4(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
@@ -489,7 +489,7 @@ class SubProcessGroupTest(unittest.TestCase):
   7  ((2(-2),3(2)>2(21),id:3),(4(2),5(23)>4(2),id:8),(1(-2),2(21),4(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
   8  ((2(-2),4(2)>2(21),id:3),(3(2),5(23)>3(2),id:8),(1(-2),2(21),3(2),id:3)) (QCD=2,QED=1,WEIGHTED=4)
 Group 2:
-  Process: u u~ > g g z QCD=2 QED=1 WEIGHTED=4
+  Process: u u~ > g g z QED=1
   8 diagrams:
   1  ((1(-2),3(21)>1(-2),id:3),(2(2),4(21)>2(2),id:3),(1(-2),2(2),5(23),id:8)) (QCD=2,QED=1,WEIGHTED=4)
   2  ((1(-2),3(21)>1(-2),id:3),(2(2),5(23)>2(2),id:8),(1(-2),2(2),4(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
@@ -499,7 +499,7 @@ Group 2:
   6  ((1(-2),5(23)>1(-2),id:8),(2(2),4(21)>2(2),id:3),(1(-2),2(2),3(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
   7  ((1(-2),5(23)>1(-2),id:8),(3(21),4(21)>3(21),id:1),(1(-2),2(2),3(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
   8  ((2(2),5(23)>2(2),id:8),(3(21),4(21)>3(21),id:1),(1(-2),2(2),3(21),id:3)) (QCD=2,QED=1,WEIGHTED=4)
-  Process: d d~ > g g z QCD=2 QED=1 WEIGHTED=4
+  Process: d d~ > g g z QED=1
   8 diagrams:
   1  ((1(-1),3(21)>1(-1),id:5),(2(1),4(21)>2(1),id:5),(1(-1),2(1),5(23),id:9)) (QCD=2,QED=1,WEIGHTED=4)
   2  ((1(-1),3(21)>1(-1),id:5),(2(1),5(23)>2(1),id:9),(1(-1),2(1),4(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
@@ -511,14 +511,14 @@ Group 2:
   8  ((2(1),5(23)>2(1),id:9),(3(21),4(21)>3(21),id:1),(1(-1),2(1),3(21),id:5)) (QCD=2,QED=1,WEIGHTED=4)
 Decay groups:
   Group 1:
-    Process: z > d d~ g QCD=1 QED=1 WEIGHTED=3
+    Process: z > d d~ g WEIGHTED=3 QED=1 QCD=1
     2 diagrams:
     1  ((2(1),4(21)>2(1),id:5),(2(1),3(-1)>2(23),id:9),(1(23),2(23),id:0)) (QCD=1,QED=1,WEIGHTED=3)
     2  ((3(-1),4(21)>3(-1),id:5),(2(1),3(-1)>2(23),id:9),(1(23),2(23),id:0)) (QCD=1,QED=1,WEIGHTED=3)
   Group 2:
-    Process: z > e- e+ QCD=0 QED=1 WEIGHTED=2
+    Process: z > e- e+ WEIGHTED=2 QED=1 QCD=0
     1 diagrams:
-    1  ((2(11),3(-11)>2(23),id:10),(1(23),2(23),id:0)) (QCD=0,QED=1,WEIGHTED=2)""")
+    1  ((2(11),3(-11)>2(23),id:10),(1(23),2(23),id:0)) (QCD=0,QED=1,WEIGHTED=2)""".split('\n'))
 
         subproc_groups = \
                        dc_subproc_group.generate_helas_decay_chain_subproc_groups()
@@ -747,21 +747,21 @@ Decay groups:
 
         self.assertEqual(len(subproc_groups[0].get('matrix_elements')),3)
 
-        me_strings = ["""Process: g g > go go QCD=2 QED=0 WEIGHTED=2
-  Decay: go > d dl~ QCD=1 QED=0 WEIGHTED=1
-    Decay: dl~ > d~ n1 QCD=0 QED=1 WEIGHTED=2
-  Decay: go > d dl~ QCD=1 QED=0 WEIGHTED=1
-    Decay: dl~ > d~ n1 QCD=0 QED=1 WEIGHTED=2""",
-                      """Process: g g > go go QCD=2 QED=0 WEIGHTED=2
-  Decay: go > d dl~ QCD=1 QED=0 WEIGHTED=1
-    Decay: dl~ > d~ n1 QCD=0 QED=1 WEIGHTED=2
-  Decay: go > d~ dl QCD=1 QED=0 WEIGHTED=1
-    Decay: dl > d n1 QCD=0 QED=1 WEIGHTED=2""",
-                      """Process: g g > go go QCD=2 QED=0 WEIGHTED=2
-  Decay: go > d~ dl QCD=1 QED=0 WEIGHTED=1
-    Decay: dl > d n1 QCD=0 QED=1 WEIGHTED=2
-  Decay: go > d~ dl QCD=1 QED=0 WEIGHTED=1
-    Decay: dl > d n1 QCD=0 QED=1 WEIGHTED=2"""]
+        me_strings = ["""Process: g g > go go WEIGHTED=2
+  Decay: go > d dl~ WEIGHTED=1
+    Decay: dl~ > d~ n1 WEIGHTED=2
+  Decay: go > d dl~ WEIGHTED=1
+    Decay: dl~ > d~ n1 WEIGHTED=2""",
+                      """Process: g g > go go WEIGHTED=2
+  Decay: go > d dl~ WEIGHTED=1
+    Decay: dl~ > d~ n1 WEIGHTED=2
+  Decay: go > d~ dl WEIGHTED=1
+    Decay: dl > d n1 WEIGHTED=2""",
+                      """Process: g g > go go WEIGHTED=2
+  Decay: go > d~ dl WEIGHTED=1
+    Decay: dl > d n1 WEIGHTED=2
+  Decay: go > d~ dl WEIGHTED=1
+    Decay: dl > d n1 WEIGHTED=2"""]
         
 
         for i,me in enumerate(subproc_groups[0].get('matrix_elements')):
@@ -1141,16 +1141,16 @@ Decay groups:
 
         self.assertEqual(len(subproc_groups[0].get('matrix_elements')),2)
 
-        me_strings = ["""Process: d d~ > ~n1 ~n1 QED=2 WEIGHTED=2
-  Decay: ~n1 > e- W+ QED=1 WEIGHTED=1
-    Decay: W+ > u d~ QED=1 WEIGHTED=1
-  Decay: ~n1 > e- W+ QED=1 WEIGHTED=1
-    Decay: W+ > t b~ QED=1 WEIGHTED=1""",
-                      """Process: d~ d > ~n1 ~n1 QED=2 WEIGHTED=2
-  Decay: ~n1 > e- W+ QED=1 WEIGHTED=1
-    Decay: W+ > u d~ QED=1 WEIGHTED=1
-  Decay: ~n1 > e- W+ QED=1 WEIGHTED=1
-    Decay: W+ > t b~ QED=1 WEIGHTED=1"""]
+        me_strings = ["""Process: d d~ > ~n1 ~n1 WEIGHTED=2
+  Decay: ~n1 > e- W+ WEIGHTED=1
+    Decay: W+ > u d~ WEIGHTED=1
+  Decay: ~n1 > e- W+ WEIGHTED=1
+    Decay: W+ > t b~ WEIGHTED=1""",
+                      """Process: d~ d > ~n1 ~n1 WEIGHTED=2
+  Decay: ~n1 > e- W+ WEIGHTED=1
+    Decay: W+ > u d~ WEIGHTED=1
+  Decay: ~n1 > e- W+ WEIGHTED=1
+    Decay: W+ > t b~ WEIGHTED=1"""]
         
 
         for i,me in enumerate(subproc_groups[0].get('matrix_elements')):
@@ -1609,10 +1609,10 @@ Decay groups:
 
         self.assertEqual(len(subproc_groups[0].get('matrix_elements')),1)
 
-        me_strings = ["""Process: d d~ > t t~ QCD=2 QED=0 WEIGHTED=2
-  Decay: t > u z QCD=0 QED=1 WEIGHTED=2""",
-                      """Process: d d~ > t t~ QCD=2 QED=0 WEIGHTED=2
-  Decay: t~ > u~ z QCD=0 QED=1 WEIGHTED=2"""]
+        me_strings = ["""Process: d d~ > t t~ WEIGHTED=2
+  Decay: t > u z WEIGHTED=2""",
+                      """Process: d d~ > t t~ WEIGHTED=2
+  Decay: t~ > u~ z WEIGHTED=2"""]
         
 
         for i, group in enumerate(subproc_groups):
