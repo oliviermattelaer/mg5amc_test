@@ -721,8 +721,12 @@ class Amplitude(base_objects.PhysicsObject):
         # Sort process legs according to leg number
         self.get('process').get('legs').sort()
 
-        # Set the coupling orders of the process
-        if self.__class__.__name__ != "LoopAmplitude" and self['diagrams'] and not process['orders']:
+        # Set the coupling orders of the process delay import to avoid cross import
+        import madgraph.color_ordering.color_ordered_amplitudes as COamp #delayed import mandatorry
+        import madgraph.loop.loop_diagram_generation as LOOPdiag
+        if self['diagrams'] and (isinstance(self, COamp.ColorOrderedFlow) or \
+            not isinstance(self, LOOPdiag.LoopAmplitude) and not process['orders']):
+            #self.__class__.__name__ != "LoopAmplitude" and self['diagrams'] 
             coupling_orders = {}        
             for key in sorted(list(model.get_coupling_orders())) + ['WEIGHTED']:
                 coupling_orders[key] = max([d.get('orders')[key] for \
@@ -1354,6 +1358,8 @@ class MultiProcess(base_objects.PhysicsObject):
                      list of amplitudes (after generation)
     """
 
+    amplitude_class = Amplitude
+
     def default_setup(self):
         """Default values for all properties"""
 
@@ -1659,7 +1665,7 @@ class MultiProcess(base_objects.PhysicsObject):
     def get_amplitude_from_proc(cls,proc):
         """ Return the correct amplitude type according to the characteristics of
             the process proc """
-        return Amplitude({"process": proc})
+        return cls.amplitude_class({"process": proc})
 
 
     @classmethod

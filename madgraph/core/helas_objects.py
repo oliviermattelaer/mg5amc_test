@@ -786,7 +786,7 @@ class HelasWavefunction(base_objects.PhysicsObject):
                         " for decay"
         
         if name in ['onshell']:
-            if not isinstance(value, bool):
+            if not isinstance(value, bool) and value != None:
                 raise self.PhysicsObjectError, \
                         "%s is not a valid bool" % str(value) + \
                         " for onshell"
@@ -5046,7 +5046,6 @@ class HelasMultiProcess(base_objects.PhysicsObject):
 
         for me in self.get('matrix_elements'):
             helas_list.extend(me.get_used_lorentz())
-                
         return list(set(helas_list))
 
     def get_used_couplings(self):

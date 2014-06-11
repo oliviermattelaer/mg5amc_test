@@ -1452,6 +1452,7 @@ class COHelasMultiProcess(helas_objects.HelasMultiProcess):
                                                    gen_periferal_diagrams,
                                                    include_all_t, tch_depth,
                                                    identify_depth))
+
         if isinstance(argument, diagram_generation.AmplitudeList):
             super(COHelasMultiProcess, self).__init__()
             self.set('matrix_elements',

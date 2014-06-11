@@ -4194,7 +4194,14 @@ def ExportV4Factory(cmd, noclean, output_type='default'):
             options['export_format']='FKS5_optimized'
         return ExporterClass(cmd._mgme_dir, cmd._export_dir, options)
 
-    elif cmd.options['color_ordering']:
+    opt = {'clean': not noclean, 
+           'complex_mass': cmd.options['complex_mass_scheme'],
+           'export_format':cmd._export_format,
+           'mp': False,  
+           'sa_symmetry':False, 
+           'model': cmd._curr_model.get('name')}
+
+    if cmd.options['color_ordering']:
         import madgraph.color_ordering.color_ordered_export_v4 as \
                                        color_ordered_export_v4
         cmd._curr_fortran_model = \
@@ -4222,13 +4229,6 @@ def ExportV4Factory(cmd, noclean, output_type='default'):
                 group_subprocesses = False
 
         assert group_subprocesses in [True, False]
-
-        opt = {'clean': not noclean,
-               'complex_mass': cmd.options['complex_mass_scheme'],
-               'export_format':cmd._export_format,
-               'mp': False,  
-               'sa_symmetry':False, 
-               'model': cmd._curr_model.get('name') }
 
         format = cmd._export_format #shortcut
 

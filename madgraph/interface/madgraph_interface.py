@@ -2472,8 +2472,8 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
         existing amplitudes
         """
 
+
         args = self.split_arg(line)
-        
         warning_duplicate = True
         if '--no_warning=duplicate' in args:
             warning_duplicate = False
@@ -5361,8 +5361,6 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                                          self._curr_amps[0].get_ninitial() == 1:
                 group = False 
 
-
-
             cpu_time1 = time.time()
             ndiags = 0
             if not self._curr_matrix_elements.get_matrix_elements():
@@ -5418,23 +5416,24 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                             gen_periferal_diagrams = True
                         else:
                             gen_periferal_diagrams = False
-
                         self._curr_matrix_elements = \
                             color_ordered_helas_objects.COHelasMultiProcess(\
                                self._curr_amps,
                                color_order = self.options['color_ordering'],
                                optimization = self.options['optimization'],
                                gen_periferal_diagrams = gen_periferal_diagrams)
+                        
                     else: # Not grouped subprocesses
                         mode = {}
                         if self._export_format in [ 'standalone_msP' , 'standalone_msF', 'standalone_rw']:
                             mode['mode'] = 'MadSpin'
-                            self._curr_matrix_elements = \
-                                helas_objects.HelasMultiProcess(self._curr_amps, matrix_element_opts=mode)
-                    
+                        self._curr_matrix_elements = \
+                            helas_objects.HelasMultiProcess(self._curr_amps, matrix_element_opts=mode)
+
                     ndiags = sum([len(me.get('diagrams')) for \
                                   me in self._curr_matrix_elements.\
-                                  get_matrix_elements()])                    
+                                  get_matrix_elements()])          
+       
                     # assign a unique id number to all process
                     uid = 0 
                     for me in self._curr_matrix_elements.get_matrix_elements()[:]:
@@ -5442,7 +5441,6 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                         me.get('processes')[0].set('uid', uid)
                         
             cpu_time2 = time.time()
-
 
             return ndiags, cpu_time2 - cpu_time1
 
@@ -5558,7 +5556,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
               (len(matrix_elements),
                ndiags, cpu_time))
 
-        if calls:
+        if calls > 0:
             if "cpu_time2" in locals():
                 logger.info("Wrote files for %d helas calls in %0.3f s" % \
                             (calls, cpu_time2))
@@ -5582,6 +5580,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                [me.get('base_amplitude') for me in \
                 matrix_elements])
 
+
     def finalize(self, nojpeg, online = False):
         """Make the html output, write proc_card_mg5.dat and create
         madevent.tar.gz for a MadEvent directory"""
@@ -5600,7 +5599,8 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                 # actually used in the wavefunctions and amplitudes in
                 # these processes
                 wanted_lorentz = self._curr_matrix_elements.get_used_lorentz()
-                wanted_couplings = self._curr_matrix_elements.get_used_couplings()
+                wanted_couplings = self._curr_matrix_elements.get_used_couplings()         
+
                 self._curr_exporter.convert_model_to_mg4(self._curr_model,
                                                wanted_lorentz,
                                                wanted_couplings)

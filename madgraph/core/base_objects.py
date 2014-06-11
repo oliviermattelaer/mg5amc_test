@@ -1715,7 +1715,7 @@ class Leg(PhysicsObject):
         if name == 'onshell':
             if not isinstance(value, bool) and value != None:
                 raise self.PhysicsObjectError, \
-                        "%s is not a valid boolean for leg flag onshell" % \
+                        "%s is not a valid boolean/None for leg flag onshell" % \
                                                                     str(value)
         return True
 

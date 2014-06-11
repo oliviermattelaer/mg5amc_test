@@ -51,6 +51,7 @@ from madgraph.iolibs.files import cp, ln, mv
 _file_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0] + '/'
 logger = logging.getLogger('madgraph.export_v4')
 
+pjoin = os.path.join
 #===============================================================================
 # ProcessExporterFortranCO
 #===============================================================================
@@ -497,7 +498,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         os.chdir(cwd)
 
         if not calls:
-            calls = 0
+            calls = -1
         return calls
 
     #===========================================================================
@@ -663,9 +664,13 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                              matrix_element)
 
         filename = 'configs.inc'
-        mapconfigs, s_and_t_channels = self.write_configs_file(\
+        mapconfigs, (s_and_t_channels, nqcd_list) = self.write_configs_file(\
             writers.FortranWriter(filename),
             matrix_element)
+
+        filename = 'config_nqcd.inc'
+        self.write_config_nqcd_file(writers.FortranWriter(filename),
+                               nqcd_list)
 
         filename = 'config_subproc_map.inc'
         self.write_config_subproc_map_file(writers.FortranWriter(filename),
@@ -784,6 +789,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                      'reweight.f',
                      'run.inc',
                      'maxconfigs.inc',
+                     'run_config.inc',
                      'maxparticles.inc',
                      'setcuts.f',
                      'setscales.f',
@@ -833,7 +839,16 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         filename = os.path.join(self.dir_path,'Source','maxparticles.inc')
         self.write_maxparticles_file(writers.FortranWriter(filename),
                                      matrix_elements)
-        
+      
+        # Add the combine_events.f modify param_card path/number of @X
+        filename = pjoin(self.dir_path,'Source','combine_events.f')
+        try:
+            nb_proc =[p.get('id') for me in matrix_elements for m in me.get('matrix_elements') for p in m.get('processes')]
+        except AttributeError:
+            nb_proc =[p.get('id') for m in matrix_elements.get('matrix_elements') for p in m.get('processes')]
+        nb_proc = len(set(nb_proc))
+        self.write_combine_events(writers.FortranWriter(filename), nb_proc) # already formatted
+                 
         # Touch "done" file
         os.system('touch %s/done' % os.path.join(self.dir_path,'SubProcesses'))
 

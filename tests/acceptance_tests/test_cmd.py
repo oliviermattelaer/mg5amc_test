@@ -551,6 +551,9 @@ class TestCmdShell2(unittest.TestCase,
         self.do('set color_ordering 3')
         self.do('set optimization 3')
         self.do('generate u g > u g g g')
+        ndiags = sum([amp.get_number_of_diagrams() for \
+                              amp in self.cmd._curr_amps])
+        self.assertEqual(ndiags, 21)
         self.do('output standalone %s ' % self.out_dir)
         self.do('set color_ordering 0')
         self.do('set optimization 1')
@@ -675,6 +678,10 @@ class TestCmdShell2(unittest.TestCase,
         self.do('import model sm')
         self.do('set color_ordering 3')
         self.do('generate u g > u g g g')
+        #check the number of diagram
+        ndiags = sum([amp.get_number_of_diagrams() for \
+                              amp in self.cmd._curr_amps])
+        self.assertEqual(ndiags, 21)
         self.do('output %s ' % self.out_dir)
         self.do('set color_ordering 0')
         self.do('set optimization 1')
@@ -1503,7 +1510,7 @@ P1_qq_wp_wp_lvl
         self.assertEqual(len(self.cmd._curr_model.get('interactions')), 56)
         self.do('generate mu+ mu- > ta+ ta-') 
         self.assertEqual(len(self.cmd._curr_amps), 1)
-        nicestring = """Process: mu+ mu- > ta+ ta- QCD=0 QED=2 WEIGHTED=4
+        nicestring = """Process: mu+ mu- > ta+ ta- WEIGHTED=4
 2 diagrams:
 1  ((1(13),2(-13)>1(22),id:35),(3(-15),4(15),1(22),id:36)) (QCD=0,QED=2,WEIGHTED=4)
 2  ((1(13),2(-13)>1(23),id:41),(3(-15),4(15),1(23),id:42)) (QCD=0,QED=2,WEIGHTED=4)"""
