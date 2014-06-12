@@ -541,6 +541,7 @@ class Amplitude(base_objects.PhysicsObject):
         self['diagrams'] = res
         if not process.check_valid_process():
             return res
+
         if not returndiag:
             logger.info("Trying %s " % process.nice_string().replace('Process', 'process'))
 

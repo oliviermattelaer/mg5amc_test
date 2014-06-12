@@ -788,7 +788,6 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                      'myamp.f',
                      'reweight.f',
                      'run.inc',
-                     'maxconfigs.inc',
                      'run_config.inc',
                      'maxparticles.inc',
                      'setcuts.f',
@@ -804,7 +803,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         ln('nexternal.inc', '../../Source', log=False)
         ln('leshouche.inc', '../../Source', log=False)
         ln('maxamps.inc', '../../Source', log=False)
-
+        ln('maxconfigs.inc', '../../Source', log=False)
         # Return to SubProcesses dir
         os.chdir(pathdir)
 

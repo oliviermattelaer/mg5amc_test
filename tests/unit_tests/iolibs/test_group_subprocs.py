@@ -320,7 +320,8 @@ class SubProcessGroupTest(unittest.TestCase):
 
             subprocess_groups = group_subprocs.SubProcessGroup.\
                                 group_amplitudes(group_subprocs.SubProcessGroup,
-                                                 amplitudes)
+                                                 amplitudes, "madevent")
+
             #dmaps = []
             #diags = []
             for igroup, group in enumerate(subprocess_groups):
@@ -390,7 +391,7 @@ class SubProcessGroupTest(unittest.TestCase):
 
             amplitudes = my_multiprocess.get('amplitudes')
             process_classes = group_subprocs.SubProcessGroup.\
-                              find_process_classes(amplitudes)
+                              find_process_classes(amplitudes, "madevent")
 
             #print process_classes
 
@@ -399,7 +400,7 @@ class SubProcessGroupTest(unittest.TestCase):
 
             subproc_groups = group_subprocs.SubProcessGroup.\
                              group_amplitudes(group_subprocs.SubProcessGroup,
-                                              amplitudes)
+                                              amplitudes, "madevent")
 
             #dmaps = []
             for inum, group in enumerate(subproc_groups):

@@ -115,6 +115,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
         self['diagram_maps'] = {}
         self['diagrams_for_configs'] = []
         self['amplitude_map'] = {}
+        
 
     def filter(self, name, value):
         """Filter for valid property values."""
@@ -202,7 +203,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
 
         self.set('amplitudes', diagram_generation.AmplitudeList())
 
-    def generate_name(self, process):
+    def generate_name(self, process, criteria='madevent'):
         """Generate a convenient name for the group, based on  and
         masses"""
 
@@ -214,6 +215,9 @@ class SubProcessGroup(base_objects.PhysicsObject):
             if part.get('mass').lower() == 'zero' and part.is_fermion() and \
                    part.get('color') != 1:
                 name += "q"
+            elif criteria == 'madweight':
+                 name += part.get_name().replace('~', 'x').\
+                            replace('+', 'p').replace('-', 'm')
             elif part.get('mass').lower() == 'zero' and part.is_fermion() and \
                    part.get('color') == 1 and part.get('pdg_code') % 2 == 1:
                 name += "l"
@@ -229,6 +233,9 @@ class SubProcessGroup(base_objects.PhysicsObject):
             if part.get('mass').lower() == 'zero' and part.get('color') != 1 \
                    and part.get('spin') == 2:
                 name += "q" # "j"
+            elif criteria == 'madweight':
+                name += part.get_name().replace('~', 'x').\
+                            replace('+', 'p').replace('-', 'm')
             elif part.get('mass').lower() == 'zero' and part.get('color') == 1 \
                    and part.get('spin') == 2:
                 if part.get('charge') == 0:
@@ -240,7 +247,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
                             replace('+', 'p').replace('-', 'm')
         
         for dc in process.get('decay_chains'):
-            name += "_" + self.generate_name(dc)
+            name += "_" + self.generate_name(dc, criteria)
 
         return name
 
@@ -379,16 +386,21 @@ class SubProcessGroup(base_objects.PhysicsObject):
     # group_amplitudes
     #===========================================================================
     @staticmethod
-    def group_amplitudes(cls, amplitudes):
+    def group_amplitudes(cls, amplitudes, criteria='madevent'):
         """Return a SubProcessGroupList with the amplitudes divided
         into subprocess groups"""
 
         assert isinstance(amplitudes, diagram_generation.AmplitudeList), \
                   "Argument to group_amplitudes must be AmplitudeList"
 
+        if criteria in ['matrix', 'standalone','pythia8','standalone_cpp']:
+            criteria = 'madevent'
+        assert criteria in ['madevent', 'madweight']
+
         logger.info("Organizing processes into subprocess groups")
 
-        process_classes = cls.find_process_classes(amplitudes)
+        process_classes = cls.find_process_classes(amplitudes,criteria)
+
         ret_list = SubProcessGroupList()
         process_class_numbers = sorted(list(set(process_classes.values())))
         for num in process_class_numbers:
@@ -401,13 +413,14 @@ class SubProcessGroup(base_objects.PhysicsObject):
             group.set('number', group.get('amplitudes')[0].get('process').\
                                                                      get('id'))
             group.set('name', group.generate_name(\
-                                    group.get('amplitudes')[0].get('process')))
+                                    group.get('amplitudes')[0].get('process'),
+                                    criteria=criteria))
             ret_list.append(group)
 
         return ret_list
 
     @staticmethod
-    def find_process_classes(amplitudes):
+    def find_process_classes(amplitudes, criteria):
         """Find all different process classes, classified according to
         initial state and final state. For initial state, we
         differentiate fermions, antifermions, gluons, and masses. For
@@ -416,6 +429,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
         assert isinstance(amplitudes, diagram_generation.AmplitudeList), \
                   "Argument to find_process_classes must be AmplitudeList"
         assert amplitudes
+        assert criteria in ['madevent','madweight']
 
         model = amplitudes[0].get('process').get('model')
         proc_classes = []
@@ -435,13 +449,20 @@ class SubProcessGroup(base_objects.PhysicsObject):
             # is_parts selection to distinguish between q and qbar,
             # remove p.get('spin') from fs_parts selection to combine
             # q and g into "j"
-            proc_class = [ [(p.is_fermion(), ) \
+            if (criteria=="madevent"):
+              proc_class = [ [(p.is_fermion(), ) \
                             for p in is_parts], # p.get('is_part')
                            [(p.get('mass'), p.get('spin'),
                              abs(p.get('color')),l.get('onshell')) for (p, l) \
                              in zip(is_parts + fs_parts, process.get('legs'))],
                            amplitude.get('process').get('id'),
                            process.get('id')]
+            if (criteria=="madweight"):
+              proc_class = [ [(abs(p.get('pdg_code'))==5, abs(p.get('pdg_code'))==11, 
+                           abs(p.get('pdg_code'))==13, abs(p.get('pdg_code'))==15) for p in \
+                            fs_parts],
+                           amplitude.get('process').get('id')]
+
             try:
                 amplitude_classes[iamp] = proc_classes.index(proc_class)
             except ValueError:
@@ -477,6 +498,37 @@ class SubProcessGroupList(base_objects.PhysicsObjectList):
         
         return helas_objects.HelasMultiProcess(
             {'matrix_elements': self.get_matrix_elements()}).get_used_couplings()
+            
+    def split_lepton_grouping(self):
+        """Return a list of grouping where they are no groupoing over the leptons."""
+        
+        output = SubProcessGroupList()
+        for group in self:
+            new_mes = {}
+            for me in group['matrix_elements']:
+                tags = {}
+                for proc in me['processes']:
+                    ids = proc.get_final_ids_after_decay()
+                    ids = tuple([t if abs(t) in [11, 13,15] else 0 for t in ids])
+                    if ids not in tags:
+                        tags[ids] = base_objects.ProcessList()
+                    tags[ids].append(proc)
+                for tag in tags:
+                    new_me = copy.copy(me)
+                    new_me['processes'] = tags[tag]
+                    if tag not in new_mes:
+                        new_mes[tag] = helas_objects.HelasMatrixElementList()
+                    new_mes[tag].append(new_me)
+            for tag in tags:
+                new_group = copy.copy(group)
+                new_group['matrix_elements'] = new_mes[tag]
+                new_group.set('name', new_group.generate_name(\
+                                    new_group['matrix_elements'][0]['processes'][0],
+                                    criteria='madweight'))
+                output.append(new_group)
+        return output
+        
+        
     
 #===============================================================================
 # DecayChainSubProcessGroup
@@ -544,6 +596,7 @@ class DecayChainSubProcessGroup(SubProcessGroup):
                 helas_objects.HelasMultiProcess.generate_matrix_elements(\
                               diagram_generation.AmplitudeList(\
                                             self.get('decay_chain_amplitudes')))
+
 
         # For each matrix element, check which group it should go into and
         # calculate diagram_maps
@@ -636,21 +689,25 @@ class DecayChainSubProcessGroup(SubProcessGroup):
     # group_amplitudes
     #===========================================================================
     @staticmethod
-    def group_amplitudes(cls, decay_chain_amps):
+    def group_amplitudes(cls, decay_chain_amps, criteria='madevent'):
         """Recursive function. Starting from a DecayChainAmplitude,
         return a DecayChainSubProcessGroup with the core amplitudes
         and decay chains divided into subprocess groups"""
 
         assert isinstance(decay_chain_amps, diagram_generation.DecayChainAmplitudeList), \
                   "Argument to group_amplitudes must be DecayChainAmplitudeList"
-
+        if criteria in ['matrix', 'standalone','pythia8','standalone_cpp']:
+            criteria = 'madevent'
+        assert criteria in ['madevent', 'madweight']
+        
         # Collect all amplitudes
         amplitudes = diagram_generation.AmplitudeList()
         for amp in decay_chain_amps:
             amplitudes.extend(amp.get('amplitudes'))
 
         # Determine core process groups
-        core_groups = SubProcessGroup.group_amplitudes(SubProcessGroup, amplitudes)
+
+        core_groups = SubProcessGroup.group_amplitudes(SubProcessGroup, amplitudes, criteria)
 
         dc_subproc_group = DecayChainSubProcessGroup(\
             {'core_groups': core_groups,
@@ -665,7 +722,7 @@ class DecayChainSubProcessGroup(SubProcessGroup):
         if decays:
             dc_subproc_group.get('decay_groups').append(\
                 DecayChainSubProcessGroup.group_amplitudes(SubProcessGroup,
-                                                           decays))
+                                                           decays, criteria))
 
         return dc_subproc_group
 
