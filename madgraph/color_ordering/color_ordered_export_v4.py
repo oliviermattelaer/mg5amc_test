@@ -125,6 +125,28 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return len(filter(lambda call: call.find('#') != 0, helas_calls))
 
+    def write_make_chcf_table(self, writer, matrix_element, write=True):
+        """Return the file make_chcf_table which creates the 
+        table for the PS integration channeling"""
+        
+        replace_dict = {}
+        # Extract ndiags
+        ndiags = len(matrix_element.get('diagrams'))
+        replace_dict['ndiags'] = ndiags
+        replace_dict['nperms'] = len(matrix_element.get('permutations'))
+        
+        if write:
+            file = open(os.path.join(_file_path, \
+                                 'color_ordering/template_files/co_make_chcf_table.f')
+                        ).read()
+            file = file % replace_dict
+
+            # Write the file
+            writer.writelines(file)
+        else:
+            return replace_dict 
+
+       
     def get_ic_data_line(self, flow):
         """Get the IC line, giving sign for external HELAS wavefunctions"""
 
@@ -141,6 +163,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         ret_line = ret_line[:-1] + '/'
         
         return ret_line
+
+
 
     def get_flow_info(self, matrix_element):
         """Return the lines for defining all needed
@@ -659,6 +683,10 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                 flow,
                 co_helas_call_writer)
 
+        filename = 'make_chcf_table.f'
+        self.write_make_chcf_table(writers.FortranWriter(filename),
+                                                                 matrix_element)
+
         filename = 'auto_dsig.f'
         self.write_auto_dsig_file(writers.FortranWriter(filename),
                              matrix_element)
@@ -913,6 +941,8 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         #return to the initial dir
         os.chdir(old_pos)               
 
+    
+
     def write_matrix_element_v4(self, writer, matrix_element, helas_call_writer,
                                 proc_id = "", config_map = []):
         """Export a matrix element to a matrix.f file in MadEvent
@@ -1129,6 +1159,8 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
 
         matrix_elements = subproc_group.get('matrix_elements')
 
+
+
         # First generate all files needed except for the flow files
         export_v4.ProcessExporterFortranMEGroup.\
                       generate_subprocess_directory_v4(self,
@@ -1154,6 +1186,12 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
                     flow,
                     co_helas_call_writer,
                     me_flag)
+          
+            filename = os.path.join(self.dir_path,
+                                        'SubProcesses',
+                                        subprocdir,
+                                        'make_chcf_table_%d.f' % ime)
+            self.write_make_chcf_table(writers.FortranWriter(filename), me)
 
         # Rewrite maxamps.inc with correct values for flow
         filename = os.path.join(self.dir_path,
