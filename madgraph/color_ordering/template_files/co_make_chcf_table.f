@@ -1,684 +1,682 @@
       SUBROUTINE GENERATE_CF_INTEGRATION_BASIS()
       IMPLICIT NONE
       INTEGER NDIAGS
-      PARAMETER (NDIAGS=12)
+      PARAMETER (NDIAGS=%(ndiags)i)
       INTEGER    NPERMS
-      PARAMETER (NPERMS=24)
-      
+      PARAMETER (NPERMS=%(nperms)i)
+
       LOGICAL CF_BASIS(NDIAGS,NPERMS)
       COMMON/TO_CF_BASIS/CF_BASIS
-      
+
 C     CONSTANTS
 C     GLOBAL VARIABLES
-      include 'maxconfigs.inc'
-      include 'maxparticles.inc'
+      INCLUDE 'maxconfigs.inc'
+      INCLUDE 'maxparticles.inc'
 C     ARGUMENTS
 C     LOCAL VARIABLES 
-      integer i,j,k
-      integer natm,max_ch,max_chcf,ierr
-      parameter (natm=int((max_particles+1)/2d0))
-      parameter (max_ch=10000,max_chcf=100)
-      integer atm(2,natm),cf(max_particles,max_ch)
-      integer cfnum(max_chcf,max_ch)
-      integer ndiag,ngluons,ncf,nchcf(max_ch)
-      integer ch_cf(max_particles,max_chcf,max_ch)
-      logical KEEP(max_ch,10000)
+      INTEGER I,J,K
+      INTEGER NATM,MAX_CH,MAX_CHCF,IERR
+      PARAMETER (NATM=INT(MAX_PARTICLES/2D0)+1)
+      PARAMETER (MAX_CH=10000,MAX_CHCF=100)
+      INTEGER ATM(2,NATM),CF(MAX_PARTICLES,MAX_CH)
+      INTEGER CFNUM(MAX_CHCF,MAX_CH)
+      INTEGER NDIAG,NGLUONS,NCF,NCHCF(MAX_CH)
+      INTEGER CH_CF(MAX_PARTICLES,MAX_CHCF,MAX_CH)
+      LOGICAL KEEP(MAX_CH,10000)
 C     EXTERNAL FUNCTIONS
-      integer fact
-      external fact
+      INTEGER FACT
+      EXTERNAL FACT
 C     ----------
 C     BEGIN CODE
 C     ----------
-c      ndiag = lmaxconfigs
-      ngluons = max_particles
-c      ncf = fact(ngluons -1)
-      do i = 1,ndiags
-         do j = 1,nperms
-            CF_BASIS(i,j) = .false.
-         enddo
-      enddo         
-      
-      do i = 1,ndiags
-         call make_atm(i,atm,natm)
-         call find_perchcf(ngluons,natm,atm,ch_cf(1,1,i),cfnum(1,i),nchcf(i))
+C     ndiag = lmaxconfigs
+      NGLUONS = MAX_PARTICLES
+C     ncf = fact(ngluons -1)
+      DO I = 1,NDIAGS
+        DO J = 1,NPERMS
+          CF_BASIS(I,J) = .FALSE.
+        ENDDO
+      ENDDO
 
-         do j = 1,nchcf(i)
-            do k = 1,nperms
-               if (cfnum(j,i).eq.k) then
-                  CF_BASIS(i,k) = .true.
-                  exit
-               endif
-            enddo
-         enddo
-      enddo
+      DO I = 1,NDIAGS
+        CALL MAKE_ATM(I,ATM,NATM)
+        CALL FIND_PERCHCF(NGLUONS,NATM,ATM,CH_CF(1,1,I),CFNUM(1,I),NCHCF(I))
 
-c      open(1,file="chcf_table.dat",status='replace')
-c      do i = 1,nperms
-c         write(1,*) i,(KEEP(j,i),j=1,ndiags)
-c      enddo
-c      close(1)
-c      call write_output2(ngluons,ch_cf,nchcf,ndiag,nperms,KEEP)
+        DO J = 1,NCHCF(I)
+          DO K = 1,NPERMS
+            IF (CFNUM(J,I).EQ.K) THEN
+              CF_BASIS(I,K) = .TRUE.
+              EXIT
+            ENDIF
+          ENDDO
+        ENDDO
+      ENDDO
 
-      end
+C     open(1,file="chcf_table.dat",status='replace')
+C     do i = 1,nperms
+C     write(1,*) i,(KEEP(j,i),j=1,ndiags)
+C     enddo
+C     close(1)
+C     call write_output2(ngluons,ch_cf,nchcf,ndiag,nperms,KEEP)
+
+      END
 
 
-      subroutine make_atm(ich,atm_out,max_natm)
+      SUBROUTINE MAKE_ATM(ICH,ATM_OUT,MAX_NATM)
 C     ****************************************************
 C     By Yoshitaro Takaesu @U.tokyo Jun.25 2014
 C     ****************************************************
-      implicitnone
+      IMPLICITNONE
 C     CONSTANTS     
-      include 'maxconfigs.inc'
-      include 'genps.inc'
-      include 'maxamps.inc'
+      INCLUDE 'maxconfigs.inc'
+      INCLUDE 'genps.inc'
+      INCLUDE 'maxamps.inc'
 C     ARGUMENTS 
-      integer max_natm,ich
-      integer atm_out(2,max_natm)
+      INTEGER MAX_NATM,ICH
+      INTEGER ATM_OUT(2,MAX_NATM)
 C     GLOBAL VARIABLES
-      integer iforest(2,-max_branch:-1,lmaxconfigs)
-      common/to_forest/ iforest
-      integer sprop(maxsproc,-max_branch:-1,lmaxconfigs)
-      integer tprid(-max_branch:-1,lmaxconfigs)
-      common/to_sprop/sprop,tprid
-      integer            mapconfig(0:lmaxconfigs), this_config
-      common/to_mconfigs/mapconfig, this_config
+      INTEGER IFOREST(2,-MAX_BRANCH:-1,LMAXCONFIGS)
+      COMMON/TO_FOREST/ IFOREST
+      INTEGER SPROP(MAXSPROC,-MAX_BRANCH:-1,LMAXCONFIGS)
+      INTEGER TPRID(-MAX_BRANCH:-1,LMAXCONFIGS)
+      COMMON/TO_SPROP/SPROP,TPRID
+      INTEGER            MAPCONFIG(0:LMAXCONFIGS), THIS_CONFIG
+      COMMON/TO_MCONFIGS/MAPCONFIG, THIS_CONFIG
 C     LOCAL VARIABLES
-      integer i
-c      include 'configs.inc'
-      integer atm(2,20),iprop(max_natm),nt,ns
-      integer iused(max_particles),ipost,iposs,idiag,next,nfin,ipos
-      integer maxnprop,ipos_tmp,nn,ipos_tmp2,atm1(10),iatm1(10)
-      integer prop2_1,prop2_2
+      INTEGER I
+C     include 'configs.inc'
+      INTEGER ATM(2,20),IPROP(MAX_NATM),NT,NS
+      INTEGER IUSED(MAX_PARTICLES),IPOST,IPOSS,IDIAG,NEXT,NFIN,IPOS
+      INTEGER MAXNPROP,IPOS_TMP,NN,IPOS_TMP2,ATM1(10),IATM1(10)
+      INTEGER PROP2_1,PROP2_2
 C     EXTERNAL FUNCTIONS
-C     ----------
-C     BEGIN CODE
-C     ----------
-C Initialization
-      idiag = ich
-      next = max_particles
-      nfin = next -2
-      maxnprop = -1*nfin ! the numbering of the external line of particle 2
-      ipos_tmp = 10  ! temporary atm number for s-splitting atm attached to particle 2
-      atm(1,1) = 1
-      atm(1,2) = 2
-
-C inerpriting iforest information into atm information
-      prop2_1 = iforest(1,maxnprop,idiag) 
-      prop2_2 = iforest(2,maxnprop,idiag) 
-C store a splitting leg attached to the particle 2
-      if ((prop2_1.lt.0).and.(SPROP(1,MIN(prop2_1,-1),idiag).ne.0)) then
-         atm(1,ipos_tmp) = iforest(1,prop2_1,idiag) 
-         atm(2,ipos_tmp) = iforest(2,prop2_1,idiag) 
-         atm(2,2) = 0
-      elseif ((prop2_2.lt.0).and.(SPROP(1,MIN(prop2_2,-1),idiag).ne.0)) then
-         write(*,*) ipos_tmp, prop2_2, idiag
-         atm(1,ipos_tmp) = iforest(1,prop2_2,idiag) 
-         atm(2,ipos_tmp) = iforest(2,prop2_2,idiag) 
-         atm(2,2) = 0
-C store an external attached to the particle 2
-      else
-         if (iforest(2,maxnprop,idiag).gt.0) then
-            atm(2,2) = iforest(2,maxnprop,idiag)
-         else
-            atm(2,2) = 0
-         endif
-      endif
-
-      ipos = 2
-      ipos_tmp2 = 10
-      do i = maxnprop+1,-1,1
-C check atm1
-         if (iforest(1,i,idiag).eq.1) then 
-C store an external leg attarched to the particle 1
-            if (iforest(2,i,idiag).gt.0) then
-               atm(2,1) = iforest(2,i,idiag)
-               iprop(1) = 0
-C store a splitting leg attached to the particle 1
-            else
-               ipos = ipos +1
-               atm(2,1) = 0
-               iprop(1) = iforest(2,i,idiag)
-               atm(1,ipos) = iforest(1,iprop(1),idiag) 
-               atm(2,ipos) = iforest(2,iprop(1),idiag) 
-            endif
-C check the rest of external legs
-         elseif (iforest(2,i,idiag).gt.0) then 
-C store an external leg attached to a propagator
-            if (iforest(1,i,idiag).lt.0) then 
-               ipos_tmp2 = ipos_tmp2 +1
-               atm(1,ipos_tmp2) = iforest(2,i,idiag)
-               atm(2,ipos_tmp2) = 0
-C store a splitting leg attached to a propagator
-            elseif (iforest(1,i,idiag).gt.0) then 
-               ipos_tmp2 = ipos_tmp2 +1
-               atm(1,ipos_tmp2) = iforest(1,i,idiag)
-               atm(2,ipos_tmp2) = iforest(2,i,idiag)
-            endif
-         endif         
-      enddo
-
-C sort the atm's ascendent order w.r.t the first element, atm(1,*)
-      nn = ipos_tmp2 -10
-      do i = 1,nn
-         atm1(i) = atm(1,i+10)
-      enddo
-      call isort_asc(nn,atm1,iatm1)
-      do i = 1,nn
-         ipos = ipos +1
-         atm(1,ipos) = atm(1,iatm1(i)+10)
-         atm(2,ipos) = atm(2,iatm1(i)+10)
-      enddo         
-      ipos = ipos +1
-      atm(1,ipos) = atm(1,ipos_tmp)
-      atm(2,ipos) = atm(2,ipos_tmp)
-
-      do i = 1,max_natm
-         atm_out(1,i) = atm(1,i)
-         atm_out(2,i) = atm(2,i)
-      enddo
-
-      return
-      end
-
-
-      subroutine isort_asc(n, a,m)
-c by Yoshitaro Takaesu -Jun/25/2014 @U.Toyo
-      implicit none
-      integer i,j
-      integer n
-      integer m(n)
-      integer a(n)
-      integer mini,tmp
-      integer min
-      do i = 1,n
-         m(i) = i
-      enddo
-      do i = 1,n-1
-         mini = i
-         min = a(i)
-         do j = i+1,n
-            if( a(j) < min ) then
-               min = a(j)
-               mini = j
-            endif
-         enddo
-         if( mini.ne.i ) then
-            a(mini) = a(i)
-            a(i) = min
-            tmp = m(mini)
-            m(mini) = m(i)
-            m(i) = tmp
-         endif
-      enddo
-      end
-
-      subroutine find_chcf(next,natm,atm,cflow,ncf)
-C     ****************************************************
-C     By Yoshitaro Takaesu @KIAS Nov.19 2012
-C     ****************************************************
-      implicitnone
-C     CONSTANTS
-C     ARGUMENTS 
-      integer next,natm
-      integer atm(2,natm),cflow(next,100000),ncf
-C     GLOBAL VARIABLES
-C     LOCAL VARIABLES 
-      integer i,j,k
-      integer iflag,nperm,pos2,ierr,a(natm),nncf,maxk(natm)
-      integer cflowtmp
-C     EXTERNAL FUNCTIONS
-      integer fact
-      external fact
-C     ----------
-C     BEGIN CODE
-C     ----------
-      iflag = 0
-      do i = 1,natm
-         a(i) = i
-      enddo
-      do i = 1,natm
-         maxk(i) = 1
-         if (atm(2,i).ne.0) maxk(i) = 2
-      enddo
-       
-      ncf = 0
-      nperm = fact(natm-1)
-      do i = 1,nperm
-         if (i.ne.1) then
-            call ipnext(a(2),natm-1,iflag)
-         endif
-         do j = 2,natm
-            if (a(j).eq.2) pos2 = j
-         enddo
-         ierr = 0
-         do j = 2,pos2-2
-            do k = j+1,pos2-1
-               if (a(j).lt.a(k)) ierr = 1
-            enddo
-         enddo
-         if (ierr.ne.0) cycle
-         ierr = 0
-         do j = pos2+1,natm-1
-            do k = j+1,natm
-               if (a(j).gt.a(k)) ierr = 1
-            enddo
-         enddo
-         if (ierr.ne.0) cycle
-
-         call get_cflow(next,natm,atm,a,maxk,nncf,cflow(1,ncf+1))
-         ncf = ncf +nncf
-      enddo
-
-      do i = 1,ncf
-         if (cflow(1,i).ne.1) then
-            cflowtmp = cflow(1,i)
-            do j = 1,next-1
-               cflow(j,i) = cflow(j+1,i)
-            enddo
-            cflow(next,i) = cflowtmp
-         endif
-      enddo
-
-      return
-      end
-
-
-      subroutine find_perchcf(next,natm,atm,cflow,cflow_num,ncf)
-C     ****************************************************
-C     By Yoshitaro Takaesu @KIAS JAN.14 2013
-C     ****************************************************
-      implicitnone
-C     CONSTANTS
-C     ARGUMENTS 
-      integer next,natm,ierr
-      integer atm(2,natm),cflow(next,10000),ncf,cflow_num(10000)
-C     GLOBAL VARIABLES
-C     LOCAL VARIABLES 
-      integer i,j,k
-      integer iflag,nperm,a(natm),nonzero,zero,nonzero_atm(2,natm)
-      integer zero_atm(2,natm),incf,iatm,aatm(2,natm),aaatm(2,natm)
-C     EXTERNAL FUNCTIONS
-      integer fact
-      external fact
-C     ----------
-C     BEGIN CODE
-C     ----------
-      iflag = 0
-      ncf = 0
-      ierr = 0
-      do i = 3,natm
-         a(i) = i
-      enddo
-      do i = 1,natm
-         aatm(1,i) = atm(1,i)
-         aatm(2,i) = atm(2,i)
-      enddo
-
-      if ((atm(2,1)*atm(2,2)).ne.0) then
-         nperm = fact(natm-2)
-         do i = 1,nperm
-            if (i.ne.1) then
-               call ipnext(a(3),natm-2,iflag)
-            endif
-            do j = 3,natm
-               aatm(1,j) = atm(1,a(j))
-               aatm(2,j) = atm(2,a(j))
-            enddo
-            call find_chcf(next,natm,aatm,cflow(1,ncf+1),incf)
-            ncf = ncf +incf
-         enddo
-      elseif ((atm(2,1).eq.0).and.(atm(2,2).ne.0)) then
-         nperm = fact(natm-3)
-         do i = 1,nperm
-            if (i.ne.1) then
-               call ipnext(a(3),natm-3,iflag)
-            endif
-            do j = 3,natm-1
-               aatm(1,j) = atm(1,a(j))
-               aatm(2,j) = atm(2,a(j))
-            enddo
-            call find_chcf(next,natm,aatm,cflow(1,ncf+1),incf)
-            ncf = ncf +incf
-         enddo
-      elseif ((atm(2,1).ne.0).and.(atm(2,2).eq.0)) then
-         nperm = fact(natm-3)
-         do i = 1,nperm
-            if (i.ne.1) then
-               call ipnext(a(4),natm-3,iflag)
-            endif
-            do j = 4,natm
-               aatm(1,j) = atm(1,a(j))
-               aatm(2,j) = atm(2,a(j))
-            enddo
-            call find_chcf(next,natm,aatm,cflow(1,ncf+1),incf)
-            ncf = ncf +incf
-         enddo
-      elseif ((atm(2,1).eq.0).and.(atm(2,2).eq.0)) then
-         nperm = fact(natm-4)
-         do i = 1,nperm
-            if (i.ne.1) then
-               call ipnext(a(4),natm-4,iflag)
-            endif
-            do j = 4,natm-1
-               aatm(1,j) = atm(1,a(j))
-               aatm(2,j) = atm(2,a(j))
-            enddo
-            call find_chcf(next,natm,aatm,cflow(1,ncf+1),incf)
-            ncf = ncf +incf
-         enddo
-         do i = 1,natm
-            aatm(1,i) = atm(1,i)
-            aatm(2,i) = atm(2,i)
-         enddo
-         aatm(1,3) = atm(1,natm)
-         aatm(2,3) = atm(2,natm)
-         aatm(1,natm) = atm(1,3)
-         aatm(2,natm) = atm(2,3)
-
-         do i = 1,natm
-            aaatm(1,i) = aatm(1,i)
-            aaatm(2,i) = aatm(2,i)
-         enddo
-         iflag = 0
-         do i = 1,natm
-            a(i) = i
-         enddo
-         do i = 1,nperm
-            if (i.ne.1) then
-               call ipnext(a(4),natm-4,iflag)
-            endif
-            do j = 4,natm-1
-               aaatm(1,j) = aatm(1,a(j))
-               aaatm(2,j) = aatm(2,a(j))
-            enddo
-            call find_chcf(next,natm,aaatm,cflow(1,ncf+1),incf)
-            ncf = ncf +incf
-         enddo
-      endif
-
-C     Get color-flow numbers of each channel
-      do i = 1,ncf
-         call find_cfnumber(next,cflow(1,i),cflow_num(i))
-         if (cflow_num(i).eq.-1) then
-            write(*,*) "ERROR: Wrong color-flow is generated."
-            return
-         endif
-      enddo
-
-      return
-      end
-
-
-      subroutine find_cfnumber(next,cflow,cflow_num)
-C     ****************************************************
-C     By Yoshitaro Takaesu @ U.Tokyo JUN.27 2014
-C     ****************************************************
-      implicitnone
-C     CONSTANTS
-C     ARGUMENTS 
-      integer next,cflow(next),cflow_num
-C     GLOBAL VARIABLES
-C     LOCAL VARIABLES 
-      integer i
-      integer floworder(next),iflag1,iflag2,ncf
-C     EXTERNAL FUNCTIONS
-      integer fact
-      external fact
 C     ----------
 C     BEGIN CODE
 C     ----------
 C     Initialization
-      ncf = fact(next-1)
-      do i = 1,next
-         floworder(i) = i
-      enddo
+      IDIAG = ICH
+      NEXT = MAX_PARTICLES
+      NFIN = NEXT -2
+      MAXNPROP = -1*NFIN  ! the numbering of the external line of particle 2
+      IPOS_TMP = 9  ! temporary atm number for s-splitting atm attached to particle 2
+      ATM(1,1) = 1
+      ATM(1,2) = 2
+C     inerpriting iforest information into atm information
+      PROP2_1 = IFOREST(1,MAXNPROP,IDIAG)
+      PROP2_2 = IFOREST(2,MAXNPROP,IDIAG)
+C     store a splitting leg attached to the particle 2
+      IF ((PROP2_1.LT.0).AND.(SPROP(1,MIN(PROP2_1,-1),IDIAG).NE.0)) THEN
+        IPOS_TMP = IPOS_TMP +1
+        ATM(1,IPOS_TMP) = IFOREST(1,PROP2_1,IDIAG)
+        ATM(2,IPOS_TMP) = IFOREST(2,PROP2_1,IDIAG)
+        ATM(2,2) = 0
+      ELSEIF ((PROP2_2.LT.0).AND.(SPROP(1,MIN(PROP2_2,-1),IDIAG).NE.0)) THEN
+        IPOS_TMP = IPOS_TMP +1
+        ATM(1,IPOS_TMP) = IFOREST(1,PROP2_2,IDIAG)
+        ATM(2,IPOS_TMP) = IFOREST(2,PROP2_2,IDIAG)
+        ATM(2,2) = 0
+C       store an external attached to the particle 2
+      ELSE
+        IF (IFOREST(2,MAXNPROP,IDIAG).GT.0) THEN
+          ATM(2,2) = IFOREST(2,MAXNPROP,IDIAG)
+        ELSE
+          ATM(2,2) = 0
+        ENDIF
+      ENDIF
+
+      IPOS = 2
+      IPOS_TMP2 = 10
+      IPROP(1) = 0
+      DO I = MAXNPROP+1,-1,1
+        IF (I.ne.IPROP(1)) then
+C       check atm1
+        IF (IFOREST(1,I,IDIAG).EQ.1) THEN
+C         store an external leg attarched to the particle 1
+          IF (IFOREST(2,I,IDIAG).GT.0) THEN
+            ATM(2,1) = IFOREST(2,I,IDIAG)
+            IPROP(1) = 0
+C           store a splitting leg attached to the particle 1
+          ELSE
+            IPOS = IPOS +1
+            ATM(2,1) = 0
+            IPROP(1) = IFOREST(2,I,IDIAG)
+            ATM(1,IPOS) = IFOREST(1,IPROP(1),IDIAG)
+            ATM(2,IPOS) = IFOREST(2,IPROP(1),IDIAG)
+          ENDIF
+C         check the rest of external legs
+        ELSEIF (IFOREST(2,I,IDIAG).GT.0) THEN
+C         store an external leg attached to a propagator
+          IF (IFOREST(1,I,IDIAG).LT.0) THEN
+            IPOS_TMP2 = IPOS_TMP2 +1
+            ATM(1,IPOS_TMP2) = IFOREST(2,I,IDIAG)
+            ATM(2,IPOS_TMP2) = 0
+C           store a splitting leg attached to a propagator
+          ELSEIF (IFOREST(1,I,IDIAG).GT.0) THEN
+            IPOS_TMP2 = IPOS_TMP2 +1
+            ATM(1,IPOS_TMP2) = IFOREST(1,I,IDIAG)
+            ATM(2,IPOS_TMP2) = IFOREST(2,I,IDIAG)
+          ENDIF
+        ENDIF
+        ENDIF
+      ENDDO
+
+C     sort the atm's ascendent order w.r.t the first element, atm(1,*)
+      NN = IPOS_TMP2 -10
+      DO I = 1,NN
+        ATM1(I) = ATM(1,I+10)
+      ENDDO
+      CALL ISORT_ASC(NN,ATM1,IATM1)
+      DO I = 1,NN
+        IPOS = IPOS +1
+        ATM(1,IPOS) = ATM(1,IATM1(I)+10)
+        ATM(2,IPOS) = ATM(2,IATM1(I)+10)
+      ENDDO
+      IF (IPOS_TMP.EQ.10) THEN
+         IPOS = IPOS +1
+         ATM(1,IPOS) = ATM(1,IPOS_TMP)
+         ATM(2,IPOS) = ATM(2,IPOS_TMP)
+      ENDIF
+
+      DO I = 1,MAX_NATM
+        ATM_OUT(1,I) = ATM(1,I)
+        ATM_OUT(2,I) = ATM(2,I)
+      ENDDO
+
+      RETURN
+      END
+
+
+      SUBROUTINE ISORT_ASC(N, A,M)
+C     by Yoshitaro Takaesu -Jun/25/2014 @U.Toyo
+      IMPLICIT NONE
+      INTEGER I,J
+      INTEGER N
+      INTEGER M(N)
+      INTEGER A(N)
+      INTEGER MINI,TMP
+      INTEGER MIN
+      DO I = 1,N
+        M(I) = I
+      ENDDO
+      DO I = 1,N-1
+        MINI = I
+        MIN = A(I)
+        DO J = I+1,N
+          IF( A(J) < MIN ) THEN
+            MIN = A(J)
+            MINI = J
+          ENDIF
+        ENDDO
+        IF( MINI.NE.I ) THEN
+          A(MINI) = A(I)
+          A(I) = MIN
+          TMP = M(MINI)
+          M(MINI) = M(I)
+          M(I) = TMP
+        ENDIF
+      ENDDO
+      END
+
+      SUBROUTINE FIND_CHCF(NEXT,NATM,ATM,CFLOW,NCF)
+C     ****************************************************
+C     By Yoshitaro Takaesu @KIAS Nov.19 2012
+C     ****************************************************
+      IMPLICITNONE
+C     CONSTANTS
+C     ARGUMENTS 
+      INTEGER NEXT,NATM
+      INTEGER ATM(2,NATM),CFLOW(NEXT,100000),NCF
+C     GLOBAL VARIABLES
+C     LOCAL VARIABLES 
+      INTEGER I,J,K
+      INTEGER IFLAG,NPERM,POS2,IERR,A(NATM),NNCF,MAXK(NATM)
+      INTEGER CFLOWTMP
+C     EXTERNAL FUNCTIONS
+      INTEGER FACT
+      EXTERNAL FACT
+C     ----------
+C     BEGIN CODE
+C     ----------
+      IFLAG = 0
+      DO I = 1,NATM
+        A(I) = I
+      ENDDO
+      DO I = 1,NATM
+        MAXK(I) = 1
+        IF (ATM(2,I).NE.0) MAXK(I) = 2
+      ENDDO
+
+      NCF = 0
+      NPERM = FACT(NATM-1)
+      DO I = 1,NPERM
+        IF (I.NE.1) THEN
+          CALL IPNEXT(A(2),NATM-1,IFLAG)
+        ENDIF
+        DO J = 2,NATM
+          IF (A(J).EQ.2) POS2 = J
+        ENDDO
+        IERR = 0
+        DO J = 2,POS2-2
+          DO K = J+1,POS2-1
+            IF (A(J).LT.A(K)) IERR = 1
+          ENDDO
+        ENDDO
+        IF (IERR.NE.0) CYCLE
+        IERR = 0
+        DO J = POS2+1,NATM-1
+          DO K = J+1,NATM
+            IF (A(J).GT.A(K)) IERR = 1
+          ENDDO
+        ENDDO
+        IF (IERR.NE.0) CYCLE
+
+        CALL GET_CFLOW(NEXT,NATM,ATM,A,MAXK,NNCF,CFLOW(1,NCF+1))
+        NCF = NCF +NNCF
+      ENDDO
+
+      DO I = 1,NCF
+        IF (CFLOW(1,I).NE.1) THEN
+          CFLOWTMP = CFLOW(1,I)
+          DO J = 1,NEXT-1
+            CFLOW(J,I) = CFLOW(J+1,I)
+          ENDDO
+          CFLOW(NEXT,I) = CFLOWTMP
+        ENDIF
+      ENDDO
+
+      RETURN
+      END
+
+
+      SUBROUTINE FIND_PERCHCF(NEXT,NATM,ATM,CFLOW,CFLOW_NUM,NCF)
+C     ****************************************************
+C     By Yoshitaro Takaesu @KIAS JAN.14 2013
+C     ****************************************************
+      IMPLICITNONE
+C     CONSTANTS
+C     ARGUMENTS 
+      INTEGER NEXT,NATM,IERR
+      INTEGER ATM(2,NATM),CFLOW(NEXT,10000),NCF,CFLOW_NUM(10000)
+C     GLOBAL VARIABLES
+C     LOCAL VARIABLES 
+      INTEGER I,J,K
+      INTEGER IFLAG,NPERM,A(NATM),NONZERO,ZERO,NONZERO_ATM(2,NATM)
+      INTEGER ZERO_ATM(2,NATM),INCF,IATM,AATM(2,NATM),AAATM(2,NATM)
+C     EXTERNAL FUNCTIONS
+      INTEGER FACT
+      EXTERNAL FACT
+C     ----------
+C     BEGIN CODE
+C     ----------
+      IFLAG = 0
+      NCF = 0
+      IERR = 0
+      DO I = 3,NATM
+        A(I) = I
+      ENDDO
+      DO I = 1,NATM
+        AATM(1,I) = ATM(1,I)
+        AATM(2,I) = ATM(2,I)
+      ENDDO
+
+      IF ((ATM(2,1)*ATM(2,2)).NE.0) THEN
+        NPERM = FACT(NATM-2)
+        DO I = 1,NPERM
+          IF (I.NE.1) THEN
+            CALL IPNEXT(A(3),NATM-2,IFLAG)
+          ENDIF
+          DO J = 3,NATM
+            AATM(1,J) = ATM(1,A(J))
+            AATM(2,J) = ATM(2,A(J))
+          ENDDO
+          CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
+          NCF = NCF +INCF
+        ENDDO
+      ELSEIF ((ATM(2,1).EQ.0).AND.(ATM(2,2).NE.0)) THEN
+        NPERM = FACT(NATM-3)
+        DO I = 1,NPERM
+          IF (I.NE.1) THEN
+            CALL IPNEXT(A(3),NATM-3,IFLAG)
+          ENDIF
+          DO J = 3,NATM-1
+            AATM(1,J) = ATM(1,A(J))
+            AATM(2,J) = ATM(2,A(J))
+          ENDDO
+          CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
+          NCF = NCF +INCF
+        ENDDO
+      ELSEIF ((ATM(2,1).NE.0).AND.(ATM(2,2).EQ.0)) THEN
+        NPERM = FACT(NATM-3)
+        DO I = 1,NPERM
+          IF (I.NE.1) THEN
+            CALL IPNEXT(A(4),NATM-3,IFLAG)
+          ENDIF
+          DO J = 4,NATM
+            AATM(1,J) = ATM(1,A(J))
+            AATM(2,J) = ATM(2,A(J))
+          ENDDO
+          CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
+          NCF = NCF +INCF
+        ENDDO
+      ELSEIF ((ATM(2,1).EQ.0).AND.(ATM(2,2).EQ.0)) THEN
+        NPERM = FACT(NATM-4)
+        DO I = 1,NPERM
+          IF (I.NE.1) THEN
+            CALL IPNEXT(A(4),NATM-4,IFLAG)
+          ENDIF
+          DO J = 4,NATM-1
+            AATM(1,J) = ATM(1,A(J))
+            AATM(2,J) = ATM(2,A(J))
+          ENDDO
+          CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
+          NCF = NCF +INCF
+        ENDDO
+        DO I = 1,NATM
+          AATM(1,I) = ATM(1,I)
+          AATM(2,I) = ATM(2,I)
+        ENDDO
+        AATM(1,3) = ATM(1,NATM)
+        AATM(2,3) = ATM(2,NATM)
+        AATM(1,NATM) = ATM(1,3)
+        AATM(2,NATM) = ATM(2,3)
+
+        DO I = 1,NATM
+          AAATM(1,I) = AATM(1,I)
+          AAATM(2,I) = AATM(2,I)
+        ENDDO
+        IFLAG = 0
+        DO I = 1,NATM
+          A(I) = I
+        ENDDO
+        DO I = 1,NPERM
+          IF (I.NE.1) THEN
+            CALL IPNEXT(A(4),NATM-4,IFLAG)
+          ENDIF
+          DO J = 4,NATM-1
+            AAATM(1,J) = AATM(1,A(J))
+            AAATM(2,J) = AATM(2,A(J))
+          ENDDO
+          CALL FIND_CHCF(NEXT,NATM,AAATM,CFLOW(1,NCF+1),INCF)
+          NCF = NCF +INCF
+        ENDDO
+      ENDIF
+
+C     Get color-flow numbers of each channel
+      DO I = 1,NCF
+        CALL FIND_CFNUMBER(NEXT,CFLOW(1,I),CFLOW_NUM(I))
+        IF (CFLOW_NUM(I).EQ.-1) THEN
+          WRITE(*,*) 'ERROR: Wrong color-flow is generated.'
+          RETURN
+        ENDIF
+      ENDDO
+
+      RETURN
+      END
+
+
+      SUBROUTINE FIND_CFNUMBER(NEXT,CFLOW,CFLOW_NUM)
+C     ****************************************************
+C     By Yoshitaro Takaesu @ U.Tokyo JUN.27 2014
+C     ****************************************************
+      IMPLICITNONE
+C     CONSTANTS
+C     ARGUMENTS 
+      INTEGER NEXT,CFLOW(NEXT),CFLOW_NUM
+C     GLOBAL VARIABLES
+C     LOCAL VARIABLES 
+      INTEGER I
+      INTEGER FLOWORDER(NEXT),IFLAG1,IFLAG2,NCF
+C     EXTERNAL FUNCTIONS
+      INTEGER FACT
+      EXTERNAL FACT
+C     ----------
+C     BEGIN CODE
+C     ----------
+C     Initialization
+      NCF = FACT(NEXT-1)
+      DO I = 1,NEXT
+        FLOWORDER(I) = I
+      ENDDO
 C     Finding the color-flow number of cflow
-      do i = 1,ncf
-         if (i.ne.1) then
-            call ipnext(floworder(2),next-1,iflag1)
-         endif
-         call check_cf(next,floworder,cflow,iflag2)
-C     If the color-flow number is found, return the number
-         if (iflag2.eq.1) then
-            cflow_num = i 
-            return
-         endif
-      enddo
+      DO I = 1,NCF
+        IF (I.NE.1) THEN
+          CALL IPNEXT(FLOWORDER(2),NEXT-1,IFLAG1)
+        ENDIF
+        CALL CHECK_CF(NEXT,FLOWORDER,CFLOW,IFLAG2)
+C       If the color-flow number is found, return the number
+        IF (IFLAG2.EQ.1) THEN
+          CFLOW_NUM = I
+          RETURN
+        ENDIF
+      ENDDO
 C     If the color-flow number is not found, return -1
-      cflow_num = -1
+      CFLOW_NUM = -1
 
-      return
-      end
+      RETURN
+      END
 
 
 
-      subroutine check_cf(next,cf1,cf2,iflag)
+      SUBROUTINE CHECK_CF(NEXT,CF1,CF2,IFLAG)
 C     ****************************************************
 C     By Yoshitaro Takaesu @KIAS Dec.8 2012
 C     ****************************************************
-      implicitnone
+      IMPLICITNONE
 C     ARGUMENTS
-      integer next
-      integer cf1(next),cf2(next),iflag
+      INTEGER NEXT
+      INTEGER CF1(NEXT),CF2(NEXT),IFLAG
 C     LOCAL VARIABLES 
-      integer i
+      INTEGER I
 C     ----------
 C     BEGIN CODE
 C     ----------
-      iflag = 0
-      do i = 1,next
-         if (cf1(i).ne.cf2(i)) return
-      enddo
-      iflag = 1
-      return
-      end
+      IFLAG = 0
+      DO I = 1,NEXT
+        IF (CF1(I).NE.CF2(I)) RETURN
+      ENDDO
+      IFLAG = 1
+      RETURN
+      END
 
-      integer function fact(n)
-      implicit none
-      integer n,i      
-      fact = 1
-      if (n.eq.0) then
-         fact = 1
-      else
-         do i = 1, n
-            fact = fact*i
-         enddo
-      endif       
-      return
-      end
+      INTEGER FUNCTION FACT(N)
+      IMPLICIT NONE
+      INTEGER N,I
+      FACT = 1
+      IF (N.EQ.0) THEN
+        FACT = 1
+      ELSE
+        DO I = 1, N
+          FACT = FACT*I
+        ENDDO
+      ENDIF
+      RETURN
+      END
 
 
-      subroutine get_cflow(next,natm,atm,a,maxk,ncf,cflow)
+      SUBROUTINE GET_CFLOW(NEXT,NATM,ATM,A,MAXK,NCF,CFLOW)
 C     ****************************************************
 C     By Yoshitaro Takaesu @KIAS AUG 25 2012
 C     ****************************************************
-      implicit none
+      IMPLICIT NONE
 
 C     GLOBAL VARIABLES
 
 C     CONSTANTS
 
 C     ARGUMENTS 
-      integer natm,next
-      integer a(natm),atm(2,natm),maxk(natm),ncf
-      integer cflow(next,1000)
+      INTEGER NATM,NEXT
+      INTEGER A(NATM),ATM(2,NATM),MAXK(NATM),NCF
+      INTEGER CFLOW(NEXT,1000)
 C     LOCAL VARIABLES 
-      integer i,j,cfpos,k1,k2,k3,k4,k5,k6,k7,k8
-      integer aatm(2,natm)
+      INTEGER I,J,CFPOS,K1,K2,K3,K4,K5,K6,K7,K8
+      INTEGER AATM(2,NATM)
 C     EXTERNAL FUNCTIONS
 
 C     ----------
 C     BEGIN CODE
 C     ----------
-      ncf = 0
+      NCF = 0
 
-      if (natm.eq.3) then
-         do k1 = 1,maxk(1)
-            do k2 = 1,maxk(2)
-               do k3 = 1,maxk(3)
-                  do j = 1,2
-                     aatm(j,1) = atm(mod(j*k1,3),1)
-                     aatm(j,2) = atm(mod(j*k2,3),2)
-                     aatm(j,3) = atm(mod(j*k3,3),3)
-                  enddo
-                  ncf = ncf +1
-                  call sort_cflow(aatm,a,natm,next,cflow(1,ncf))
-               enddo 
-            enddo
-         enddo
-      elseif (natm.eq.4) then
-         do k1 = 1,maxk(1)
-            do k2 = 1,maxk(2)
-               do k3 = 1,maxk(3)
-                  do k4 = 1,maxk(4)
-                     do j = 1,2
-                        aatm(j,1) = atm(mod(j*k1,3),1)
-                        aatm(j,2) = atm(mod(j*k2,3),2)
-                        aatm(j,3) = atm(mod(j*k3,3),3)
-                        aatm(j,4) = atm(mod(j*k4,3),4)
-                     enddo
-                     ncf = ncf +1
-                     call sort_cflow(aatm,a,natm,next,cflow(1,ncf))
-                  enddo 
-               enddo
-            enddo
-         enddo
-      elseif (natm.eq.5) then
-         do k1 = 1,maxk(1)
-            do k2 = 1,maxk(2)
-               do k3 = 1,maxk(3)
-                  do k4 = 1,maxk(4)
-                     do k5 = 1,maxk(5)
-                        do j = 1,2
-                           aatm(j,1) = atm(mod(j*k1,3),1)
-                           aatm(j,2) = atm(mod(j*k2,3),2)
-                           aatm(j,3) = atm(mod(j*k3,3),3)
-                           aatm(j,4) = atm(mod(j*k4,3),4)
-                           aatm(j,5) = atm(mod(j*k5,3),5)
-                        enddo
-                        ncf = ncf +1
-                        call sort_cflow(aatm,a,natm,next,cflow(1,ncf))
-                     enddo
-                  enddo 
-               enddo
-            enddo
-         enddo      
-      elseif (natm.eq.6) then
-         do k1 = 1,maxk(1)
-            do k2 = 1,maxk(2)
-               do k3 = 1,maxk(3)
-                  do k4 = 1,maxk(4)
-                     do k5 = 1,maxk(5)
-                        do k6 = 1,maxk(6)
-                           do j = 1,2
-                              aatm(j,1) = atm(mod(j*k1,3),1)
-                              aatm(j,2) = atm(mod(j*k2,3),2)
-                              aatm(j,3) = atm(mod(j*k3,3),3)
-                              aatm(j,4) = atm(mod(j*k4,3),4)
-                              aatm(j,5) = atm(mod(j*k5,3),5)
-                              aatm(j,6) = atm(mod(j*k6,3),6)
-                           enddo
-                           ncf = ncf +1
-                          call sort_cflow(aatm,a,natm,next,cflow(1,ncf))
-                        enddo
-                     enddo
-                  enddo 
-               enddo
-            enddo
-         enddo      
-      elseif (natm.eq.7) then
-         do k1 = 1,maxk(1)
-            do k2 = 1,maxk(2)
-               do k3 = 1,maxk(3)
-                  do k4 = 1,maxk(4)
-                     do k5 = 1,maxk(5)
-                        do k6 = 1,maxk(6)
-                           do k7 = 1,maxk(7)
-                              do j = 1,2
-                                 aatm(j,1) = atm(mod(j*k1,3),1)
-                                 aatm(j,2) = atm(mod(j*k2,3),2)
-                                 aatm(j,3) = atm(mod(j*k3,3),3)
-                                 aatm(j,4) = atm(mod(j*k4,3),4)
-                                 aatm(j,5) = atm(mod(j*k5,3),5)
-                                 aatm(j,6) = atm(mod(j*k6,3),6)
-                                 aatm(j,7) = atm(mod(j*k7,3),7)
-                              enddo
-                              ncf = ncf +1
-                          call sort_cflow(aatm,a,natm,next,cflow(1,ncf))
-                       enddo
-                    enddo
-                 enddo
-              enddo 
-           enddo
-        enddo
-      enddo      
-      elseif (natm.eq.8) then
-         do k1 = 1,maxk(1)
-            do k2 = 1,maxk(2)
-               do k3 = 1,maxk(3)
-                  do k4 = 1,maxk(4)
-                     do k5 = 1,maxk(5)
-                        do k6 = 1,maxk(6)
-                           do k7 = 1,maxk(7)
-                              do k8 = 1,maxk(8)
-                                 do j = 1,2
-                                    aatm(j,1) = atm(mod(j*k1,3),1)
-                                    aatm(j,2) = atm(mod(j*k2,3),2)
-                                    aatm(j,3) = atm(mod(j*k3,3),3)
-                                    aatm(j,4) = atm(mod(j*k4,3),4)
-                                    aatm(j,5) = atm(mod(j*k5,3),5)
-                                    aatm(j,6) = atm(mod(j*k6,3),6)
-                                    aatm(j,7) = atm(mod(j*k7,3),7)
-                                    aatm(j,8) = atm(mod(j*k8,3),8)
-                                 enddo
-                                 ncf = ncf +1
-                          call sort_cflow(aatm,a,natm,next,cflow(1,ncf))
-                              enddo
-                           enddo
-                        enddo
-                     enddo
-                  enddo 
-               enddo
-            enddo
-         enddo
-      endif
+      IF (NATM.EQ.3) THEN
+        DO K1 = 1,MAXK(1)
+          DO K2 = 1,MAXK(2)
+            DO K3 = 1,MAXK(3)
+              DO J = 1,2
+                AATM(J,1) = ATM(MOD(J*K1,3),1)
+                AATM(J,2) = ATM(MOD(J*K2,3),2)
+                AATM(J,3) = ATM(MOD(J*K3,3),3)
+              ENDDO
+              NCF = NCF +1
+              CALL SORT_CFLOW(AATM,A,NATM,NEXT,CFLOW(1,NCF))
+            ENDDO
+          ENDDO
+        ENDDO
+      ELSEIF (NATM.EQ.4) THEN
+        DO K1 = 1,MAXK(1)
+          DO K2 = 1,MAXK(2)
+            DO K3 = 1,MAXK(3)
+              DO K4 = 1,MAXK(4)
+                DO J = 1,2
+                  AATM(J,1) = ATM(MOD(J*K1,3),1)
+                  AATM(J,2) = ATM(MOD(J*K2,3),2)
+                  AATM(J,3) = ATM(MOD(J*K3,3),3)
+                  AATM(J,4) = ATM(MOD(J*K4,3),4)
+                ENDDO
+                NCF = NCF +1
+                CALL SORT_CFLOW(AATM,A,NATM,NEXT,CFLOW(1,NCF))
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDDO
+      ELSEIF (NATM.EQ.5) THEN
+        DO K1 = 1,MAXK(1)
+          DO K2 = 1,MAXK(2)
+            DO K3 = 1,MAXK(3)
+              DO K4 = 1,MAXK(4)
+                DO K5 = 1,MAXK(5)
+                  DO J = 1,2
+                    AATM(J,1) = ATM(MOD(J*K1,3),1)
+                    AATM(J,2) = ATM(MOD(J*K2,3),2)
+                    AATM(J,3) = ATM(MOD(J*K3,3),3)
+                    AATM(J,4) = ATM(MOD(J*K4,3),4)
+                    AATM(J,5) = ATM(MOD(J*K5,3),5)
+                  ENDDO
+                  NCF = NCF +1
+                  CALL SORT_CFLOW(AATM,A,NATM,NEXT,CFLOW(1,NCF))
+                ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDDO
+      ELSEIF (NATM.EQ.6) THEN
+        DO K1 = 1,MAXK(1)
+          DO K2 = 1,MAXK(2)
+            DO K3 = 1,MAXK(3)
+              DO K4 = 1,MAXK(4)
+                DO K5 = 1,MAXK(5)
+                  DO K6 = 1,MAXK(6)
+                    DO J = 1,2
+                      AATM(J,1) = ATM(MOD(J*K1,3),1)
+                      AATM(J,2) = ATM(MOD(J*K2,3),2)
+                      AATM(J,3) = ATM(MOD(J*K3,3),3)
+                      AATM(J,4) = ATM(MOD(J*K4,3),4)
+                      AATM(J,5) = ATM(MOD(J*K5,3),5)
+                      AATM(J,6) = ATM(MOD(J*K6,3),6)
+                    ENDDO
+                    NCF = NCF +1
+                    CALL SORT_CFLOW(AATM,A,NATM,NEXT,CFLOW(1,NCF))
+                  ENDDO
+                ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDDO
+      ELSEIF (NATM.EQ.7) THEN
+        DO K1 = 1,MAXK(1)
+          DO K2 = 1,MAXK(2)
+            DO K3 = 1,MAXK(3)
+              DO K4 = 1,MAXK(4)
+                DO K5 = 1,MAXK(5)
+                  DO K6 = 1,MAXK(6)
+                    DO K7 = 1,MAXK(7)
+                      DO J = 1,2
+                        AATM(J,1) = ATM(MOD(J*K1,3),1)
+                        AATM(J,2) = ATM(MOD(J*K2,3),2)
+                        AATM(J,3) = ATM(MOD(J*K3,3),3)
+                        AATM(J,4) = ATM(MOD(J*K4,3),4)
+                        AATM(J,5) = ATM(MOD(J*K5,3),5)
+                        AATM(J,6) = ATM(MOD(J*K6,3),6)
+                        AATM(J,7) = ATM(MOD(J*K7,3),7)
+                      ENDDO
+                      NCF = NCF +1
+                      CALL SORT_CFLOW(AATM,A,NATM,NEXT,CFLOW(1,NCF))
+                    ENDDO
+                  ENDDO
+                ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDDO
+      ELSEIF (NATM.EQ.8) THEN
+        DO K1 = 1,MAXK(1)
+          DO K2 = 1,MAXK(2)
+            DO K3 = 1,MAXK(3)
+              DO K4 = 1,MAXK(4)
+                DO K5 = 1,MAXK(5)
+                  DO K6 = 1,MAXK(6)
+                    DO K7 = 1,MAXK(7)
+                      DO K8 = 1,MAXK(8)
+                        DO J = 1,2
+                          AATM(J,1) = ATM(MOD(J*K1,3),1)
+                          AATM(J,2) = ATM(MOD(J*K2,3),2)
+                          AATM(J,3) = ATM(MOD(J*K3,3),3)
+                          AATM(J,4) = ATM(MOD(J*K4,3),4)
+                          AATM(J,5) = ATM(MOD(J*K5,3),5)
+                          AATM(J,6) = ATM(MOD(J*K6,3),6)
+                          AATM(J,7) = ATM(MOD(J*K7,3),7)
+                          AATM(J,8) = ATM(MOD(J*K8,3),8)
+                        ENDDO
+                        NCF = NCF +1
+                        CALL SORT_CFLOW(AATM,A,NATM,NEXT,CFLOW(1,NCF))
+                      ENDDO
+                    ENDDO
+                  ENDDO
+                ENDDO
+              ENDDO
+            ENDDO
+          ENDDO
+        ENDDO
+      ENDIF
 
-      return
-      end
-      
+      RETURN
+      END
 
-      subroutine sort_cflow(atm,ia,natm,next,cflow)
+
+      SUBROUTINE SORT_CFLOW(ATM,IA,NATM,NEXT,CFLOW)
 C     ****************************************************
 C     By Yoshitaro Takaesu @KIAS AUG 25 2012
-C
-C     
 C     ****************************************************
-      implicit none
-
+      IMPLICIT NONE
 C     GLOBAL VARIABLES
-
 C     CONSTANTS
-
 C     ARGUMENTS 
-      integer natm,next
-      integer ia(natm),cflow(next),atm(2,natm)
+      INTEGER NATM,NEXT
+      INTEGER IA(*),CFLOW(*),ATM(2,*)
 C     LOCAL VARIABLES 
-      integer i,j,cfpos
+      INTEGER I,J,CFPOS
 C     EXTERNAL FUNCTIONS
-
 C     ----------
 C     BEGIN CODE
 C     ----------
-      cfpos = 0
-      do i = 1,natm
-         do j = 1,2
-            if (atm(j,ia(i)).ne.0) then
-               cfpos = cfpos +1
-               cflow(cfpos) = atm(j,ia(i))
-            endif
-         enddo
-      enddo
+      CFPOS = 0
+      DO I = 1,NATM
+        DO J = 1,2
+          IF (ATM(J,IA(I)).NE.0) THEN
+            CFPOS = CFPOS +1
+            CFLOW(CFPOS) = ATM(J,IA(I))
+          ENDIF
+        ENDDO
+      ENDDO
 
-      return
-      end
-
+      RETURN
+      END
