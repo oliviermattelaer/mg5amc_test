@@ -16,7 +16,7 @@ C     ARGUMENTS
 C     LOCAL VARIABLES 
       INTEGER I,J,K
       INTEGER NATM,MAX_CH,MAX_CHCF,IERR
-      PARAMETER (NATM=INT(MAX_PARTICLES/2D0)+1)
+      PARAMETER (NATM=MAX_PARTICLES -2)
       PARAMETER (MAX_CH=10000,MAX_CHCF=%(nperms)i)
       INTEGER ATM(2,NATM),CF(MAX_PARTICLES,MAX_CH)
       INTEGER CFNUM(MAX_CHCF,MAX_CH)
@@ -54,7 +54,7 @@ C     ncf = fact(ngluons -1)
 
 C     open(1,file="chcf_table.dat",status='replace')
 C     do i = 1,nperms
-C     write(1,*) i,(KEEP(j,i),j=1,ndiags)
+C      write(1,*) i,(CF_BASIS(j,i),j=1,ndiags)
 C     enddo
 C     close(1)
 C     call write_output2(ngluons,ch_cf,nchcf,ndiag,nperms,KEEP)
@@ -84,79 +84,88 @@ C     GLOBAL VARIABLES
       COMMON/TO_MCONFIGS/MAPCONFIG, THIS_CONFIG
 C     LOCAL VARIABLES
       INTEGER I
-C     include 'configs.inc'
+c      include 'configs.inc'
+      integer MAXNPROP,NEXT,NFIN
+      parameter (NEXT=MAX_PARTICLES,NFIN=MAX_PARTICLES-2)
+      parameter (MAXNPROP=-1*NFIN+1)
       INTEGER ATM(2,20),IPROP(MAX_NATM),NT,NS
-      INTEGER IUSED(MAX_PARTICLES),IPOST,IPOSS,IDIAG,NEXT,NFIN,IPOS
-      INTEGER MAXNPROP,IPOS_TMP,NN,IPOS_TMP2,ATM1(10),IATM1(10)
-      INTEGER PROP2_1,PROP2_2
+      INTEGER IUSED(MAX_PARTICLES),IPOST,IPOSS,IDIAG,IPOS
+      INTEGER IPOS_TMP,NN,IPOS_TMP2,ATM1(10),IATM1(10)
+      INTEGER PROP2_1,PROP2_2,iused_prop(-1*nfin+1:-1)
 C     EXTERNAL FUNCTIONS
 C     ----------
 C     BEGIN CODE
 C     ----------
 C     Initialization
       IDIAG = ICH
-      NEXT = MAX_PARTICLES
-      NFIN = NEXT -2
-      MAXNPROP = -1*NFIN  ! the numbering of the external line of particle 2
       IPOS_TMP = 9  ! temporary atm number for s-splitting atm attached to particle 2
+      do i = 1,max_natm
+         atm(1,i) = 0
+         atm(2,i) = 0
+      enddo
+      do i = MAXNPROP,-1,1
+         iused_prop(i) = 0
+      enddo
       ATM(1,1) = 1
       ATM(1,2) = 2
+      IPOS = 2
 C     inerpriting iforest information into atm information
-      PROP2_1 = IFOREST(1,MAXNPROP,IDIAG)
-      PROP2_2 = IFOREST(2,MAXNPROP,IDIAG)
+      PROP2_1 = IFOREST(1,MAXNPROP-1,IDIAG)
+      PROP2_2 = IFOREST(2,MAXNPROP-1,IDIAG)
 C     store a splitting leg attached to the particle 2
       IF ((PROP2_1.LT.0).AND.(SPROP(1,MIN(PROP2_1,-1),IDIAG).NE.0)) THEN
-        IPOS_TMP = IPOS_TMP +1
-        ATM(1,IPOS_TMP) = IFOREST(1,PROP2_1,IDIAG)
-        ATM(2,IPOS_TMP) = IFOREST(2,PROP2_1,IDIAG)
+        IPOS = IPOS +1
+        ATM(1,IPOS) = IFOREST(1,PROP2_1,IDIAG)
+        ATM(2,IPOS) = IFOREST(2,PROP2_1,IDIAG)
         ATM(2,2) = 0
+        iused_prop(prop2_1) = 1
       ELSEIF ((PROP2_2.LT.0).AND.(SPROP(1,MIN(PROP2_2,-1),IDIAG).NE.0)) THEN
-        IPOS_TMP = IPOS_TMP +1
-        ATM(1,IPOS_TMP) = IFOREST(1,PROP2_2,IDIAG)
-        ATM(2,IPOS_TMP) = IFOREST(2,PROP2_2,IDIAG)
+        IPOS = IPOS +1
+        ATM(1,IPOS) = IFOREST(1,PROP2_2,IDIAG)
+        ATM(2,IPOS) = IFOREST(2,PROP2_2,IDIAG)
         ATM(2,2) = 0
+        iused_prop(prop2_2) = 1
 C       store an external attached to the particle 2
       ELSE
-        IF (IFOREST(2,MAXNPROP,IDIAG).GT.0) THEN
-          ATM(2,2) = IFOREST(2,MAXNPROP,IDIAG)
+        IF (IFOREST(2,MAXNPROP-1,IDIAG).GT.0) THEN
+          ATM(2,2) = IFOREST(2,MAXNPROP-1,IDIAG)
         ELSE
-          ATM(2,2) = 0
-        ENDIF
+         write(*,*) "ERROR: atm for particle 2 is not set appropretely."
+           return
+       ENDIF
       ENDIF
 
-      IPOS = 2
       IPOS_TMP2 = 10
-      IPROP(1) = 0
-      DO I = MAXNPROP+1,-1,1
-        IF (I.ne.IPROP(1)) then
-C       check atm1
-        IF (IFOREST(1,I,IDIAG).EQ.1) THEN
-C         store an external leg attarched to the particle 1
-          IF (IFOREST(2,I,IDIAG).GT.0) THEN
-            ATM(2,1) = IFOREST(2,I,IDIAG)
-            IPROP(1) = 0
-C           store a splitting leg attached to the particle 1
-          ELSE
-            IPOS = IPOS +1
-            ATM(2,1) = 0
-            IPROP(1) = IFOREST(2,I,IDIAG)
-            ATM(1,IPOS) = IFOREST(1,IPROP(1),IDIAG)
-            ATM(2,IPOS) = IFOREST(2,IPROP(1),IDIAG)
+      DO I = MAXNPROP,-1,1
+        IF (iused_prop(i).ne.1) THEN
+C         check atm1
+          IF (IFOREST(1,I,IDIAG).EQ.1) THEN
+C           store an external leg attarched to the particle 1
+            IF (IFOREST(2,I,IDIAG).GT.0) THEN
+              ATM(2,1) = IFOREST(2,I,IDIAG)
+C             store a splitting leg attached to the particle 1
+            ELSE
+              IPOS_TMP = IPOS_TMP +1
+              ATM(2,1) = 0
+              IPROP(1) = IFOREST(2,I,IDIAG)
+              ATM(1,IPOS_TMP) = IFOREST(1,IPROP(1),IDIAG)
+              ATM(2,IPOS_TMP) = IFOREST(2,IPROP(1),IDIAG)
+              iused_prop(iprop(1)) = 1
+            ENDIF
+C           check the rest of external legs
+          ELSEIF (IFOREST(2,I,IDIAG).GT.0) THEN
+C           store an external leg attached to a propagator
+            IF (IFOREST(1,I,IDIAG).LT.0) THEN
+              IPOS_TMP2 = IPOS_TMP2 +1
+              ATM(1,IPOS_TMP2) = IFOREST(2,I,IDIAG)
+              ATM(2,IPOS_TMP2) = 0
+C             store a splitting leg attached to a propagator
+            ELSEIF (IFOREST(1,I,IDIAG).GT.0) THEN
+              IPOS_TMP2 = IPOS_TMP2 +1
+              ATM(1,IPOS_TMP2) = IFOREST(1,I,IDIAG)
+              ATM(2,IPOS_TMP2) = IFOREST(2,I,IDIAG)
+            ENDIF
           ENDIF
-C         check the rest of external legs
-        ELSEIF (IFOREST(2,I,IDIAG).GT.0) THEN
-C         store an external leg attached to a propagator
-          IF (IFOREST(1,I,IDIAG).LT.0) THEN
-            IPOS_TMP2 = IPOS_TMP2 +1
-            ATM(1,IPOS_TMP2) = IFOREST(2,I,IDIAG)
-            ATM(2,IPOS_TMP2) = 0
-C           store a splitting leg attached to a propagator
-          ELSEIF (IFOREST(1,I,IDIAG).GT.0) THEN
-            IPOS_TMP2 = IPOS_TMP2 +1
-            ATM(1,IPOS_TMP2) = IFOREST(1,I,IDIAG)
-            ATM(2,IPOS_TMP2) = IFOREST(2,I,IDIAG)
-          ENDIF
-        ENDIF
         ENDIF
       ENDDO
 
@@ -172,9 +181,9 @@ C     sort the atm's ascendent order w.r.t the first element, atm(1,*)
         ATM(2,IPOS) = ATM(2,IATM1(I)+10)
       ENDDO
       IF (IPOS_TMP.EQ.10) THEN
-         IPOS = IPOS +1
-         ATM(1,IPOS) = ATM(1,IPOS_TMP)
-         ATM(2,IPOS) = ATM(2,IPOS_TMP)
+        IPOS = IPOS +1
+        ATM(1,IPOS) = ATM(1,IPOS_TMP)
+        ATM(2,IPOS) = ATM(2,IPOS_TMP)
       ENDIF
 
       DO I = 1,MAX_NATM
