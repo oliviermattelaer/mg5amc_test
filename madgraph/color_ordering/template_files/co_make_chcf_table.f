@@ -15,10 +15,10 @@ C     GLOBAL VARIABLES
 C     ARGUMENTS
 C     LOCAL VARIABLES 
       INTEGER I,J,K
-      INTEGER NATM,MAX_CH,MAX_CHCF,IERR
-      PARAMETER (NATM=MAX_PARTICLES -2)
+      INTEGER MAX_NATM,NATM,MAX_CH,MAX_CHCF,IERR
+      PARAMETER (MAX_NATM=MAX_PARTICLES -2)
       PARAMETER (MAX_CH=10000,MAX_CHCF=%(nperms)i)
-      INTEGER ATM(2,NATM),CF(MAX_PARTICLES,MAX_CH)
+      INTEGER ATM(2,MAX_NATM),CF(MAX_PARTICLES,MAX_CH)
       INTEGER CFNUM(MAX_CHCF,MAX_CH)
       INTEGER NDIAG,NGLUONS,NCF,NCHCF(MAX_CH)
       INTEGER CH_CF(MAX_PARTICLES,MAX_CHCF,MAX_CH)
@@ -29,9 +29,7 @@ C     EXTERNAL FUNCTIONS
 C     ----------
 C     BEGIN CODE
 C     ----------
-C     ndiag = lmaxconfigs
       NGLUONS = MAX_PARTICLES
-C     ncf = fact(ngluons -1)
       DO I = 1,NDIAGS
         DO J = 1,NPERMS
           CF_BASIS(I,J) = .FALSE.
@@ -39,7 +37,7 @@ C     ncf = fact(ngluons -1)
       ENDDO
 
       DO I = 1,NDIAGS
-        CALL MAKE_ATM(I,ATM,NATM)
+        CALL MAKE_ATM(I,MAX_NATM,ATM,NATM)
         CALL FIND_PERCHCF(NGLUONS,NATM,ATM,CH_CF(1,1,I),CFNUM(1,I),NCHCF(I))
 
         DO J = 1,NCHCF(I)
@@ -52,17 +50,10 @@ C     ncf = fact(ngluons -1)
         ENDDO
       ENDDO
 
-C     open(1,file="chcf_table.dat",status='replace')
-C     do i = 1,nperms
-C      write(1,*) i,(CF_BASIS(j,i),j=1,ndiags)
-C     enddo
-C     close(1)
-C     call write_output2(ngluons,ch_cf,nchcf,ndiag,nperms,KEEP)
-
       END
 
 
-      SUBROUTINE MAKE_ATM(ICH,ATM_OUT,MAX_NATM)
+      SUBROUTINE MAKE_ATM(ICH,MAX_NATM,ATM_OUT,NATM)
 C     ****************************************************
 C     By Yoshitaro Takaesu @U.tokyo Jun.25 2014
 C     ****************************************************
@@ -72,7 +63,7 @@ C     CONSTANTS
       INCLUDE 'genps.inc'
       INCLUDE 'maxamps.inc'
 C     ARGUMENTS 
-      INTEGER MAX_NATM,ICH
+      INTEGER MAX_NATM,ICH,NATM
       INTEGER ATM_OUT(2,MAX_NATM)
 C     GLOBAL VARIABLES
       INTEGER IFOREST(2,-MAX_BRANCH:-1,LMAXCONFIGS)
@@ -186,9 +177,16 @@ C     sort the atm's ascendent order w.r.t the first element, atm(1,*)
         ATM(2,IPOS) = ATM(2,IPOS_TMP)
       ENDIF
 
+      natm = max_natm
       DO I = 1,MAX_NATM
-        ATM_OUT(1,I) = ATM(1,I)
-        ATM_OUT(2,I) = ATM(2,I)
+         if (atm(1,i).eq.0) then
+            natm = natm -1
+            ATM_OUT(1,I) = 0
+            ATM_OUT(2,I) = 0
+         ELSE
+            ATM_OUT(1,I) = ATM(1,I)
+            ATM_OUT(2,I) = ATM(2,I)
+         ENDIF
       ENDDO
 
       RETURN
@@ -238,7 +236,7 @@ C     ARGUMENTS
 C     GLOBAL VARIABLES
 C     LOCAL VARIABLES 
       INTEGER I,J,K
-      INTEGER IFLAG,NPERM,POS2,IERR,A(NATM),NNCF,MAXK(NATM)
+      INTEGER IFLAG,NPERM,POS2,IERR,A(NATM+1),NNCF,MAXK(NATM)
       INTEGER CFLOWTMP
 C     EXTERNAL FUNCTIONS
       INTEGER FACT
@@ -250,6 +248,7 @@ C     ----------
       DO I = 1,NATM
         A(I) = I
       ENDDO
+      A(NATM+1) = 0
       DO I = 1,NATM
         MAXK(I) = 1
         IF (ATM(2,I).NE.0) MAXK(I) = 2
@@ -264,25 +263,30 @@ C     ----------
         DO J = 2,NATM
           IF (A(J).EQ.2) POS2 = J
         ENDDO
-        IERR = 0
-        DO J = 2,POS2-2
-          DO K = J+1,POS2-1
-            IF (A(J).LT.A(K)) IERR = 1
-          ENDDO
-        ENDDO
-        IF (IERR.NE.0) CYCLE
-        IERR = 0
-        DO J = POS2+1,NATM-1
-          DO K = J+1,NATM
-            IF (A(J).GT.A(K)) IERR = 1
-          ENDDO
-        ENDDO
+
+        IERR = 1
+        if (atm(2,1)+atm(2,2).eq.0) then
+           if ((a(pos2+1).eq.3).or.(a(pos2-1).eq.3)) then
+              if ((a(natm).eq.natm).or.(a(2).eq.natm)) ierr = 0
+           endif
+           if ((a(natm).eq.3).or.(a(2).eq.3)) then
+              if ((a(pos2+1).eq.natm).or.(a(pos2-1).eq.natm)) ierr = 0
+           ENDIF
+        elseif (atm(2,1).eq.0) then
+           if ((a(2).eq.natm).or.(a(natm).eq.natm)) ierr = 0
+        elseif (atm(2,2).eq.0) then
+           if ((a(pos2-1).eq.3).or.(a(pos2+1).eq.3)) ierr = 0
+        ELSE
+           ierr = 0
+        ENDIF
         IF (IERR.NE.0) CYCLE
 
         CALL GET_CFLOW(NEXT,NATM,ATM,A,MAXK,NNCF,CFLOW(1,NCF+1))
         NCF = NCF +NNCF
       ENDDO
 
+c     Put the first element of CFLOW to the end if CFLOW(1) =! 1
+c     ex) 31245 -> 12453
       DO I = 1,NCF
         IF (CFLOW(1,I).NE.1) THEN
           CFLOWTMP = CFLOW(1,I)
@@ -317,98 +321,14 @@ C     EXTERNAL FUNCTIONS
 C     ----------
 C     BEGIN CODE
 C     ----------
-      IFLAG = 0
       NCF = 0
-      IERR = 0
-      DO I = 3,NATM
-        A(I) = I
-      ENDDO
       DO I = 1,NATM
         AATM(1,I) = ATM(1,I)
         AATM(2,I) = ATM(2,I)
       ENDDO
 
-      IF ((ATM(2,1)*ATM(2,2)).NE.0) THEN
-        NPERM = FACT(NATM-2)
-        DO I = 1,NPERM
-          IF (I.NE.1) THEN
-            CALL IPNEXT(A(3),NATM-2,IFLAG)
-          ENDIF
-          DO J = 3,NATM
-            AATM(1,J) = ATM(1,A(J))
-            AATM(2,J) = ATM(2,A(J))
-          ENDDO
-          CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
-          NCF = NCF +INCF
-        ENDDO
-      ELSEIF ((ATM(2,1).EQ.0).AND.(ATM(2,2).NE.0)) THEN
-        NPERM = FACT(NATM-3)
-        DO I = 1,NPERM
-          IF (I.NE.1) THEN
-            CALL IPNEXT(A(3),NATM-3,IFLAG)
-          ENDIF
-          DO J = 3,NATM-1
-            AATM(1,J) = ATM(1,A(J))
-            AATM(2,J) = ATM(2,A(J))
-          ENDDO
-          CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
-          NCF = NCF +INCF
-        ENDDO
-      ELSEIF ((ATM(2,1).NE.0).AND.(ATM(2,2).EQ.0)) THEN
-        NPERM = FACT(NATM-3)
-        DO I = 1,NPERM
-          IF (I.NE.1) THEN
-            CALL IPNEXT(A(4),NATM-3,IFLAG)
-          ENDIF
-          DO J = 4,NATM
-            AATM(1,J) = ATM(1,A(J))
-            AATM(2,J) = ATM(2,A(J))
-          ENDDO
-          CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
-          NCF = NCF +INCF
-        ENDDO
-      ELSEIF ((ATM(2,1).EQ.0).AND.(ATM(2,2).EQ.0)) THEN
-        NPERM = FACT(NATM-4)
-        DO I = 1,NPERM
-          IF (I.NE.1) THEN
-            CALL IPNEXT(A(4),NATM-4,IFLAG)
-          ENDIF
-          DO J = 4,NATM-1
-            AATM(1,J) = ATM(1,A(J))
-            AATM(2,J) = ATM(2,A(J))
-          ENDDO
-          CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
-          NCF = NCF +INCF
-        ENDDO
-        DO I = 1,NATM
-          AATM(1,I) = ATM(1,I)
-          AATM(2,I) = ATM(2,I)
-        ENDDO
-        AATM(1,3) = ATM(1,NATM)
-        AATM(2,3) = ATM(2,NATM)
-        AATM(1,NATM) = ATM(1,3)
-        AATM(2,NATM) = ATM(2,3)
-
-        DO I = 1,NATM
-          AAATM(1,I) = AATM(1,I)
-          AAATM(2,I) = AATM(2,I)
-        ENDDO
-        IFLAG = 0
-        DO I = 1,NATM
-          A(I) = I
-        ENDDO
-        DO I = 1,NPERM
-          IF (I.NE.1) THEN
-            CALL IPNEXT(A(4),NATM-4,IFLAG)
-          ENDIF
-          DO J = 4,NATM-1
-            AAATM(1,J) = AATM(1,A(J))
-            AAATM(2,J) = AATM(2,A(J))
-          ENDDO
-          CALL FIND_CHCF(NEXT,NATM,AAATM,CFLOW(1,NCF+1),INCF)
-          NCF = NCF +INCF
-        ENDDO
-      ENDIF
+      CALL FIND_CHCF(NEXT,NATM,AATM,CFLOW(1,NCF+1),INCF)
+      NCF = NCF +INCF
 
 C     Get color-flow numbers of each channel
       DO I = 1,NCF
