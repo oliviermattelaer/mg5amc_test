@@ -1,0 +1,12 @@
+ # MadLoop.mg5
+ # Created for heft-mergin + reweighting
+
+ import model loop_sm                                                          
+ add process           21          21  >          25  QED=           1  QCD=           1  [virt=QCD] @            1
+ add process           21          21  >          21          25  QED=           1  QCD=           2  [virt=QCD] @            2
+ add process           21           1  >          25           1  QED=           1  QCD=           2  [virt=QCD] @            3
+ add process            1          -1  >          21          25  QED=           1  QCD=           2  [virt=QCD] @            4
+ add process           21          -5  >          25          21          -5  QED=           1  QCD=           3  [virt=QCD] @            5
+ add process            2          21  >          25          21           2  QED=           1  QCD=           3  [virt=QCD] @            6
+ output ML5lib_reweight
+ launch -f

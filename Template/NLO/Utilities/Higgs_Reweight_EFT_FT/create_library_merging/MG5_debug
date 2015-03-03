@@ -1,0 +1,106 @@
+#************************************************************
+#*                     MadGraph5_aMC@NLO                    *
+#*                                                          *
+#*                *                       *                 *
+#*                  *        * *        *                   *
+#*                    * * * * 5 * * * *                     *
+#*                  *        * *        *                   *
+#*                *                       *                 *
+#*                                                          *
+#*                                                          *
+#*         VERSION 2.2.1                 2014-09-25         *
+#*                                                          *
+#*    The MadGraph5_aMC@NLO Development Team - Find us at   *
+#*    https://server06.fynu.ucl.ac.be/projects/madgraph     *
+#*                                                          *
+#************************************************************
+#*                                                          *
+#*               Command File for MadGraph5_aMC@NLO         *
+#*                                                          *
+#*     run as ./bin/mg5_aMC  filename                       *
+#*                                                          *
+#************************************************************
+set group_subprocesses Auto
+set ignore_six_quark_processes False
+set loop_optimized_output True
+set complex_mass_scheme False
+import model loop_sm
+define p = g u c d s u~ c~ d~ s~
+define j = g u c d s u~ c~ d~ s~
+define l+ = e+ mu+
+define l- = e- mu-
+define vl = ve vm vt
+define vl~ = ve~ vm~ vt~
+output ML5lib_reweight
+Traceback (most recent call last):
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/extended_cmd.py", line 879, in onecmd
+    return self.onecmd_orig(line, **opt)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/extended_cmd.py", line 872, in onecmd_orig
+    return func(arg, **opt)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/master_interface.py", line 253, in do_import
+    self.cmd.do_import(self, *args, **opts)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/madgraph_interface.py", line 4179, in do_import
+    self.import_command_file(args[1])
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/extended_cmd.py", line 1035, in import_command_file
+    self.exec_cmd(line, precmd=True)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/extended_cmd.py", line 919, in exec_cmd
+    stop = Cmd.onecmd_orig(current_interface, line, **opt)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/extended_cmd.py", line 872, in onecmd_orig
+    return func(arg, **opt)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/master_interface.py", line 271, in do_output
+    self.cmd.do_output(self, line, *args, **opts)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/amcatnlo_interface.py", line 443, in do_output
+    self.check_output(args)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/master_interface.py", line 277, in check_output
+    self.cmd.check_output(self, arg, *args, **opts)
+  File "/Users/Mars/Uni/Codes/MG5_aMC/MG5_aMC_v2_2_3_experimental/madgraph/interface/amcatnlo_interface.py", line 93, in check_output
+    raise self.InvalidCmd(text)
+InvalidCmd: No processes generated. Please generate a process first.
+                          MadGraph5_aMC@NLO Options    
+                          ----------------    
+               stdout_level 	:	10 (user set)
+         group_subprocesses 	:	Auto
+  ignore_six_quark_processes 	:	False
+      loop_optimized_output 	:	True
+                      gauge 	:	unitary
+        complex_mass_scheme 	:	False
+
+                         MadEvent Options    
+                          ----------------    
+     automatic_html_opening 	:	True
+                    nb_core 	:	None
+                   run_mode 	:	2
+
+                      Configuration Options    
+                      ---------------------    
+                web_browser 	:	None
+                text_editor 	:	None
+          cluster_temp_path 	:	None
+                    timeout 	:	60
+              cluster_queue 	:	None
+           madanalysis_path 	:	./MadAnalysis
+                     lhapdf 	:	lhapdf-config
+         cluster_retry_wait 	:	300
+                      pjfry 	:	None (user set)
+      cluster_status_update 	:	(600, 30)
+                 hepmc_path 	:	None (user set)
+               pythia8_path 	:	None (user set)
+                  hwpp_path 	:	None (user set)
+                    amcfast 	:	amcfast-config
+                      golem 	:	None (user set)
+        output_dependencies 	:	external
+            pythia-pgs_path 	:	./pythia-pgs
+                    td_path 	:	./td
+               delphes_path 	:	./Delphes
+                thepeg_path 	:	None (user set)
+               cluster_type 	:	condor
+           cluster_nb_retry 	:	1
+           fortran_compiler 	:	None
+                        OLP 	:	MadLoop
+                auto_update 	:	7
+        exrootanalysis_path 	:	./ExRootAnalysis
+                   applgrid 	:	applgrid-config
+                 eps_viewer 	:	None
+               syscalc_path 	:	./SysCalc
+                    fastjet 	:	None (user set)
+               cpp_compiler 	:	None
