@@ -578,9 +578,9 @@ c do the same as above for the counterevents
       icontr=n_ctr_found
       iwgt=1
       do i=1,icontr
-         read(n_ctr_str(i),*)(wgt(j,i),j=1,3),idum,(pdg(j,i),j=1
-     &        ,nexternal),QCDpower(i),(bjx(j,i),j=1,2),(scales2(j,i),j=1
-     &        ,3),momenta_conf,itype(i),nFKS(i),wgts(1,i)
+         read(n_ctr_str(i),*)(wgt(j,i),j=1,3),wgt_ME_tree(i),idum,(pdg(j
+     &        ,i),j=1,nexternal),QCDpower(i),(bjx(j,i),j=1,2),(scales2(j
+     &        ,i),j=1,3),momenta_conf,itype(i),nFKS(i),wgts(1,i)
          do j=1,nexternal
             do k=0,3
                momenta(k,j,i)=momenta_str(k,j,momenta_conf)
