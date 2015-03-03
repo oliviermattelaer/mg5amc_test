@@ -1,0 +1,14 @@
+include ../../Source/make_opts
+
+PROG   = reweight_loop_events2
+LINKLIBS =   -L. -lMadLoopRW
+
+PROCESS= loop_matrix_lib.o boostwdir2.o handling_lhe_events2.o \
+	$(reweight_xsec_events_pdf_dummy) fill_MC_mshell.o \
+	fks_inc_chooser.o leshouche_inc_chooser.o get_color.o
+
+$(PROG):reweight_events_loop2.o $(PROCESS) makefile2 
+	$(FC) $(FFLAGS) -o $(PROG) reweight_events_loop2.o $(PROCESS) $(LINKLIBS)
+
+clean:
+		@rm -f *.o

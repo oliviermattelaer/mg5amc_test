@@ -978,6 +978,9 @@ c        to get the PDG code of the mother. The extra parton is given a
 c        PDG=21 (gluon) code.
 c     If the contribution belongs to an H-event or S-event:
 c        H_event(icontr)
+c     The weight of the born or real-emission matrix element
+c        corresponding to this contribution: wgt_ME_tree. This weight does
+c        include the 'ngluon' correction factor for the Born.
 c
 c Not set in this subroutine, but included in the c_weights common block
 c are the
@@ -1021,6 +1024,13 @@ c        the iproc contribution
       double precision    p1_cnt(0:3,nexternal,-2:2),wgt_cnt(-2:2)
      $                    ,pswgt_cnt(-2:2),jac_cnt(-2:2)
       common/counterevnts/p1_cnt,wgt_cnt,pswgt_cnt,jac_cnt
+      double precision         fkssymmetryfactor,fkssymmetryfactorBorn,
+     &                         fkssymmetryfactorDeg
+      integer                                      ngluons,nquarks(-6:6)
+      common/numberofparticles/fkssymmetryfactor,fkssymmetryfactorBorn,
+     &                         fkssymmetryfactorDeg,ngluons,nquarks
+      double precision       wgt_ME_born,wgt_ME_real
+      common /c_wgt_ME_tree/ wgt_ME_born,wgt_ME_real
       if (wgt1.eq.0d0 .and. wgt2.eq.0d0 .and. wgt3.eq.0d0) return
       icontr=icontr+1
       if (icontr.gt.max_contr) then
@@ -1060,6 +1070,7 @@ c     matrix elements of this contribution.
                momenta(j,i,icontr)=p_ev(j,i)
                if (type.eq.1) then
                   momenta_m(j,i,icontr)=momenta(j,i,icontr)
+                  wgt_ME_tree(icontr)=wgt_me_real
                else
                   if (p1_cnt(0,1,0).gt.0d0) then
                      momenta_m(j,i,icontr)=p1_cnt(j,i,0)
@@ -1071,6 +1082,7 @@ c     matrix elements of this contribution.
                      write (*,*) 'ERROR in add_wgt: no valid momenta'
                      stop 1
                   endif
+                  wgt_ME_tree(icontr)=wgt_me_born*dble(ngluons)
                endif
             enddo
          enddo
@@ -1096,8 +1108,10 @@ c     matrix elements of this contribution.
                endif
                if (type.eq.11) then
                   momenta_m(j,i,icontr)=p_ev(j,i)
+                  wgt_ME_tree(icontr)=wgt_me_real
                else
                   momenta_m(j,i,icontr)=momenta(j,i,icontr)
+                  wgt_ME_tree(icontr)=wgt_me_born*dble(ngluons)
                endif
             enddo
          enddo
@@ -2056,8 +2070,8 @@ c iproc_picked:
             do ii=1,iproc_save(nFKS(ict))
                if (eto(ii,nFKS(ict)).ne.ipr) cycle
                n_ctr_found=n_ctr_found+1
-               write (n_ctr_str(n_ctr_found),'(3(1x,d18.12),1x,i2)')
-     &              (wgt(j,ict)*conv,j=1,3),
+               write (n_ctr_str(n_ctr_found),'(4(1x,d18.12),1x,i2)')
+     &              (wgt(j,ict)*conv,j=1,3),wgt_me_tree(ict),
      &              nexternal
                procid=''
                do j=1,nexternal
@@ -2084,8 +2098,8 @@ c iproc_picked:
 c H-event
             ipr=iproc_picked
             n_ctr_found=n_ctr_found+1
-            write (n_ctr_str(n_ctr_found),'(3(1x,d18.12),1x,i2)')
-     &           (wgt(j,ict)*conv,j=1,3),
+            write (n_ctr_str(n_ctr_found),'(4(1x,d18.12),1x,i2)')
+     &           (wgt(j,ict)*conv,j=1,3),wgt_me_tree(ict),
      &           nexternal
             procid=''
             do j=1,nexternal
