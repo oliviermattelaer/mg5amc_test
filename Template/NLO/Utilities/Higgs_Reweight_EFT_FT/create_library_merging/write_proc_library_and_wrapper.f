@@ -20,7 +20,7 @@
       external nextp
       dimension permut(10)
 
-      model='sm'
+      model='sm-no_b_mass'
       library='ML5lib_reweight'
 
       open (unit=11,file='processes.dat',status='old',err=33)
