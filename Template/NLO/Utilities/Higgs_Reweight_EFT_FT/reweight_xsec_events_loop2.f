@@ -50,8 +50,8 @@ c Compile with makefile_rwgt
      &     ,compute_rwgt_wgt_Hev
       integer i_process
       common/c_i_process/i_process
-      logical reweight_loop_squared
-      parameter (reweight_loop_squared=.true.)
+      logical reweight_loop_squared_var
+      parameter (reweight_loop_squared_var=.true.)
 c
       call setrun                !Sets up run parameters
 
@@ -424,7 +424,7 @@ c Restore default PDFs
         else                      ! kwgtinfo.eq.-5
          
         call fill_wgt_info_from_rwgt_lines
-        if (reweight_loop_squared) call reweight_loop_squared
+        if (reweight_loop_squared_var) call reweight_loop_squared
         if (do_rwgt_scale)call reweight_scale_ext(yfactR,yfactF)
         if (do_rwgt_pdf)  call reweight_pdf_ext
         call fill_rwgt_arrays
@@ -727,10 +727,14 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine reweight_loop_squared
       implicit none
       include 'nexternal.inc'
+      include 'coupl.inc'
       include 'c_weight.inc'
-      integer i
-      double precision wgt_loop_sq,pp(0:3,nexternal)
+      double precision alphas
+      external alphas
+      integer i,ii
+      double precision wgt_loop_sq,pp(0:3,nexternal),scale_muR,pi
       character*200 loop_id
+      pi=4d0*atan(1d0)
 c Loop over all the contributions to this event:
       do i=1,icontr
 c Update the loop_id string used in the loop matrix library to determine
@@ -740,18 +744,19 @@ c Fill the momenta array
          call define_momenta(i,pp)
 c Define the correct strong coupling and update all the couplings that
 c depend on it
-         scale=sqrt(scales2(2,i)
-         g=sqrt(4d0*pi*alphas(scale))
+         scale_muR=sqrt(scales2(2,i))
+         g=sqrt(4d0*pi*alphas(scale_muR))
          call update_as_param()
 c Compute the loop matrix library
          call loop_matrix_lib_wrap(loop_id,pp,wgt_loop_sq)
 c Multiply all the weights by the ratio. Note that this include the
 c coefficients that multiply the log(muR) and log(muF) factors.
          do ii=1,3
-            wgt(ii,i)=wgt(ii,i)*wgt_loop_sq/wgt_ME(i)
+            wgt(ii,i)=wgt(ii,i)*wgt_loop_sq/wgt_ME_tree(i)
          enddo
       enddo
       end
+
       subroutine define_momenta(ic,pp)
 c Fill the momenta array. For the n-body momenta, we need to explicitly
 c sum the momenta of i_fks and j_fks
@@ -791,9 +796,10 @@ c Simple wrapper routine to compute the loop matrix library: it caches
 c the loop matrix element weights of the last 20 calls to this function
 c and uses the value from memory if possible.
       implicit none
-      integer i_replace,ireuse,ii,i,j
+      integer i_replace,ireuse,ii,i,j,isize
       logical momenta_equal
       external momenta_equal
+      include 'nexternal.inc'
       character*200 loop_id_save(20),loop_id
       double precision pp_save(0:3,nexternal,20),pp(0:3
      $     ,nexternal),wgt_loop_sq_save(20),wgt_loop_sq
@@ -808,7 +814,7 @@ c checking with the last call and move back in time
       ii=i_replace
       do i=1,20
          if (loop_id.eq.loop_id_save(ii)) then
-            if (momenta_equal(pp,pp_save(0,1,ii)) then
+            if (momenta_equal(pp,pp_save(0,1,ii))) then
                ireuse=ii
                exit
             endif
@@ -819,10 +825,18 @@ c checking with the last call and move back in time
 c If possible reuse a previous result and exit this subroutine
       if (ireuse.gt.0) then
          if (wgt_loop_sq_save(ireuse).ne.-99d9) then
-            wgt_loop_sq=wgt_loop_sq_save(isave)
+            wgt_loop_sq=wgt_loop_sq_save(ireuse)
             return
          endif
       endif
+
+      write(*,*) loop_id
+      do i=1,nexternal
+         
+            write(*,*) pp(0,i),pp(1,i),pp(2,i),pp(3,i)
+        
+      enddo
+      
 c Calculate a new value: replace the value computed longest ago.
       call loop_matrix_lib(loop_id,pp,wgt_loop_sq)
       i_replace=mod(i_replace,20)+1
@@ -843,8 +857,8 @@ c PDG codes of i_fks and j_fks.
       include 'nexternal.inc'
       include 'c_weight.inc'
       include 'fks_info.inc'
-      integer ic,npart,i,k,id_pdg(nexternal)
-      character*200 loop_id
+      integer ic,npart,i,k,id_pdg(nexternal),j
+      character*200 loop_id,str(nexternal)
       loop_id=' '
       if (itype(ic).eq.1 .or. itype(ic).eq.11) then
 c n+1-body matrix elements
@@ -856,35 +870,35 @@ c n+1-body matrix elements
 c n-body matrix elements
          do k=1,nexternal
             if (k.lt.fks_j_d(nFKS(ic))) then
-               id_pdg(k,ic)=pdg(k,ic)
+               id_pdg(k)=pdg(k,ic)
             elseif(k.eq.fks_j_d(nFKS(ic))) then
                if (abs(pdg(fks_i_d(nFKS(ic)),ic)) .eq.
      &             abs(pdg(fks_j_d(nFKS(ic)),ic))) then
 c gluon splitting:  g -> XX
-                  id_pdg(k,ic)=21
+                  id_pdg(k)=21
                elseif (pdg(fks_i_d(nFKS(ic)),ic).eq.21) then
 c final state gluon radiation:  X -> Xg
-                  id_pdg(k,ic)=pdg(fks_j_d(nFKS(ic)),ic)
+                  id_pdg(k)=pdg(fks_j_d(nFKS(ic)),ic)
                elseif (pdg(fks_j_d(nFKS(ic)),ic).eq.21) then
 c initial state gluon splitting (gluon is j_fks):  g -> XX
-                  id_pdg(k,ic)=-pdg(fks_i_d(nFKS(ic)),ic)
+                  id_pdg(k)=-pdg(fks_i_d(nFKS(ic)),ic)
                else
                   write (*,*)
      &                 'ERROR in PDG assigment for underlying Born'
                   stop 1
                endif
             elseif(k.lt.fks_i_d(nFKS(ic))) then
-               id_pdg(k,ic)=pdg(k,ic)
+               id_pdg(k)=pdg(k,ic)
             elseif(k.eq.nexternal) then
-               id_pdg(k,ic)=0 ! assign '0' for extra particle
+               id_pdg(k)=0 ! assign '0' for extra particle
             elseif(k.ge.fks_i_d(nFKS(ic))) then
-               id_pdg(k,ic)=pdg(k+1,ic)
+               id_pdg(k)=pdg(k+1,ic)
             endif
          enddo
          npart=nexternal-1
       endif
       do j=1,npart
-         write(str(j),'(I3)') id_pdg(j,1)
+         write(str(j),'(I3)') id_pdg(j)
          loop_id=trim(adjustl(loop_id))//' '//trim(adjustl(str(j)))
       enddo
       return
