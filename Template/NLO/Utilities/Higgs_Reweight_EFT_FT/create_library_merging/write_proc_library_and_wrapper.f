@@ -72,7 +72,7 @@ c$$$      print*, 'alphas 1-4',alphas(1),alphas(2),alphas(3),alphas(4)
       write (12,*) '     integer i,j,ans_dim'
       write (12,*) '     double precision P3(0:3,3),P4(0:3,4),P5(0:3,5)'
       write (12,*) '    f     ,P6(0:3,6),P7(0:3,7),P8(0:3,8),P9(0:3,9)'
-      write (12,*) '    f     ,P(0:3,nexternal),ANS(0:3,0:0),WGT'
+      write (12,*) '    f     ,P(0:3,nexternal),ANS(0:3,0:1),WGT'
       write (12,*) '     '
       do j=1,total_proc
 
@@ -133,7 +133,7 @@ com-- do-loop loops over all final state particles to apply permutations
 !         write(12,*) '         enddo'
          write(12,*) '         call ML5_',trim(adjustl(str_j))
      &        ,'_GET_ANSWER_DIMENSION(ans_dim)'
-         write(12,*) '         if (ans_dim.ne.0) then'
+         write(12,*) '         if (ans_dim.ne.1) then'
          write(12,*) '            write (*,*) "ERROR ans_dim not zero",'
      &        //'ans_dim'
          write(12,*) '            stop 1'
