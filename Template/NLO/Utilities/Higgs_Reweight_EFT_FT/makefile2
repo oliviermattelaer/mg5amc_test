@@ -17,18 +17,17 @@ else
 endif
 
 
-LINKLIBS = -L$(LIBDIR) -ldhelas -lgeneric -lmodel -lpdf -lcernlib $(lhapdf)  -L. -lMadLoop
-LIBS = $(LIBDIR)libdhelas.a $(LIBDIR)libgeneric.a $(LIBDIR)libmodel.a	\
-$(LIBDIR)libpdf.a $(LIBDIR)libcernlib.a
+LINKLIBS = -L$(LIBDIR) -lgeneric -lpdf -lcernlib $(lhapdf) -L. -lMadLoopRW 
+LIBS =  $(LIBDIR)libgeneric.a $(LIBDIR)libpdf.a $(LIBDIR)libcernlib.a
 
 
 # Files for event reweighting to get e.g. scale and PDF uncertainties
 RWGFILES=reweight_xsec_events_loop2.o handling_lhe_events.o reweight_xsec.o	\
 	$(patsubst %.f,%.o,$(wildcard parton_lum_*.f)) setscales.o	\
-	cuts.o $(fastjetfortran_madfks) boostwdir2.o 			\
+         boostwdir2.o 			\
 	$(reweight_xsec_events_pdf_dummy) fill_MC_mshell.o cluster.o	\
 	reweight.o get_color.o iproc_map.o fks_inc_chooser.o 		\
-	leshouche_inc_chooser.o pythia_unlops.o recluster.o loop_matrix_lib.o
+	leshouche_inc_chooser.o loop_matrix_lib.o
 
 %.o: %.f
 	$(FC) $(FFLAGS) -c -I. $<

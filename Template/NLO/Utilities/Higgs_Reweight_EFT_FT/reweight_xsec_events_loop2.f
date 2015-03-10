@@ -54,7 +54,7 @@ c Compile with makefile_rwgt
       parameter (reweight_loop_squared_var=.true.)
 c
       call setrun                !Sets up run parameters
-
+c      call setpara('param_card2.dat')
       write(*,*) 'Enter event file name'
       read(*,*) event_file
 
@@ -748,6 +748,7 @@ c depend on it
          g=sqrt(4d0*pi*alphas(scale_muR))
          call update_as_param()
 c Compute the loop matrix library
+c         write(*,*) loop_id
          call loop_matrix_lib_wrap(loop_id,pp,wgt_loop_sq)
 c Multiply all the weights by the ratio. Note that this include the
 c coefficients that multiply the log(muR) and log(muF) factors.
@@ -830,7 +831,7 @@ c If possible reuse a previous result and exit this subroutine
          endif
       endif
 
-      write(*,*) loop_id
+c      write(*,*) loop_id
       do i=1,nexternal
          
             write(*,*) pp(0,i),pp(1,i),pp(2,i),pp(3,i)
@@ -849,6 +850,7 @@ c Calculate a new value: replace the value computed longest ago.
       wgt_loop_sq_save(i_replace)=wgt_loop_sq
       return
       end
+
       subroutine define_loop_id(ic,loop_id)
 c Fills the loop_id string filled with the PDG codes to be used in the
 c matrix elements. For the n-body matrix elements we need to combine the
@@ -860,12 +862,14 @@ c PDG codes of i_fks and j_fks.
       integer ic,npart,i,k,id_pdg(nexternal),j
       character*200 loop_id,str(nexternal)
       loop_id=' '
+c      write(*,*) npart
       if (itype(ic).eq.1 .or. itype(ic).eq.11) then
 c n+1-body matrix elements
-         do i=1,npart
+         npart=nexternal
+         do i=1,nexternal
             id_pdg(i)=pdg(i,ic)
          enddo
-         npart=nexternal
+
       else
 c n-body matrix elements
          do k=1,nexternal
@@ -898,8 +902,10 @@ c initial state gluon splitting (gluon is j_fks):  g -> XX
          npart=nexternal-1
       endif
       do j=1,npart
+c         if (id_pdg(j).ne.0) then
          write(str(j),'(I3)') id_pdg(j)
          loop_id=trim(adjustl(loop_id))//' '//trim(adjustl(str(j)))
+c         endif
       enddo
       return
       end
