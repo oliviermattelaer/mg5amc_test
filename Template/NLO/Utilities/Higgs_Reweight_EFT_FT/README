@@ -28,7 +28,10 @@ This reads the processes.dat file and creates the ML5lib_reweight
 directory containing all the files relevant for the reweighting. It
 also compiles the MadLoop library.
 
-4. Launch the event generation using the "-l" (or "--reweight_with_loop") option,
+4. Update the <YourProcess>/SubProcesses/ML5lib_reweight/Cards/param_card.dat
+to contain the correct model parameters as used for the process in the EFT!
+
+5. Launch the event generation using the "-l" (or "--reweight_with_loop") option,
 i.e. from the <YourProcess>/ directory:
 
 ./bin/generate_events -l
