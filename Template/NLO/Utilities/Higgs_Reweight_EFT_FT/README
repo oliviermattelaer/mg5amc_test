@@ -1,0 +1,43 @@
+This folder contains the files needed to reweight Higgs events
+generated in the EFT to the full theory. To use it do the following.
+
+1. Generate a process in the Higgs EFT. For example
+
+import model HC_NLO_X0_UFO-heft
+define p = p b b~
+define j = p
+generate p p > x0 /t [QCD] @0
+add process p p > x0 j /t [QCD] @1
+output
+exit
+
+2. Write a correct processes.dat file (containing all the relevant
+flavour structures contributing to the above process) and put it in
+the <YourProcess>/SubProcesses/ directory.
+
+3. Copy the write_proc_library_and_wrapper.f from here to the
+<YourProcess>/SubProcesses/ directory, compile it with
+
+gfortran -o write_proc_library_and_wrapper write_proc_library_and_wrapper.f
+
+and execute it
+
+./write_proc_library_and_wrapper
+
+This reads the processes.dat file and creates the ML5lib_reweight
+directory containing all the files relevant for the reweighting. It
+also compiles the MadLoop library.
+
+4. Launch the event generation using the "-l" (or "--reweight_with_loop") option,
+i.e. from the <YourProcess>/ directory:
+
+./bin/generate_events -l
+
+Note that this option is also very useful in relation with the '-r'
+(or '--reweightonly') option.
+
+
+This will give you an event file where the default weight is still the
+EFT, but all the weights between the <rwgt> and </rwgt> tags contain
+information from the full theory.
+
