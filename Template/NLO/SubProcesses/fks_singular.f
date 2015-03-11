@@ -1111,7 +1111,7 @@ c     matrix elements of this contribution.
                   wgt_ME_tree(icontr)=wgt_me_real
                else
                   momenta_m(j,i,icontr)=momenta(j,i,icontr)
-                  wgt_ME_tree(icontr)=wgt_me_born*dble(ngluons)
+                  wgt_ME_tree(icontr)=wgt_me_born*max(dble(ngluons),1d0)
                endif
             enddo
          enddo
