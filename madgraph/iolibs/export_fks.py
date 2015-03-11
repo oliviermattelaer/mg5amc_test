@@ -155,7 +155,7 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
             shutil.copy(os.path.join(self.loop_dir,'StandAlone/', file),
                         os.path.join(self.dir_path, file))
         if os.path.exists(pjoin(self.dir_path, 'Cards', 'MadLoopParams.dat')):          
-                self.MadLoopparam = banner_mod.MadLoopParam(pjoin(self.me_dir, 
+                self.MadLoopparam = banner_mod.MadLoopParam(pjoin(self.dir_path, 
                                                   'Cards', 'MadLoopParams.dat'))
                 # write the output file
                 self.MadLoopparam.write(pjoin(self.dir_path,"SubProcesses",
@@ -563,6 +563,8 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
                      'fks_Sij.f',
                      'fks_powers.inc',
                      'fks_singular.f',
+                     'veto_xsec.f',
+                     'veto_xsec.inc',
                      'c_weight.inc',
                      'fks_inc_chooser.f',
                      'leshouche_inc_chooser.f',
@@ -1032,7 +1034,7 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
             for iconf, configs in enumerate(s_and_t_channels):
                 for vertex in configs[0] + configs[1][:-1]:
                     leg = vertex.get('legs')[-1]
-                    if leg.get('id') == 21 and 21 not in particle_dict:
+                    if leg.get('id') not in particle_dict:
                         # Fake propagator used in multiparticle vertices
                         pow_part = 0
                     else:
@@ -1459,7 +1461,7 @@ end
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
 
-        calls=self.write_matrix_element_v4(None,matrix_element,fortran_model)
+        calls=self.write_loop_matrix_element_v4(None,matrix_element,fortran_model)
         # The born matrix element, if needed
         filename = 'born_matrix.f'
         calls = self.write_bornmatrix(
@@ -1469,7 +1471,7 @@ end
 
         filename = 'nexternal.inc'
         self.write_nexternal_file(writers.FortranWriter(filename),
-                             (nexternal-2), ninitial)
+                             nexternal, ninitial)
 
         filename = 'pmass.inc'
         self.write_pmass_file(writers.FortranWriter(filename),
@@ -2831,7 +2833,7 @@ c           This is dummy particle used in multiparticle vertices
         for iconf, configs in enumerate(s_and_t_channels):
             for vertex in configs[0] + configs[1][:-1]:
                 leg = vertex.get('legs')[-1]
-                if leg.get('id') == 21 and 21 not in particle_dict:
+                if leg.get('id') not in particle_dict:
                     # Fake propagator used in multiparticle vertices
                     mass = 'zero'
                     width = 'zero'
@@ -3095,7 +3097,7 @@ class ProcessOptimizedExporterFortranFKS(loop_exporters.LoopProcessOptimizedExpo
 
         filename = 'nexternal.inc'
         self.write_nexternal_file(writers.FortranWriter(filename),
-                             (nexternal-2), ninitial)
+                             nexternal, ninitial)
 
         filename = 'pmass.inc'
         self.write_pmass_file(writers.FortranWriter(filename),
