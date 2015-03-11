@@ -1082,7 +1082,7 @@ c     matrix elements of this contribution.
                      write (*,*) 'ERROR in add_wgt: no valid momenta'
                      stop 1
                   endif
-                  wgt_ME_tree(icontr)=wgt_me_born*dble(ngluons)
+                  wgt_ME_tree(icontr)=wgt_me_born*max(dble(ngluons),1d0)
                endif
             enddo
          enddo
