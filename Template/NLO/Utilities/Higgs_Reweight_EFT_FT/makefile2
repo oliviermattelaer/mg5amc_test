@@ -3,6 +3,7 @@ include ../../Source/make_opts
 include ../analyse_opts
 
 LIBDIR = ../../lib/
+MADLOOPLIBDIR = ../ML5lib_reweight/lib/
 ANADIR = ../../FixedOrderAnalysis/
 
 #check if fastjet-config is set
@@ -17,8 +18,10 @@ else
 endif
 
 
-LINKLIBS = -L$(LIBDIR) -lgeneric -lpdf -lcernlib $(lhapdf) -L. -lMadLoopRW 
-LIBS =  $(LIBDIR)libgeneric.a $(LIBDIR)libpdf.a $(LIBDIR)libcernlib.a
+NLOLIBS=-L$(MADLOOPLIBDIR) -lMadLoop $(libcuttools) $(libOLP) -ldhelas -lmodel
+LINKLIBS = -L$(LIBDIR) -lgeneric -lpdf -lcernlib $(lhapdf)
+LIBS =  $(MADLOOPLIBDIR)libdhelas.a $(LIBDIR)libgeneric.a $(MADLOOPLIBDIR)libmodel.a \
+$(LIBDIR)libpdf.a $(LIBDIR)libcernlib.a $(MADLOOPLIBDIR)$(libmadloop)
 
 
 # Files for event reweighting to get e.g. scale and PDF uncertainties
@@ -48,8 +51,8 @@ RWGFILES=reweight_xsec_events_loop2.o handling_lhe_events.o reweight_xsec.o	\
 
 
 reweight_loop_events: $(RWGFILES) makefile $(LIBS)
-	$(FC) $(LDFLAGS) -o reweight_loop_events $(RWGFILES) $(LINKLIBS) $(FJLIBS)
-	strip reweight_loop_events
+	$(FC) $(LDFLAGS) -o reweight_xsec_events $(RWGFILES) $(NLOLIBS) $(LINKLIBS) $(FJLIBS)
+	strip reweight_xsec_events
 
 clean:
 	@rm -f *.o write_ajob_basic reweight_xsec_events madevent_* check_poles\

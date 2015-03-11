@@ -126,8 +126,14 @@ def compile_dir(*arguments):
             #compile madevent_mintMC/mintFO
             misc.compile([exe], cwd=this_dir, job_specs = False)
         if mode in ['aMC@NLO', 'aMC@LO', 'noshower', 'noshowerLO']:
-            misc.compile(['reweight_xsec_events'], cwd=this_dir, job_specs = False)
-
+#            misc.compile(['reweight_xsec_events'], cwd=this_dir, job_specs = False)
+            link_file=pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/reweight_xsec_events_loop2.f ")+this_dir
+            
+            os.system("ln -s "+link_file)
+            link_file=pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/makefile2  ")+this_dir
+            os.system("ln -s "+link_file)
+            misc.compile(arg=['-f','makefile2','reweight_loop_events'], cwd=this_dir, job_specs = False)
+            
         logger.info('    %s done.' % p_dir) 
         return 0
     except MadGraph5Error, msg:

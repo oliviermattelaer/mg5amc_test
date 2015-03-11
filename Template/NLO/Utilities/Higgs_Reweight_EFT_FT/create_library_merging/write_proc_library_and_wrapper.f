@@ -15,10 +15,9 @@
       logical need_switching
       integer date(3),time(3),len_line
       integer flst_ml5(maxproc),k,alpha(maxproc),alphas(maxproc)
-      integer n,permut
+      integer n,permut(10)
       logical nextp
       external nextp
-      dimension permut(10)
 
       model='sm-no_b_mass'
       library='ML5lib_reweight'
@@ -38,18 +37,6 @@
       total_proc=proc_number(iproc)
       GOTO 100
  101  close(11)
-c$$$      print*,'total processes',total_proc
-c$$$      do j=1,total_proc
-c$$$         print*, 'npart (',j,')',npart(j)
-c$$$         do k=1,npart(j)
-c$$$            flst_ml5(k)=partid(k,j)
-c$$$            if (flst_ml5(k).eq.0) flst_ml5(k)=21
-c$$$         enddo
-c$$$         print*, 'partid(',j,')',(flst_ml5(k),k=1,npart(j))
-c$$$      enddo
-c$$$      print*, 'alpha  1-4',alpha(1),alpha(2),alpha(3),alpha(4)
-c$$$      print*, 'alphas 1-4',alphas(1),alphas(2),alphas(3),alphas(4)
-
 
       open(unit=18,file='MadLoop.mg5',err=35)
       open(unit=12,file='loop_matrix_lib.f',status='unknown')
@@ -67,12 +54,11 @@ c$$$      print*, 'alphas 1-4',alphas(1),alphas(2),alphas(3),alphas(4)
       write (12,*) 
      f '     subroutine loop_matrix_lib(procid,P,WGT)'
       write (12,*) '     implicit none'
-      write (12,*) '     INCLUDE "nexternal.inc"'
       write (12,*) '     character*200 procid'
       write (12,*) '     integer i,j,ans_dim'
       write (12,*) '     double precision P3(0:3,3),P4(0:3,4),P5(0:3,5)'
       write (12,*) '    f     ,P6(0:3,6),P7(0:3,7),P8(0:3,8),P9(0:3,9)'
-      write (12,*) '    f     ,P(0:3,nexternal),ANS(0:3,0:1),WGT'
+      write (12,*) '    f     ,P(0:3,*),ANS(0:3,0:1),WGT'
       write (12,*) '     '
       do j=1,total_proc
 
@@ -129,8 +115,6 @@ com-- do-loop loops over all final state particles to apply permutations
      &        ,trim(adjustl(str_permut)),')'
          enddo
          write(12,*) '         enddo'
-!         write(12,*) '         do i=1,',trim(adjustl(str_mult))
-!         write(12,*) '         enddo'
          write(12,*) '         call ML5_',trim(adjustl(str_j))
      &        ,'_GET_ANSWER_DIMENSION(ans_dim)'
          write(12,*) '         if (ans_dim.ne.1) then'
@@ -163,33 +147,36 @@ com-- do-loop loops over all final state particles to apply permutations
       close(18)
       close(12)
 
-      call system("../bin/mg5_aMC MadLoop.mg5")
-      call system("cp loop_matrix_lib.f "
-     f     //trim(adjustl(library))//"/SubProcesses/")
-      call system("mv "//trim(adjustl(library))//
-     f     "/SubProcesses/makefile "//trim(adjustl(library))//
-     f     "/SubProcesses/makefile_orig")
-      call system("cp "//trim(adjustl(library))//
-     f "/SubProcesses/P1_gg_h/nsquaredSO.inc "//trim(adjustl(library))//
-     f  "/SubProcesses/")
+      call system("../../bin/mg5_aMC MadLoop.mg5")
+c$$$      call system("mv loop_matrix_lib.f "
+c$$$     f     //trim(adjustl(library))//"/SubProcesses/")
+c$$$      call system("mv "//trim(adjustl(library))//
+c$$$     f     "/SubProcesses/makefile "//trim(adjustl(library))//
+c$$$     f     "/SubProcesses/makefile_orig")
+c$$$c$$$      call system("cp "//trim(adjustl(library))//
+c$$$c$$$     f "/SubProcesses/P1_gg_h/nsquaredSO.inc "//trim(adjustl(library))//
+c$$$c$$$     f  "/SubProcesses/")
+c$$$
+c$$$      open (unit=20,file=trim(adjustl(library))//
+c$$$     f     "/SubProcesses/makefile_orig",status='old',err=43)
+c$$$      open(unit=21,file=trim(adjustl(library))//
+c$$$     f     "/SubProcesses/makefile",err=44)
+c$$$      i = 0
+c$$$      iproc = 0
+c$$$ 200  i = i + 1
+c$$$      read(20,10,END=201) line
+c$$$      if (line(1:11).eq.'OLP_PROCESS') then
+c$$$         len_line=LEN(TRIM(line))
+c$$$         line=line(1:len_line-2)//" loop_matrix_lib.o \ "
+c$$$      endif
+c$$$      write(21,10) trim(line)
+c$$$      GOTO 200
+c$$$ 201  close(20)
+c$$$      close(21)
 
-      open (unit=20,file=trim(adjustl(library))//
-     f     "/SubProcesses/makefile_orig",status='old',err=43)
-      open(unit=21,file=trim(adjustl(library))//
-     f     "/SubProcesses/makefile",err=44)
-      i = 0
-      iproc = 0
- 200  i = i + 1
-      read(20,10,END=201) line
-      if (line(1:11).eq.'OLP_PROCESS') then
-         len_line=LEN(TRIM(line))
-         line=line(1:len_line-2)//" loop_matrix_lib.f \ "
-      endif
-      write(21,10) trim(line)
-      GOTO 200
- 201  close(20)
-      close(21)
-
+      call system("cd "//trim(adjustl(library))//"/SubProcesses/ "/
+     &     /"; make OLP_static ; cd ../../" )
+      
 
       return
  32   write (*,*)

@@ -729,11 +729,20 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       include 'nexternal.inc'
       include 'coupl.inc'
       include 'c_weight.inc'
+      logical firsttime
+      data firsttime /.true./
       double precision alphas
       external alphas
       integer i,ii
       double precision wgt_loop_sq,pp(0:3,nexternal),scale_muR,pi
       character*200 loop_id
+      character*512 path_to_madloop
+      if (firsttime) then
+         path_to_madloop="../../ML5lib_reweight/"/
+     &        /"SubProcesses/MadLoop5_resources"
+         call SETMADLOOPPATH(path_to_madloop)
+         firsttime=.false.
+      endif
       pi=4d0*atan(1d0)
 c Loop over all the contributions to this event:
       do i=1,icontr
@@ -830,14 +839,6 @@ c If possible reuse a previous result and exit this subroutine
             return
          endif
       endif
-
-c      write(*,*) loop_id
-      do i=1,nexternal
-         
-            write(*,*) pp(0,i),pp(1,i),pp(2,i),pp(3,i)
-        
-      enddo
-      
 c Calculate a new value: replace the value computed longest ago.
       call loop_matrix_lib(loop_id,pp,wgt_loop_sq)
       i_replace=mod(i_replace,20)+1
@@ -869,7 +870,6 @@ c n+1-body matrix elements
          do i=1,nexternal
             id_pdg(i)=pdg(i,ic)
          enddo
-
       else
 c n-body matrix elements
          do k=1,nexternal
