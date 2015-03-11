@@ -54,7 +54,6 @@ c Compile with makefile_rwgt
       parameter (reweight_loop_squared_var=.true.)
 c
       call setrun                !Sets up run parameters
-c      call setpara('param_card2.dat')
       write(*,*) 'Enter event file name'
       read(*,*) event_file
 
@@ -736,11 +735,14 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       integer i,ii
       double precision wgt_loop_sq,pp(0:3,nexternal),scale_muR,pi
       character*200 loop_id
-      character*512 path_to_madloop
+      character*512 path
       if (firsttime) then
-         path_to_madloop="../../ML5lib_reweight/"/
+         path="../../ML5lib_reweight/"/
      &        /"SubProcesses/MadLoop5_resources"
-         call SETMADLOOPPATH(path_to_madloop)
+         call SETMADLOOPPATH(path)
+         path="../../ML5lib_reweight/Cards/param_card.dat"
+         call setpara2(path)
+         call printout
          firsttime=.false.
       endif
       pi=4d0*atan(1d0)
