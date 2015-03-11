@@ -128,7 +128,8 @@ def compile_dir(*arguments):
         if mode in ['aMC@NLO', 'aMC@LO', 'noshower', 'noshowerLO']:
 #            misc.compile(['reweight_xsec_events'], cwd=this_dir, job_specs = False)
             link_file=pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/reweight_xsec_events_loop2.f ")+this_dir
-            
+            os.system("ln -s "+link_file)
+            link_file=pjoin(this_dir,"../loop_matrix_lib.f ")+this_dir
             os.system("ln -s "+link_file)
             link_file=pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/makefile2  ")+this_dir
             os.system("ln -s "+link_file)
