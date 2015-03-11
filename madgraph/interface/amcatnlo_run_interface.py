@@ -126,15 +126,14 @@ def compile_dir(*arguments):
             #compile madevent_mintMC/mintFO
             misc.compile([exe], cwd=this_dir, job_specs = False)
         if mode in ['aMC@NLO', 'aMC@LO', 'noshower', 'noshowerLO']:
-#            misc.compile(['reweight_xsec_events'], cwd=this_dir, job_specs = False)
-            link_file=pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/reweight_xsec_events_loop2.f ")+this_dir
-            os.system("ln -s "+link_file)
-            link_file=pjoin(this_dir,"../loop_matrix_lib.f ")+this_dir
-            os.system("ln -s "+link_file)
-            link_file=pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/makefile2  ")+this_dir
-            os.system("ln -s "+link_file)
-            misc.compile(arg=['-f','makefile2','reweight_loop_events'], cwd=this_dir, job_specs = False)
-            
+            if not ('reweight_with_loop' in options.keys() and options['reweight_with_loop']):
+                misc.compile(['reweight_xsec_events'], cwd=this_dir, job_specs = False)
+            else:
+                files.ln(pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/reweight_xsec_events_loop2.f"),this_dir)
+                files.ln(pjoin(this_dir,"../loop_matrix_lib.f"),this_dir)
+                files.ln(pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/makefile2"),this_dir)
+                misc.compile(arg=['-f','makefile2','reweight_loop_events'], cwd=this_dir, job_specs = False)
+
         logger.info('    %s done.' % p_dir) 
         return 0
     except MadGraph5Error, msg:
@@ -4250,6 +4249,8 @@ _launch_parser.add_option("-n", "--name", default=False, dest='run_name',
                             help="Provide a name to the run")
 _launch_parser.add_option("-a", "--appl_start_grid", default=False, dest='appl_start_grid',
                             help="For use with APPLgrid only: start from existing grids")
+_launch_parser.add_option("-l", "--reweight_with_loop", default=False, action='store_true',
+                            help="Reweights EFT with full loops")
 
 
 _generate_events_usage = "generate_events [MODE] [options]\n" + \
@@ -4282,6 +4283,8 @@ _generate_events_parser.add_option("-o", "--only_generation", default=False, act
                             "the last available results")
 _generate_events_parser.add_option("-n", "--name", default=False, dest='run_name',
                             help="Provide a name to the run")
+_generate_events_parser.add_option("-l", "--reweight_with_loop", default=False, action='store_true',
+                            help="Reweights EFT with full loops")
 
 
 
