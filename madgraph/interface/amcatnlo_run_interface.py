@@ -1377,7 +1377,9 @@ Please read http://amcatnlo.cern.ch/FxFx_merging.htm for more details.""")
                     to_always_rm.extend(to_rm)
                     if os.path.exists(pjoin(self.me_dir, 'SubProcesses', dir,'MadLoop5_resources.tar.gz')):
                         to_always_rm.append(pjoin(self.me_dir, 'SubProcesses', dir,'MadLoop5_resources.tar.gz'))
-                files.rm([pjoin(self.me_dir, 'SubProcesses', dir, d) for d in to_always_rm])
+                # delete nothing when doing only reweighting
+                if not options['reweightonly']:
+                    files.rm([pjoin(self.me_dir, 'SubProcesses', dir, d) for d in to_always_rm])
 
         mcatnlo_status = ['Setting up grid', 'Computing upper envelope', 'Generating events']
 
