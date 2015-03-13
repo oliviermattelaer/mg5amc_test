@@ -777,6 +777,7 @@ c coefficients that multiply the log(muR) and log(muF) factors.
          enddo
       enddo
       end
+
       subroutine loop_matrix_lib_wrap(loop_id,g,pp,wgt_loop_sq)
 c Simple wrapper routine to compute the loop matrix library: it caches
 c the loop matrix element weights of the last 20 calls to this function
@@ -840,10 +841,10 @@ c PDG codes of i_fks and j_fks.
       implicit none
       include 'nexternal.inc'
       include 'c_weight.inc'
-      double precision pp(0:3,nexternal),sumdot,shat,mass2_ij_fks
-     $     ,min_mass2
+      double precision pp(0:3,nexternal),dot_m,shat,mass2_ij_fks
+     $     ,min_mass2,sumdot
       parameter (min_mass2=1d-4)
-      external sumdot
+      external dot_m,sumdot
       integer ic,npart,i,k,id_pdg(nexternal),j,nbody
       character*200 loop_id,str(nexternal)
       integer i_fks(max_contr),j_fks(max_contr),m_pdg(max_contr)
@@ -854,12 +855,13 @@ c if invariant mass of i_fks and j_fks is small: consider it an nbody
 c contribution instead of an n+1-body
          shat=sumdot(momenta_m(0,1,2,ic),momenta_m(0,2,2,ic),1d0)
          if (j_fks(ic).le.nincoming) then
-            mass2_ij_fks=sumdot(momenta_m(0,i_fks(ic),2,ic),momenta_m(0
-     $           ,j_fks(ic),2,ic),-1d0)
+            mass2_ij_fks=dot_m(momenta_m(0,j_fks(ic),2,ic),momenta_m(0
+     $           ,i_fks(ic),2,ic),-1d0)
          else
-            mass2_ij_fks=sumdot(momenta_m(0,i_fks(ic),2,ic),momenta_m(0
-     $           ,j_fks(ic),2,ic),1d0)
+            mass2_ij_fks=dot_m(momenta_m(0,j_fks(ic),2,ic),momenta_m(0
+     $           ,i_fks(ic),2,ic),1d0)
          endif
+         write (*,*) mass2_ij_fks,shat,mass2_ij_fks/shat
          if (mass2_ij_fks/shat.lt.min_mass2) then
             nbody=1
          endif
@@ -923,6 +925,7 @@ c n+1-body matrix elements
       enddo
       return
       end
+
       logical function momenta_equal(p1,p2)
 c Returns .true. only if the momenta p1 and p2 are equal. To save time,
 c it only checks the 0th and 3rd components (energy and z-direction).
@@ -948,4 +951,18 @@ c it only checks the 0th and 3rd components (energy and z-direction).
             endif
          enddo
       enddo
+      end
+
+      double precision function dot_m(p1,p2,dsign)
+c take the dot product of p1 and p2, but with the direction of p2
+c multiplied by dsign.
+      implicit none
+      double precision p1(0:3),p2(0:3),dsign,p(0:3),dot
+      integer i
+      external dot
+      p(0)=p2(0)
+      do i=1,3
+         p(i)=p2(i)*dsign
+      enddo
+      dot_m=dot(p1,p)
       end
