@@ -861,7 +861,6 @@ c contribution instead of an n+1-body
             mass2_ij_fks=dot_m(momenta_m(0,j_fks(ic),2,ic),momenta_m(0
      $           ,i_fks(ic),2,ic),1d0)
          endif
-         write (*,*) mass2_ij_fks,shat,mass2_ij_fks/shat
          if (mass2_ij_fks/shat.lt.min_mass2) then
             nbody=1
          endif
