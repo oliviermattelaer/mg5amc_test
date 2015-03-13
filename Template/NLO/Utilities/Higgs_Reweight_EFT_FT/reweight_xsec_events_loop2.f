@@ -54,6 +54,8 @@ c Compile with makefile_rwgt
       parameter (reweight_loop_squared_var=.true.)
 c
       call setrun                !Sets up run parameters
+
+
       write(*,*) 'Enter event file name'
       read(*,*) event_file
 
@@ -567,16 +569,27 @@ c do the same as above for the counterevents
       include 'nexternal.inc'
       include 'c_weight.inc'
       include 'reweight0.inc'
-      integer i,idum,j,k,momenta_conf
+      integer i,idum,j,k,momenta_conf(2),ii
+      integer i_fks(max_contr),j_fks(max_contr),m_pdg(max_contr)
+      common /fks_variables/i_fks,j_fks,m_pdg
       icontr=n_ctr_found
       iwgt=1
       do i=1,icontr
-         read(n_ctr_str(i),*)(wgt(j,i),j=1,3),wgt_ME_tree(i),idum,(pdg(j
-     $        ,i),j=1,nexternal),QCDpower(i),(bjx(j,i),j=1,2),(scales2(j
-     $        ,i),j=1,3),momenta_conf,itype(i),nFKS(i),wgts(1,i)
-         do j=1,nexternal
-            do k=0,3
-               momenta(k,j,i)=momenta_str(k,j,momenta_conf)
+         read(n_ctr_str(i),*)(wgt(j,i),j=1,3),(wgt_ME_tree(j,i),j=1,2)
+     $        ,idum,(pdg(j,i),j=1,nexternal),QCDpower(i),(bjx(j,i),j=1
+     $        ,2),(scales2(j,i),j=1,3),(momenta_conf(j),j=1,2),itype(i)
+     $        ,nFKS(i),i_fks(i),j_fks(i),m_pdg(i),wgts(1,i)
+         do ii=1,2
+            do j=1,nexternal
+               do k=0,3
+                  if (momenta_conf(ii).gt.0) then
+                     momenta_m(k,j,ii,i)=momenta_str(k,j
+     $                                               ,momenta_conf(ii))
+                  else
+                     momenta_m(k,j,ii,i)=-99d0
+                     exit
+                  endif
+               enddo
             enddo
          enddo
       enddo
@@ -682,7 +695,7 @@ c add the weights to the array
       call InitPDF(izero)
       return
       end
-
+      
 
       subroutine fill_rwgt_arrays
       implicit none
@@ -730,10 +743,10 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       include 'c_weight.inc'
       logical firsttime
       data firsttime /.true./
-      double precision alphas
+      integer i,ii,nbody,j
+      double precision alphas,wgt_loop_sq,pp(0:3,nexternal),pi
       external alphas
-      integer i,ii
-      double precision wgt_loop_sq,pp(0:3,nexternal),scale_muR,pi
+      parameter (pi=3.14159265358979323846d0)
       character*200 loop_id
       character*512 path
       if (firsttime) then
@@ -745,65 +758,26 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
          call printout
          firsttime=.false.
       endif
-      pi=4d0*atan(1d0)
 c Loop over all the contributions to this event:
       do i=1,icontr
 c Update the loop_id string used in the loop matrix library to determine
-c which loop matrix elements to compute.
-         call define_loop_id(i,loop_id)
-c Fill the momenta array
-         call define_momenta(i,pp)
+c which loop matrix elements to compute. This also fills the momenta.
+         call define_loop_id(i,loop_id,nbody,pp)
 c Define the correct strong coupling and update all the couplings that
-c depend on it
-         scale_muR=sqrt(scales2(2,i))
-         g=sqrt(4d0*pi*alphas(scale_muR))
+c depend on it. Also update the renormalisation scale mu_R itself.
+         mu_R=sqrt(scales2(2,i))
+         g=sqrt(4d0*pi*alphas(mu_R))
          call update_as_param()
 c Compute the loop matrix library
-c         write(*,*) loop_id
-         call loop_matrix_lib_wrap(loop_id,pp,wgt_loop_sq)
+         call loop_matrix_lib_wrap(loop_id,g,pp,wgt_loop_sq)
 c Multiply all the weights by the ratio. Note that this include the
 c coefficients that multiply the log(muR) and log(muF) factors.
          do ii=1,3
-            wgt(ii,i)=wgt(ii,i)*wgt_loop_sq/wgt_ME_tree(i)
+            wgt(ii,i)=wgt(ii,i)*wgt_loop_sq/wgt_ME_tree(nbody,i)
          enddo
       enddo
       end
-
-      subroutine define_momenta(ic,pp)
-c Fill the momenta array. For the n-body momenta, we need to explicitly
-c sum the momenta of i_fks and j_fks
-      implicit none
-      include 'nexternal.inc'
-      include 'c_weight.inc'
-      include 'fks_info.inc'
-      integer ic,i,j
-      double precision pp(0:3,nexternal)
-      if (itype(ic).eq.1 .or. itype(ic).eq.11) then
-c n+1-body matrix elements
-         do i=1,nexternal
-            do j=0,3
-               pp(j,i)=momenta(j,i,ic)
-            enddo
-         enddo
-      else
-c n-body matrix elements
-         do i=1,nexternal
-            do j=0,3
-               if(i.eq.fks_j_d(nFKS(ic))) then
-                  pp(j,i)=momenta(j,fks_j_d(nFKS(ic)),ic)+
-     $                    momenta(j,fks_i_d(nFKS(ic)),ic)
-               elseif(i.eq.nexternal) then
-                  pp(j,i)=0d0
-               elseif(i.lt.fks_i_d(nFKS(ic))) then
-                  pp(j,i)=momenta(j,i,ic)
-               else
-                  pp(j,i)=momenta(j,i+1,ic)
-               endif
-            enddo
-         enddo
-      endif
-      end
-      subroutine loop_matrix_lib_wrap(loop_id,pp,wgt_loop_sq)
+      subroutine loop_matrix_lib_wrap(loop_id,g,pp,wgt_loop_sq)
 c Simple wrapper routine to compute the loop matrix library: it caches
 c the loop matrix element weights of the last 20 calls to this function
 c and uses the value from memory if possible.
@@ -813,22 +787,26 @@ c and uses the value from memory if possible.
       external momenta_equal
       include 'nexternal.inc'
       character*200 loop_id_save(20),loop_id
-      double precision pp_save(0:3,nexternal,20),pp(0:3
-     $     ,nexternal),wgt_loop_sq_save(20),wgt_loop_sq
+      double precision pp_save(0:3,nexternal,20),pp(0:3,nexternal)
+     $     ,wgt_loop_sq_save(20),wgt_loop_sq,g_save(20),g
       parameter (isize=4*nexternal*20)
       data loop_id_save/20*' '/
       data pp_save/isize*-99d9/
       data wgt_loop_sq_save /20*-99d9/
+      data g_save/20*-99d9/
       data i_replace/20/
 c Check if result can be reused since any of last twenty calls. Start
-c checking with the last call and move back in time
+c checking with the last call and move back in time. Instead of checking
+c the scales, just check the value of the strong coupling.
       ireuse=0
       ii=i_replace
       do i=1,20
-         if (loop_id.eq.loop_id_save(ii)) then
-            if (momenta_equal(pp,pp_save(0,1,ii))) then
-               ireuse=ii
-               exit
+         if (g.eq.g_save(ii)) then
+            if (loop_id.eq.loop_id_save(ii)) then
+               if (momenta_equal(pp,pp_save(0,1,ii))) then
+                  ireuse=ii
+                  exit
+               endif
             endif
          endif
          ii=ii-1
@@ -845,6 +823,7 @@ c Calculate a new value: replace the value computed longest ago.
       call loop_matrix_lib(loop_id,pp,wgt_loop_sq)
       i_replace=mod(i_replace,20)+1
       loop_id_save(i_replace)=loop_id
+      g_save(i_replace)=g
       do i=1,nexternal
          do j=0,3
             pp_save(j,i,i_replace)=pp(j,i)
@@ -854,60 +833,93 @@ c Calculate a new value: replace the value computed longest ago.
       return
       end
 
-      subroutine define_loop_id(ic,loop_id)
+      subroutine define_loop_id(ic,loop_id,nbody,pp)
 c Fills the loop_id string filled with the PDG codes to be used in the
 c matrix elements. For the n-body matrix elements we need to combine the
 c PDG codes of i_fks and j_fks. 
       implicit none
       include 'nexternal.inc'
       include 'c_weight.inc'
-      include 'fks_info.inc'
-      integer ic,npart,i,k,id_pdg(nexternal),j
+      double precision pp(0:3,nexternal),sumdot,shat,mass2_ij_fks
+     $     ,min_mass2
+      parameter (min_mass2=1d-4)
+      external sumdot
+      integer ic,npart,i,k,id_pdg(nexternal),j,nbody
       character*200 loop_id,str(nexternal)
-      loop_id=' '
-c      write(*,*) npart
+      integer i_fks(max_contr),j_fks(max_contr),m_pdg(max_contr)
+      common /fks_variables/i_fks,j_fks,m_pdg
       if (itype(ic).eq.1 .or. itype(ic).eq.11) then
-c n+1-body matrix elements
-         npart=nexternal
-         do i=1,nexternal
-            id_pdg(i)=pdg(i,ic)
-         enddo
+         nbody=2
+c if invariant mass of i_fks and j_fks is small: consider it an nbody
+c contribution instead of an n+1-body
+         shat=sumdot(momenta_m(0,1,2,ic),momenta_m(0,2,2,ic),1d0)
+         if (j_fks(ic).le.nincoming) then
+            mass2_ij_fks=sumdot(momenta_m(0,i_fks(ic),2,ic),momenta_m(0
+     $           ,j_fks(ic),2,ic),-1d0)
+         else
+            mass2_ij_fks=sumdot(momenta_m(0,i_fks(ic),2,ic),momenta_m(0
+     $           ,j_fks(ic),2,ic),1d0)
+         endif
+         if (mass2_ij_fks/shat.lt.min_mass2) then
+            nbody=1
+         endif
       else
+         nbody=1
+      endif
+      loop_id=' '
+      if (nbody.eq.1) then
 c n-body matrix elements
          do k=1,nexternal
-            if (k.lt.fks_j_d(nFKS(ic))) then
+            if (k.lt.j_fks(ic)) then
                id_pdg(k)=pdg(k,ic)
-            elseif(k.eq.fks_j_d(nFKS(ic))) then
-               if (abs(pdg(fks_i_d(nFKS(ic)),ic)) .eq.
-     &             abs(pdg(fks_j_d(nFKS(ic)),ic))) then
-c gluon splitting:  g -> XX
-                  id_pdg(k)=21
-               elseif (pdg(fks_i_d(nFKS(ic)),ic).eq.21) then
-c final state gluon radiation:  X -> Xg
-                  id_pdg(k)=pdg(fks_j_d(nFKS(ic)),ic)
-               elseif (pdg(fks_j_d(nFKS(ic)),ic).eq.21) then
-c initial state gluon splitting (gluon is j_fks):  g -> XX
-                  id_pdg(k)=-pdg(fks_i_d(nFKS(ic)),ic)
-               else
-                  write (*,*)
-     &                 'ERROR in PDG assigment for underlying Born'
-                  stop 1
-               endif
-            elseif(k.lt.fks_i_d(nFKS(ic))) then
+               do i=0,3
+                  pp(i,k)=momenta_m(i,k,1,ic)
+               enddo
+            elseif(k.eq.j_fks(ic)) then
+               id_pdg(k)=m_pdg(ic)
+               do i=0,3
+                  if (j_fks(ic).le.nincoming) then
+                     pp(i,k)=momenta_m(i,j_fks(ic),1,ic)-
+     &                       momenta_m(i,i_fks(ic),1,ic)
+                  else
+                     pp(i,k)=momenta_m(i,j_fks(ic),1,ic)+
+     &                       momenta_m(i,i_fks(ic),1,ic)
+                  endif
+               enddo
+            elseif(k.lt.i_fks(ic)) then
                id_pdg(k)=pdg(k,ic)
+               do i=0,3
+                  pp(i,k)=momenta_m(i,k,1,ic)
+               enddo
             elseif(k.eq.nexternal) then
                id_pdg(k)=0 ! assign '0' for extra particle
-            elseif(k.ge.fks_i_d(nFKS(ic))) then
+               do i=0,3
+                  pp(i,k)=0d0
+               enddo
+            elseif(k.ge.i_fks(ic)) then
                id_pdg(k)=pdg(k+1,ic)
+               do i=0,3
+                  pp(i,k)=momenta_m(i,k+1,1,ic)
+               enddo
             endif
          enddo
          npart=nexternal-1
+      elseif(nbody.eq.2) then
+c n+1-body matrix elements
+         npart=nexternal
+         do k=1,nexternal
+            id_pdg(k)=pdg(k,ic)
+            do i=0,3
+               pp(i,k)=momenta_m(i,k,2,ic)
+            enddo
+         enddo
+      else
+         write (*,*) "Error in define_loop_id",nbody
+         stop 1
       endif
       do j=1,npart
-c         if (id_pdg(j).ne.0) then
          write(str(j),'(I3)') id_pdg(j)
          loop_id=trim(adjustl(loop_id))//' '//trim(adjustl(str(j)))
-c         endif
       enddo
       return
       end

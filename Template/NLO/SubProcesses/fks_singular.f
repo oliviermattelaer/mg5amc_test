@@ -1070,32 +1070,35 @@ c     Born contribution
 c     Anything else
          QCDpower(icontr)=nint(2*wgtbpower+2)
       endif
+      wgt_ME_tree(1,icontr)=wgt_me_born*max(dble(ngluons),1d0)
+      wgt_ME_tree(2,icontr)=wgt_me_real
+      do i=1,nexternal
+         do j=0,3
+            if (p1_cnt(0,1,0).gt.0d0) then
+               momenta_m(j,i,1,icontr)=p1_cnt(j,i,0)
+            elseif (p1_cnt(0,1,1).gt.0d0) then
+               momenta_m(j,i,1,icontr)=p1_cnt(j,i,1)
+            elseif (p1_cnt(0,1,2).gt.0d0) then
+               momenta_m(j,i,1,icontr)=p1_cnt(j,i,2)
+            else
+               if (i.lt.fks_i_d(nFKSprocess)) then
+                  momenta_m(j,i,1,icontr)=p_born(j,i)
+               elseif(i.eq.fks_i_d(nFKSprocess)) then
+                  momenta_m(j,i,1,icontr)=0d0
+               else
+                  momenta_m(j,i,1,icontr)=p_born(j,i-1)
+               endif
+            endif
+            momenta_m(j,i,2,icontr)=p_ev(j,i)
+         enddo
+      enddo
       if(type.eq.1 .or. type.eq. 8 .or. type.eq.9 .or. type.eq.10 .or.
      &     type.eq.13) then
 c real emission and n+1-body kin. contributions to counter terms and MC
 c subtr term
          do i=1,nexternal
             do j=0,3
-c     'momenta' is the momentum configuration for this contribution;
-c     'momenta_m' is the momentum configuration that was used in the
-c     matrix elements of this contribution.
-               momenta(j,i,icontr)=p_ev(j,i)
-               if (type.eq.1) then
-                  momenta_m(j,i,icontr)=momenta(j,i,icontr)
-                  wgt_ME_tree(icontr)=wgt_me_real
-               else
-                  if (p1_cnt(0,1,0).gt.0d0) then
-                     momenta_m(j,i,icontr)=p1_cnt(j,i,0)
-                  elseif (p1_cnt(0,1,1).gt.0d0) then
-                     momenta_m(j,i,icontr)=p1_cnt(j,i,1)
-                  elseif (p1_cnt(0,1,2).gt.0d0) then
-                     momenta_m(j,i,icontr)=p1_cnt(j,i,2)
-                  else
-                     write (*,*) 'ERROR in add_wgt: no valid momenta'
-                     stop 1
-                  endif
-                  wgt_ME_tree(icontr)=wgt_me_born*max(dble(ngluons),1d0)
-               endif
+               momenta(j,i,icontr)=momenta_m(j,i,2,icontr)
             enddo
          enddo
          H_event(icontr)=.true.
@@ -1105,26 +1108,7 @@ c Born, counter term, soft-virtual, or n-body kin. contributions to real
 c and MC subtraction terms.
          do i=1,nexternal
             do j=0,3
-c     'momenta' is the momentum configuration for this contribution;
-c     'momenta_m' is the momentum configuration that was used in the
-c     matrix elements of this contribution.
-               if (p1_cnt(0,1,0).gt.0d0) then
-                  momenta(j,i,icontr)=p1_cnt(j,i,0)
-               elseif (p1_cnt(0,1,1).gt.0d0) then
-                  momenta(j,i,icontr)=p1_cnt(j,i,1)
-               elseif (p1_cnt(0,1,2).gt.0d0) then
-                  momenta(j,i,icontr)=p1_cnt(j,i,2)
-               else
-                  write (*,*) 'ERROR in add_wgt: no valid momenta'
-                  stop 1
-               endif
-               if (type.eq.11) then
-                  momenta_m(j,i,icontr)=p_ev(j,i)
-                  wgt_ME_tree(icontr)=wgt_me_real
-               else
-                  momenta_m(j,i,icontr)=momenta(j,i,icontr)
-                  wgt_ME_tree(icontr)=wgt_me_born*max(dble(ngluons),1d0)
-               endif
+               momenta(j,i,icontr)=momenta_m(j,i,1,icontr)
             enddo
          enddo
          H_event(icontr)=.false.
@@ -2144,7 +2128,8 @@ c momenta in the momenta_str_l() array.
       include 'reweight0.inc'
       include 'genps.inc'
       include 'nFKSconfigs.inc'
-      integer i,ii,j,jj,ict,ipr,momenta_conf
+      include 'fks_info.inc'
+      integer k,i,ii,j,jj,ict,ipr,momenta_conf(2)
       logical momenta_equal,found
       double precision conv,momenta_str_l(0:3,nexternal,max_n_ctr)
       external momenta_equal
@@ -2165,24 +2150,32 @@ c is chosen in the pick_unweight_cont() subroutine)
 c Check if the current set of momenta are already available in the
 c momenta_str_l array. If not, add it.
          found=.false.
-         do j=1,n_mom_conf
-            if (momenta_equal(momenta_str_l(0,1,j),momenta_m(0,1,ict)))
-     &           then
-               momenta_conf=j
-               found=.true.
-               exit
+         do k=1,2
+            do j=1,n_mom_conf
+               if (momenta_m(0,1,k,ict).le.0d0) then
+                  momenta_conf(k)=0
+                  cycle
+               endif
+               if (momenta_equal(momenta_str_l(0,1,j),
+     &                           momenta_m(0,1,k,ict))) then
+                  momenta_conf(k)=j
+                  found=.true.
+                  exit
+               endif
+            enddo
+            if (.not. found) then
+               n_mom_conf=n_mom_conf+1
+               do ii=1,nexternal
+                  do jj=0,3
+                     momenta_str(jj,ii,n_mom_conf)=
+     &                                      momenta_m(jj,ii,k,ict)
+                     momenta_str_l(jj,ii,n_mom_conf)=
+     &                                      momenta_m(jj,ii,k,ict)
+                  enddo
+               enddo
+               momenta_conf(k)=n_mom_conf
             endif
          enddo
-         if (.not. found) then
-            n_mom_conf=n_mom_conf+1
-            do ii=1,nexternal
-               do jj=0,3
-                  momenta_str(jj,ii,n_mom_conf)=momenta_m(jj,ii,ict)
-                  momenta_str_l(jj,ii,n_mom_conf)=momenta_m(jj,ii,ict)
-               enddo
-            enddo
-            momenta_conf=n_mom_conf
-         endif
          if (.not. Hevents) then
 c For S-events, be careful to take all the IPROC that contribute to the
 c iproc_picked:
@@ -2190,8 +2183,8 @@ c iproc_picked:
             do ii=1,iproc_save(nFKS(ict))
                if (eto(ii,nFKS(ict)).ne.ipr) cycle
                n_ctr_found=n_ctr_found+1
-               write (n_ctr_str(n_ctr_found),'(4(1x,d18.12),1x,i2)')
-     &              (wgt(j,ict)*conv,j=1,3),wgt_me_tree(ict),
+               write (n_ctr_str(n_ctr_found),'(5(1x,d18.12),1x,i2)')
+     &              (wgt(j,ict)*conv,j=1,3),(wgt_me_tree(j,ict),j=1,2),
      &              nexternal
                procid=''
                do j=1,nexternal
@@ -2202,13 +2195,16 @@ c iproc_picked:
                n_ctr_str(n_ctr_found) =
      &              trim(adjustl(n_ctr_str(n_ctr_found)))//' '
      &              //trim(adjustl(procid))
-               write (str_temp,'(i2,5(1x,d14.8),3(1x,i2),1x,d18.12)')
+               write (str_temp,'(i2,5(1x,d14.8),7(1x,i2),1x,d18.12)')
      &              QCDpower(ict),
      &              (bjx(j,ict),j=1,2),
      &              (scales2(j,ict),j=1,3),
-     &              momenta_conf,
+     &              (momenta_conf(j),j=1,2),
      &              itype(ict),
      &              nFKS(ict),
+     &              fks_i_d(nFKS(ict)),
+     &              fks_j_d(nFKS(ict)),
+     &              parton_pdg_uborn(fks_j_d(nFKS(ict)),ii,ict),
      &              parton_iproc(ii,ict)
                n_ctr_str(n_ctr_found) =
      &              trim(adjustl(n_ctr_str(n_ctr_found)))//' '
@@ -2218,8 +2214,8 @@ c iproc_picked:
 c H-event
             ipr=iproc_picked
             n_ctr_found=n_ctr_found+1
-            write (n_ctr_str(n_ctr_found),'(4(1x,d18.12),1x,i2)')
-     &           (wgt(j,ict)*conv,j=1,3),wgt_me_tree(ict),
+            write (n_ctr_str(n_ctr_found),'(5(1x,d18.12),1x,i2)')
+     &           (wgt(j,ict)*conv,j=1,3),(wgt_me_tree(j,ict),j=1,2),
      &           nexternal
             procid=''
             do j=1,nexternal
@@ -2230,13 +2226,16 @@ c H-event
             n_ctr_str(n_ctr_found) =
      &           trim(adjustl(n_ctr_str(n_ctr_found)))//' '
      &           //trim(adjustl(procid))
-            write (str_temp,'(i2,5(1x,d14.8),3(1x,i2),1x,d18.12)')
+            write (str_temp,'(i2,5(1x,d14.8),7(1x,i2),1x,d18.12)')
      &           QCDpower(ict),
      &           (bjx(j,ict),j=1,2),
      &           (scales2(j,ict),j=1,3),
-     &           momenta_conf,
-     &              itype(ict),
-     &              nFKS(ict),
+     &           (momenta_conf(j),j=1,2),
+     &           itype(ict),
+     &           nFKS(ict),
+     &           fks_i_d(nFKS(ict)),
+     &           fks_j_d(nFKS(ict)),
+     &           parton_pdg_uborn(fks_j_d(nFKS(ict)),ipr,ict),
      &           parton_iproc(ipr,ict)
             n_ctr_str(n_ctr_found) =
      &           trim(adjustl(n_ctr_str(n_ctr_found)))//' '
