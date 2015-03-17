@@ -59,11 +59,11 @@ Block SMINPUTS
 ###################################
 ## INFORMATION FOR MASS
 ###################################
-Block mass 
+Block MASS 
    15 1.777000e+00 # MTA
    23 9.118800e+01 # MZ
-   25 1.250000e+02 # MH -- only effective if FEYNHIGGS Block is absent,
-                   #       i.e. in MSSM is MH always calculated by FeynHiggs
+   25 1.250000e+02 # MX0 -- only effective if FEYNHIGGS Block is absent,
+                   #        i.e. in MSSM is MH always calculated by FeynHiggs
 ## Dependent parameters, given by model restrictions.
 ## Those values should be edited following the 
 ## analytical expression. MG5 ignores those values 
@@ -73,7 +73,6 @@ Block mass
   2 0.000000 # u : 0.0 
   3 0.000000 # s : 0.0 
   4 0.000000 # c : 0.0 
-  5 0.000000 # b : 0.0 
   6 1.73e+02 # t
   11 0.000000 # e- : 0.0 
   12 0.000000 # ve : 0.0 
@@ -88,7 +87,7 @@ Block mass
 ###################################
 ## INFORMATION FOR SMINPUTS
 ###################################
-Block sminputs 
+Block SMINPUTS 
     1 1.325070e+02 # aEWM1 
     2 1.166390e-05 # Gf 
     3 1.180000e-01 # aS 
@@ -104,7 +103,7 @@ Block YUKAWA
    15 1.777000e+00 # ymtau 
 
 ###################################
-## INFORMATION FOR DECAY 
+## INFORMATION FOR DECAY
 ###################################
 DECAY   6 1.491500e+00 	# top width
 DECAY  23 2.441404e+00  # Z width
@@ -145,19 +144,10 @@ Block QNUMBERS 82  # gh
 Block SUSHI
   1   0		# model: 0 = SM, 1 = MSSM
   2   0         # 0 = light Higgs (h), 1 = pseudoscalar (A), 2 = heavy Higgs (H)
-  3   0		# collider: 0 = p-p, 1 = p-pbar
 Block RENORMBOT # Renormalization of the bottom sector
   1   0 	# m_b used for bottom Yukawa:  0 = OS, 1 = MSbar(m_b), 2 = MSbar(muR)
-  2   0 	# tan(beta)-res. of Y_b: 0 = no, 1 = naive, 2 = full (for OS only)
-  3   0 	# Delta_b: Take Delta_b from FeynHiggs: 0 = no, 1 = yes
   4   4.75d0	# mbOS fixed -- used if m_b is on-shell (default)
-Block RENORMSBOT # Renormalization of the sbottom sector
-  1   2  	# m_b:     0 = OS, 1 = DRbar, 2 = dep; recommended: 2
-  2   0  	# A_b:     0 = OS, 1 = DRbar, 2 = dep; recommended: 0
-  3   0  	# theta_b: 0 = OS, 1 = DRbar         ; recommended: 0
 Block FACTORS
   1   0.d0	# factor for yukawa-couplings: c
   2   1.d0	# t
   3   1.d0	# b
-  4   0.d0	# st
-  5   0.d0	# sb

@@ -3,19 +3,75 @@ use Cwd 'abs_path';
 use Term::ReadKey;
 
 if($#ARGV < 0) {
-    print"ERROR: First argument has to be path of ggH folder!
+    print"Argument Error: First argument has to be path of ggH folder!
 Script stopped...\n";
     die;
 }
 $path = $ARGV[0];
-
-unless(-d $path){
-    print"ERROR: folder \"$path\" of ggH output does not exist.
-Script stopped...\n";
-    die;
-}
-
 $current_path = Cwd::cwd();
+
+# create ggH-folder
+$gghmg5file = 'ggx0merging.mg5';
+if(-d $path){
+    unless(-f $path."/../bin/mg5_aMC"){
+	print"Path Error: The path to the ggH-folder you entered as the first argument of the script, is not inside the MG5_aMC folder.
+            The MG5_aMC script in $path\/../bin/MG5_aMC could not be found.
+Script stopped...\n";
+	die;
+    }
+    print"\nFolder \"$path\" for ggH output does already exist.
+Do you want to overwrite?
+Press (y) to overwrite,
+press (n) to keep it, but continue with the script assuming \"$path\" is an appropriate ggH process folder,
+press any other key to abort\n";
+    ReadMode 4;
+    while (not defined ($inp = ReadKey(-1))) {
+    }
+    ReadMode 0;
+    if($inp =~ /y/i) {
+	open($writeggh, '>', $gghmg5file);
+	print $writeggh "import model HC_NLO_X0_UFO-heft\n";
+	print $writeggh "define p = p b b~\n";
+	print $writeggh "define j = p\n";
+	print $writeggh "generate p p > x0 / t [real=QCD] @0\n";
+	print $writeggh "add process p p > x0 j / t [QCD] @1\n";
+#        print $writeggh "add process p p > x0 j j / t [QCD] @2\n";
+	print $writeggh "output $path\n";
+	print $writeggh "exit\n";
+	close $writeggh;
+
+	system("$path\/../bin/mg5_aMC $gghmg5file");
+    }
+    elsif($inp =~ /n/i) {
+	print"Using folder \"$path\" as process folder.\n";
+    }
+    else{
+	print"\nEXIT: Abort by the user.\n\n";
+	die;
+    }
+}
+else{
+    mkdir($path);
+    unless(-f $path."/../bin/mg5_aMC"){
+	print"Path Error: The path to the ggH-folder you entered as the first argument of the script, is not inside the MG5_aMC folder.
+            The MG5_aMC script in $path\/../bin/MG5_aMC could not be found.
+Script stopped...\n";
+	rmdir($path);
+	die;
+    }
+    open($writeggh, '>', $gghmg5file);
+    print $writeggh "import model HC_NLO_X0_UFO-heft\n";
+    print $writeggh "define p = p b b~\n";
+    print $writeggh "define j = p\n";
+    print $writeggh "generate p p > x0 / t [real=QCD] @0\n";
+    print $writeggh "add process p p > x0 j / t [QCD] @1\n";
+#        print $writeggh "add process p p > x0 j j / t [QCD] @2\n";
+    print $writeggh "output $path\n";
+    print $writeggh "exit\n";
+    close $writeggh;
+
+    system("$path\/../bin/mg5_aMC $gghmg5file");
+}
 
 # FeynHiggs:
 if($#ARGV > 1) {
@@ -31,14 +87,15 @@ else{
 	$end=index($line,".tar.gz\">FeynHiggs");
 	$filename=substr($line,$start+11,$end-4-$start);
 	$fhversion=substr($line,$start+11,$end-11-$start);
-	print"\nDo you want to download ".$fhversion." now (y/n)?\n";
+	print"\nDo you want to download ".$fhversion." now?
+Press (y) for \"yes\", or any key for \"no\"\n";
 	ReadMode 4;
 	while (not defined ($inp = ReadKey(-1))) {
 	}
 	ReadMode 0;
 	if($inp =~ /y/i) {
 	    while (1 == 1) {
-		print"Type absolute path to the folder in which FeynHiggs should be installed (e.g. /home/username, no worries a new FeynHiggs-folder will be created under this path!). Press ENTER if you would like to install FeynHiggs in the ggH folder.\n";
+		print"\nType absolute path to the folder in which FeynHiggs should be installed (e.g. /home/username, no worries a new FeynHiggs-folder will be created under this path!). Press ENTER if you would like to install FeynHiggs in the ggH folder.\n";
 		$fhpath =  <STDIN>;
 		chomp ($fhpath);
 		if($fhpath eq "") {
@@ -85,7 +142,7 @@ else{
 	    $fhpath = $fhpath."/".$fhversion."/build";
 	} else {	    
 	    while (1 == 1) {
-		print"Type absolute path to lib folder of FeynHiggs (e.g. /home/username/FeynHiggs-X.X.X/x86_64-Darwin/lib). Press ENTER if you would like to link libFH.a by hand.\n";
+		print"\nType absolute path to lib folder of FeynHiggs (e.g. /home/username/FeynHiggs-X.X.X/x86_64-Darwin/lib). Press ENTER if you would like to link libFH.a by hand.\n";
 		$fhpath =  <STDIN>;
 		chomp ($fhpath);
 		if($fhpath eq "") {
@@ -131,7 +188,8 @@ else{
 	$end=index($line,".tar.gz");
 	$filename=substr($line,$start,$end+7-$start);
 	$sushiversion=substr($line,$start,$end-$start);
-	print"\nDo you want to download ".$sushiversion." now (y/n)?\n";
+	print"\nDo you want to download ".$sushiversion." now?
+Press (y) for \"yes\", or any key for \"no\"\n";
 	ReadMode 4;
 	while (not defined ($inp = ReadKey(-1))) {
 	}
@@ -139,7 +197,7 @@ else{
 	if($inp =~ /y/i) {
 	    chdir($current_path) or die "$!"; 
 	    while (1 == 1) {
-		print"Type absolute path to the folder in which SusHi should be installed (e.g. /home/username, no worries a new SusHi-folder will be created under this path!). Press ENTER if you would like to install SusHi in the ggH folder.\n";
+		print"\nType absolute path to the folder in which SusHi should be installed (e.g. /home/username, no worries a new SusHi-folder will be created under this path!). Press ENTER if you would like to install SusHi in the ggH folder.\n";
 		$sushipath =  <STDIN>;
 		chomp ($sushipath);
 		if($sushipath eq "") {
@@ -168,7 +226,8 @@ else{
 		die;
 	    }
 	    chdir($sushiversion) or die "$!";
-	    print("\nWould you like to add flag \'F77FLAGS=-mcmodel=large\' to compilation (y/n)?\n--> Solves relocation errors on some clusters, but leads to compilation errors on some Mac OS X systems.\n");
+	    print("Would you like to add flag \'F77FLAGS=-mcmodel=large\' to compilation?\n--> Solves relocation errors on some clusters, but leads to compilation errors on some Mac OS X systems.
+Press (y) to add this flag, press any other key to omit it.\n");
 	    ReadMode 4;
 	    while (not defined ($inp = ReadKey(-1))) {
 	    }
@@ -187,16 +246,41 @@ else{
 		die;
 	    }
 	    print "This may take some time.\n";
+    
+	    open $makefile_old,  '<',  "Makefile"     or die "Can't read old Makefile: $!";
+	    open $makefile_new,  '>',  "Makefile.new" or die "Can't write new Makefile: $!";
+	    while( <$makefile_old> )
+	    {
+		$line=$_;
+		if($line =~ "FHPATH ="){
+		    @array=split(/\//,$fhpath);
+		    $fhmakefilepath="$current_path";
+		    foreach (@array){
+			if($_ =~ "build"){last;}
+			if($_ =~ "x86"){last;}
+			$fhmakefilepath=$fhmakefilepath."/$_";
+		    }
+		    $line = "FHPATH = $fhmakefilepath\n";
+		}
+		print $makefile_new $line;
+	    }
+	    close $makefile_old;
+	    close $makefile_new;
+	    system("mv Makefile.new Makefile");
+
 	    system("make predef=FH > $current_path/SusHi_make.log 2>> $current_path/SusHi_make.log");
 	    if($? != 0) {
-		print "Error while compiling SusHi. Please check SusHi_make.log for more information.\n";
+		print "Error while compiling SusHi. Please check SusHi_make.log for more information.
+!!!!!!!!
+NOTE: if the SusHi library is created despite an error occured during compilation, the linking will most probable work fine, and no further actions are required.
+!!!!!!!!\n";
 	    } else {
 		print "SusHi has been successfully installed.\n\n";
 	    }
 	    $sushipath = $sushipath."/".$sushiversion."/lib";
 	} else {
 	    while (1 == 1) {
-		print"Type absolute path to lib folder of SusHi (e.g. /home/username/Sushi-X.X.X/lib). Press ENTER if you would like to link libsushiFH.a by hand.\n";
+		print"\nType absolute path to lib folder of SusHi (e.g. /home/username/Sushi-X.X.X/lib). Press ENTER if you would like to link libsushiFH.a by hand.\n";
 		$sushipath =  <STDIN>;
 		chomp ($sushipath);
 		if($sushipath eq "") {
@@ -289,7 +373,5 @@ $script_path = abs_path($0);
 $gghpath=substr($script_path, 0, -26);
 system("cp -r $gghpath/* $path\n");
 system("rm $path/set_up_ggH_MSSM_script.pl");
-system("rm $path/GGH_README");
+system("rm $path/README_GGH");
 print"INFO: modified ggH files copied from $gghpath/* to $path\n";
-
-
