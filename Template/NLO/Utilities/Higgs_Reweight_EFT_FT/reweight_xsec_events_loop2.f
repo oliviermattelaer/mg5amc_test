@@ -51,7 +51,13 @@ c Compile with makefile_rwgt
       integer i_process
       common/c_i_process/i_process
       logical reweight_loop_squared_var
-      parameter (reweight_loop_squared_var=.true.)
+
+
+      if (nexternal.eq.4) then 
+      reweight_loop_squared_var=.false.
+      else 
+      reweight_loop_squared_var=.true.
+      endif 
 c
       call setrun                !Sets up run parameters
 
