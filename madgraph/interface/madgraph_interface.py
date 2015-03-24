@@ -3549,6 +3549,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                           "Multiparticle %s is or-multiparticle" % part_name + \
                           " which can be used only for required s-channels"
                 mylegids.extend(self._multiparticles[part_name])
+                duplicate=1
             else:
                 mypart = self._curr_model['particles'].get_copy(part_name)
                 duplicate =1

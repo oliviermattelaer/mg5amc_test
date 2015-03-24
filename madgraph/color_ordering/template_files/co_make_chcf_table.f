@@ -32,10 +32,10 @@ C     ----------
       NGLUONS = MAX_PARTICLES
       DO I = 1,NDIAGS
         DO J = 1,NPERMS
-          CF_BASIS(I,J) = .FALSE.
+          CF_BASIS(I,J) = .TRUE.
         ENDDO
       ENDDO
-
+      RETURN
       DO I = 1,NDIAGS
         CALL MAKE_ATM(I,MAX_NATM,ATM,NATM)
         CALL FIND_PERCHCF(NGLUONS,NATM,ATM,CH_CF(1,1,I),CFNUM(1,I),NCHCF(I))
