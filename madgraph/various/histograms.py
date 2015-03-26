@@ -100,11 +100,15 @@ class Bin(object):
     """A class to store Bin related features and function.
     """
   
-    def __init__(self, boundaries=(0.0,0.0), wgts={'central':0.0}):
+    def __init__(self, boundaries=(0.0,0.0), wgts=None, n_entries = 0):
         """ Initializes an empty bin, necessarily with boundaries. """
 
         self.boundaries = boundaries
-        self.wgts       = wgts
+        self.n_entries  = n_entries
+        if not wgts:
+            self.wgts       = {'central':0.0}
+        else:
+            self.wgts       = wgts
   
     def __setattr__(self, name, value):
         if name=='boundaries':
@@ -127,8 +131,7 @@ class Bin(object):
                                           "'wgts' must be a dictionary."%str(value)
             if not 'central' in value.keys(): 
                 raise MadGraph5Error, "The keys of the dictionary specifying "+\
-                    "the weights of the bin must include the keyword 'central'."\
-                                                                         %str(value)
+                    "the weights of the bin must include the keyword 'central'."
             for val in value.values():
                 if not isinstance(val,float):
                     raise MadGraph5Error, "The bin weight value '%s' is not a "+\
@@ -156,6 +159,30 @@ class Bin(object):
         except KeyError:
             raise MadGraph5Error, "Weight with ID '%s' is not defined for"+\
                                                             " this bin"%str(key)                                                
+
+    def addEvent(self, weights = 1.0):
+        """ Add an event to this bin. """
+        
+        
+        if isinstance(weights, float):
+            weights = {'central': weights}
+        
+        for key in weights:
+            if key == 'stat_error':
+                continue
+            try:
+                self.wgts[key] += weights[key]
+            except KeyError:
+                raise MadGraph5Error('The event added defines the weight '+
+                  '%s which was not '%key+'registered in this histogram.')
+        
+        self.n_entries += 1
+        
+        if 'stat_error' not in weights:
+            self.wgts['stat_error'] = self.wgts['central']/math.sqrt(float(self.n_entries))
+        else:
+            self.wgts['stat_error'] = math.sqrt( self.wgts['stat_error']**2 + 
+                                                      weights['stat_error']**2 )
 
     def nice_string(self, order=None, short=True):
         """ Nice representation of this Bin. 
@@ -207,11 +234,27 @@ class Bin(object):
 class BinList(histograms_PhysicsObjectList):
     """ A class implementing features related to a list of Bins. """
 
-    def __init__(self, list = [], weight_labels = None):
-        """ Initialize a list of Bins """
+    def __init__(self, list = [], bin_range = None, 
+                                     weight_labels = None):
+        """ Initialize a list of Bins. It is possible to define the range
+        as a list of three floats: [min_x, max_x, bin_width]"""
         
         self.weight_labels = weight_labels
-        super(BinList, self).__init__(list)
+        if bin_range:
+            # Set the default weight_labels to something meaningful
+            if not self.weight_labels:
+                self.weight_labels = ['central', 'stat_error']
+            if len(bin_range)!=3 or any(not isinstance(f, float) for f in bin_range):
+                raise MadGraph5Error, "The range argument to build a BinList"+\
+                  " must be a list of exactly three floats."
+            current = bin_range[0]
+            while current < bin_range[1]:
+                self.append(Bin(boundaries =
+                            (current, min(current+bin_range[2],bin_range[1])),
+                            wgts = dict((wgt,0.0) for wgt in weight_labels)))
+                current += bin_range[2]
+        else:
+            super(BinList, self).__init__(list)
 
     def is_valid_element(self, obj):
         """Test whether specified object is of the right type for this list."""
@@ -269,7 +312,7 @@ class Histogram(object):
     allowed_axis_modes  = ['LOG','LIN'] 
 
     def __init__(self, title = "NoName", n_dimensions = 2, type=None,
-                 x_axis_mode = 'LIN', y_axis_mode = 'LOG'):
+                 x_axis_mode = 'LIN', y_axis_mode = 'LOG', bins=None):
         """ Initializes an empty histogram, possibly specifying 
               > a title 
               > a number of dimensions
@@ -278,7 +321,10 @@ class Histogram(object):
         
         self.title       = title
         self.dimension   = n_dimensions
-        self.bins        = BinList([])
+        if not bins:
+            self.bins    = BinList([])
+        else:
+            self.bins    = bins
         self.type        = type
         self.x_axis_mode = x_axis_mode
         self.y_axis_mode = y_axis_mode        
@@ -446,10 +492,10 @@ class Histogram(object):
                 new_wgts[label] = wgt_operation(wgt, wgtsB[label])
             else:
                 new_wgts[label] = stat_error_operation(wgt, wgtsB[label])
-                if new_wgts[label]>1.0e+10:
-                    print "stat_error_operation is ",stat_error_operation.__name__
-                    print " inputs were ",wgt, wgtsB[label]
-                    print "for label", label
+#                if new_wgts[label]>1.0e+10:
+#                    print "stat_error_operation is ",stat_error_operation.__name__
+#                    print " inputs were ",wgt, wgtsB[label]
+#                    print "for label", label
         
         return new_wgts
 
@@ -593,7 +639,7 @@ class HwU(Histogram):
     class ParseError(MadGraph5Error):
         """a class for histogram data parsing errors"""
     
-    def __init__(self, file_path=None, weight_header=None):
+    def __init__(self, file_path=None, weight_header=None, **opts):
         """ Read one plot from a file_path or a stream. Notice that this
         constructor only reads one, and the first one, of the plots specified.
         If file_path was a path in argument, it would then close the opened stream.
@@ -601,7 +647,7 @@ class HwU(Histogram):
         The option weight_header specifies an ordered list of weight names 
         to appear in the file specified."""
         
-        super(HwU, self).__init__()
+        super(HwU, self).__init__(**opts)
 
         self.dimension = 2
         
@@ -627,6 +673,13 @@ class HwU(Histogram):
         # Explicitly close the opened stream for clarity.
         if isinstance(file_path, str):
             stream.close()
+    
+    def addEvent(self, x_value, weights = 1.0):
+        """ Add an event to the current plot. """
+        
+        for bin in self.bins:
+            if bin.boundaries[0] <= x_value < bin.boundaries[1]:
+                bin.addEvent(weights = weights)
     
     def get_formatted_header(self):
         """ Return a HwU formatted header for the weight label definition."""
@@ -962,6 +1015,42 @@ class HwU(Histogram):
             # of the two new weight label added.
             return position                 
     
+    def rebin(self, n_rebin):
+        """ Rebin the x-axis so as to merge n_rebin consecutive bins into a 
+        single one. """
+        
+        if n_rebin < 1 or not isinstance(n_rebin, int):
+            raise MadGraph5Error, "The argument 'n_rebin' of the HwU function"+\
+              " 'rebin' must be larger or equal to 1, not '%s'."%str(n_rebin)
+        elif n_rebin==1:
+            return
+        
+        if 'NOREBIN' in self.type.upper():
+            return
+
+        rebinning_list = list(range(0,len(self.bins),n_rebin))+[len(self.bins),]
+        concat_list = [self.bins[rebinning_list[i]:rebinning_list[i+1]] for \
+                                              i in range(len(rebinning_list)-1)]
+        
+        new_bins = copy.copy(self.bins)
+        del new_bins[:]
+
+        for bins_to_merge in concat_list:
+            if len(bins_to_merge)==0:
+                continue
+            new_bins.append(Bin(boundaries=(bins_to_merge[0].boundaries[0],
+              bins_to_merge[-1].boundaries[1]),wgts={'central':0.0}))
+            for weight in self.bins.weight_labels:
+                if weight != 'stat_error':
+                    new_bins[-1].wgts[weight] = \
+                                      sum(b.wgts[weight] for b in bins_to_merge)
+                else:
+                    new_bins[-1].wgts['stat_error'] = \
+                        math.sqrt(sum(b.wgts['stat_error']**2 for b in\
+                                                                 bins_to_merge))
+
+        self.bins = new_bins
+    
     @classmethod
     def get_x_optimal_range(cls, histo_list, weight_labels=None):
         """ Function to determine the optimal x-axis range when plotting 
@@ -1142,7 +1231,7 @@ class HwUList(histograms_PhysicsObjectList):
             stream.close()
 
     def output(self, path, format='gnuplot',number_of_ratios = -1, 
-          uncertainties=['scale','pdf','statitistical'],ratio_correlations=True):
+          uncertainties=['scale','pdf','statitistical'],ratio_correlations=True,arg_string=''):
         """ Ouput this histogram to a file, stream or string if path is kept to
         None. The supported format are for now. Chose whether to print the header
         or not."""
@@ -1170,8 +1259,8 @@ class HwUList(histograms_PhysicsObjectList):
             for histo in self[1:]:
                 HwU_output_list.extend(histo.get_HwU_source())
                 HwU_output_list.extend(['',''])
-            stream.write('\n'.join(HwU_output_list))
-            stream.close()
+            HwU_stream.write('\n'.join(HwU_output_list))
+            HwU_stream.close()
             return
         
         # Now we consider that we are attempting a gnuplot output.
@@ -1193,7 +1282,7 @@ class HwUList(histograms_PhysicsObjectList):
         self[:] = matching_histo_lists
 
         # Write the gnuplot header
-        gnuplot_output_list = [
+        gnuplot_output_list_v4 = [
 """
 ################################################################################
 #
@@ -1205,6 +1294,7 @@ class HwUList(histograms_PhysicsObjectList):
 # For more information, visit madgraph.phys.ucl.ac.be and amcatnlo.web.cern.ch
 #
 ################################################################################
+# %s
 reset
 
 set lmargin 10
@@ -1258,9 +1348,95 @@ safe(x,y,a) = (y == 0.0 ? a : x/y)
 
 set style data histeps
 
-"""%output_base_name
+"""%(arg_string,output_base_name)
 ]
         
+        gnuplot_output_list_v5 = [
+"""
+################################################################################
+#
+# This gnuplot file was generated by MadGraph5_aMC@NLO project, a program which 
+# automatically generates Feynman diagrams and matrix elements for arbitrary
+# high-energy processes in the Standard Model and beyond. It also perform the
+# integration and/or generate events for these processes, at LO and NLO accuracy.
+#
+# For more information, visit madgraph.phys.ucl.ac.be and amcatnlo.web.cern.ch
+#
+################################################################################
+# %s
+reset
+
+set lmargin 10
+set rmargin 0
+set terminal postscript portrait enhanced color "Helvetica" 9 
+set key font ",9"
+set key samplen "2"
+set output "%s.ps"
+
+# This is the "PODO" color palette of gnuplot v.5, but with the order
+# changed: palette of colors selected to be easily distinguishable by
+# color-blind individuals with either protanopia or deuteranopia. Bang
+# Wong [2011] Nature Methods 8, 441.
+
+set style line  1 lt 1 lc rgb "#009e73" lw 1.3
+set style line 11 lt 2 lc rgb "#009e73" lw 1.3 dt (6,3)
+set style line 21 lt 4 lc rgb "#009e73" lw 1.3 dt (2,2)
+
+set style line  2 lt 1 lc rgb "#0072b2" lw 1.3
+set style line 12 lt 2 lc rgb "#0072b2" lw 1.3 dt (6,3)
+set style line 22 lt 4 lc rgb "#0072b2" lw 1.3 dt (2,2)
+
+set style line  3 lt 1 lc rgb "#d55e00" lw 1.3
+set style line 13 lt 2 lc rgb "#d55e00" lw 1.3 dt (6,3)
+set style line 23 lt 4 lc rgb "#d55e00" lw 1.3 dt (2,2)
+
+set style line  4 lt 1 lc rgb "#f0e442" lw 1.3
+set style line 14 lt 2 lc rgb "#f0e442" lw 1.3 dt (6,3)
+set style line 24 lt 4 lc rgb "#f0e442" lw 1.3 dt (2,2)
+
+set style line  5 lt 1 lc rgb "#56b4e9" lw 1.3
+set style line 15 lt 2 lc rgb "#56b4e9" lw 1.3 dt (6,3)
+set style line 25 lt 4 lc rgb "#56b4e9" lw 1.3 dt (2,2)
+
+set style line  6 lt 1 lc rgb "#cc79a7" lw 1.3
+set style line 16 lt 2 lc rgb "#cc79a7" lw 1.3 dt (6,3)
+set style line 26 lt 4 lc rgb "#cc79a7" lw 1.3 dt (2,2)
+
+set style line  7 lt 1 lc rgb "#e69f00" lw 1.3
+set style line 17 lt 2 lc rgb "#e69f00" lw 1.3 dt (6,3)
+set style line 27 lt 4 lc rgb "#e69f00" lw 1.3 dt (2,2)
+
+set style line  8 lt 1 lc rgb "black" lw 1.3
+set style line 18 lt 2 lc rgb "black" lw 1.3 dt (6,3)
+set style line 28 lt 4 lc rgb "black" lw 1.3 dt (2,2)
+
+
+set style line 999 lt 1 lc rgb "gray" lw 1.3
+
+safe(x,y,a) = (y == 0.0 ? a : x/y)
+
+set style data histeps
+
+"""%(arg_string,output_base_name)
+]
+        
+        # determine the gnuplot version
+        try:
+            import subprocess
+            p = subprocess.Popen(['gnuplot', '--version'], \
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except OSError:
+            # assume that version 4 of gnuplot is the default if
+            # gnuplot could not be found
+            gnuplot_output_list=gnuplot_output_list_v4
+        else:
+            output, _ = p.communicate()
+            if float(output.split()[1]) < 5. :
+                gnuplot_output_list=gnuplot_output_list_v4
+            else:
+                gnuplot_output_list=gnuplot_output_list_v5
+
+
         # Now output each group one by one
         # Block position keeps track of the gnuplot data_block index considered
         block_position = 0
@@ -1295,9 +1471,9 @@ set style data histeps
         histograms untyped (i.e. type=None) or two of type 'NLO' and 'LO' 
         respectively."""
 
-        layout_geometry = [(0.0,0.5,1.0,0.4),
-                           (0.0,0.4,1.0,0.1),
-                           (0.0,0.3,1.0,0.1)]
+        layout_geometry = [(0.0, 0.5,  1.0, 0.4 ),
+                           (0.0, 0.35, 1.0, 0.15),
+                           (0.0, 0.2,  1.0, 0.15)]
         layout_geometry.reverse()
         
         
@@ -1695,6 +1871,9 @@ if __name__ == "__main__":
            '--show_full'     to show the complete output of what was read.
            '--show_short'    to show a summary of what was read.
            '--simple_ratios' to turn off correlations and error propagation in the ratio.
+           '--sum'           To sum all diagrams together
+           '--average'       To average all diagrams together
+           '--rebin=<n>'     Rebin the plots by merging n-consecutive bins together.     
     """
     
     n_ratios   = -1
@@ -1708,6 +1887,8 @@ if __name__ == "__main__":
     if '--help' in sys.argv or len(sys.argv)==1:
         log('\n\n%s'%main_doc)
         sys.exit(0)
+
+    arg_string=' '.join(sys.argv)
 
     OutName = ""
     for arg in sys.argv[1:]:
@@ -1739,15 +1920,24 @@ if __name__ == "__main__":
     if '--no_stat' in sys.argv:
         uncertainties.remove('statistical')        
 
+    n_files    = len([_ for _ in sys.argv[1:] if not _.startswith('--')])
+    print "n_files=",n_files
+    histo_norm = 1.0
+    if '--average' in sys.argv:
+        histo_norm = 1.0/float(n_files)
+        
     log("=======")
     histo_list = HwUList([])
     for i, arg in enumerate(sys.argv[1:]):
+        n_files += 1
         if arg.startswith('--'):
             break
         log("Loading histograms from '%s'."%arg)
         if OutName=="":
             OutName = os.path.basename(arg).split('.')[0]+'_output'
         new_histo_list = HwUList(arg, accepted_types_order=accepted_types)
+        if n_files==1:
+            continue
         for histo in new_histo_list:
             if not histo.type is None:
                 histo.type += ' '
@@ -1757,15 +1947,39 @@ if __name__ == "__main__":
             #histo.type += " %s, #%d"%\
             #                       (os.path.basename(arg).split('.')[0][:3],i+1)
             # But it is more elegant to give just the number.
-            histo.type += "#%d"%(i+1)
+            # Overwrite existing number if present. We assume here that one never
+            # uses the '#' in its custom-defined types, which is a fair assumptions.
+            try:
+                histo.type = histo.type[:histo.type.index('#')] + "#%d"%(i+1)
+            except ValueError:
+                histo.type += "#%d"%(i+1)
 
-        histo_list.extend(new_histo_list)
+        if i==0 or all(_ not in ['--sum','--average'] for _ in sys.argv):
+            histo_list.extend(new_histo_list)
+            continue
+        
+        if any(_ in sys.argv for _ in ['--sum','--average']):
+            for j, hist in enumerate(histo_list):
+                 # First make sure the plots have the same weight labels and such
+                 hist.test_plot_compability(histo_list[j])
+                 # Now let the histogram module do the magic and add them.
+                 histo_list[j] += hist*histo_norm
+        
     log("A total of %i histograms were found."%len(histo_list))
     log("=======")
 
+    n_rebin = 1
+    for arg in sys.argv[1:]:
+        if arg.startswith('--rebin='):
+            n_rebin = int(arg[8:])
+    
+    if n_rebin > 1:
+        for hist in histo_list:
+            hist.rebin(n_rebin)
+
     if '--gnuplot' in sys.argv or all(arg not in ['--HwU'] for arg in sys.argv):
         histo_list.output(OutName, format='gnuplot', number_of_ratios = n_ratios, 
-            uncertainties=uncertainties, ratio_correlations=ratio_correlations)
+            uncertainties=uncertainties, ratio_correlations=ratio_correlations,arg_string=arg_string)
         log("%d histograms have been output in " % len(histo_list)+\
                 "the gnuplot format at '%s.[HwU|gnuplot]'." % OutName)
         if auto_open:

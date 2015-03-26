@@ -38,6 +38,7 @@ except ImportError:
     import internal.cluster as cluster
     import internal.combine_grid as combine_grid
     import internal.combine_runs as combine_runs
+    import internal.lhe_parser as lhe_parser
 else:
     MADEVENT= False
     import madgraph.madevent.sum_html as sum_html
@@ -47,6 +48,7 @@ else:
     import madgraph.various.cluster as cluster
     import madgraph.madevent.combine_grid as combine_grid
     import madgraph.madevent.combine_runs as combine_runs
+    import madgraph.various.lhe_parser as lhe_parser
 
 logger = logging.getLogger('madgraph.madevent.gen_ximprove')
 pjoin = os.path.join
@@ -73,9 +75,13 @@ class gensym(object):
         except TypeError:
             pass
         
+        # Run statistics, a dictionary of RunStatistics(), with 
+        self.run_statistics = {}
+        
         self.cmd = cmd
         self.run_card = cmd.run_card
         self.me_dir = cmd.me_dir
+        
         
         # dictionary to keep track of the precision when combining iteration
         self.cross = collections.defaultdict(int)
@@ -203,7 +209,7 @@ class gensym(object):
     def submit_to_cluster_no_splitting(self, job_list):
         """submit the survey without the parralelization.
            This is the old mode which is still usefull in single core"""
-       
+     
         # write the template file for the parameter file   
         self.write_parameter(parralelization=False, Pdirs=job_list.keys())
         
@@ -297,8 +303,7 @@ class gensym(object):
                                     packet_member=packet)
 
     def combine_iteration(self, Pdir, G, step):
-        
-        
+
         grid_calculator, cross, error = self.combine_grid(Pdir, G, step)
         
         # Compute the number of events used for this run.                      
@@ -343,7 +348,11 @@ class gensym(object):
                         conservative_factor=5.0)
         
         if need_submit:
-            logger.info("%s/G%s is at %s+-%s pb. Submit next iteration", os.path.basename(Pdir), G, cross, error)
+            xsec_format = '.%ig'%(max(3,int(math.log10(float(cross)/float(error)))+2) 
+                                                      if float(cross)!=0 else 8)
+            message = "%%s/G%%s is at %%%s +- %%.3g pb. Submit iteration %s " % (xsec_format, step+1)
+            logger.info(message%\
+                        (os.path.basename(Pdir), G, float(cross), float(error)))
             self.resubmit_survey(Pdir,G, Gdirs, step)
         elif cross:
             logger.info("Survey finished for %s/G%s", os.path.basename(Pdir),G)
@@ -428,9 +437,41 @@ class gensym(object):
                 primary_event = sum([R.nw for R in grid_calculator.results])
                 written_event = sum([R.nunwgt for R in grid_calculator.results])
                 misc.sprint(G, cross, error*cross, nunwgt, written_event, primary_event, luminosity)
-
  
+        grid_calculator.results.compute_values()
+        if (str(os.path.basename(Pdir)), G) in self.run_statistics:
+            self.run_statistics[(str(os.path.basename(Pdir)), G)]\
+                   .aggregate_statistics(grid_calculator.results.run_statistics)
+        else:
+            self.run_statistics[(str(os.path.basename(Pdir)), G)] = \
+                                          grid_calculator.results.run_statistics
+    
+        self.warnings_from_statistics(G, grid_calculator.results.run_statistics) 
+        stats_msg = grid_calculator.results.run_statistics.nice_output(
+                                     '/'.join([os.path.basename(Pdir),'G%s'%G]))
+        if stats_msg:
+            logger.log(5, stats_msg)
+
         return grid_calculator, cross, error
+
+    def warnings_from_statistics(self,G,stats):
+        """Possible warn user for worrying MadLoop stats for this channel."""
+
+        if stats['n_madloop_calls']==0:
+            return
+
+        EPS_fraction = float(stats['exceptional_points'])/stats['n_madloop_calls']
+        
+        msg =  "Channel %s has encountered a fraction of %.3g\n"+ \
+         "of numerically unstable loop matrix element computations\n"+\
+         "(which could not be rescued using quadruple precision).\n"+\
+         "The results might not be trusted."
+
+        if 0.01 > EPS_fraction > 0.001:
+             msg.warning(msg%(G,EPS_fraction))
+        elif EPS_fraction > 0.01:
+             logger.critical((msg%(G,EPS_fraction)).replace('might', 'can'))
+             raise Exception, (msg%(G,EPS_fraction)).replace('might', 'can')
     
     def get_current_axsec(self):
         
@@ -559,7 +600,7 @@ class gensym(object):
             Pdirs = self.subproc
                
         for Pdir in Pdirs:
-            path =pjoin(self.me_dir, 'SubProcesses', Pdir, 'input_app.txt') 
+            path =pjoin(Pdir, 'input_app.txt') 
             self.write_parameter_file(path, options)
 
         
@@ -602,7 +643,7 @@ class gen_ximprove(object):
         except TypeError:
             pass
         
-        
+        self.run_statistics = {}
         self.cmd = cmd
         self.run_card = cmd.run_card
         run_card = self.run_card
@@ -1132,7 +1173,7 @@ class gen_ximprove_share(gen_ximprove, gensym):
             try:
                 os.remove(pjoin(self.me_dir, "SubProcesses",C.parent_name, C.name, "events.lhe"))
             except:
-                raise
+                pass
             
             #1. Compute the number of points are needed to reach target
             needed_event = goal_lum*C.get('axsec')
@@ -1221,10 +1262,18 @@ class gen_ximprove_share(gen_ximprove, gensym):
                 
         misc.call(["cat"] + [pjoin(d, "events.lhe") for d in Gdirs],
                   stdout=output_file)
+        output_file.close()
+        # For large number of iteration. check the number of event by doing the
+        # real unweighting.
+        if nunwgt < 0.6 * needed_event and step > self.min_iter:            
+            lhe = lhe_parser.EventFile(output_file.name)
+            old_nunwgt =nunwgt
+            nunwgt = lhe.unweight(None, trunc_error=0.01, log_level=0)
         
-        
+    
         self.generated_events[(Pdir, G)] = (nunwgt, maxwgt)
 
+        # misc.sprint("Adding %s event to %s. Currently at %s" % (new_evt, G, nunwgt))
         # check what to do
         if nunwgt > needed_event+1:
             # We did it.
@@ -1257,7 +1306,10 @@ class gen_ximprove_share(gen_ximprove, gensym):
             grid_calculator.write_grid_for_submission(Pdir,G,
                 self.splitted_for_dir(Pdir, G), nb_job*nevents ,mode=self.mode,
                                               conservative_factor=self.max_iter)
-            logger.info("%s/G%s is at %i/%i event. Resubmit %i job at iteration %i." % (os.path.basename(Pdir), G, int(nunwgt),int(needed_event)+1, nb_job, step))
+            logger.info("%s/G%s is at %i/%i (%.2g%%) event. Resubmit %i job at iteration %i." \
+                 % (os.path.basename(Pdir), G, int(nunwgt),int(needed_event)+1,
+                 (float(nunwgt)/needed_event)*100.0 if needed_event>0.0 else 0.0,
+                                                                  nb_job, step))
             self.create_resubmit_one_iter(Pdir, G, nevents, nb_job, step)
             #self.create_job(Pdir, G, nb_job, nevents, step)
         
@@ -1271,7 +1323,10 @@ class gen_ximprove_share(gen_ximprove, gensym):
                                               conservative_factor=self.max_iter)
             
             
-            logger.info("%s/G%s is at %i/%i event. Resubmit %i job at iteration %i." % (os.path.basename(Pdir), G, int(nunwgt),int(needed_event)+1, nb_job, step))
+            logger.info("%s/G%s is at %i/%i ('%.2g%%') event. Resubmit %i job at iteration %i." \
+              % (os.path.basename(Pdir), G, int(nunwgt),int(needed_event)+1,
+                 (float(nunwgt)/needed_event)*100.0 if needed_event>0.0 else 0.0,
+                                                                  nb_job, step))
             self.create_resubmit_one_iter(Pdir, G, nevents, nb_job, step)
             
             

@@ -1653,15 +1653,17 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         
         super(MadEventCmd,self).set_configuration(amcatnlo=amcatnlo, 
                                                             final=final, **opt)
+
         if not final:
             return self.options # the return is usefull for unittest
+
 
         # Treat each expected input
         # delphes/pythia/... path
         # ONLY the ONE LINKED TO Madevent ONLY!!!
         for key in (k for k in self.options if k.endswith('path')):
             path = self.options[key]
-            if path is None:
+            if path is None or key.startswith("cluster"):
                 continue
             if not os.path.isdir(path):
                 path = pjoin(self.me_dir, self.options[key])
@@ -1963,6 +1965,8 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
     def do_launch(self, line, *args, **opt):
         """Main Commands: exec generate_events for 2>N and calculate_width for 1>N"""
         if self.ninitial == 1:
+            logger.info("Note that since 2.3. The launch for 1>N pass in event generation\n"+
+                           "    To have the previous behavior use the calculate_decay_widths function")
             self.do_calculate_decay_widths(line, *args, **opt)
         else:
             self.do_generate_events(line, *args, **opt)
@@ -1970,8 +1974,18 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
     def print_results_in_shell(self, data):
         """Have a nice results prints in the shell,
         data should be of type: gen_crossxhtml.OneTagResults"""
+
         if not data:
             return
+
+        if data['run_statistics']:
+            logger.info(" " )
+            logger.debug(" === Run statistics summary ===")
+            for key, value in data['run_statistics'].items():
+                logger.debug(value.nice_output(str('/'.join([key[0],'G%s'%key[1]]))).\
+                  replace(' statistics',''))
+            logger.info(" " )
+            
         logger.info("  === Results Summary for run: %s tag: %s ===\n" % (data['run_name'],data['tag']))
         if self.ninitial == 1:
             logger.info("     Width :   %.4g +- %.4g GeV" % (data['cross'], data['error']))
@@ -1989,7 +2003,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
             
         logger.info(" " )
 
-    def print_results_in_file(self, data, path, mode='w'):
+    def print_results_in_file(self, data, path, mode='w', format='full'):
         """Have a nice results prints in the shell,
         data should be of type: gen_crossxhtml.OneTagResults"""
         if not data:
@@ -1997,22 +2011,39 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         
         fsock = open(path, mode)
         
-        fsock.write("  === Results Summary for run: %s tag: %s  process: %s ===\n" % \
-                    (data['run_name'],data['tag'], os.path.basename(self.me_dir)))
-        
-        if self.ninitial == 1:
-            fsock.write("     Width :   %.4g +- %.4g GeV\n" % (data['cross'], data['error']))
-        else:
-            fsock.write("     Cross-section :   %.4g +- %.4g pb\n" % (data['cross'], data['error']))
-        fsock.write("     Nb of events :  %s\n" % data['nb_event'] )
-        if data['cross_pythia'] and data['nb_event_pythia']:
+        if data['run_statistics']:
+            logger.debug(" === Run statistics summary ===")
+            for key, value in data['run_statistics'].items():
+                logger.debug(value.nice_output(str('/'.join([key[0],'G%s'%key[1]]))).\
+                  replace(' statistics',''))
+            logger.info(" " )
+
+        if format == "full":
+            fsock.write("  === Results Summary for run: %s tag: %s  process: %s ===\n" % \
+                        (data['run_name'],data['tag'], os.path.basename(self.me_dir)))
+            
             if self.ninitial == 1:
-                fsock.write("     Matched Width :   %.4g +- %.4g GeV\n" % (data['cross_pythia'], data['error_pythia']))
+                fsock.write("     Width :   %.4g +- %.4g GeV\n" % (data['cross'], data['error']))
             else:
-                fsock.write("     Matched Cross-section :   %.4g +- %.4g pb\n" % (data['cross_pythia'], data['error_pythia']))            
-            fsock.write("     Nb of events after Matching :  %s\n" % data['nb_event_pythia'])
-        fsock.write(" \n" )
-    
+                fsock.write("     Cross-section :   %.4g +- %.4g pb\n" % (data['cross'], data['error']))
+            fsock.write("     Nb of events :  %s\n" % data['nb_event'] )
+            if data['cross_pythia'] and data['nb_event_pythia']:
+                if self.ninitial == 1:
+                    fsock.write("     Matched Width :   %.4g +- %.4g GeV\n" % (data['cross_pythia'], data['error_pythia']))
+                else:
+                    fsock.write("     Matched Cross-section :   %.4g +- %.4g pb\n" % (data['cross_pythia'], data['error_pythia']))            
+                fsock.write("     Nb of events after Matching :  %s\n" % data['nb_event_pythia'])
+            fsock.write(" \n" )
+        elif format == "short":
+            if mode == "w":
+                fsock.write("# run_name tag cross error Nb_event cross_after_matching nb_event_after matching\n")
+                
+            if data['cross_pythia'] and data['nb_event_pythia']:
+                text = "%(run_name)s %(tag)s %(cross)s %(error)s %(nb_event)s %(cross_pythia)s %(nb_event_pythia)s\n"
+            else:
+                text = "%(run_name)s %(tag)s %(cross)s %(error)s %(nb_event)s\n"
+            fsock.write(text % data)
+                
     ############################################################################      
     def do_calculate_decay_widths(self, line):
         """Main Commands: launch decay width calculation and automatic inclusion of
@@ -2048,6 +2079,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         self.exec_cmd('store_events', postcmd=False)
         
         self.collect_decay_widths()
+        self.print_results_in_shell(self.results.current)
         self.update_status('calculate_decay_widths done', 
                                                  level='parton', makehtml=False)   
 
@@ -2400,10 +2432,9 @@ zeor by MadLoop.""")
             logger.info('Creating Jobs')
 
         self.total_jobs = 0
-        subproc = [l.strip() for l in open(pjoin(self.me_dir,'SubProcesses', 
-                                                                 'subproc.mg'))]
+        subproc = [l.strip() for l in open(pjoin(self.me_dir,
+                                                 'SubProcesses', 'subproc.mg'))]
 
-          
         P_zero_result = [] # check the number of times where they are no phase-space
 
         # File for the loop (for loop induced)
@@ -2441,8 +2472,9 @@ zeor by MadLoop.""")
             #will be done during the refine (more precisely in gen_ximprove)
             cross, error = sum_html.make_all_html_results(self)
             self.results.add_detail('cross', cross)
-            self.results.add_detail('error', error)            
-              
+            self.results.add_detail('error', error)        
+        
+        self.results.add_detail('run_statistics', dict(ajobcreator.run_statistics))
         self.update_status('End survey', 'parton', makehtml=False)
 
     ############################################################################
@@ -2513,8 +2545,13 @@ zeor by MadLoop.""")
                     os.remove(match)
 
         x_improve = gen_ximprove.gen_ximprove(self, refine_opt)
+        # Load the run statistics from the 
+        survey_statistics = dict(self.results.get_detail('run_statistics'))
+        if survey_statistics:
+            x_improve.run_statistics = survey_statistics
+        
         x_improve.launch() # create the ajob for the refinment.
-        if 'refine' not in self.history[-1]:
+        if not self.history or 'refine' not in self.history[-1]:
             cross, error = x_improve.update_html() #update html results for survey
             if  cross == 0:
                 return
@@ -2569,7 +2606,16 @@ zeor by MadLoop.""")
             
         cross, error = sum_html.make_all_html_results(self)
         self.results.add_detail('cross', cross)
-        self.results.add_detail('error', error)   
+        self.results.add_detail('error', error)
+        
+        global_run_statistics = self.results.get_detail('run_statistics')
+        for key, value in x_improve.run_statistics.items():
+            if key in global_run_statistics:
+                global_run_statistics[key].aggregate_statistics(value)
+            else:
+                global_run_statistics[key] = value
+
+        self.results.add_detail('run_statistics', dict(global_run_statistics))
 
         self.update_status('finish refine', 'parton', makehtml=False)
         devnull.close()
@@ -3438,14 +3484,19 @@ zeor by MadLoop.""")
                         if os.path.exists(pjoin(cwd, G, 'input_app.txt')):
                             os.remove(pjoin(cwd, G, 'input_app.txt'))
                     
-                    if os.path.exists(pjoin(cwd, G, 'ftn25')):
-                        if offset ==0 or offset == int(float(argument[0])):
+                    if os.path.exists(os.path.realpath(pjoin(cwd, G, 'ftn25'))):
+                        if offset == 0 or offset == int(float(argument[0])):
                             os.remove(pjoin(cwd, G, 'ftn25'))
                             continue
                         else:
                             input_files.append(pjoin(cwd, G, 'ftn25'))
                             input_files.remove('input_app.txt')
                             input_files.append(pjoin(cwd, G, 'input_app.txt'))
+                    elif os.path.lexists(pjoin(cwd, G, 'ftn25')):
+                        try:
+                            os.remove(pjoin(cwd,G,'ftn25'))
+                        except:
+                            pass
                     
                 #submitting
                 self.cluster.cluster_submit(exe, stdout=stdout, cwd=cwd, argument=argument,  
