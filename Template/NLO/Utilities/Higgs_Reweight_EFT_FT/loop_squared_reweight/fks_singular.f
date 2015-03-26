@@ -4521,8 +4521,8 @@ c$$$               virt_wgt=m1l_W_finite_CDR(p_born,born_wgt)
                call cpu_time(tAfter)
                tOLP=tOLP+(tAfter-tBefore)
                virtual_over_born=virt_wgt/(born_wgt*ao2pi)
-               if (ickkw.ne.-1)
-     &              virt_wgt=virt_wgt-average_virtual*born_wgt*ao2pi
+c$$$               if (ickkw.ne.-1)
+c$$$     &              virt_wgt=virt_wgt-average_virtual*born_wgt*ao2pi
                if (abrv.ne.'virt') then
                   virt_wgt=virt_wgt/virtual_fraction
                endif
@@ -4536,8 +4536,8 @@ c$$$            bsv_wgt=bsv_wgt+virt_wgt_save
 
          wgt_ME_real=virt_wgt
 
-         if (abrv(1:4).ne.'virt' .and. ickkw.ne.-1)
-     &        bsv_wgt=bsv_wgt+average_virtual*born_wgt*ao2pi
+c$$$         if (abrv(1:4).ne.'virt' .and. ickkw.ne.-1)
+c$$$     &        bsv_wgt=bsv_wgt+average_virtual*born_wgt*ao2pi
 
 c eq.(MadFKS.C.13)
          if(abrv.eq.'viSA'.or.abrv.eq.'viSB')then
