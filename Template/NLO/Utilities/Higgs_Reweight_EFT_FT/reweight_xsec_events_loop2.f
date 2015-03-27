@@ -745,7 +745,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine reweight_loop_squared
       implicit none
       include 'nexternal.inc'
-      include 'coupl.inc'
+      include '../ML5lib_reweight/SubProcesses/coupl.inc'
       include 'c_weight.inc'
       logical firsttime
       data firsttime /.true./

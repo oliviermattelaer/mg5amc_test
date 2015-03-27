@@ -803,26 +803,28 @@ c coefficients that multiply the log(muR) and log(muF) factors.
       double precision dum_GF,dum_mt,dum_mb,dum_mc,muRfac,Hmass,b_mass
       character*60 infile
       if (firsttime) then
-         infile = '../../Cards/param_card.dat'
+         close (21) ! seems some other instance did not close the reading of the card. Close that one here.
+         infile = '../ML5lib_reweight/Cards/param_card.dat'
          inquire(file=infile,exist=ifilein)
          if(.not.ifilein) then
-            infile = '../../../Cards/param_card.dat'
+            infile = '../../ML5lib_reweight/Cards/param_card.dat'
             inquire(file=infile,exist=ifilein)
             if(.not.ifilein) then
                write(*,*) 'param_card not found!'
                stop
             endif
          endif
-         muRfac = 1   ! no influence as long as all masses are on-shell                                                      
-         htlkey = 0   ! htl not functionable, set always to 0 (exact masses)                                                 
+         muRfac = 1   ! no influence as long as all masses are on-shell
+         htlkey = 0   ! htl not functionable, set always to 0 (exact masses)
+         write (*,*)  ifilein,infile
          CALL SusHicall(infile,muRfac,htlkey,model,dum_GF,dum_mt,dum_mb
      $        ,b_mass,dum_mc,Hmass,dum_pseudo,dum_ew)
-         firsttime=.false.
          if (abs(Hmass-mdl_mh).gt.0.001d0) then
             write (*,*) 'Sushi is wrongly initialized:'
             write (*,*) Hmass,mdl_mh
             stop 1
          endif
+         firsttime=.false.
       endif
       alpha_S=g**2/(4d0*PI)
       ao2pi= alpha_S/(2d0*PI)
