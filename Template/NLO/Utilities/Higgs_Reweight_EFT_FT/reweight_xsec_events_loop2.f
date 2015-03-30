@@ -770,9 +770,10 @@ c Update the loop_id string used in the loop matrix library to determine
 c which loop matrix elements to compute. This also fills the momenta.
          call define_loop_id(i,loop_id,nbody,pp)
 c Define the correct strong coupling and update all the couplings that
-c depend on it. Also update the renormalisation scale mu_R itself.
-         mu_R=sqrt(scales2(2,i))
-         g=sqrt(4d0*pi*alphas(mu_R))
+c depend on it. Also update the renormalisation scale mu_R itself (and
+c set it equal to the Ellis-Sexton scale)
+         mu_R=sqrt(scales2(1,i))
+         g=sqrt(4d0*pi*alphas(sqrt(scales2(2,i))))
          call update_as_param()
 c Compute the loop matrix library
          call loop_matrix_lib_wrap(loop_id,g,pp,wgt_loop_sq)

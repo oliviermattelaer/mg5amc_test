@@ -764,15 +764,16 @@ c Update the loop_id string used in the loop matrix library to determine
 c which loop matrix elements to compute. This also fills the momenta.
          call define_loop_id(i,loop_id,nbody,pp)
 c Define the correct strong coupling and update all the couplings that
-c depend on it. Also update the renormalisation scale mu_R itself.
-         mu_R=sqrt(scales2(2,i))
-         g=sqrt(4d0*pi*alphas(mu_R))
+c depend on it. Also update the renormalisation scale mu_R itself (and
+c set it equal to the Ellis-Sexton scale)
+         mu_R=sqrt(scales2(1,i))
+         g=sqrt(4d0*pi*alphas(sqrt(scales2(2,i))))
          call update_as_param()
 c Compute the loop matrix library
          call loop_matrix_lib_wrap(loop_id,g,pp,wgt_loop_sq)
          if (itype(i).eq.14 .and. nexternal.eq.4) then
 c include the 2-loop virtual
-            es2=scales2(3,i)
+            es2=scales2(1,i)
             born_wgt=wgt_loop_sq
             call sushi_loop_wrap(es2,pp,born_wgt,wgt_loop_sq)
 c overwrite nbody to make sure to reweight with the actual virtual corrections. 
@@ -791,7 +792,7 @@ c coefficients that multiply the log(muR) and log(muF) factors.
       include 'nexternal.inc'
       include '../ML5lib_reweight/SubProcesses/coupl.inc'
       double precision pp(0:3,nexternal),virt_wgt,born_wgt,es2,alpha_S
-     $     ,ao2pi,pi,dot,epinv,epinv2,xn,xl12,c_virt
+     $     ,ao2pi,pi,dot,epinv,epinv2,xn,xl12,c_virt,conversion
       logical ifilein
       parameter (xn=3d0)
       parameter (pi=3.1415926535897932385d0)
@@ -816,7 +817,6 @@ c coefficients that multiply the log(muR) and log(muF) factors.
          endif
          muRfac = 1   ! no influence as long as all masses are on-shell
          htlkey = 0   ! htl not functionable, set always to 0 (exact masses)
-         write (*,*)  ifilein,infile
          CALL SusHicall(infile,muRfac,htlkey,model,dum_GF,dum_mt,dum_mb
      $        ,b_mass,dum_mc,Hmass,dum_pseudo,dum_ew)
          if (abs(Hmass-mdl_mh).gt.0.001d0) then
@@ -836,6 +836,9 @@ c coefficients that multiply the log(muR) and log(muF) factors.
      .     -epinv*(epinv2-xl12)-0.5d0*xl12**2
      . + 2d0*(c_virt()+pi**2)/6d0 + pi**2/6d0
      .     -((11d0-2d0*nf/xn)*epinv-1d0)/6d0)     
+c Conversion from DR to CDR
+      conversion=-1d0
+      virt_wgt=virt_wgt+conversion*born_wgt*ao2pi
       return
       end
 
