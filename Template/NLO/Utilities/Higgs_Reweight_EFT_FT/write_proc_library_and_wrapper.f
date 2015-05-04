@@ -111,8 +111,8 @@ com-- do-loop loops over all final state particles to apply permutations
          write(str_permut,*) 2+permut(i)
          write(str_i,*) 2+i
          write(12,*) '            P',trim(adjustl(str_mult))
-     &        ,'(j,',trim(adjustl(str_i)),')=P(j,'
-     &        ,trim(adjustl(str_permut)),')'
+     &        ,'(j,',trim(adjustl(str_permut)),')=P(j,'
+     &        ,trim(adjustl(str_i)),')'
          enddo
          write(12,*) '         enddo'
          write(12,*) '         call ML5_',trim(adjustl(str_j))
