@@ -1857,8 +1857,8 @@ if i==0 else (histo.type if histo.type else 'central value for plot (%d)'%(i+1))
 if __name__ == "__main__":
     main_doc = \
     """ For testing and standalone use. Usage:
-        python histograms.py <.HwU input_file_path_1> <.HwU input_file_path_2> ... --out=<output_file_path.format> <option>
-        Where <option> can be a list of the following: 
+        python histograms.py <.HwU input_file_path_1> <.HwU input_file_path_2> ... --out=<output_file_path.format> <options>
+        Where <options> can be a list of the following: 
            '--help'          See this message.
            '--gnuplot' or '' output the histograms read to gnuplot
            '--HwU'           to output the histograms read to the raw HwU source.
@@ -1871,11 +1871,17 @@ if __name__ == "__main__":
            '--show_full'     to show the complete output of what was read.
            '--show_short'    to show a summary of what was read.
            '--simple_ratios' to turn off correlations and error propagation in the ratio.
-           '--sum'           To sum all diagrams together
-           '--average'       To average all diagrams together
-           '--rebin=<n>'     Rebin the plots by merging n-consecutive bins together.     
+           '--sum'           To sum all identical histograms together
+           '--average'       To average over all identical histograms
+           '--rebin=<n>'     Rebin the plots by merging n-consecutive bins together.  
+           '--assign_types=<type1>,<type2>,...' to assign a type to all histograms of the first, second, etc... files loaded.
+           '--multiply=<fact1>,<fact2>,...' to multiply all histograms of the first, second, etc... files by the fact1, fact2, etc...
+           '--no_suffix'     Do no add any suffix (like '#1, #2, etc..) to the histograms types.
     """
-    
+
+    possible_options=['--help', '--gnuplot', '--HwU', '--types','--n_ratios','--no_scale','--no_pdf','--no_stat',\
+                      '--no_open','--show_full','--show_short','--simple_ratios','--sum','--average','--rebin',  \
+                      '--assign_types','--multiply','--no_suffix', '--out']
     n_ratios   = -1
     uncertainties = ['scale','pdf','statistical']
     auto_open = True
@@ -1887,6 +1893,11 @@ if __name__ == "__main__":
     if '--help' in sys.argv or len(sys.argv)==1:
         log('\n\n%s'%main_doc)
         sys.exit(0)
+
+    for arg in sys.argv[1:]:
+        if arg.startswith('--'):
+            if arg.split('=')[0] not in possible_options:
+                log('WARNING: option "%s" not valid. It will be ignored' % arg)
 
     arg_string=' '.join(sys.argv)
 
@@ -1900,6 +1911,16 @@ if __name__ == "__main__":
         if arg.startswith('--types='):
             accepted_types = [(type if type!='None' else None) for type in \
                                                              arg[8:].split(',')]
+
+    assigned_types = []
+    for arg in sys.argv[1:]:
+        if arg.startswith('--assign_types='):
+            assigned_types = [(type if type!='None' else None) for type in \
+                                                             arg[15:].split(',')]
+
+    no_suffix = False
+    if '--no_suffix' in sys.argv:
+        no_suffix = True
 
     for arg in sys.argv[1:]:
         if arg.startswith('--n_ratios='):
@@ -1921,26 +1942,30 @@ if __name__ == "__main__":
         uncertainties.remove('statistical')        
 
     n_files    = len([_ for _ in sys.argv[1:] if not _.startswith('--')])
-    print "n_files=",n_files
-    histo_norm = 1.0
+    histo_norm = [1.0]*n_files
+
+    for arg in sys.argv[1:]:
+        if arg.startswith('--multiply='):
+            histo_norm = [(float(fact) if fact!='' else 1.0) for fact in \
+                                                arg[11:].split(',')]
+
     if '--average' in sys.argv:
-        histo_norm = 1.0/float(n_files)
+        histo_norm = [hist/float(n_files) for hist in histo_norm]
         
     log("=======")
     histo_list = HwUList([])
     for i, arg in enumerate(sys.argv[1:]):
-        n_files += 1
         if arg.startswith('--'):
             break
         log("Loading histograms from '%s'."%arg)
         if OutName=="":
             OutName = os.path.basename(arg).split('.')[0]+'_output'
         new_histo_list = HwUList(arg, accepted_types_order=accepted_types)
-        if n_files==1:
-            continue
         for histo in new_histo_list:
+            if no_suffix:
+                continue
             if not histo.type is None:
-                histo.type += ' '
+                histo.type += '|'
             else:
                 histo.type = ''
             # Firs option is to give a bit of the name of the source HwU file.     
@@ -1950,20 +1975,26 @@ if __name__ == "__main__":
             # Overwrite existing number if present. We assume here that one never
             # uses the '#' in its custom-defined types, which is a fair assumptions.
             try:
-                histo.type = histo.type[:histo.type.index('#')] + "#%d"%(i+1)
+                suffix = assigned_types[i]
+            except IndexError:
+                suffix = "#%d"%(i+1)
+            try:
+                histo.type = histo.type[:histo.type.index('#')] + suffix
             except ValueError:
-                histo.type += "#%d"%(i+1)
+                histo.type += suffix
 
         if i==0 or all(_ not in ['--sum','--average'] for _ in sys.argv):
+            for j,hist in enumerate(new_histo_list):
+                new_histo_list[j]=hist*histo_norm[i]
             histo_list.extend(new_histo_list)
             continue
         
         if any(_ in sys.argv for _ in ['--sum','--average']):
-            for j, hist in enumerate(histo_list):
+            for j, hist in enumerate(new_histo_list):
                  # First make sure the plots have the same weight labels and such
                  hist.test_plot_compability(histo_list[j])
                  # Now let the histogram module do the magic and add them.
-                 histo_list[j] += hist*histo_norm
+                 histo_list[j] += hist*histo_norm[i]
         
     log("A total of %i histograms were found."%len(histo_list))
     log("=======")
