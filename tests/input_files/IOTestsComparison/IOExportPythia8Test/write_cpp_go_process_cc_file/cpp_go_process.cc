@@ -12,7 +12,7 @@ using namespace MG5_sm;
 
 //==========================================================================
 // Class member functions for calculating the matrix elements for
-// Process: u u~ > go go
+// Process: u u~ > go go QSIX=0 WEIGHTED=2 QED=0 QCD=2
 
 //--------------------------------------------------------------------------
 // Initialize process.

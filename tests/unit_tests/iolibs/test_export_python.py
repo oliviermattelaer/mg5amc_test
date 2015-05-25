@@ -658,8 +658,7 @@ class IOExportPythonTest(unittest.TestCase):
         # Calculate diagrams for all processes
 
         subprocess_group = group_subprocs.SubProcessGroup.\
-                           group_amplitudes(group_subprocs.SubProcessGroup,
-                                            amplitudes, "madevent")[0]
+                           group_amplitudes(amplitudes, "madevent")[0]
 
         # Test amp2 lines
         helas_writer = helas_call_writers.PythonUFOHelasCallWriter(mymodel)

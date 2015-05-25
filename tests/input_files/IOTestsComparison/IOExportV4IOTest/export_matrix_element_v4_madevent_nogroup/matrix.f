@@ -10,7 +10,7 @@ C     Returns amplitude squared summed/avg over colors
 C     and helicities
 C     for the point in phase space P(0:3,NEXTERNAL)
 C     
-C     Process: u u~ > g g
+C     Process: u u~ > g g WEIGHTED=2 QED=0 QCD=2
 C     
       USE DISCRETESAMPLER
       IMPLICIT NONE
@@ -221,7 +221,7 @@ C
 C     Returns amplitude squared summed/avg over colors
 C     for the point with external lines W(0:6,NEXTERNAL)
 C     
-C     Process: u u~ > g g
+C     Process: u u~ > g g WEIGHTED=2 QED=0 QCD=2
 C     
       IMPLICIT NONE
 C     

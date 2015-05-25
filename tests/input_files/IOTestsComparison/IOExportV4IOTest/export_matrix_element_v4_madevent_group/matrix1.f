@@ -10,7 +10,7 @@ C     Returns amplitude squared summed/avg over colors
 C     and helicities
 C     for the point in phase space P(0:3,NEXTERNAL)
 C     
-C     Process: u u~ > u u~
+C     Process: u u~ > u u~ WEIGHTED=4 QED=2 QCD=2
 C     
       USE DISCRETESAMPLER
       IMPLICIT NONE
@@ -208,7 +208,7 @@ C       Include the Jacobian from helicity sampling
 
         WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
       ENDIF
-      IF (ISUM_HEL .NE. 1.OR.(HEL_PICKED.EQ.-1)) THEN
+      IF (ANS.NE.0D0.AND.(ISUM_HEL .NE. 1.OR.HEL_PICKED.EQ.-1)) THEN
         CALL RANMAR(R)
         SUMHEL=0D0
         DO I=1,NCOMB
@@ -246,7 +246,7 @@ C
 C     Returns amplitude squared summed/avg over colors
 C     for the point with external lines W(0:6,NEXTERNAL)
 C     
-C     Process: u u~ > u u~
+C     Process: u u~ > u u~ WEIGHTED=4 QED=2 QCD=2
 C     
       IMPLICIT NONE
 C     

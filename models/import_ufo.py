@@ -386,7 +386,6 @@ class UFOMG5Converter(object):
         else:
             self.model.set('order_hierarchy', hierarchy)            
         
-        misc.sprint(self.model.get('order_hierarchy'))
         # Also set expansion_order, i.e., maximum coupling order per process
         expansion_order={}
         # And finally the UVCT coupling order counterterms        

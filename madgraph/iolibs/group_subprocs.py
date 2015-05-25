@@ -419,7 +419,7 @@ class SubProcessGroup(base_objects.PhysicsObject):
     #===========================================================================
     # group_amplitudes
     #===========================================================================
-    @staticmethod
+    @classmethod
     def group_amplitudes(cls, amplitudes, criteria='madevent', matrix_elements_opts={}):
         """Return a SubProcessGroupList with the amplitudes divided
         into subprocess groups"""
@@ -742,7 +742,7 @@ class DecayChainSubProcessGroup(SubProcessGroup):
 
         # Determine core process groups
 
-        core_groups = SubProcessGroup.group_amplitudes(SubProcessGroup, amplitudes, criteria)
+        core_groups = SubProcessGroup.group_amplitudes(amplitudes, criteria)
 
         dc_subproc_group = DecayChainSubProcessGroup(\
             {'core_groups': core_groups,

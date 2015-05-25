@@ -1470,7 +1470,7 @@ double Sigma_sm_qq_six::matrix_uu_six()
 
 #include <complex> 
 
-#include "SigmaProcess.h"
+#include "Pythia8/SigmaProcess.h"
 #include "Parameters_.h"
 
 using namespace std; 

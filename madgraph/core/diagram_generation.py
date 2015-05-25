@@ -791,17 +791,17 @@ class Amplitude(base_objects.PhysicsObject):
         if self.get('process')['perturbation_couplings']:
             pertur = sorted(self.get('process')['perturbation_couplings'])[0]
         self.get('process').get('legs').sort(pert=pertur)
-
+        
         # Set the coupling orders of the process delay import to avoid cross import
-        import madgraph.color_ordering.color_ordered_amplitudes as COamp #delayed import mandatorry
+        import madgraph.color_ordering.color_ordered_amplitudes as COamp #delayed import mandatory
         import madgraph.loop.loop_diagram_generation as LOOPdiag
-        if self['diagrams'] and (isinstance(self, COamp.ColorOrderedFlow) or \
+        if res and (isinstance(self, COamp.ColorOrderedFlow) or \
             not isinstance(self, LOOPdiag.LoopAmplitude) and not process['orders']):
             #self.__class__.__name__ != "LoopAmplitude" and self['diagrams'] 
             coupling_orders = {}        
             for key in sorted(list(model.get_coupling_orders())) + ['WEIGHTED']:
                 coupling_orders[key] = max([d.get('orders')[key] for \
-                                            d in self['diagrams']])
+                                            d in res])
             process.set('orders', coupling_orders)
 
         # Set diagrams to res if not asked to be returned

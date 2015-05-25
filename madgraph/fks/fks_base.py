@@ -115,9 +115,8 @@ class FKSMultiProcess(diagram_generation.MultiProcess): #test written
                " For this, use the 'virt=' mode, without multiparticle labels."
         
         #check limitation of FKS
-        if arguments:
+        if arguments and isinstance(arguments, MG.Process):
             myprocdef = arguments[0]
-            misc.sp
             if myprocdef['perturbation_couplings']!=['QCD']:
                 raise InvalidCmd("FKS for reals only available in QCD for now, you asked %s" \
                             % ', '.join(myprocdef['perturbation_couplings']))
