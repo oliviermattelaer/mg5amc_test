@@ -42,6 +42,7 @@ import madgraph.core.diagram_generation as diagram_generation
 import madgraph.core.helas_objects as helas_objects
 import madgraph.various.cluster as cluster
 import madgraph.various.misc as misc
+import madgraph.various.banner as banner_mod
 
 #usefull shortcut
 pjoin = os.path.join
@@ -253,9 +254,9 @@ class CompleteFKS(mg_interface.CompleteForCmd):
             out['Options'] = self.list_completion(text, opt, line)
         else:
 
-            opt = ['-f', '-c', '-m', '-i', '-n', '-r', '-p', '-o',
+            opt = ['-f', '-c', '-m', '-i', '-x', '-r', '-p', '-o', '-n', 'a',
                     '--force', '--cluster', '--multicore', '--interactive',
-                    '--nocompile', '--reweightonly', '--parton', '--only_generation']
+                    '--nocompile', '--reweightonly', '--parton', '--only_generation', '--name', '--appl_start_grid']
             out['Options'] = self.list_completion(text, opt, line)
         
 
@@ -314,6 +315,13 @@ class aMCatNLOInterface(CheckFKS, CompleteFKS, HelpFKS, Loop_interface.CommonLoo
                            'Using default CutTools instead.') % \
                              self._cuttools_dir)
             self._cuttools_dir=str(pjoin(self._mgme_dir,'vendor','CutTools'))
+        # Set where to look for IREGI installation
+        self._iregi_dir=str(os.path.join(self._mgme_dir,'vendor','IREGI','src'))
+        if not os.path.isdir(self._iregi_dir):
+            logger.warning(('Warning: Directory %s is not a valid IREGI directory.'+\
+                            'Using default IREGI instead.')%\
+                           self._iregi_dir)
+            self._iregi_dir=str(os.path.join(self._mgme_dir,'vendor','IREGI','src'))
 
     def do_display(self, line, output=sys.stdout):
         # if we arrive here it means that a _fks_display_opts has been chosen
@@ -395,7 +403,7 @@ class aMCatNLOInterface(CheckFKS, CompleteFKS, HelpFKS, Loop_interface.CommonLoo
             line = ' '.join(args[1:])
             
         proc_type=self.extract_process_type(line)
-        if proc_type[1] != 'real':
+        if proc_type[1] not in ['real', 'LOonly']:
             run_interface.check_compiler(self.options, block=False)
         self.validate_model(proc_type[1])
 
@@ -409,17 +417,23 @@ class aMCatNLOInterface(CheckFKS, CompleteFKS, HelpFKS, Loop_interface.CommonLoo
                 raise MadGraph5Error("Decay processes cannot be perturbed")
         else:
             myprocdef = mg_interface.MadGraphCmd.extract_process(self,line)
+
         self.proc_validity(myprocdef,'aMCatNLO_%s'%proc_type[1])
 
-        if myprocdef['perturbation_couplings']!=['QCD']:
-                raise self.InvalidCmd("FKS for reals only available in QCD for now, you asked %s" \
-                        % ', '.join(myprocdef['perturbation_couplings']))
+#        if myprocdef['perturbation_couplings']!=['QCD']:
+#            message = ""FKS for reals only available in QCD for now, you asked %s" \
+#                        % ', '.join(myprocdef['perturbation_couplings'])"
+#            logger.info("%s. Checking for loop induced")
+#            new_line = ln
+#                
+#                
+#                raise self.InvalidCmd("FKS for reals only available in QCD for now, you asked %s" \
+#                        % ', '.join(myprocdef['perturbation_couplings']))
         try:
             self._fks_multi_proc.add(fks_base.FKSMultiProcess(myprocdef,
                                    collect_mirror_procs,
                                    ignore_six_quark_processes,
                                    OLP=self.options['OLP']))
-            
         except AttributeError: 
             self._fks_multi_proc = fks_base.FKSMultiProcess(myprocdef,
                                    collect_mirror_procs,
@@ -559,14 +573,10 @@ class aMCatNLOInterface(CheckFKS, CompleteFKS, HelpFKS, Loop_interface.CommonLoo
 
             #_curr_matrix_element is a FKSHelasMultiProcess Object 
             self._fks_directories = []
-            proc_characteristics = ''
-            for charac in ['has_isr', 'has_fsr']:
-                if self._curr_matrix_elements[charac]:
-                    proc_characteristics += '%s = .true.\n' % charac
-                else:
-                    proc_characteristics += '%s = .false.\n' % charac
-
-            open(pjoin(path, 'proc_characteristics.dat'),'w').write(proc_characteristics)
+            proc_charac = banner_mod.ProcCharacteristic()
+            for charac in ['has_isr', 'has_fsr', 'has_loops']:
+                proc_charac[charac] = self._curr_matrix_elements[charac]
+            proc_charac.write(pjoin(path, 'proc_characteristics'))
 
             for ime, me in \
                 enumerate(self._curr_matrix_elements.get('matrix_elements')):
@@ -673,3 +683,5 @@ _launch_parser.add_option("-o", "--only_generation", default=False, action='stor
 # 'name' entry of the options, not the run_name one
 _launch_parser.add_option("-n", "--name", default=False, dest='name',
                             help="Provide a name to the run")
+_launch_parser.add_option("-a", "--appl_start_grid", default=False, dest='appl_start_grid',
+                            help="For use with APPLgrid only: start from existing grids")

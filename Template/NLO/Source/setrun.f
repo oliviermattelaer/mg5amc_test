@@ -56,16 +56,21 @@ c
      &     xmaxup(maxpup),lprup(maxpup)
 c
       include 'nexternal.inc'
-      include 'leshouche_info.inc'
-c
-c
-c
       logical gridrun,gridpack
       integer          iseed
       common /to_seed/ iseed
       integer nevents
-
       character*7 event_norm
+      common /event_normalisation/event_norm
+      integer iappl
+      common /for_applgrid/ iappl
+C      
+      integer    maxflow
+      parameter (maxflow=999)
+      integer idup(nexternal,maxproc)
+      integer mothup(2,nexternal,maxproc)
+      integer icolup(2,nexternal,maxflow)
+      include 'born_leshouche.inc'
 c
 c----------
 c     start
@@ -74,7 +79,7 @@ c----------
       
 c MZ add the possibility to have shower_MC input lowercase
       call to_upper(shower_MC)
-
+C
 
 c merging cuts
       xqcut=0d0
@@ -101,38 +106,57 @@ c For backward compatibility
       ellissextonfact=QES_over_ref
 
 c check that the event normalization input is reasoble
-      if (event_norm(1:7).ne.'average' .and. event_norm(1:3).ne.'sum')
-     $     then
+      buff = event_norm 
+      call case_trap2(buff) ! requires a string of length 20 at least
+      event_norm=buff 
+      if (event_norm(1:7).ne.'average' .and. event_norm(1:3).ne.'sum'
+     $     .and. event_norm(1:5).ne.'unity')then
          write (*,*) 'Do not understand the event_norm parameter'/
      &        /' in the run_card.dat. Possible options are'/
-     &        /' "average" or "sum". Current input is: ',event_norm
+     &        /' "average", "sum" or "unity". Current input is: ',
+     &        event_norm
          open(unit=26,file='../../error',status='unknown')
          write (26,*) 'Do not understand the event_norm parameter'/
      &        /' in the run_card.dat. Possible options are'/
-     &        /' "average" or "sum". Current input is: ',event_norm
+     &        /' "average", "sum" or "unity". Current input is: ',
+     &        event_norm
          
          stop 1
       endif
+
+c info for reweight
+
+      if ( ickkw.ne.0 .and. ickkw.ne.4 .and. ickkw.ne.3 .and.
+     &     ickkw.ne.-1) then
+         write (*,*) 'ickkw parameter not known. ickkw=',ickkw
+         stop
+      endif
+c$$$      ickkw=0
+      chcluster=.false.
+      ktscheme=1
 
 c !!! Default behavior changed (MH, Aug. 07) !!!
 c If no pdf, read the param_card and use the value from there and
 c order of alfas running = 2
 
       if(lpp(1).ne.0.or.lpp(2).ne.0) then
-          write(*,*) 'A PDF is used, so alpha_s(MZ) is going to be modified'
+         write(*,*) 'A PDF is used, so alpha_s(MZ)'/
+     &        /' is going to be modified'
           call setpara('param_card.dat')
           asmz=G**2/(16d0*atan(1d0))
           write(*,*) 'Old value of alpha_s from param_card: ',asmz
           call pdfwrap
           write(*,*) 'New value of alpha_s from PDF ',pdlabel,':',asmz
       else
-          call setpara('param_card.dat',.true.)
+          call setpara('param_card.dat')
           asmz=G**2/(16d0*atan(1d0))
           nloop=2
           pdlabel='none'
-          write(*,*) 'No PDF is used, alpha_s(MZ) from param_card is used'
+          write(*,*)
+     &         'No PDF is used, alpha_s(MZ) from param_card is used'
           write(*,*) 'Value of alpha_s from param_card: ',asmz
-          write(*,*) 'The default order of alpha_s running is fixed to ',nloop
+          write(*,*) 'The default order of alpha_s running is fixed to '
+     &         ,nloop
       endif
 c !!! end of modification !!!
 
@@ -147,7 +171,7 @@ C       Fill common block for Les Houches init info
         elseif(lpp(i).eq.-3) then
           idbmup(i)=-11
         elseif(lpp(i).eq.0) then
-          idbmup(i)=idup_d(1,i,1)
+          idbmup(i)=idup(i,1)
         else
           idbmup(i)=lpp(i)
         endif
@@ -172,7 +196,7 @@ C-------------------------------------------------
       integer mpdf
       integer npdfs,i,pdfgup(2),pdfsup(2),lhaid
 
-      parameter (npdfs=13)
+      parameter (npdfs=16)
       character*7 pdflabs(npdfs)
       data pdflabs/
      $   'none',
@@ -187,7 +211,10 @@ C-------------------------------------------------
      $   'cteq5m1',
      $   'cteq6_m',
      $   'cteq6_l',
-     $   'cteq6l1'/
+     $   'cteq6l1',     
+     $   'nn23lo',
+     $   'nn23lo1',
+     $   'nn23nlo'/
       integer numspdf(npdfs)
       data numspdf/
      $   00000,
@@ -202,7 +229,10 @@ C-------------------------------------------------
      $   19051,
      $   10000,
      $   10041,
-     $   10042/
+     $   10042,
+     $   246800,
+     $   247000,
+     $   244600/
 
 
       if(pdfin.eq."lhapdf") then

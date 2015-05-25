@@ -30,7 +30,6 @@ def read_from_file(filename, myfunct, *args, **opt):
     on its content and return the result. Deals properly with errors and
     returns None if something goes wrong. 
     """
-
     try:
         sock = open(filename, 'r')
         try:
@@ -213,7 +212,7 @@ def ln(file_pos, starting_dir='.', name='', log=True, cwd=None, abspath=False):
 
     try:
         os.symlink(target, os.path.join(starting_dir, name))
-    except Exception:
+    except Exception, error:
         if log:
             logger.warning('Could not link %s at position: %s' % (file_pos, \
                                                 os.path.realpath(starting_dir)))

@@ -139,7 +139,11 @@ class UFOModel(object):
                         value = 1e-99
                     elif value == 1:
                         value = 9.999999e-1
-                    param_card.add_param(block.lower(), lhaid, value, 'from addon')
+                    try:    
+                        param_card.add_param(block.lower(), lhaid, value, 'from addon')
+                    except check_param_card.InvalidParamCard:
+                        logger.warning("%s will not acting for %s %s" % (p, block, lhaid))
+                        param_card[block.lower()].get(lhaid).value = value
                 # all added -> write it
                 param_card.write(pjoin(outputdir, p))
 
@@ -414,7 +418,7 @@ from object_library import all_propagators, Propagator
                 
                 if not os.path.exists(pjoin(outputdir, 'Fortran')):
                     os.mkdir(pjoin(outputdir, 'Fortran'))
-                fsock = open(pjoin(outputdir, 'Fortran'),'a')
+                fsock = open(pjoin(outputdir, 'Fortran','functions.f'),'a')
                 fsock.write(text)
                 fsock.close()
                 
@@ -450,22 +454,33 @@ from object_library import all_propagators, Propagator
         
         raise USRMODERROR, 'no particle %s in the model' % name
 
-    def add_parameter(self, parameter):
+    def add_parameter(self, parameter, identify_pid={}):
         """wrapper to call the correct function"""
         
         if parameter.nature == 'internal':
             self.add_internal_parameter(parameter)
         else:
-            self.add_external_parameter(parameter)
+            self.add_external_parameter(parameter, identify_pid)
 
-    def add_particle(self, particle):
+    def add_particle(self, particle, identify=None):
         """Add a particle in a consistent way"""
         
         name = particle.name
+        if identify:
+            name = identify
         old_part = next((p for p in self.particles if p.name==name), None)
         if old_part:
             #Check if the two particles have the same pdgcode
             if old_part.pdg_code == particle.pdg_code:
+                particle.replace = old_part
+                return self.check_mass_width_of_particle(old_part, particle)
+            elif identify:
+                if particle.spin != old_part.spin:
+                    raise USRMODERROR, "identify particles should have the same spin"
+                elif particle.color != old_part.color:
+                    raise USRMODERROR, "identify particles should have the same color"
+                
+                particle.pdg_code = old_part.pdg_code
                 particle.replace = old_part
                 return self.check_mass_width_of_particle(old_part, particle)
             else:
@@ -474,6 +489,8 @@ from object_library import all_propagators, Propagator
                 particle.name = '%s%s' % (name, self.addon)
                 self.particles.append(particle)
                 return
+        elif identify:
+            raise USRMODERROR, "Particle %s is not in the model" % identify
         
         pdg = particle.pdg_code
         if pdg in self.particle_dict:
@@ -515,7 +532,7 @@ from object_library import all_propagators, Propagator
         
         return
 
-    def add_external_parameter(self, parameter):
+    def add_external_parameter(self, parameter, identify_pid):
         """adding a param_card parameter inside the current model.
            if the parameter block/lhcode already exists then just do nothing
            (but if the name are different then keep the info for future translation)
@@ -545,9 +562,13 @@ from object_library import all_propagators, Propagator
                 #
                 #self.parameters.append(parameter)
                 #return
-        
         #check if a parameter already has this lhablock/code information
-        old_param = next((p for p in self.parameters if p.lhacode==parameter.lhacode \
+        lhacode = parameter.lhacode
+        if parameter.lhablock.lower() in ['mass', 'decay']:
+            if int(parameter.lhacode[0]) in identify_pid:
+                lhacode = [identify_pid[int(parameter.lhacode[0])]]
+        
+        old_param = next((p for p in self.parameters if p.lhacode==lhacode \
                           and p.lhablock==parameter.lhablock), None)
         if old_param:
             logger.info('The two model defines the block \'%s\' with id \'%s\' with different parameter name \'%s\', \'%s\'\n'\
@@ -783,16 +804,17 @@ from object_library import all_propagators, Propagator
         self.CTvertices.append(interaction)
         
 
-    def add_model(self, model=None, path=None):
+    def add_model(self, model=None, path=None, identify_particles=None):
         """add another model in the current one"""
         
         self.new_external = []
         if path:
             model = ufomodels.load_model(path) 
-        
+                
         if not model:
             raise USRMODERROR, 'Need a valid Model'
-        
+        else:
+            path = model.__path__[0]
         # Check the validity of the model. Too old UFO (before UFO 1.0)
         if not hasattr(model, 'all_orders'):
             raise USRMODERROR, 'Add-on Model doesn\'t follows UFO convention (no couplings_order information)\n' +\
@@ -807,18 +829,45 @@ from object_library import all_propagators, Propagator
                               
         for order in model.all_orders:
             self.add_coupling_order(order)
+        
+        # Adding automatically identification for anti-particle if needed
+        # + define identify_pid which keep tracks of the pdg_code identified
+        identify_pid = {}
+        if identify_particles:
+            for new, old in identify_particles.items():
+                new_part = next((p for p in model.all_particles if p.name==new), None)
+                old_part = next((p for p in self.particles if p.name==old), None)
+                identify_pid[new_part.pdg_code] = old_part.pdg_code
+                
+                if new_part is None:
+                    raise USRMODERROR, "particle %s not in added model" % new
+                if old_part is None:
+                    raise USRMODERROR, "particle %s not in original model" % old
+                if new_part.antiname not in identify_particles:
+                    new_anti = new_part.antiname
+                    old_anti = old_part.antiname
+                    misc.sprint(old, new, new_anti, old_anti, old_part.antiname)
+                    if old_anti == old:
+                        raise USRMODERROR, "failed identification (one particle is self-conjugate and not the other)"
+                    logger.info("adding identification for anti-particle: %s=%s" % (new_anti, old_anti))
+                    identify_particles[new_anti] = old_anti
+        
         for parameter in model.all_parameters:
-            self.add_parameter(parameter)
+            self.add_parameter(parameter, identify_pid)
         for coupling in model.all_couplings:
             self.add_coupling(coupling)
         for lorentz in model.all_lorentz:
             self.add_lorentz(lorentz)
         for particle in model.all_particles:
-            self.add_particle(particle)
+            if particle.name in identify_particles:
+                self.add_particle(particle, identify=identify_particles[particle.name])
+            else:
+                self.add_particle(particle)
         for vertex in model.all_vertices:
             self.add_interaction(vertex)
         
         self.all_path.append(path)
+        
         
         return
 

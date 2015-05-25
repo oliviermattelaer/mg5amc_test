@@ -89,10 +89,17 @@ class MyTextTestRunner(unittest.TextTestRunner):
 
     def run(self, test):
         "Run the given test case or test suite."
+        keyboardstop=False
         MyTextTestRunner.stream = self.stream
         result = self._makeResult()
         startTime = time.time()
-        test(result)
+        try:
+            test(result)
+        except KeyboardInterrupt:
+            keyboardstop=True
+            pass
+        except:
+            raise
         stopTime = time.time()
         timeTaken = float(stopTime - startTime)
         result.printErrors()
@@ -105,17 +112,53 @@ class MyTextTestRunner(unittest.TextTestRunner):
             self.stream.write("FAILED (")
             failed, errored = map(len, (result.failures, result.errors))
             if failed:
-                self.stream.write("failures=%d" % failed)
+                self.stream.writeln("failures=%d)" % failed)
+                self.stream.writeln(' '.join([str(t[0]).split()[0] for t in result.failures]))
             if errored:
-                if failed: self.stream.write(", ")
-                self.stream.write("errors=%d" % errored)
-            self.stream.writeln(")")
+                if failed: 
+                    self.stream.write("FAILED ( ")
+                self.stream.writeln(" errors=%d)" % errored)
+            self.stream.writeln(' '.join([str(t[0]).split()[0] for t in result.errors]))
         else:
             self.stream.writeln("OK")
         if self.bypassed:
             self.stream.writeln("Bypassed %s:" % len(self.bypassed))
             self.stream.writeln(" ".join(self.bypassed))
+        if keyboardstop:
+            self.stream.writeln("Some of the tests Bypassed due to Ctrl-C")
         return result 
+
+    def run_border(self, test):
+        "Run the given test case or test suite."
+        MyTextTestRunner.stream = self.stream
+        result = self._makeResult()
+        startTime = time.time()
+        test(result)
+        stopTime = time.time()
+        timeTaken = float(stopTime - startTime)
+        result.printErrors()
+        self.stream.writeln(result.separator2)
+        run = result.testsRun
+        #self.stream.writeln("Ran %d test%s in %.3fs" %
+        #                    (run, run != 1 and "s" or "", timeTaken))
+        #self.stream.writeln()
+        if not result.wasSuccessful():
+            self.stream.write("FAILED (")
+            failed, errored = map(len, (result.failures, result.errors))
+            if failed:
+                self.stream.write("failures=%d" % failed)
+            if errored:
+                if failed: self.stream.write(", ")
+                self.stream.write("errors=%d" % errored)
+            self.stream.writeln(")")
+            sys.exit(0)
+        #else:
+        #    self.stream.writeln("OK")
+        #if self.bypassed:
+        #    self.stream.writeln("Bypassed %s:" % len(self.bypassed))
+        #    self.stream.writeln(" ".join(self.bypassed))
+        return result 
+
 
             
 #===============================================================================
@@ -149,6 +192,46 @@ def run(expression='', re_opt=0, package='./tests/unit_tests', verbosity=1,
         ff.write('\n'.join(['%s %s' % a  for a in TestSuiteModified.time_db.items()]))
         ff.close()
 
+    return output
+    #import tests
+    #print 'runned %s checks' % tests.NBTEST
+    #return out
+
+#===============================================================================
+# run
+#===============================================================================
+def run_border_search(to_crash='',expression='', re_opt=0, package='./tests/unit_tests', verbosity=1,
+        timelimit=0):
+    """ running the test associated to expression one by one. and follow them by the to_crash one
+        up to the time that to_crash is actually crashing. Then the run stops and print the list of the 
+        routine tested. Then the code re-run itself(via a fork) to restrict the list. 
+        The code stops when the list is of order 1. The order of the test is randomize at each level!
+    """
+    #init a test suite
+    collect = unittest.TestLoader()
+    TestSuiteModified.time_limit =  float(timelimit)
+    all_test = TestFinder(package=package, expression=expression, re_opt=re_opt)
+    import random
+    random.shuffle(all_test)
+    print "to_crash"
+    to_crash = TestFinder(package=package, expression=to_crash, re_opt=re_opt)
+    to_crash.collect_dir(package, checking=True)
+    print dir(to_crash)
+
+    for test_fct in all_test:
+        testsuite = unittest.TestSuite()
+        data = collect.loadTestsFromName(test_fct)        
+        assert(isinstance(data,unittest.TestSuite))        
+        data.__class__ = TestSuiteModified
+        testsuite.addTest(data)
+        data = collect.loadTestsFromName(to_crash[0])        
+        assert(isinstance(data,unittest.TestSuite))        
+        data.__class__ = TestSuiteModified
+        testsuite.addTest(data)
+        # Running it
+        print "run it for %s" % test_fct
+        output =  MyTextTestRunner(verbosity=verbosity).run_border(testsuite)
+    
     return output
     #import tests
     #print 'runned %s checks' % tests.NBTEST
@@ -282,8 +365,24 @@ def runIOTests(arg=[''],update=True,force=0,synchronize=False):
         IOTestsFunctions.collect_function(IOTestsClass,prefix='testIO')
         for IOTestFunction in IOTestsFunctions:
             start = time.time()
+            # Add all the tests automatically (i.e. bypass filters) if the 
+            # specified test is the name of the IOtest. the [7:] is to
+            # skip the testIO prefix
+            name_filer_bu = None         
+            if IOTestFunction.split('.')[-1][7:] in \
+                                                 IOTestManager.testNames_filter:
+                name_filer_bu = IOTestManager.testNames_filter
+                IOTestManager.testNames_filter = ['ALL']
+                existing_tests = IOTestManager.all_tests.keys()
+                
             eval('IOTestsInstances[-1].'+IOTestFunction.split('.')[-1]+\
                                                              '(load_only=True)')
+            if name_filer_bu:
+                new_tests = [test[0] for test in IOTestManager.all_tests.keys() \
+                                                  if test not in existing_tests]
+                IOTestManager.testNames_filter = name_filer_bu + new_tests
+                name_filer_bu = None
+            
             setUp_time = time.time() - start
             if setUp_time > 0.5:                
                 print colored%(34,"Loading IOtest %s is slow (%s)"%
@@ -324,6 +423,14 @@ def runIOTests(arg=[''],update=True,force=0,synchronize=False):
     elif not isinstance(modifications,dict):
         print "Error during the files update."
         sys.exit(0)
+
+    if len(modifications['missing'])>0:
+        text = '\n'
+        text += colored%(31,
+               "The following files were not generated by the tests, fix this!")        
+        text += '\n'+'\n'.join(["   %s"%mod for mod in modifications['missing']])
+        print text
+        modifications['missing'] = []
 
     if sum(len(v) for v in modifications.values())>0:
         # Display the modifications
@@ -822,7 +929,10 @@ https://cp3.irmp.ucl.ac.be/projects/madgraph/wiki/DevelopmentPage/CodeTesting
                                       "content of the folder IOTestsComparison")
     parser.add_option("-t", "--timed", default="Auto",
           help="limit the duration of each test. Negative number re-writes the information file.")    
-    
+
+    parser.add_option("", "--border_effect", default=None,
+          help="Define the test which are sensitive to a border effect, the test will find which test creates this border effect")        
+
     (options, args) = parser.parse_args()
 
     if options.IOTestsUpdate:
@@ -876,11 +986,11 @@ https://cp3.irmp.ucl.ac.be/projects/madgraph/wiki/DevelopmentPage/CodeTesting
         
     if options.timed == "Auto":
         if options.path == 'tests/unit_tests':
-            options.timed = 2
+            options.timed = 1
         elif options.path == 'tests/parallel_tests':
             options.timed = 400
         elif options.path == 'tests/acceptance_tests':
-            options.timed = 30
+            options.timed = 10
         else:
             options.timed = 0 
 
@@ -899,9 +1009,13 @@ https://cp3.irmp.ucl.ac.be/projects/madgraph/wiki/DevelopmentPage/CodeTesting
           " MadGraph5_aMCatNLO is configured not to compress the references files."
     
     if options.IOTests=='No' and not options.synchronize:
-        #logging.basicConfig(level=vars(logging)[options.logging])
-        run(args, re_opt=options.reopt, verbosity=options.verbose, \
-            package=options.path, timelimit=options.timed)
+        if not options.border_effect:
+            #logging.basicConfig(level=vars(logging)[options.logging])
+            run(args, re_opt=options.reopt, verbosity=options.verbose, \
+                package=options.path, timelimit=options.timed)
+        else:
+            run_border_search(options.border_effect, args, re_opt=options.reopt, verbosity=options.verbose, \
+                package=options.path, timelimit=options.timed)
     else:
         if options.IOTests=='L':
             print "Listing all tests defined in the reference files ..."
@@ -913,7 +1027,8 @@ https://cp3.irmp.ucl.ac.be/projects/madgraph/wiki/DevelopmentPage/CodeTesting
         elif options.semiForce:
             force = 1
         else:
-            force = 0                        
+            force = 0 
+
         runIOTests(args,update=options.IOTests=='U',force=force,
                                                 synchronize=options.synchronize)
     

@@ -9,6 +9,7 @@
 #include "HepMC/HEPEVT_Wrapper.h"
 #include "fstream"
 #include "LHEFRead.h"
+#include "../examples/CombineMatchingInput.h"
 
 using namespace Pythia8;
 
@@ -21,12 +22,13 @@ extern "C" {
 
 extern "C" { 
   void pyabeg_(int&,char(*)[15]);
-  void pyaend_(int&);
+  void pyaend_(double&);
   void pyanal_(int&,double(*));
 }
 
 int main() {
   Pythia pythia;
+
   int cwgtinfo_nn;
   char cwgtinfo_weights_info[250][15];
   double cwgt_ww[250];
@@ -34,7 +36,13 @@ int main() {
   string inputname="Pythia8.cmd",outputname="Pythia8.hep";
 
   pythia.readFile(inputname.c_str());
-  pythia.init();
+
+  //Create UserHooks pointer for the FxFX matching. Stop if it failed. Pass pointer to Pythia.
+  CombineMatchingInput combined;
+  UserHooks* matching = combined.getHook(pythia);
+  if (!matching) return 1;
+  pythia.setUserHooksPtr(matching);
+
   string filename = pythia.word("Beams:LHEF");
 
   MyReader read(filename);
@@ -54,22 +62,60 @@ int main() {
     iEventtot_norm=1;
   }
 
+  //FxFx merging
+  bool isFxFx=pythia.flag("JetMatching:doFxFx");
+  if (isFxFx) {
+    int nJmax=pythia.mode("JetMatching:nJetMax");
+    double Qcut=pythia.parm("JetMatching:qCut");
+    double PTcut=pythia.parm("JetMatching:qCutME");
+    if (Qcut <= PTcut || Qcut <= 0.) {
+      std::cout << " \n";
+      std::cout << "Merging scale (shower_card.dat) smaller than pTcut (run_card.dat)"
+		<< Qcut << " " << PTcut << "\n";
+      return 0;
+    }
+  }
+
+  pythia.init();
+
   HepMC::IO_BaseClass *_hepevtio;
   HepMC::Pythia8ToHepMC ToHepMC;
   HepMC::IO_GenEvent ascii_io(outputname.c_str(), std::ios::out);
+  double nSelected;
+  int nTry;
+  double norm;
+
+  // Cross section
+  double sigmaTotal  = 0.;
+  int iLHEFread=0;
 
   for (int iEvent = 0; ; ++iEvent) {
     if (!pythia.next()) {
       if (++iAbort < nAbort) continue;
       break;
     }
-    if (iEvent >= iEventshower) break;
+    // the number of events read by Pythia so far
+    nSelected=double(pythia.info.nSelected());
+    // normalisation factor for the default analyses defined in pyanal_
+    norm=iEventtot_norm*iEvent/nSelected;
+
+    if (nSelected >= iEventshower) break;
     if (pythia.info.isLHA() && iPrintLHA < nPrintLHA) {
       pythia.LHAeventList();
       pythia.info.list();
       pythia.process.list();
       pythia.event.list();
       ++iPrintLHA;
+    }
+
+    double evtweight = pythia.info.weight();
+    double normhepmc;
+    // Add the weight of the current event to the cross section.
+    normhepmc = 1. / double(iEventshower);
+    if (evt_norm == "average") {
+      sigmaTotal  += evtweight*normhepmc;
+    } else {
+      sigmaTotal  += evtweight*normhepmc*iEventtot;
     }
 
     HepMC::GenEvent* hepmcevt = new HepMC::GenEvent();
@@ -82,17 +128,33 @@ int main() {
     //event weight
     cevwgt.EVWGT=hepmcevt->weights()[0];
 
-    //call the FORTRAN analysis for this event
-    read.lhef_read_wgts_(cwgt_ww);
+    //call the FORTRAN analysis for this event. First, make sure to
+    //re-synchronize the reading of the weights with the reading of
+    //the event. (They get desynchronised if an event was rejected).
+    nTry=pythia.info.nTried();
+    for (; iLHEFread<nTry ; ++iLHEFread) {
+      read.lhef_read_wgts_(cwgt_ww);
+    }
     pyanal_(cwgtinfo_nn,cwgt_ww);
 
     if (iEvent % nstep == 0 && iEvent >= 100){
-      pyaend_(iEventtot_norm);
+      pyaend_(norm);
     }
     delete hepmcevt;
   }
-  pyaend_(iEventtot_norm);
+  pyaend_(norm);
 
   pythia.stat();
+  if (isFxFx){
+    std::cout << " \n";
+    std::cout << "*********************************************************************** \n";
+    std::cout << "*********************************************************************** \n";
+    std::cout << "Cross section, including FxFx merging is: "
+	      << sigmaTotal << "\n";
+    std::cout << "*********************************************************************** \n";
+    std::cout << "*********************************************************************** \n";
+  }
+  delete matching;
+
   return 0;
 }

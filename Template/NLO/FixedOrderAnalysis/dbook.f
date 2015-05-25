@@ -124,6 +124,11 @@ C*************************************************************
 c     initialization
       IMPLICIT NONE
       include 'dbook.inc'
+c     APPLgrid commons
+      include "reweight_appl.inc"
+      include "appl_common.inc"
+      integer iappl
+      common /for_applgrid/ iappl
 c
 c     LOCAL
 c
@@ -134,6 +139,8 @@ C
       NHIST=0
       DO 1, I=1,NPLOTS             
    1  BOOK(I)=' NO'
+C     Initialize the number of bins of the aMCfast grids
+      if(iappl.ne.0) appl_obs_nbins = 0
       END  
  
 
@@ -994,6 +1001,24 @@ C*******************************************************************
       implicit none
       integer n,n_by4
       double precision var,www
+c     APPLgrid commons
+      include "reweight_appl.inc"
+      include "appl_common.inc"
+      integer iappl
+      common /for_applgrid/ iappl
+      integer j
+      if(iappl.ne.0)then
+         do j=1,nh_obs
+            if(n.eq.ih_obs(j))then
+               appl_obs_num   = j
+               appl_obs_histo = var 
+c     Fill the reference APPLgrid histograms
+               call APPL_fill_ref
+c     Fill the APPLgrid files
+               call APPL_fill
+            endif
+         enddo
+      endif
       n_by4=4*(n-1)+1
       call mfill4(n_by4,var,www)
       return
@@ -1001,9 +1026,43 @@ C*******************************************************************
 
       subroutine bookup(n,string,del,xl,xu)
       implicit none
-      integer n,n_by4
+      integer i,n,n_by4
       character*(*) string
       double precision del,xl,xu
+c     APPLgrid commons
+      include "reweight_appl.inc"
+      include "appl_common.inc"
+      integer iappl
+      common /for_applgrid/ iappl
+c     Initialize the grids only if the switch "iappl" is different from zero
+c     and if the title string containes the word "central" and does not contain
+c     the word "Born". 
+      if(iappl.ne.0.and.index(string,"central").ne.0.and.
+     1                  index(string,"Born").eq.0)then
+c     Observable parameters
+c     Compute number of bins and edges only if they have not been given by the user.
+         if(appl_obs_nbins.eq.0)then
+            appl_obs_nbins = int( ( xu - xl ) / del / 0.999999d0 )
+c     compute bin edges
+            do i=0,appl_obs_nbins
+               appl_obs_bins(i) = xl + i * del
+            enddo
+         endif
+         appl_obs_min = appl_obs_bins(0)
+         appl_obs_max = appl_obs_bins(appl_obs_nbins)
+         if(abs(appl_obs_max-xu).gt.0.00000001d0)then
+            write(*,*) 'APPLgrid Histogram: ', 
+     1                 'Change of the upper limit:',xu,'-->',
+     2                  appl_obs_max
+         endif
+c     Initialize APPLgrid routines
+         call APPL_init
+c     Keep track of the position of this histogram
+         nh_obs = nh_obs + 1
+         ih_obs(nh_obs) = n
+c     Reset number of bins to zero
+         appl_obs_nbins = 0
+      endif
       n_by4=4*(n-1)+1
       call bookup4(n_by4,string,del,xl,xu)
       return
@@ -1013,6 +1072,21 @@ C*******************************************************************
       implicit none
       integer n,n_by4,m_by4
       character*(*) string1,string2,string3
+c     APPLgrid commons
+      include "reweight_appl.inc"
+      include "appl_common.inc"
+      integer iappl
+      common /for_applgrid/ iappl
+      integer j
+      if(iappl.ne.0)then
+         do j=1,nh_obs
+            if(n.eq.ih_obs(j))then
+               appl_obs_num = j
+               call APPL_fill_ref_out
+               call APPL_term
+            endif
+         enddo
+      endif
       n_by4=4*(n-1)+1
       m_by4=n_by4+3
 c write the 'n' plots with the 'n+3' error bars
@@ -1024,6 +1098,21 @@ c write the 'n' plots with the 'n+3' error bars
       implicit none
       integer n,n_by4,lr,lh,m_by4
       character*(*) string1,string2,string3
+c     APPLgrid commons
+      include "reweight_appl.inc"
+      include "appl_common.inc"
+      integer iappl
+      common /for_applgrid/ iappl
+      integer j
+      if(iappl.ne.0)then
+         do j=1,nh_obs
+            if(n.eq.ih_obs(j))then
+               appl_obs_num = j
+               call APPL_fill_ref_out
+               call APPL_term
+            endif
+         enddo
+      endif
       n_by4=4*(n-1)+1
       m_by4=n_by4+3
 c write the 'n' plots with the 'n+3' error bars

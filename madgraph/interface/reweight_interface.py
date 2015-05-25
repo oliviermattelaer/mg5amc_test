@@ -20,6 +20,7 @@ import math
 import os
 import re
 import shutil
+import tempfile
 import time
 import subprocess
 from subprocess import Popen, PIPE, STDOUT
@@ -56,7 +57,7 @@ class ReweightInterface(extended_cmd.Cmd):
     debug_output = 'Reweight_debug'
     
     @misc.mute_logger()
-    def __init__(self, event_path=None, *completekey, **stdin):
+    def __init__(self, event_path=None, allow_madspin=False, *completekey, **stdin):
         """initialize the interface with potentially an event_path"""
         
         if not event_path:
@@ -79,7 +80,7 @@ class ReweightInterface(extended_cmd.Cmd):
         
         if event_path:
             logger.info("Extracting the banner ...")
-            self.do_import(event_path)
+            self.do_import(event_path, allow_madspin=allow_madspin)
             
         # dictionary to fortan evaluator
         self.calculator = {}
@@ -88,7 +89,7 @@ class ReweightInterface(extended_cmd.Cmd):
         #all the cross-section for convenience
         self.all_cross_section = {}
             
-    def do_import(self, inputfile):
+    def do_import(self, inputfile, allow_madspin=False):
         """import the event file"""
         
         # change directory where to write the output
@@ -110,22 +111,26 @@ class ReweightInterface(extended_cmd.Cmd):
                 raise self.InvalidCmd('No such file or directory : %s' % inputfile)
         
         if inputfile.endswith('.gz'):
-            misc.call(['gunzip', inputfile])
+            misc.gunzip(inputfile)
             inputfile = inputfile[:-3]
 
         # Read the banner of the inputfile
         self.lhe_input = lhe_parser.EventFile(os.path.realpath(inputfile))
+        if not self.lhe_input.banner:
+            value = self.ask("What is the path to banner", 0, [0], "please enter a path", timeout=0)
+            self.lhe_input.banner = open(value).read()
         self.banner = self.lhe_input.get_banner()
         
         # Check the validity of the banner:
         if 'slha' not in self.banner:
+            misc.sprint(self.banner)
             self.events_file = None
             raise self.InvalidCmd('Event file does not contain model information')
         elif 'mg5proccard' not in self.banner:
             self.events_file = None
             raise self.InvalidCmd('Event file does not contain generation information')
 
-        if 'madspin' in self.banner:
+        if 'madspin' in self.banner and not allow_madspin:
             raise self.InvalidCmd('Reweight should be done before running MadSpin')
                 
                 
@@ -144,6 +149,38 @@ class ReweightInterface(extended_cmd.Cmd):
         logger.info("options: %s" % option)
 
 
+    def check_events(self):
+        """Check some basic property of the events file"""
+        
+        sum_of_weight = 0
+        sum_of_abs_weight = 0
+        negative_event = 0
+        positive_event = 0
+        
+        start = time.time()
+        for event_nb,event in enumerate(self.lhe_input):
+            #control logger
+            if (event_nb % max(int(10**int(math.log10(float(event_nb)+1))),10)==0): 
+                    running_time = misc.format_timer(time.time()-start)
+                    logger.info('Event nb %s %s' % (event_nb, running_time))
+            if (event_nb==10001): logger.info('reducing number of print status. Next status update in 10000 events')
+
+            event.check() #check 4 momenta/...
+
+            sum_of_weight += event.wgt
+            sum_of_abs_weight += abs(event.wgt)
+            if event.wgt < 0 :
+                negative_event +=1
+            else:
+                positive_event +=1
+        
+        logger.info("total cross-section: %s" % sum_of_weight)
+        logger.info("total abs cross-section: %s" % sum_of_abs_weight) 
+        logger.info("fraction of negative event %s", negative_event/(negative_event+positive_event))      
+        logger.info("total number of events %s", (negative_event+positive_event))
+        logger.info("negative event %s", negative_event)
+        
+        
         
         
     @extended_cmd.debug()
@@ -171,7 +208,7 @@ class ReweightInterface(extended_cmd.Cmd):
         if len(args) < 2:
             raise self.InvalidCmd('set command requires at least two argument.')
         
-        valid = ['maz_weight','seed','curr_dir']
+        valid = ['max_weight','seed','curr_dir']
         if args[0] not in self.options and args[0] not in valid:
             raise self.InvalidCmd('Unknown options %s' % args[0])        
     
@@ -198,7 +235,10 @@ class ReweightInterface(extended_cmd.Cmd):
         """check the validity of the launch command"""
         
         if not self.lhe_input:
-            raise self.InvalidCmd("No events files defined.")
+            if isinstance(self.lhe_input, lhe_parser.EventFile):
+                self.lhe_input = lhe_parser.EventFile(self.lhe_input.name)
+            else:
+                raise self.InvalidCmd("No events files defined.")
 
     def help_launch(self):
         """help for the launch command"""
@@ -228,8 +268,12 @@ class ReweightInterface(extended_cmd.Cmd):
         ff.close()        
         cmd = common_run_interface.CommonRunCmd.ask_edit_card_static(cards=['param_card.dat'],
                                    ask=self.ask, pwd=pjoin(self.me_dir,'rw_me'))
-        new_card = open(pjoin(self.me_dir, 'rw_me', 'Cards', 'param_card.dat')).read()        
 
+        new_card = open(pjoin(self.me_dir, 'rw_me', 'Cards', 'param_card.dat')).read()        
+        # check if "Auto" is present for a width parameter
+        if "auto" in new_card.lower():            
+            self.mother.check_param_card(pjoin(self.me_dir, 'rw_me', 'Cards', 'param_card.dat'))
+            new_card = open(pjoin(self.me_dir, 'rw_me', 'Cards', 'param_card.dat')).read() 
         
 
         # Find new tag in the banner and add information if needed
@@ -255,6 +299,9 @@ class ReweightInterface(extended_cmd.Cmd):
             header_rwgt_other = ''
             mg_rwgt_info = []
             rewgtid = 1
+        
+
+        
         
         # add the reweighting in the banner information:
         #starts by computing the difference in the cards.
@@ -311,7 +358,7 @@ class ReweightInterface(extended_cmd.Cmd):
         os.environ['GFORTRAN_UNBUFFERED_ALL'] = 'y'
         if self.lhe_input.closed:
             self.lhe_input = lhe_parser.EventFile(self.lhe_input.name)
-
+        self.lhe_input.seek(0)
         for event_nb,event in enumerate(self.lhe_input):
             #control logger
             if (event_nb % max(int(10**int(math.log10(float(event_nb)+1))),1000)==0): 
@@ -584,7 +631,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     tag = (tag[0], tuple(decay_finals))
                 Pdir = pjoin(path_me, 'rw_me', 'SubProcesses', 
                                   'P%s' % me.get('processes')[0].shell_string())
-                assert os.path.exists(Pdir)
+                assert os.path.exists(Pdir), "Pdir %s do not exists" % Pdir                        
                 if tag in self.id_to_path:
                     if not Pdir == self.id_to_path[tag][1]:
                         misc.sprint(tag, Pdir, self.id_to_path[tag][1])

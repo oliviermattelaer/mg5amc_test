@@ -6,9 +6,10 @@ c     Scales
 c
       real*8          scale,scalefact,alpsfact
       logical         fixed_ren_scale,fixed_fac_scale,fixed_couplings,hmult
-      integer         ickkw,nhmult,asrwgtflavor
+      integer         ickkw,nhmult,asrwgtflavor, dynamical_scale_choice
       common/to_scale/scale,scalefact,alpsfact,fixed_ren_scale,fixed_fac_scale,
-     $                fixed_couplings,ickkw,nhmult,hmult,asrwgtflavor
+     $                fixed_couplings,ickkw,nhmult,hmult,asrwgtflavor,
+     $                dynamical_scale_choice
 c
 c     Collider
 c
@@ -50,7 +51,15 @@ c     Common block for systematics variations
       COMMON/TO_SYST/use_syst,n_qcd,n_alpsem,n_pdfrw,i_pdgpdf,
      $               s_scale,s_qalps,s_xpdf,s_qpdf,s_rwfact
 c
+c     Flag on how to write the LHE events 
 c     Include <clustering> tag for Pythia 8 CKKW-L matching
 c
       logical clusinfo
-      COMMON/TO_CINFO/clusinfo
+      double precision lhe_version
+      COMMON/TO_LHEFORMAT/lhe_version,clusinfo
+
+c     
+C     Controls wheter to perform Monte-Carlo sampling over grouped subprocesses
+C
+      logical MC_grouped_subproc
+      common/to_MC_grouped_subproc/MC_grouped_subproc

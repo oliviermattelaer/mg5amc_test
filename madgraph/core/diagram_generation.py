@@ -116,6 +116,7 @@ class DiagramTagChainLink(object):
 
     __repr__ = __str__
 
+class NoDiagramException(InvalidCmd): pass
 
 #===============================================================================
 # DiagramTag mother class
@@ -228,7 +229,7 @@ class DiagramTag(object):
     @classmethod
     def vertices_from_link(cls, link, model, first_vertex = False):
         """Recursively return the leg corresponding to this link and
-        the list of all vertices from all previous links"""
+        the list of all vertices from all previous links"""            
 
         if link.end_link:
             # This is an end link and doesn't correspond to a vertex
@@ -236,7 +237,6 @@ class DiagramTag(object):
 
         # First recursively find all daughter legs and vertices
         leg_vertices = [cls.vertices_from_link(l, model) for l in link.links]
-
         # The daughter legs are in the first entry
         legs = base_objects.LegList(sorted([l for l,v in leg_vertices],
                                            lambda l1,l2: l2.get('number') - \
@@ -248,16 +248,14 @@ class DiagramTag(object):
         if not first_vertex:
             # This corresponds to a wavefunction with a resulting leg
             # Need to create the resulting leg from legs and vertex id
-            last_leg = cls.leg_from_legs(legs,
-                                         cls.id_from_vertex_id(link.vertex_id),
-                                         model)
+            last_leg = cls.leg_from_legs(legs,link.vertex_id,model)
             legs.append(last_leg)
+
 
         # Now create and append this vertex
         vertices.append(cls.vertex_from_link(legs,
                                         link.vertex_id,
                                         model))
-
         if first_vertex:
             # Return list of vertices
             return vertices
@@ -265,12 +263,26 @@ class DiagramTag(object):
             # Return leg and list of vertices
             return last_leg, vertices
 
-    @staticmethod
-    def leg_from_legs(legs, vertex_id, model):
+    @classmethod
+    def legPDGs_from_vertex_id(cls, vertex_id,model):
+        """Returns the list of external PDGs of the interaction corresponding 
+        to this vertex_id."""
+        
+        # In case we have to deal with a regular vertex, we return the list
+        # external PDGs as given by the model information on that integer 
+        # vertex id.
+        if (len(vertex_id)>=3 and 'PDGs' in vertex_id[2]):
+            return vertex_id[2]['PDGs']
+        else:
+            return [part.get_pdg_code() for part in model.get_interaction(
+                             cls.id_from_vertex_id(vertex_id)).get('particles')]
+
+    @classmethod
+    def leg_from_legs(cls,legs, vertex_id, model):
         """Return a leg from a leg list and the model info"""
 
-        pdgs = [part.get_pdg_code() for part in \
-                model.get_interaction(vertex_id).get('particles')]
+        pdgs = list(cls.legPDGs_from_vertex_id(vertex_id, model))
+        
         # Extract the resulting pdg code from the interaction pdgs
         for pdg in [leg.get('id') for leg in legs]:
             pdgs.remove(pdg)
@@ -293,9 +305,16 @@ class DiagramTag(object):
     def vertex_from_link(cls, legs, vertex_id, model):
         """Return a vertex given a leg list and a vertex id"""
 
-        return base_objects.Vertex({'legs': legs,
-                                    'id': cls.id_from_vertex_id(vertex_id)})
-        
+        vert_ID = cls.id_from_vertex_id(vertex_id)
+        if vert_ID != -2:
+            return base_objects.Vertex({'legs': legs,
+                                        'id': vert_ID})
+        else:
+            contracted_vert = base_objects.ContractedVertex({'legs': legs,'id': -2})
+            for key, value in cls.loop_info_from_vertex_id(vertex_id):
+                if key in contracted_vert:
+                    contracted_vert.set(key,value)    
+
     @staticmethod
     def leg_from_link(link):
         """Return a leg from a link"""
@@ -314,8 +333,15 @@ class DiagramTag(object):
     def id_from_vertex_id(vertex_id):
         """Return the numerical vertex id from a link.vertex_id"""
 
-        return vertex_id[0]
+        return vertex_id[0][0]
+    
+    @staticmethod
+    def loop_info_from_vertex_id(vertex_id):
+        """Return the loop_info stored in this vertex id. Notice that the
+        IdentifyME tag does not store the loop_info, but should normally never
+        need access to it."""
 
+        return vertex_id[2]
 
     @staticmethod
     def reorder_permutation(perm, start_perm):
@@ -344,9 +370,15 @@ class DiagramTag(object):
         """Returns the default vertex id: just the interaction id
            Note that in the vertex id, like the leg, only the first entry is
            taken into account in the tag comparison, while the second is for 
-           storing information that is not to be used in comparisons."""
+           storing information that is not to be used in comparisons and the 
+           third for additional info regarding the shrunk loop vertex."""
 
-        return (vertex.get('id'),)
+        if isinstance(vertex,base_objects.ContractedVertex):
+#            return (vertex.get('id'),(),{'PDGs':vertex.get('PDGs')})
+            return ((vertex.get('id'),vertex.get('loop_tag')),(),
+                                                    {'PDGs':vertex.get('PDGs')})
+        else:
+            return ((vertex.get('id'),()),(),{})
 
     @staticmethod
     def flip_vertex(new_vertex, old_vertex, links):
@@ -396,7 +428,6 @@ class Amplitude(base_objects.PhysicsObject):
 
     def __init__(self, argument=None):
         """Allow initialization with Process"""
-
         if isinstance(argument, base_objects.Process):
             super(Amplitude, self).__init__()
             self.set('process', argument)
@@ -654,13 +685,42 @@ class Amplitude(base_objects.PhysicsObject):
         if process.get('forbidden_s_channels'):
             ninitial = len(filter(lambda leg: leg.get('state') == False,
                                   process.get('legs')))
-            res = base_objects.DiagramList(\
+            if ninitial == 2:
+                res = base_objects.DiagramList(\
                 filter(lambda diagram: \
                        not any([vertex.get_s_channel_id(\
                            process.get('model'), ninitial) \
                                 in process.get('forbidden_s_channels')
                                 for vertex in diagram.get('vertices')[:-1]]),
                        res))
+            else:
+                # split since we need to avoid that the initial particle is forbidden 
+                # as well. 
+                newres= []
+                for diagram in res:
+                    leg1 = 1
+                    #check the latest vertex to see if the leg 1 is inside if it 
+                    #is we need to inverse the look-up and allow the first s-channel
+                    # of the associate particles.
+                    vertex =  diagram.get('vertices')[-1]
+                    if any([l['number'] ==1 for l in vertex.get('legs')]):
+                        leg1 = [l['number'] for l in vertex.get('legs') if l['number'] !=1][0]
+                    to_loop = range(len(diagram.get('vertices'))-1)
+                    if leg1 >1:   
+                        to_loop.reverse()
+                    for i in to_loop:
+                        vertex = diagram.get('vertices')[i]
+                        if leg1:
+                            if any([l['number'] ==leg1 for l in vertex.get('legs')]):
+                                leg1 = 0 
+                                continue
+                        if vertex.get_s_channel_id(process.get('model'), ninitial)\
+                                         in process.get('forbidden_s_channels'):
+                            break
+                    else:
+                        newres.append(diagram)
+                newres = base_objects.DiagramList(newres)
+                
 
         # Mark forbidden (onshell) s-channel propagators, to forbid onshell
         # generation.
@@ -679,13 +739,20 @@ class Amplitude(base_objects.PhysicsObject):
                 newleg = copy.copy(vert.get('legs').pop(-1))
                 newleg.set('onshell', False)
                 vert.get('legs').append(newleg)
-                
-        # Set diagrams to res
-        self['diagrams'] = res
 
         # Set actual coupling orders for each diagram
         for diagram in res:
             diagram.calculate_orders(model)
+            
+        # Filter the diagrams according to the squared coupling order
+        # constraints and possible the negative one. Remember that OrderName=-n
+        # means that the user wants to include everything up to the N^(n+1)LO
+        # contribution in that order and at most one order can be restricted
+        # in this way. We shall do this only if the diagrams are not asked to
+        # be returned, as it is the case for NLO because it this case the
+        # interference are not necessarily among the diagrams generated here only.
+        if not returndiag and len(res)>0:
+            res = self.apply_squared_order_constraints(res)
 
 
         # Replace final id=0 vertex if necessary
@@ -720,7 +787,10 @@ class Amplitude(base_objects.PhysicsObject):
         self.trim_diagrams(diaglist=res)
 
         # Sort process legs according to leg number
-        self.get('process').get('legs').sort()
+        pertur = 'QCD'
+        if self.get('process')['perturbation_couplings']:
+            pertur = sorted(self.get('process')['perturbation_couplings'])[0]
+        self.get('process').get('legs').sort(pert=pertur)
 
         # Set the coupling orders of the process delay import to avoid cross import
         import madgraph.color_ordering.color_ordered_amplitudes as COamp #delayed import mandatorry
@@ -740,6 +810,47 @@ class Amplitude(base_objects.PhysicsObject):
             return not failed_crossing
         else:
             return not failed_crossing, res
+
+    def apply_squared_order_constraints(self, diag_list):
+        """Applies the user specified squared order constraints on the diagram
+        list in argument."""
+
+        res = copy.copy(diag_list)                  
+
+        # Iterate the filtering since the applying the constraint on one
+        # type of coupling order can impact what the filtering on a previous
+        # one (relevant for the '==' type of constraint).
+        while True:   
+            new_res = res.apply_positive_sq_orders(res, 
+                                          self['process'].get('squared_orders'), 
+                                              self['process']['sqorders_types'])
+            # Exit condition
+            if len(res)==len(new_res):
+                break
+            elif (len(new_res)>len(res)):
+                raise MadGraph5Error(
+                 'Inconsistency in function apply_squared_order_constraints().')
+            # Actualizing the list of diagram for the next iteration
+            res = new_res
+
+        # Now treat the negative squared order constraint (at most one)
+        neg_orders = [(order, value) for order, value in \
+                       self['process'].get('squared_orders').items() if value<0]
+        if len(neg_orders)==1:
+            neg_order, neg_value = neg_orders[0]
+            # Now check any negative order constraint
+            res, target_order = res.apply_negative_sq_order(res, neg_order,\
+                  neg_value, self['process']['sqorders_types'][neg_order])
+            # Substitute the negative value to this positive one so that
+            # the resulting computed constraints appears in the print out
+            # and at the output stage we no longer have to deal with 
+            # negative valued target orders
+            self['process']['squared_orders'][neg_order]=target_order
+        elif len(neg_orders)>1:
+            raise InvalidCmd('At most one negative squared order constraint'+\
+                                   ' can be specified, not %s.'%str(neg_orders))
+
+        return res
 
     def create_diagram(self, vertexlist):
         """ Return a Diagram created from the vertex list. This function can be
@@ -856,7 +967,9 @@ class Amplitude(base_objects.PhysicsObject):
         orders subtracted. If coupling_orders is not given, return
         None (which counts as success).
         WEIGHTED is a special order, which corresponds to the sum of
-        order hierarchys for the couplings."""
+        order hierarchies for the couplings.
+        We ignore negative constraints as these cannot be taken into
+        account on the fly but only after generation."""
 
         if not coupling_orders:
             return None
@@ -870,7 +983,8 @@ class Amplitude(base_objects.PhysicsObject):
             for coupling in inter.get('orders').keys():
                 # Note that we don't consider a missing coupling as a
                 # constraint
-                if coupling in present_couplings:
+                if coupling in present_couplings and \
+                                                 present_couplings[coupling]>=0:
                     # Reduce the number of couplings that are left
                     present_couplings[coupling] -= \
                              inter.get('orders')[coupling]
@@ -878,7 +992,8 @@ class Amplitude(base_objects.PhysicsObject):
                         # We have too many couplings of this type
                         return False
             # Now check for WEIGHTED, i.e. the sum of coupling hierarchy values
-            if 'WEIGHTED' in present_couplings:
+            if 'WEIGHTED' in present_couplings and \
+                                               present_couplings['WEIGHTED']>=0:
                 weight = sum([model.get('order_hierarchy')[c]*n for \
                               (c,n) in inter.get('orders').items()])
                 present_couplings['WEIGHTED'] -= weight
@@ -1072,7 +1187,7 @@ class Amplitude(base_objects.PhysicsObject):
     def trim_diagrams(self, decay_ids=[], diaglist=None):
         """Reduce the number of legs and vertices used in memory.
         When called by a diagram generation initiated by LoopAmplitude, 
-        this function should no trim the diagrams in the attribute 'diagrams'
+        this function should not trim the diagrams in the attribute 'diagrams'
         but rather a given list in the 'diaglist' argument."""
 
         legs = []
@@ -1112,7 +1227,6 @@ class Amplitude(base_objects.PhysicsObject):
                     diagram.get('vertices')[ivx] = vertices[index]
                 except ValueError:
                     vertices.append(vertex)
-        
 
 #===============================================================================
 # AmplitudeList
@@ -1560,30 +1674,8 @@ class MultiProcess(base_objects.PhysicsObject):
                         continue
 
                 # Setup process
-                process = base_objects.Process({\
-                              'legs':legs,
-                              'model':process_definition.get('model'),
-                              'id': process_definition.get('id'),
-                              'orders': process_definition.get('orders'),
-                              'required_s_channels': \
-                                 process_definition.get('required_s_channels'),
-                              'forbidden_onsh_s_channels': \
-                                 process_definition.get('forbidden_onsh_s_channels'),
-                              'forbidden_s_channels': \
-                                 process_definition.get('forbidden_s_channels'),
-                              'forbidden_particles': \
-                                 process_definition.get('forbidden_particles'),
-                              'is_decay_chain': \
-                                 process_definition.get('is_decay_chain'),
-                              'perturbation_couplings': \
-                                 process_definition.get('perturbation_couplings'),
-                              'squared_orders': \
-                                 process_definition.get('squared_orders'),
-                              'overall_orders': \
-                                 process_definition.get('overall_orders'),
-                              'has_born': \
-                                 process_definition.get('has_born')
-                                 })
+                process = process_definition.get_process_with_legs(legs) 
+                
                 fast_proc = \
                           array.array('i',[leg.get('id') for leg in legs])
                 if collect_mirror_procs and \
@@ -1614,6 +1706,12 @@ class MultiProcess(base_objects.PhysicsObject):
                    not process.get('is_decay_chain'):
                     try:
                         crossed_index = success_procs.index(sorted_legs)
+                        # The relabeling of legs for loop amplitudes is cumbersome
+                        # and does not save so much time. It is disable here and
+                        # we use the key 'loop_diagrams' to decide whether
+                        # it is an instance of LoopAmplitude.
+                        if 'loop_diagrams' in amplitudes[crossed_index]:
+                            raise ValueError
                     except ValueError:
                         # No crossing found, just continue
                         pass
@@ -1654,7 +1752,7 @@ class MultiProcess(base_objects.PhysicsObject):
             if len(failed_procs) == 1 and 'error' in locals():
                 raise error
             else:
-                raise InvalidCmd, \
+                raise NoDiagramException, \
             "No amplitudes generated from process %s. Please enter a valid process" % \
                   process_definition.nice_string()
         
@@ -1805,6 +1903,12 @@ class MultiProcess(base_objects.PhysicsObject):
                                  process_definition.get('required_s_channels'),
                               'forbidden_onsh_s_channels': \
                                  process_definition.get('forbidden_onsh_s_channels'),
+                              'sqorders_types': \
+                                 process_definition.get('sqorders_types'),
+                              'squared_orders': \
+                                 process_definition.get('squared_orders'),
+                              'split_orders': \
+                                 process_definition.get('split_orders'), 
                               'forbidden_s_channels': \
                                  process_definition.get('forbidden_s_channels'),
                               'forbidden_particles': \
@@ -1812,7 +1916,9 @@ class MultiProcess(base_objects.PhysicsObject):
                               'is_decay_chain': \
                                  process_definition.get('is_decay_chain'),
                               'overall_orders': \
-                                 process_definition.get('overall_orders')})
+                                 process_definition.get('overall_orders'),
+                              'split_orders': \
+                                 process_definition.get('split_orders')})
 
                     # Check for couplings with given expansion orders
                     process.check_expansion_orders()
@@ -1825,6 +1931,7 @@ class MultiProcess(base_objects.PhysicsObject):
                         continue
 
                     amplitude = cls.get_amplitude_from_proc(process)
+
                     try:
                         amplitude.generate_diagrams()
                     except InvalidCmd:

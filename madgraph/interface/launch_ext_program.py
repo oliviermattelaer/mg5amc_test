@@ -28,6 +28,7 @@ import madgraph.interface.extended_cmd as cmd
 import madgraph.interface.madevent_interface as me_cmd
 import madgraph.various.misc as misc
 import madgraph.various.process_checks as process_checks
+import madgraph.various.banner as banner_mod
 
 from madgraph import MG4DIR, MG5DIR, MadGraph5Error
 from madgraph.iolibs.files import cp
@@ -134,10 +135,8 @@ class MadLoopLauncher(ExtLauncher):
         self.cards = ['param_card.dat','MadLoopParams.dat']
 
     def prepare_run(self):
-        """ Usually the user will not want to doublecheck the helicity filter."""
-        process_checks.LoopMatrixElementTimer.set_MadLoop_Params(
-                                os.path.join(self.card_dir,'MadLoopParams.dat'),
-                                        {'DoubleCheckHelicityFilter':'.FALSE.'})
+        """ Possible preparatory actions to take."""
+        pass
 
     def treat_input_file(self, filename, default=None, msg='', dir_path=None):
         """ask to edit a file"""
@@ -170,7 +169,16 @@ class MadLoopLauncher(ExtLauncher):
                 self.edit_file(os.path.join(dir_path,'PS.input'))
         else:
             super(MadLoopLauncher,self).treat_input_file(filename,default,msg)
-    
+            if filename == 'MadLoopParams.dat':
+                # Make sure to update the changes
+                MadLoopparam = banner_mod.MadLoopParam(
+                               os.path.join(self.card_dir, 'MadLoopParams.dat'))   
+                # Unless user asked for it, don't doublecheck the helicity filter.
+                MadLoopparam.set('DoubleCheckHelicityFilter', False, 
+                                                             ifnotdefault=False)
+                MadLoopparam.write(os.path.join(self.card_dir,os.path.pardir, 
+                                           'SubProcesses', 'MadLoopParams.dat'))
+
     def launch_program(self):
         """launch the main program"""
         evaluator = process_checks.LoopMatrixElementTimer
@@ -181,29 +189,28 @@ class MadLoopLauncher(ExtLauncher):
                 shell_name = path.split('_')[1]+' > '+path.split('_')[2]
                 curr_path = os.path.join(sub_path, path)
                 infos = {}
-                attempts = [3,15]
                 logger.info("Initializing process %s."%shell_name)
-                nps = evaluator.run_initialization(curr_path, sub_path, infos,
-                                req_files = ['HelFilter.dat','LoopFilter.dat'],
-                                attempts = attempts)
+                nps = me_cmd.MadLoopInitializer.run_initialization(
+                                curr_path, sub_path, infos,
+                                req_files = ['HelFilter.dat','LoopFilter.dat'])
                 if nps == None:
-                    raise MadGraph5Error,("Could not initialize the process %s"+\
-                      " with %s PS points.")%(shell_name,max(attempts))
-                elif nps > min(attempts):
-                    logger.warning(("Could not initialize the process %s"+\
-                                   " with %d PS points. It needed %d.")\
-                                      %(shell_name,min(attempts),nps))
+                    raise MadGraph5Error,"MadLoop could not initialize the process %s"\
+                      %shell_name
+                logger.debug(("MadLoop initialization performed for %s"+\
+                        " using %d PS points (%s)")\
+                        %(shell_name,abs(nps),\
+                    'double precision' if nps>0 else 'quadruple precision'))
                 # Ask if the user wants to edit the PS point.
                 self.treat_input_file('PS.input', default='n', 
                   msg='Phase-space point for process %s.'%shell_name,\
                                                              dir_path=curr_path)
                 # We use mu_r=-1.0 to use the one defined by the user in the
                 # param_car.dat
-                evaluator.fix_PSPoint_in_check(sub_path, 
+                me_cmd.MadLoopInitializer.fix_PSPoint_in_check(sub_path, 
                   read_ps = os.path.isfile(os.path.join(curr_path, 'PS.input')),
                   npoints = 1, mu_r=-1.0)
                 # check
-                t1, t2, ram_usage = evaluator.make_and_run(curr_path)
+                t1, t2, ram_usage = me_cmd.MadLoopInitializer.make_and_run(curr_path)
                 if t1==None or t2==None:
                     raise MadGraph5Error,"Error while running process %s."\
                                                                      %shell_name
@@ -213,21 +220,30 @@ class MadLoopLauncher(ExtLauncher):
                     rFile.close()
                     raise MadGraph5Error,"Could not find result file %s."%\
                                        str(os.path.join(curr_path,'result.dat'))
-                # Result given in this format: 
-                # ((fin,born,spole,dpole,me_pow), p_out)
-                # I should have used a dictionary instead.
-                result = evaluator.parse_check_output(rFile.readlines(),\
-                                                                  format='dict')
-                logger.info(self.format_res_string(result)%shell_name)
+                # The result are returned as a dictionary.
+                result = evaluator.parse_check_output(rFile,format='dict')
+                for line in self.format_res_string(result, shell_name):
+                    if isinstance(line, str):
+                        logger.info(line)
+                    elif isinstance(line,tuple):
+                        logger.info(line[0],line[1])
 
-    def format_res_string(self, res):
+    def format_res_string(self, res, shell_name):
         """ Returns a good-looking string presenting the results.
         The argument the tuple ((fin,born,spole,dpole,me_pow), p_out)."""
+        
+        main_color='$MG:color:BLUE'
         
         def special_float_format(float):
             return '%s%.16e'%('' if float<0.0 else ' ',float)
         
-        ASCII_bar = ''.join(['='*96])
+        so_order_names = res['Split_Orders_Names']
+        
+        def format_so_orders(so_orders):
+            return ' '.join(['%s=%d'%(so_order_names[i],so_orders[i]) for i in
+                                                         range(len(so_orders))])
+
+        ASCII_bar = ('|'+''.join(['='*96]),main_color)
         
         ret_code_h = res['return_code']//100
         ret_code_t = (res['return_code']-100*ret_code_h)//10
@@ -255,10 +271,10 @@ class MadLoopLauncher(ExtLauncher):
                                                                  'computation.')
         if ret_code_h!=1:
             if res['accuracy']>0.0:
-                StabilityOutput.append('| Estimated accuracy = %.1e'\
+                StabilityOutput.append('| Estimated relative accuracy = %.1e'\
                                                                %res['accuracy'])
             elif res['accuracy']==0.0:
-                StabilityOutput.append('| Estimated accuracy = %.1e'\
+                StabilityOutput.append('| Estimated relative accuracy = %.1e'\
                              %res['accuracy']+' (i.e. beyond double precision)')
             else:
                 StabilityOutput.append('| Estimated accuracy could not be '+\
@@ -269,26 +285,91 @@ class MadLoopLauncher(ExtLauncher):
            special_float_format(pi) for pi in pmom]) for pmom in res['res_p']]))
         PS_point_spec.append('|')
         
-        if res['export_format']=='Default':
-            return '\n'.join(['\n'+ASCII_bar,
-                  '|| Results for process %s',
-                  ASCII_bar]+PS_point_spec+StabilityOutput+[
-                  '|',
-                  '|| Born contribution (GeV^%d):'%res['gev_pow'],
-                  '|    Born        = %s'%special_float_format(res['born']),
-                  '|| Virtual contribution normalized with born*alpha_S/(2*pi):',
-                  '|    Finite      = %s'%special_float_format(res['finite']),
-                  '|    Single pole = %s'%special_float_format(res['1eps']),
-                  '|    Double pole = %s'%special_float_format(res['2eps']),
-                  ASCII_bar+'\n'])
-        elif res['export_format']=='LoopInduced':
-            return '\n'.join(['\n'+ASCII_bar,
-                  '|| Results for process %s (Loop-induced)',
-                  ASCII_bar]+PS_point_spec+StabilityOutput+[
-                  '|',
-                  '|| Loop amplitude squared, must be finite:',
-                  '|    Finite      = %s'%special_float_format(res['finite']),
-                  ASCII_bar+'\n'])
+        str_lines=[]
+        
+        notZeroBorn=True
+        if res['export_format']!='LoopInduced' and len(so_order_names) and \
+                                     len([1 for k in res['Born_kept'] if k])==0:
+            notZeroBorn = False
+            str_lines.append(
+("|  /!\\ There is no Born contribution for the squared orders specified in "+
+                                  "the process definition/!\\",'$MG:color:RED'))
+        
+        if res['export_format']=='Default' and notZeroBorn:
+            str_lines.extend(['\n',ASCII_bar,
+  ('|| Results for process %s'%shell_name,main_color),
+  ASCII_bar]+PS_point_spec+StabilityOutput+[
+  '|',
+  ('|| Total(*) Born contribution (GeV^%d):'%res['gev_pow'],main_color),
+  ('|    Born        = %s'%special_float_format(res['born']),main_color),
+  ('|| Total(*) virtual contribution normalized with born*alpha_S/(2*pi):',main_color),
+  ('|    Finite      = %s'%special_float_format(res['finite']),main_color),
+  ('|    Single pole = %s'%special_float_format(res['1eps']),main_color),
+  ('|    Double pole = %s'%special_float_format(res['2eps']),main_color)])
+        elif res['export_format']=='LoopInduced' and notZeroBorn:
+            str_lines.extend(['\n',ASCII_bar,
+  ('|| Results for process %s (Loop-induced)'%shell_name,main_color),
+  ASCII_bar]+PS_point_spec+StabilityOutput+[
+  '|',
+  ('|| Loop amplitude squared, must be finite:',main_color),
+  ('|    Finite      = %s'%special_float_format(res['finite']),main_color),
+  '|(| Pole residues, indicated only for checking purposes: )',
+  '|(    Single pole = %s )'%special_float_format(res['1eps']),
+  '|(    Double pole = %s )'%special_float_format(res['2eps'])])
+
+        if (len(res['Born_SO_Results'])+len(res['Born_SO_Results']))>0:
+            if notZeroBorn:
+                str_lines.append(
+    ("|  (*) The results above sum all starred contributions below",main_color))
+
+        str_lines.append('|')
+        if not notZeroBorn:
+            str_lines.append(
+("|  The Born contributions below are computed but do not match these squared "+
+                                               "orders constraints",main_color))
+
+        if len(res['Born_SO_Results'])==1:
+            str_lines.append('|| All Born contributions are of split orders *(%s)'\
+                                %format_so_orders(res['Born_SO_Results'][0][0]))
+        elif len(res['Born_SO_Results'])>1:
+            for i, bso_contrib in enumerate(res['Born_SO_Results']):
+                str_lines.append('|| Born contribution of split orders %s(%s) = %s'\
+                                           %('*' if res['Born_kept'][i] else ' ',
+                                               format_so_orders(bso_contrib[0]),
+                                  special_float_format(bso_contrib[1]['BORN'])))
+        
+        if len(so_order_names):
+            str_lines.append('|')
+
+        if len(res['Loop_SO_Results'])==1:
+            str_lines.append('|| All virtual contributions are of split orders *(%s)'\
+                                %format_so_orders(res['Loop_SO_Results'][0][0]))
+        elif len(res['Loop_SO_Results'])>1:
+            if not notZeroBorn:
+                str_lines.append(
+    ("|  The coupling order combinations matching the squared order"+
+                              " constraints are marked with a star",main_color))
+            for i, lso_contrib in enumerate(res['Loop_SO_Results']):
+                str_lines.append('|| Virtual contribution of split orders %s(%s):'\
+                                        %('*' if res['Loop_kept'][i] else ' ',
+                                              format_so_orders(lso_contrib[0])))
+                str_lines.append('|    Accuracy    =  %.1e'%\
+                                                         lso_contrib[1]['ACC']),
+                str_lines.append('|    Finite      = %s'%\
+                                   special_float_format(lso_contrib[1]['FIN'])),
+                if res['export_format']=='LoopInduced':
+                    str_lines.append('|(    Single pole = %s )'%\
+                                   special_float_format(lso_contrib[1]['1EPS']))
+                    str_lines.append('|(    Double pole = %s )'%\
+                                   special_float_format(lso_contrib[1]['2EPS']))
+                else:
+                    str_lines.append('|    Single pole = %s'%\
+                                   special_float_format(lso_contrib[1]['1EPS']))
+                    str_lines.append('|    Double pole = %s'%\
+                                   special_float_format(lso_contrib[1]['2EPS']))              
+        str_lines.extend([ASCII_bar,'\n'])
+
+        return str_lines
 
 class SALauncher(ExtLauncher):
     """ A class to launch a simple Standalone test """
@@ -461,9 +542,11 @@ class aMCatNLOLauncher(ExtLauncher):
                      usecmd, interface=False)
         #launch.me_dir = self.running_dir
         option_line = ' '.join([' --%s' % opt for opt in self.options.keys() \
-                if self.options[opt] and not opt in ['cluster', 'multicore', 'name']])
+                if self.options[opt] and not opt in ['cluster', 'multicore', 'name', 'appl_start_grid']])
         if self.options['name']:
-            option_line += '--name %s' %  self.options['name']  
+            option_line += ' --name %s' %  self.options['name']
+        if 'appl_start_grid' in self.options and  self.options['appl_start_grid']:
+            option_line += ' --appl_start_grid %s' %  self.options['appl_start_grid']
         command = 'launch ' + self.run_mode + ' ' + option_line
 
         if mode == "1":
@@ -563,10 +646,11 @@ class MELauncher(ExtLauncher):
             warning_text = '''\
 This command will create a new param_card with the computed width. 
 This param_card makes sense only if you include all processes for
-the computation of the width.'''
+the computation of the width. For more efficient width computation:
+see arXiv:1402.1178.'''
             logger.warning(warning_text)
 
-            command = 'calculate_decay_widths %s' % self.name
+            command = 'generate_events %s' % self.name
         if mode == "1":
             command += " --cluster"
         elif mode == "2":

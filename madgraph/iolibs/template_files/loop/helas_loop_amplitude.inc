@@ -1,4 +1,4 @@
-      SUBROUTINE LOOP_%(nloopline)d%(nwfsargs_header)s_%(ncplsargs)d( LID, %(pairingargs)s%(wfsargs)s%(margs)s%(cplsargs)s RANK, LSYMFACT, AMPLN, RES, STABLE)
+      SUBROUTINE %(proc_prefix)sLOOP_%(nloopline)d%(nwfsargs_header)s_%(ncplsargs)d( LID, %(pairingargs)s%(wfsargs)s%(margs)s%(cplsargs)s RANK, LSYMFACT, LMULTIPLIER, AMPLN, RES, STABLE)
 
       INTEGER    NEXTERNAL
       PARAMETER (NEXTERNAL=%(nexternal)d)
@@ -20,7 +20,7 @@ C
       %(complex_mp_format)s %(mp_cplsdecl)s	  
       %(pairingdecl)s
       %(complex_dp_format)s RES(3)
-      INTEGER LID, RANK, LSYMFACT
+      INTEGER LID, RANK, LSYMFACT, LMULTIPLIER
 	  INTEGER AMPLN
 	  LOGICAL STABLE
 C
@@ -34,21 +34,21 @@ C
 C GLOBAL VARIABLES
 C
       INTEGER WE(NEXTERNAL)  
-      INTEGER ID, SYMFACT, AMPLNUM
-      COMMON/LOOP/WE,ID,SYMFACT, AMPLNUM
+      INTEGER ID, SYMFACT, MULTIPLIER, AMPLNUM 
+      common/%(proc_prefix)sLOOP/WE,ID, SYMFACT, MULTIPLIER,AMPLNUM
 
 	  %(complex_dp_format)s LC(MAXLCOUPLINGS)	  
       %(mass_dp_format)s ML(NEXTERNAL+2)	
-      COMMON/DP_LOOP/LC,ML
+      common/%(proc_prefix)sDP_LOOP/LC,ML
 
 	  %(complex_mp_format)s MP_LC(MAXLCOUPLINGS)
 	  %(mass_mp_format)s MP_ML(NEXTERNAL+2)
-      COMMON/MP_LOOP/MP_LC,MP_ML
+      common/%(proc_prefix)sMP_LOOP/MP_LC,MP_ML
 
 	  %(complex_dp_format)s W(20,NWAVEFUNCS%(ncomb_helas_objs)s)
 	  INTEGER VALIDH
-	  common/WFCTS/W  
-	  common/VALIDH/VALIDH
+	  common/%(proc_prefix)sWFCTS/W  
+	  common/%(proc_prefix)sVALIDH/VALIDH
 
 C ----------
 C BEGIN CODE
@@ -62,6 +62,7 @@ C ----------
 	  AMPLNUM=AMPLN
       ID=LID
 	  SYMFACT=LSYMFACT
+	  MULTIPLIER=LMULTIPLIER
       DO I=0,3
         TEMP=1
         DO J=1,NLOOPLINE
@@ -72,6 +73,6 @@ C ----------
           TEMP=TEMP+PAIRING(J)
         ENDDO
       ENDDO
-      CALL CTLOOP(NLOOPLINE,PL,M2L,RANK,RES,STABLE)
+      CALL %(proc_prefix)sCTLOOP(NLOOPLINE,PL,M2L,RANK,RES,STABLE)
 
       END

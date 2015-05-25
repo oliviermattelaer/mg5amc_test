@@ -92,7 +92,6 @@ FREEZE|freeze) PDFGROUP=LHAPDF ;;
 EXTRAPOLATE|extrapolate) PDFGROUP=LHAEXT ;;
 *) echo "no such option; failure in linklhapdf" ; exit 1 ;;
 esac
-source ../Source/fj_lhapdf_opts
 }    
 
 # converts pdg numbers to names, relevant for decays
@@ -145,13 +144,6 @@ function compile {
 architecture
 
 EVTDIR=`pwd`"/../Events"
-# stops if event file is not in the /Events folder
-EVT_NAMEF="$EVPREFIX"
-if [ ! -f $EVTDIR/$EVT_NAMEF ]
-then
-  echo "Event file" $EVTDIR/$EVT_NAMEF "not found: quitting"
-  exit 1
-fi
 
 if [ "$PDFCODE" -ne 0 ]
 then
@@ -166,14 +158,29 @@ then
   if [ "$PDFCODE" -lt -1 ]; then PDFSET=$((PDFCODE*-1)); fi
   linklhapdf
 # convert PDF number to name reading PDFsets.index
+  ISLHA5=0
+  ISLHA6=0
+  if [ -f $LHAPDFPATH/share/lhapdf/PDFsets.index ]
+  then
+      LHAINDEX=$LHAPDFPATH/share/lhapdf/PDFsets.index
+      ISLHA5=1
+  elif [ -f $LHAPDFPATH/share/LHAPDF/pdfsets.index ]
+  then
+      LHAINDEX=$LHAPDFPATH/share/LHAPDF/pdfsets.index
+      ISLHA6=1
+  else
+      echo 'PDF index not found!'
+      exit 1
+  fi
   while read pdfline
-  do 
+  do
     pdfinfo=($(echo ${pdfline}))
     if [ "$PDFSET" == "${pdfinfo[0]}" ]
     then
-       PDFSETN="${pdfinfo[4]}"
+	if [ "$ISLHA5" -eq 1 ]; then PDFSETN="${pdfinfo[4]}"; fi
+	if [ "$ISLHA6" -eq 1 ]; then PDFSETN="${pdfinfo[1]}"; fi
     fi
-  done < $LHAPDFPATH/share/lhapdf/PDFsets.index
+  done < $LHAINDEX
 elif [ "$PDFCODE" -eq 0 ]
 then
   HERPDF='DEFAULT'
@@ -214,7 +221,6 @@ INCLMAKE="INCLOPTION="$ExtraIncl
 INCDIRMK="INCDIR="`pwd`"/include"
 COMSRCMK="COMSRC="`pwd`"/srcCommon"
 EVTDIR=`pwd`"/../Events"
-
 if [ "$LD_LIBRARY_PATH" = "" ]
 then
   LD_LIBRARY_PATH="$ExtraPathsDyn"
@@ -251,6 +257,7 @@ then
   EXEC_NAME="$EXEC_NAMEF"
 fi
 EXEC_NAMEFF="$EXEPREFIX""$EXEC_NAMEF"
+
 rm -f $thisdir/$EXEC_NAMEFF
 # new compilation step for HW++ mode
   # compile the analyzer & link it into the EXE directory
@@ -295,15 +302,6 @@ compile MC
 # wrapper for the functions which run and compile MC codes
 function runMC {
 compile MC
-
-# NEW FOR aMC@NLO5
-
-# Link event file in the running directory
-#if [ -f $EVTDIR/$EVT_NAMEF ]
-#then
-#  rm $EVTDIR/$EVT_NAMEF
-#fi
-#ln -ns $EVTDIR/$EVT_NAMEF $thisdir
 
 #put MCMODE to upper case
 MCMODE=`echo $MCMODE | tr '[a-z]' '[A-Z]' `
@@ -353,8 +351,7 @@ ERR_NUM_HWPP=${ERR_NUM_HWPP/.*}
 let "ERR_NUM_HWPP += 1"
 
 echo " "
-echo "*****   All parameters read from event file $EVT_NAMEF"
-echo "*****   Now ready for showering" $NEVENTS "events with $MC_TYPE "
+echo "*****   Now ready for showering" $NEVENTS "events with $MCMODE "
 echo " "
 runMCMadFKS
 teststatus runMC
@@ -420,9 +417,20 @@ cat <<EOF >> ./$ifile
 # Define PDF from MCatNLO.inputs PDFSET number
 mkdir /LHAPDF
 create ThePEG::LHAPDF /LHAPDF/MCNLOPDF ThePEGLHAPDF.so
+EOF
 
-#set /LHAPDF/MCNLOPDF:PDFNumber $PDFSET
+if [ "$ISLHA5" -eq 1 ]
+then
+cat <<EOF >> ./$ifile
+set /LHAPDF/MCNLOPDF:PDFNumber $PDFSET
+EOF
+fi
+if [ "$ISLHA6" -eq 1 ]
+then
+cat <<EOF >> ./$ifile
 set /LHAPDF/MCNLOPDF:PDFName $PDFSETN
+EOF
+fi
 set /LHAPDF/MCNLOPDF:RemnantHandler /Herwig/Partons/HadronRemnants
 
 set /Herwig/EventHandlers/LHEReader:PDFA /LHAPDF/MCNLOPDF
@@ -629,6 +637,8 @@ set /Herwig/Particles/Omega_bbar+:Stable Stable
 #
 #553
 set /Herwig/Particles/Upsilon:Stable Stable
+#551
+set /Herwig/Particles/eta_b:Stable Stable
 
 EOF
 fi

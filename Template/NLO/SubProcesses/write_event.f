@@ -1,9 +1,12 @@
-      subroutine finalize_event(xx,weight,lunlhe,plotEv,putonshell)
+      subroutine finalize_event(xx,weight,lunlhe,putonshell)
       implicit none
       include 'nexternal.inc'
       include "genps.inc"
-      integer ndim,ipole
-      common/tosigint/ndim,ipole
+      include "unlops.inc"
+      include "run.inc"
+      include 'timing_variables.inc'
+      integer ndim
+      common/tosigint/ndim
       integer           iconfig
       common/to_configs/iconfig
       integer itmax,ncall
@@ -12,8 +15,8 @@
       common/SHevents/Hevents
       integer i,j,lunlhe
       include 'mint.inc'
-      real*8 xx(ndimmax),weight,plot_wgt,evnt_wgt
-      logical plotEv, putonshell
+      real*8 xx(ndimmax),weight,evnt_wgt
+      logical putonshell
       double precision wgt,unwgtfun
       double precision x(99),p(0:3,nexternal)
       integer jpart(7,-nexternal+3:2*nexternal-3)
@@ -21,10 +24,6 @@
       logical unwgt
       double precision evtsgn
       common /c_unwgt/evtsgn,unwgt
-      integer iplot_ev,iplot_cnt,iplot_born
-      parameter (iplot_ev=11)
-      parameter (iplot_cnt=12)
-      parameter (iplot_born=20)
       double precision ybst_til_tolab,ybst_til_tocm,sqrtshat,shat
       common/parton_cms_stuff/ybst_til_tolab,ybst_til_tocm,
      #                        sqrtshat,shat
@@ -41,6 +40,7 @@
       common /to_abrv/ abrv
       double precision p_born(0:3,nexternal-1)
       common/pborn/p_born
+      call cpu_time(tBefore)
 
       do i=1,99
         if(i.le.ndim)then
@@ -51,10 +51,7 @@
       enddo
       
       wgt=1d0
-c Normalization to the number of requested events is done in subroutine
-c topout (madfks_plot.f), so multiply here to get # of events.
       evnt_wgt=evtsgn*weight
-      plot_wgt=evnt_wgt*itmax*ncall
       call generate_momenta(ndim,iconfig,wgt,x,p)
 c
 c Get all the info we need for writing the events.
@@ -65,17 +62,38 @@ c
          call set_cms_stuff(0)
       endif
 
-      call add_write_info(p_born,p,ybst_til_tolab,iconfig,Hevents,
-     &     putonshell,ndim,ipole,x,jpart,npart,pb,shower_scale)
+      if (ickkw.eq.4) putonshell=.false.
 
-c Plot the events also on the fly
-      if(plotEv) then
+      if (ickkw.eq.4) then
          if (Hevents) then
-            call outfun(p,ybst_til_tolab,plot_wgt,iplot_ev)
-         else
-            call outfun(p1_cnt(0,1,0),ybst_til_tolab,plot_wgt,iplot_cnt)
+            write (*,*) 'For ickkw=4, Hevents should be false',Hevents
+            stop
          endif
+         Hevents=.true.
+         call add_write_info(p_born,p,ybst_til_tolab,iconfig,Hevents,
+     &        .false.,ndim,x,jpart,npart,pb,shower_scale)
+c Put the Hevent info in a common block
+         NUP_H=npart
+         do i=1,NUP_H
+            IDUP_H(i)=jpart(1,i)
+            ISTUP_H(i)=jpart(6,i)
+            MOTHUP_H(1,i)=jpart(2,i)
+            MOTHUP_H(2,i)=jpart(3,i)
+            ICOLUP_H(1,i)=jpart(4,i)
+            ICOLUP_H(2,i)=jpart(5,i)
+            PUP_H(1,i)=pb(1,i)
+            PUP_H(2,i)=pb(2,i)
+            PUP_H(3,i)=pb(3,i)
+            PUP_H(4,i)=pb(0,i)
+            PUP_H(5,i)=pb(4,i)
+            VTIMUP_H(i)=0.d0
+            SPINUP_H(i)=dfloat(jpart(7,i))
+         enddo
+         Hevents=.false.
       endif
+      
+      call add_write_info(p_born,p,ybst_til_tolab,iconfig,Hevents,
+     &     putonshell,ndim,x,jpart,npart,pb,shower_scale)
 
       call unweight_function(p_born,unwgtfun)
       if (unwgtfun.ne.0d0) then
@@ -88,15 +106,17 @@ c Plot the events also on the fly
       if (abrv.ne.'grid') then
 c  Write-out the events
          call write_events_lhe(pb(0,1),evnt_wgt,jpart(1,1),npart,lunlhe
-     &        ,shower_scale)
+     &        ,shower_scale,ickkw)
       else
          call write_random_numbers(lunlhe)
       endif
       
+      call cpu_time(tAfter)
+      t_write=t_write+(tAfter-tBefore)
       return
       end
 
-      subroutine write_header_init(lunlhe,nevents,res,res_abs,err)
+      subroutine write_header_init
       implicit none
       integer lunlhe,nevents
       double precision res,err,res_abs
@@ -104,7 +124,11 @@ c  Write-out the events
       logical Hevents
       common/SHevents/Hevents
       character*10 MonteCarlo
+c
       common/cMonteCarloType/MonteCarlo
+      integer ifile,ievents
+      double precision inter,absint,uncer
+      common /to_write_header_init/inter,absint,uncer,ifile,ievents
 
 c Les Houches init block (for the <init> info)
       integer maxpup
@@ -114,28 +138,44 @@ c Les Houches init block (for the <init> info)
       common /heprup/ idbmup(2),ebmup(2),pdfgup(2),pdfsup(2),
      &     idwtup,nprup,xsecup(maxpup),xerrup(maxpup),
      &     xmaxup(maxpup),lprup(maxpup)
+c Scales
+      character*80 muR_id_str,muF1_id_str,muF2_id_str,QES_id_str
+      common/cscales_id_string/muR_id_str,muF1_id_str,
+     #                         muF2_id_str,QES_id_str
+      character*7 event_norm
+      common /event_normalisation/event_norm
 
 
 c      open(unit=58,file='res_1',status='old')
 c      read(58,'(a)')string
 c      read(string(index(string,':')+1:index(string,'+/-')-1),*) res_abs
 c      close(58)
-
+      lunlhe=ifile
 c get info on beam and PDFs
       call setrun
-      XSECUP(1)=res
-      XERRUP(1)=err
-      XMAXUP(1)=res_abs/nevents
+      XSECUP(1)=inter
+      XERRUP(1)=uncer
+      XMAXUP(1)=absint/ievents
       LPRUP(1)=66
-      IDWTUP=-4
+      if (event_norm(1:5).eq.'unity') then
+         IDWTUP=-3
+      else
+         IDWTUP=-4
+      endif
       NPRUP=1
 
-      write(lunlhe,'(a)')'<LesHouchesEvents version="1.0">'
+      write(lunlhe,'(a)')'<LesHouchesEvents version="3.0">'
       write(lunlhe,'(a)')'  <!--'
+      write(lunlhe,'(a)')'  <scalesfunctionalform>'
+      write(lunlhe,'(2a)')'    muR  ',muR_id_str(1:len_trim(muR_id_str))
+      write(lunlhe,'(2a)')'    muF1 ',muF1_id_str(1:len_trim(muF1_id_str))
+      write(lunlhe,'(2a)')'    muF2 ',muF2_id_str(1:len_trim(muF2_id_str))
+      write(lunlhe,'(2a)')'    QES  ',QES_id_str(1:len_trim(QES_id_str))
+      write(lunlhe,'(a)')'  </scalesfunctionalform>'
       write(lunlhe,'(a)')MonteCarlo
       write(lunlhe,'(a)')'  -->'
       write(lunlhe,'(a)')'  <header>'
-      write(lunlhe,250)  nevents
+      write(lunlhe,250)ievents
       write(lunlhe,'(a)')'  </header>'
       write(lunlhe,'(a)')'  <init>'
       write(lunlhe,501)IDBMUP(1),IDBMUP(2),EBMUP(1),EBMUP(2),
@@ -150,14 +190,15 @@ c get info on beam and PDFs
       return
       end
 
-      subroutine write_events_lhe(p,wgt,ic,npart,lunlhe,shower_scale)
+      subroutine write_events_lhe(p,wgt,ic,npart,lunlhe,shower_scale
+     $     ,ickkw)
       implicit none
       include "nexternal.inc"
       include "coupl.inc"
       include "madfks_mcatnlo.inc"
       include 'reweight.inc'
       double precision p(0:4,2*nexternal-3),wgt
-      integer ic(7,2*nexternal-3),npart,lunlhe
+      integer ic(7,2*nexternal-3),npart,lunlhe,kwgtinfo,ickkw
       double precision pi,zero
       parameter (pi=3.1415926535897932385d0)
       parameter (zero=0.d0)
@@ -181,9 +222,27 @@ c get info on beam and PDFs
       common/cto_LHE1/iSorH_lhe,ifks_lhe,jfks_lhe,
      #                fksfather_lhe,ipartner_lhe
       common/cto_LHE2/scale1_lhe,scale2_lhe
+      double precision muR2_current,muF12_current,
+     #                 muF22_current,QES2_current
+      common/cscales_current_values/muR2_current,muF12_current,
+     #                              muF22_current,QES2_current
+      logical firsttime
+      data firsttime/.true./
 c
+      if (firsttime) then
+         call write_header_init
+         firsttime=.false.
+      endif
       ievent=66
-      scale = shower_scale
+
+      if (ickkw.eq.4) then
+         scale = sqrt(muF12_current)
+      elseif (ickkw.eq.-1) then
+         scale = mu_r
+      else
+         scale = shower_scale
+      endif
+
       aqcd=g**2/(4d0*pi)
       aqed=gal(1)**2/(4d0*pi)
 
@@ -195,16 +254,17 @@ c
      &          ,scale2_lhe(nFKSprocess),izero,izero,izero,zero,zero
      &          ,zero,zero,zero
         else
-          if(iwgtinfo.lt.1.or.iwgtinfo.gt.5)then
+          if(iwgtinfo.ne.-5)then
             write(*,*)'Error in write_events_lhe'
             write(*,*)'  Inconsistency in reweight parameters'
             write(*,*)doreweight,iwgtinfo
             stop
           endif
+          kwgtinfo=iwgtinfo
           write(buff,201)'#aMCatNLO',iSorH_lhe,ifks_lhe(nFKSprocess)
      &         ,jfks_lhe(nFKSprocess),fksfather_lhe(nFKSprocess)
      &         ,ipartner_lhe(nFKSprocess),scale1_lhe(nFKSprocess)
-     &         ,scale2_lhe(nFKSprocess),iwgtinfo,nexternal,iwgtnumpartn
+     &         ,scale2_lhe(nFKSprocess),kwgtinfo,nexternal,iwgtnumpartn
      &         ,zero,zero,zero,zero,zero
         endif
       else
@@ -246,7 +306,7 @@ c********************************************************************
      #    NUP,IDPRUP,XWGTUP,scale,AQEDUP,AQCDUP,
      #    IDUP,ISTUP,MOTHUP,ICOLUP,PUP,VTIMUP,SPINUP,buff)
 
- 201  format(a9,1x,i1,4(1x,i2),2(1x,d14.8),1x,i1,2(1x,i2),5(1x,d14.8))
+ 201  format(a9,1x,i1,4(1x,i2),2(1x,d14.8),2x,i2,2(1x,i2),5(1x,d14.8))
       return
       end
 
@@ -255,8 +315,8 @@ c********************************************************************
       integer lunlhe,i
       double precision x(99),sigintF_save,f_abs_save
       common /c_sigint/ x,sigintF_save,f_abs_save
-      integer ndim,ipole
-      common/tosigint/ndim,ipole
+      integer ndim
+      common/tosigint/ndim
       write (lunlhe,'(a)')'  <event>'
       write (lunlhe,*) ndim,sigintF_save,f_abs_save
       write (lunlhe,*) (x(i),i=1,ndim)

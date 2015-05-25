@@ -132,27 +132,34 @@ import internal.coloring_logging
 try:
     if __debug__ and options.logging == 'INFO':
         options.logging = 'DEBUG'    
+    if options.logging.isdigit():
+        level = int(options.logging)
+    else:
+        level = eval('logging.' + options.logging)
+
     logging.config.fileConfig(os.path.join(root_path, 'internal', 'me5_logging.conf'))
-    logging.root.setLevel(eval('logging.' + options.logging))
-    logging.getLogger('madgraph').setLevel(eval('logging.' + options.logging))
+    logging.root.setLevel(level)
+    logging.getLogger('madgraph').setLevel(level)
 except:
     pass
 import internal.amcatnlo_run_interface as cmd_interface
 
 # Call the cmd interface main loop
 try:
-    if (args and os.path.exists(args[0])):
+    if (args and os.path.isfile(args[0])):
         # They are an input file 
         input_file = args[0]
         if options.web:
             cmd_line = cmd_interface.aMCatNLOCmd()
             cmd_line.debug_output = os.path.join(os.path.dirname(input_file),'generation.log')
             cmd_line.use_rawinput = False
+            cmd_line.haspiping = False
             cmd_line.run_cmd('import command ' + input_file)
             cmd_line.run_cmd('quit')      
         else:
             cmd_line = cmd_interface.aMCatNLOCmdShell()
             cmd_line.use_rawinput = False
+            cmd_line.haspiping = False
             cmd_line.run_cmd('import command ' + input_file)
             cmd_line.run_cmd('quit')
     elif args:

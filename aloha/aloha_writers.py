@@ -33,7 +33,6 @@ class WriteALOHA:
 
             
     def __init__(self, abstract_routine, dirpath):
-        
         if aloha.loop_mode:
             self.momentum_size = 4
         else:
@@ -53,21 +52,19 @@ class WriteALOHA:
         self.routine = abstract_routine
         self.tag = self.routine.tag
         self.name = name
+
         self.particles =  [self.type_to_variable[spin] for spin in \
                           abstract_routine.spins]
-        
+
         self.offshell = abstract_routine.outgoing # position of the outgoing in particle list        
         self.outgoing = self.offshell             # expected position for the argument list
         if 'C%s' %((self.outgoing + 1) // 2) in self.tag:
             #flip the outgoing tag if in conjugate
             self.outgoing = self.outgoing + self.outgoing % 2 - (self.outgoing +1) % 2
-        
         self.outname = '%s%s' % (self.particles[self.outgoing -1], \
                                                                self.outgoing)
-        
         #initialize global helper routine
         self.declaration = Declaration_list()
-
                                    
                                        
     def pass_to_HELAS(self, indices, start=0):
@@ -200,7 +197,8 @@ class WriteALOHA:
         # couplings
         if  couplings is None:
             detected_couplings = [name for type, name in self.declaration if name.startswith('COUP')]
-            detected_couplings.sort()
+            coup_sort = lambda x,y: int(x[4:])-int(y[4:])
+            detected_couplings.sort(coup_sort)
             if detected_couplings:
                 couplings = detected_couplings
             else:
@@ -449,12 +447,16 @@ class ALOHAWriterForFortran(WriteALOHA):
                    'im': 'imag(%s)',
                    'cmath.sqrt':'sqrt(dble(%s))', 
                    'sqrt': 'sqrt(dble(%s))',
-                   'complexconjugate': 'conjg(%s)',
+                   'complexconjugate': 'conjg(dcmplx(%s))',
                    '/' : '{0}/(%s)'.format(one),
                    'pow': '(%s)**(%s)',
                    'log': 'log(dble(%s))',
                    'asin': 'asin(dble(%s))',
                    'acos': 'acos(dble(%s))',
+                   'abs': 'abs(%s)',
+                   'fabs': 'abs(%s)',
+                   'math.abs': 'abs(%s)',
+                   'cmath.abs': 'abs(%s)',
                    '':'(%s)'
                    }
             
@@ -652,9 +654,11 @@ class ALOHAWriterForFortran(WriteALOHA):
         """Formatting the variable name to Fortran format"""
         
         if isinstance(name, aloha_lib.ExtVariable):
-            # external parameter nothing to do
+            # external parameter nothing to do but handling model prefix
             self.has_model_parameter = True
-            return name
+            if name.lower() in ['pi', 'as', 'mu_r', 'aewm1','g']:
+                return name
+            return '%s%s' % (aloha.aloha_prefix, name)
         
         if '_' in name:
             vtype = name.type
@@ -685,7 +689,7 @@ class ALOHAWriterForFortran(WriteALOHA):
                     if number.imag == 1:
                         out = 'CI'
                     elif number.imag == -1:
-                        out = '-CI'
+			            out = '-CI'
                     else: 
                         out = '%s * CI' % self.change_number_format(number.imag)
             else:
@@ -724,6 +728,7 @@ class ALOHAWriterForFortran(WriteALOHA):
         keys.sort(sort_fct)
         for name in keys:
             fct, objs = self.routine.fct[name]
+
             format = ' %s = %s\n' % (name, self.get_fct_format(fct))
             try:
                 text = format % ','.join([self.write_obj(obj) for obj in objs])
@@ -752,7 +757,7 @@ class ALOHAWriterForFortran(WriteALOHA):
                 coeff = 'denom*'    
                 if not aloha.complex_mass:
                     if self.routine.denominator:
-                        out.write('    denom = %(COUP)s/%(denom)s\n' % {'COUP': coup_name,\
+                        out.write('    denom = %(COUP)s/(%(denom)s)\n' % {'COUP': coup_name,\
                                 'denom':self.write_obj(self.routine.denominator)}) 
                     else:
                         out.write('    denom = %(COUP)s/(P%(i)s(0)**2-P%(i)s(1)**2-P%(i)s(2)**2-P%(i)s(3)**2 - M%(i)s * (M%(i)s -CI* W%(i)s))\n' % \
@@ -954,10 +959,10 @@ class ALOHAWriterForFortranLoop(ALOHAWriterForFortran):
         # position of the outgoing in particle list        
         self.l_id = [int(c[1:]) for c in abstract_routine.tag if c[0] == 'L'][0] 
         self.l_helas_id = self.l_id   # expected position for the argument list
-        if 'C%s' %((self.outgoing + 1) // 2) in abstract_routine.tag:
+        if 'C%s' %((self.l_id + 1) // 2) in abstract_routine.tag:
             #flip the outgoing tag if in conjugate
-            self.l_helas_id += self.l_id % 2 - (self.l_id +1) % 2 
-        
+            self.l_helas_id += self.l_id % 2 - (self.l_id +1) % 2
+         
 
     def define_expression(self):
         """Define the functions in a 100% way """
@@ -1060,30 +1065,25 @@ class ALOHAWriterForFortranLoop(ALOHAWriterForFortran):
         """define a list with the string of object required as incoming argument"""
 
         conjugate = [2*(int(c[1:])-1) for c in self.tag if c[0] == 'C']
-        call_arg = [('list_complex', 'P%s'% self.l_helas_id)] #incoming argument of the routine
+        call_arg = []
+        #incoming argument of the routine
+        call_arg.append( ('list_complex', 'P%s'% self.l_helas_id) )
+        
         self.declaration.add(call_arg[0])
         
         for index,spin in enumerate(self.particles):
-            if self.offshell == index + 1:
+            if self.outgoing == index + 1:
                 continue
             if self.l_helas_id == index + 1:
                 continue
-            
-            if index in conjugate:
-                index2, spin2 = index+1, self.particles[index+1]
-                call_arg.append(('complex','%s%d' % (spin2, index2 +1)))
-                #call_arg.append('%s%d' % (spin, index +1)) 
-            elif index-1 in conjugate:
-                index2, spin2 = index-1, self.particles[index-1]
-                call_arg.append(('complex','%s%d' % (spin2, index2 +1)))
-            else:
-                call_arg.append(('complex','%s%d' % (spin, index +1)))
+            call_arg.append(('complex','%s%d' % (spin, index +1)))
             self.declaration.add(('list_complex', call_arg[-1][-1])) 
         
         # couplings
         if couplings is None:
             detected_couplings = [name for type, name in self.declaration if name.startswith('COUP')]
-            detected_couplings.sort()
+            coup_sort = lambda x,y: int(x[4:])-int(y[4:])
+            detected_couplings.sort(coup_sort)
             if detected_couplings:
                 couplings = detected_couplings
             else:
@@ -1104,7 +1104,7 @@ class ALOHAWriterForFortranLoop(ALOHAWriterForFortran):
                 self.declaration.add(('double','W%s' % self.outgoing))
             
         self.call_arg = call_arg
-                
+        
         return call_arg
 
     def get_momenta_txt(self):
@@ -1360,8 +1360,9 @@ class ALOHAWriterForCPP(WriteALOHA):
                    'im': 'imag(%s)',
                    'cmath.sqrt':'sqrt(%s)', 
                    'sqrt': 'sqrt(%s)',
-                   'complexconjugate': 'conj(%s)',
-                   '/' : '{0}/%s'.format(one) 
+                   'complexconjugate': 'conj(dcmplx(%s))',
+                   '/' : '{0}/%s'.format(one),
+                   'abs': 'abs(%s)'
                    }
             
         if fct in self.fct_format:
@@ -1574,7 +1575,7 @@ class ALOHAWriterForCPP(WriteALOHA):
                 coeff = 'denom'
                 if not aloha.complex_mass:
                     if self.routine.denominator:
-                        out.write('    denom = %(COUP)s/%(denom)s\n' % {'COUP': coup_name,\
+                        out.write('    denom = %(COUP)s/(%(denom)s)\n' % {'COUP': coup_name,\
                                 'denom':self.write_obj(self.routine.denominator)}) 
                     else:
                         out.write('    denom = %(coup)s/(pow(P%(i)s[0],2)-pow(P%(i)s[1],2)-pow(P%(i)s[2],2)-pow(P%(i)s[3],2) - M%(i)s * (M%(i)s -cI* W%(i)s));\n' % \
@@ -1877,6 +1878,32 @@ class ALOHAWriterForPython(WriteALOHA):
         name = re.sub('(?P<var>\w*)_(?P<num>\d+)$', self.shift_indices , name)
         
         return name
+
+    def get_fct_format(self, fct):
+        """Put the function in the correct format"""
+        if not hasattr(self, 'fct_format'):
+            one = self.change_number_format(1)
+            self.fct_format = {'csc' : '{0}/cmath.cos(%s)'.format(one),
+                   'sec': '{0}/cmath.sin(%s)'.format(one),
+                   'acsc': 'cmath.asin({0}/(%s))'.format(one),
+                   'asec': 'cmath.acos({0}/(%s))'.format(one),
+                   're': ' complex(%s).real',
+                   'im': 'complex(%s).imag',
+                   'cmath.sqrt': 'cmath.sqrt(%s)',
+                   'sqrt': 'cmath.sqrt(%s)',
+                   'pow': 'pow(%s, %s)',
+                   'complexconjugate': 'complex(%s).conjugate()',
+                   '/' : '{0}/%s'.format(one),
+                   'abs': 'cmath.fabs(%s)'
+                   }
+            
+        if fct in self.fct_format:
+            return self.fct_format[fct]
+        elif hasattr(cmath, fct):
+            self.declaration.add(('fct', fct))
+            return 'cmath.{0}(%s)'.format(fct)
+        else:
+            raise Exception, "Unable to handle function name %s (no special rule defined and not in cmath)" % fct
     
     def define_expression(self):
         """Define the functions in a 100% way """
@@ -1886,6 +1913,30 @@ class ALOHAWriterForPython(WriteALOHA):
         if self.routine.contracted:
             for name,obj in self.routine.contracted.items():
                 out.write('    %s = %s\n' % (name, self.write_obj(obj)))
+
+        def sort_fct(a, b):
+            if len(a) < len(b):
+                return -1
+            elif len(a) > len(b):
+                return 1
+            elif a < b:
+                return -1
+            else:
+                return +1
+            
+        keys = self.routine.fct.keys()        
+        keys.sort(sort_fct)
+        for name in keys:
+            fct, objs = self.routine.fct[name]
+            format = '    %s = %s\n' % (name, self.get_fct_format(fct))
+            try:
+                text = format % ','.join([self.write_obj(obj) for obj in objs])
+            except TypeError:
+                text = format % tuple([self.write_obj(obj) for obj in objs])
+            finally:
+                out.write(text)
+
+
 
         numerator = self.routine.expr
         if not 'Coup(1)' in self.routine.infostr:
@@ -1906,7 +1957,7 @@ class ALOHAWriterForPython(WriteALOHA):
                 coeff = 'denom'
                 if not aloha.complex_mass:
                     if self.routine.denominator:
-                        out.write('    denom = %(COUP)s/%(denom)s\n' % {'COUP': coup_name,\
+                        out.write('    denom = %(COUP)s/(%(denom)s)\n' % {'COUP': coup_name,\
                                 'denom':self.write_obj(self.routine.denominator)}) 
                     else:
                         out.write('    denom = %(coup)s/(P%(i)s[0]**2-P%(i)s[1]**2-P%(i)s[2]**2-P%(i)s[3]**2 - M%(i)s * (M%(i)s -1j* W%(i)s))\n' % 
@@ -1942,7 +1993,7 @@ class ALOHAWriterForPython(WriteALOHA):
             name = self.name
            
         out = StringIO()
-        
+        out.write("import cmath\n")
         if self.mode == 'mg5':
             out.write('import aloha.template_files.wavefunctions as wavefunctions\n')
         else:
@@ -2142,7 +2193,6 @@ class Declaration_list(set):
 class WriterFactory(object):
     
     def __new__(cls, data, language, outputdir, tags):
-        
         language = language.lower()
         if isinstance(data.expr, aloha_lib.SplitCoefficient):
             assert language == 'fortran'
@@ -2150,7 +2200,6 @@ class WriterFactory(object):
                 return ALOHAWriterForFortranLoopQP(data, outputdir)
             else:
                 return ALOHAWriterForFortranLoop(data, outputdir)
-        
         if language == 'fortran':
             if 'MP' in tags:
                 return ALOHAWriterForFortranQP(data, outputdir)

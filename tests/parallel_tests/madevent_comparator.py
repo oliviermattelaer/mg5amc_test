@@ -61,7 +61,7 @@ class MadEventComparator(me_comparator.MEComparator):
         logging.info(\
             "Running on %i processes with order: %s, in model %s" % \
             (len(proc_list),
-             ' '.join(["%s=%i" % (k, v) for k, v in orders.items()]),
+             me_comparator.MERunner.get_coupling_definitions(orders),
              '/'.join([onemodel for onemodel in model])))
 
         pass_proc = False
@@ -70,6 +70,7 @@ class MadEventComparator(me_comparator.MEComparator):
             logging.info("Now running %s" % runner.name)
             if pass_proc:
                 runner.pass_proc = pass_proc 
+
             self.results.append(runner.run(proc_list, model[i], orders))
             cpu_time2 = time.time()
             logging.info(" Done in %0.3f s" % (cpu_time2 - cpu_time1))
@@ -411,7 +412,8 @@ class MadEventRunner(object):
         """Perform some clean up procedure to leave the ME code directory in
         the same state as it was initially (e.g., remove temp dirs, ...)
         """
-        pass
+        pass 
+            
 
 class MG5Runner(MadEventRunner):
     """Runner object for the MG5 Matrix Element generator."""
@@ -480,7 +482,7 @@ class MG5Runner(MadEventRunner):
         else:
             v5_string = "import model %s\n" % model
         v5_string += "set automatic_html_opening False\n"
-        couplings = ' '.join(["%s=%i" % (k, v) for k, v in orders.items()])
+        couplings = me_comparator.MERunner.get_coupling_definitions(orders)
 
         for i, proc in enumerate(proc_list):
             v5_string += 'add process ' + proc + ' ' + couplings + \
@@ -489,16 +491,22 @@ class MG5Runner(MadEventRunner):
                      os.path.join(self.mg5_path, self.temp_dir_name)
         v5_string += "launch -i --multicore\n"
         v5_string += " set automatic_html_opening False\n"
-        v5_string += "survey run_01; refine 0.01; refine 0.01" 
+        v5_string += "edit_cards\n"
+        v5_string += "set ickkw 0\n"
+        v5_string += "set LHC 13\n"
+        v5_string += "set xqcut 0\n"
+        v5_string += "set cut_decays True\n"
+        v5_string += "survey run_01; refine 0.01; refine 0.01\n" 
+        #v5_string += "print_results\n"
         return v5_string
     
     def get_values(self):
     
-    
         dir_name = os.path.join(self.mg5_path, self.temp_dir_name)
         SubProc=[name for name in os.listdir(dir_name + '/SubProcesses') 
                  if name[0]=='P' and 
-                 os.path.isdir(dir_name + '/SubProcesses/'+name)]
+                 os.path.isdir(dir_name + '/SubProcesses/'+name) and \
+                  name[1].isdigit()]
 
         output = {}
         
@@ -523,6 +531,7 @@ class MG5Runner(MadEventRunner):
                 splitline=line.split()
                 #if len(splitline)==8:
                 output['cross_'+name]=splitline[0]
+                print "found %s %s" % (splitline[0], splitline[1])
         return output
 
 class MG5OldRunner(MG5Runner):
@@ -537,7 +546,7 @@ class MG5OldRunner(MG5Runner):
 
         v5_string = "import model %s\n" % os.path.join(self.model_dir, model)
         v5_string += "set automatic_html_opening False\n"
-        couplings = ' '.join(["%s=%i" % (k, v) for k, v in orders.items()])
+        couplings =  me_comparator.MERunner.get_coupling_definitions(orders)
 
         for i, proc in enumerate(proc_list):
             v5_string += 'add process ' + proc + ' ' + couplings + \
@@ -557,7 +566,6 @@ class MG5OldRunner(MG5Runner):
         self.model = model
         self.orders = orders
         self.non_zero = 0 
-
         dir_name = os.path.join(self.mg5_path, self.temp_dir_name)
 
         # Create a proc_card.dat in the v5 format
@@ -573,6 +581,7 @@ class MG5OldRunner(MG5Runner):
         # Run mg5
         logging.info("Running MG5")
         devnull = open(os.devnull,'w') 
+
         if logging.root.level >=20:
             subprocess.call([pjoin(self.mg5_path,'bin','mg5'), proc_card_location],
                         stdout=devnull, stderr=devnull)
@@ -603,7 +612,7 @@ class MG5gaugeRunner(MG5Runner):
         v5_string += 'set gauge %s \n' % self.gauge
         v5_string += "import model %s \n" % os.path.join(self.model_dir, model)
 
-        couplings = ' '.join(["%s=%i" % (k, v) for k, v in orders.items()])
+        couplings = me_comparator.MERunner.get_coupling_definitions(orders)
 
         for i, proc in enumerate(proc_list):
             v5_string += 'add process ' + proc + ' ' + couplings + \

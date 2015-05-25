@@ -259,22 +259,22 @@ class IOExportPythonTest(unittest.TestCase):
         # LOCAL VARIABLES 
         #  
         helicities = [ \\
-        [-1,-1,-1,-1],
-        [-1,-1,-1,1],
-        [-1,-1,1,-1],
-        [-1,-1,1,1],
-        [-1,1,-1,-1],
-        [-1,1,-1,1],
-        [-1,1,1,-1],
-        [-1,1,1,1],
-        [1,-1,-1,-1],
         [1,-1,-1,1],
-        [1,-1,1,-1],
+        [1,-1,-1,-1],
         [1,-1,1,1],
-        [1,1,-1,-1],
+        [1,-1,1,-1],
         [1,1,-1,1],
+        [1,1,-1,-1],
+        [1,1,1,1],
         [1,1,1,-1],
-        [1,1,1,1]]
+        [-1,-1,-1,1],
+        [-1,-1,-1,-1],
+        [-1,-1,1,1],
+        [-1,-1,1,-1],
+        [-1,1,-1,1],
+        [-1,1,-1,-1],
+        [-1,1,1,1],
+        [-1,1,1,-1]]
         denominator = 36
         # ----------
         # BEGIN CODE
@@ -346,6 +346,7 @@ class IOExportPythonTest(unittest.TestCase):
         amp[3]= FFV2_5_0(w[3],w[1],w[4],GC_35,GC_47)
 
         jamp = [None] * ncolor
+
         jamp[0] = +1./6.*amp[0]-amp[1]+1./2.*amp[2]
         jamp[1] = -1./2.*amp[0]-1./6.*amp[2]+amp[3]
 
@@ -353,7 +354,6 @@ class IOExportPythonTest(unittest.TestCase):
         self.amp2[1]+=abs(amp[1]*amp[1].conjugate())
         self.amp2[2]+=abs(amp[2]*amp[2].conjugate())
         self.amp2[3]+=abs(amp[3]*amp[3].conjugate())
-
         matrix = 0.
         for i in range(ncolor):
             ztemp = 0
@@ -361,6 +361,7 @@ class IOExportPythonTest(unittest.TestCase):
                 ztemp = ztemp + cf[i][j]*jamp[j]
             matrix = matrix + ztemp * jamp[i].conjugate()/denom[i]   
         self.jamp.append(jamp)
+
         return matrix
 """ % misc.get_pkg_info()).split('\n')
 

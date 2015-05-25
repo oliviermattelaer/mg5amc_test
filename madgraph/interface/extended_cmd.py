@@ -46,6 +46,7 @@ except ImportError, error:
         raise error
     MADEVENT = True
 
+
 pjoin = os.path.join
 
 class TimeOutError(Exception):
@@ -565,6 +566,8 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
             # we are in non interactive mode -> so pass the line information
             obj_instance.inputfile = self.inputfile
         
+        obj_instance.haspiping = self.haspiping
+        
         if not interface:
             return self.child
  
@@ -614,7 +617,11 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         
         question_instance = obj(question, allow_arg=choices, default=default, 
                                                    mother_interface=self, **opt)
-
+        if not self.haspiping:
+            if hasattr(obj, "haspiping"):
+                obj.haspiping = self.haspiping
+            
+            
         answer = self.check_answer_in_input_file(question_instance, default, path_msg)
         if answer is not None:
             if answer in alias:
@@ -1008,6 +1015,9 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         if self.history:
             self.history.pop()
         
+        #avoid that command of other file interfere with this one.
+        previous_store_line = self.get_stored_line()
+        
         # Read the lines of the file and execute them
         if isinstance(filepath, str):
             commandline = open(filepath).readlines()
@@ -1036,7 +1046,13 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         if self.child:
             self.child.exec_cmd('quit')        
         self.inputfile = oldinputfile
-        self.use_rawinput = oldraw       
+        self.use_rawinput = oldraw   
+        
+        # restore original store line
+        cmd = self
+        while hasattr(cmd, 'mother') and cmd.mother:
+            cmd = cmd.mother
+        cmd.stored_line = previous_store_line
         return
     
     def get_history_header(self):
@@ -1279,7 +1295,9 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
                 basedir = os.getcwd()
         elif MADEVENT:
             # launch via ./bin/madevent
-            base = pjoin(self.me_dir, 'Cards', 'me5_configuration.txt')
+            for config_file in ['me5_configuration.txt', 'amcatnlo_configuration.txt']:
+                if os.path.exists(pjoin(self.me_dir, 'Cards', config_file)): 
+                    base = pjoin(self.me_dir, 'Cards', config_file)
             basedir = self.me_dir
         else:
             if hasattr(self, 'me_dir'):

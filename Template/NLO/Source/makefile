@@ -5,6 +5,7 @@ MCATNLOLIBDIR= ../MCatNLO/lib/
 BINDIR= ../bin/
 PDFDIR= ./PDF/
 CUTTOOLSDIR= ./CutTools/
+IREGIDIR= ./IREGI/src/
 STDHEPDIR= ./StdHEP/
 
 PROCESS= hfill.o matrix.o myamp.o 
@@ -78,12 +79,18 @@ $(BINDIR)combine_events: $(COMBINE)
 	$(FC) $(FFLAGS) -o combine_events $(COMBINE) $(LIBDIR)/libmodel.a $(LIBDIR)/libpdf.a 
 	mv combine_events $(BINDIR)
 
-CutTools: $(LIBDIR)libcts.a
+libcuttools: $(LIBDIR)libcts.a
+
+libiregi: $(LIBDIR)libiregi.a
 
 $(LIBDIR)libcts.a: $(CUTTOOLSDIR)
 	cd $(CUTTOOLSDIR); make
-	ln -sf ../Source/CutTools/includects/libcts.a $(LIBDIR)libcts.a
-	ln -sf ../Source/CutTools/includects/mpmodule.mod $(LIBDIR)mpmodule.mod
+	ln -sf ../Source/$(CUTTOOLSDIR)includects/libcts.a $(LIBDIR)libcts.a
+	ln -sf ../Source/$(CUTTOOLSDIR)includects/mpmodule.mod $(LIBDIR)mpmodule.mod
+
+$(LIBDIR)libiregi.a: $(IREGIDIR)
+	cd $(IREGIDIR); make
+	ln -sf ../Source/$(IREGIDIR)libiregi.a $(LIBDIR)libiregi.a
 
 StdHEP: $(MCATNLOLIBDIR)libstdhep.a  
 
@@ -99,8 +106,15 @@ clean4pdf:
 cleanCT:
 	cd $(CUTTOOLSDIR); make clean; cd ..
 
+cleanIR:
+	cd $(IREGIDIR); make clean; cd ..
+
 cleanStdHEP:
 	cd $(STDHEPDIR); make clean; cd ..
+
+libmodel: $(LIBDIR)libmodel.a
+
+libdhelas: $(LIBDIR)libdhelas.a
 
 clean:
 	rm -f *.o
@@ -109,6 +123,7 @@ clean:
 	cd CERNLIB; make clean; cd ..
 	cd PDF; make clean; cd ..
 	cd DHELAS; make clean; cd ..
-	cd $(CUTTOOLSDIR); make clean; cd ..
-	cd $(STDHEPDIR); make clean; cd ..
+	if [ -d $(CUTTOOLSDIR) ]; then cd $(CUTTOOLSDIR); make clean; cd ..; fi
+	if [ -d $(IREGIDIR) ]; then cd $(IREGIDIR); make clean; cd ..; fi
+	if [ -d $(STDHEPDIR) ]; then cd $(STDHEPDIR); make clean; cd ..; fi
 	rm -f $(BINDIR)/combine_events $(BINDIR)/gen_ximprove

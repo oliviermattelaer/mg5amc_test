@@ -1,5 +1,5 @@
       subroutine add_write_info(p_born,pp,ybst_til_tolab,iconfig,Hevents
-     &     ,putonshell,ndim,ipole,x,jpart,npart,pb,shower_scale)
+     &     ,putonshell,ndim,x,jpart,npart,pb,shower_scale)
 c Computes all the info needed to write out the events including the
 c intermediate resonances. It also boosts the events to the lab frame
       implicit none
@@ -9,7 +9,7 @@ c intermediate resonances. It also boosts the events to the lab frame
       include "coloramps.inc"
       include "reweight0.inc"
       include "nFKSconfigs.inc"
-      include "leshouche_info.inc"
+      include "leshouche_decl.inc"
       include "run.inc"
 
 c Arguments
@@ -17,7 +17,7 @@ c Arguments
       double precision ybst_til_tolab,shower_scale
       integer iconfig
       logical Hevents,putonshell
-      integer ndim,ipole,jpart(7,-nexternal+3:2*nexternal-3),npart
+      integer ndim,jpart(7,-nexternal+3:2*nexternal-3),npart
       double precision pb(0:4,-nexternal+3:2*nexternal-3)
 
 c Local
@@ -31,8 +31,8 @@ c Local
       data firsttime2/.true./
 
 c The process chosen to write
-      integer i_process
-      common/c_addwrite/i_process
+      integer i_process_addwrite
+      common/c_addwrite/i_process_addwrite
       
 c Random numbers
       double precision ran2
@@ -205,7 +205,7 @@ c Set the shower scale
 c This is an (n+1)-body process (see update_unwgt_table in
 c driver_mintMC.f). For S events it corresponds to the underlying Born
 c process chosen
-      ip=i_process
+      ip=i_process_addwrite
       if (ip.lt.1 .or. ip.gt.maxproc_used) then
          write (*,*)'ERROR #12 in add_write_info,'/
      &        /' not a well-defined process',ip,Hevents
@@ -228,7 +228,7 @@ c
       enddo
 c Assume helicity summed
       do i=1,nexternal
-         jpart(7,i)=0
+         jpart(7,i)=9
       enddo
       if (firsttime2 .and. isum_hel.ne.0) then
          write (*,*) 'WARNING: for writing the events, no helicity '//
@@ -251,7 +251,8 @@ c
       if (sumborn.eq.0d0) then
          write (*,*) 'Error #1 in add_write_info:'
          write (*,*) 'in MadFKS, sumborn should always be larger'//
-     &        ' than zero, because always QCD partons around',sumborn,max_bcol
+     $        ' than zero, because always QCD partons around',sumborn
+     $        ,max_bcol
          do i=1,max_bcol
             write (*,*) i,iBornGraph,icolamp(i,iBornGraph,1),jamp2(i)
          enddo
@@ -364,7 +365,7 @@ c
                elseif(jpart(1,i_fks).eq.jpart(1,j_fks)
      &                 .and.j_fks.le.nincoming) then
                   jpart(1,i)=21
-               elseif(jpart(1,i_fks).eq.21) then
+               elseif(abs(jpart(1,i_fks)).eq.21) then
                   jpart(1,i)=jpart(1,j_fks)
                elseif(jpart(1,j_fks).eq.21.and.j_fks.le.nincoming) then
                   jpart(1,i)=-jpart(1,i_fks)
@@ -799,46 +800,6 @@ c                  whichever is closer to mass shell
       enddo
       end
 
-      subroutine get_ID_H(IDUP_tmp)
-      implicit none
-      include "genps.inc"
-      include 'nexternal.inc'
-      integer maxflow
-      parameter (maxflow=999)
-      integer idup(nexternal,maxproc),mothup(2,nexternal,maxproc),
-     &     icolup(2,nexternal,maxflow)
-c      include 'leshouche.inc'
-      common /c_leshouche_inc/idup,mothup,icolup
-      integer IDUP_tmp(nexternal),i
-c
-      do i=1,nexternal
-         IDUP_tmp(i)=IDUP(i,1)
-      enddo
-c
-      return
-      end
-
-      subroutine get_ID_S(IDUP_tmp)
-      implicit none
-      include "genps.inc"
-      include 'nexternal.inc'
-      integer    maxflow
-      parameter (maxflow=999)
-      integer idup(nexternal,maxproc)
-      integer mothup(2,nexternal,maxproc)
-      integer icolup(2,nexternal,maxflow)
-      include 'born_leshouche.inc'
-      integer IDUP_tmp(nexternal),i
-c
-      do i=1,nexternal-1
-         IDUP_tmp(i)=IDUP(i,1)
-      enddo
-      IDUP_tmp(nexternal)=0
-c
-      return
-      end
-
-
       subroutine fill_icolor_H(iflow,jpart)
       implicit none
       include "nexternal.inc"
@@ -1115,7 +1076,7 @@ c S events
                idpart=21
             elseif(idparti.eq.idpartj.and.j_fks.le.nincoming) then
                idpart=21
-            elseif(idparti.eq.21) then
+            elseif(abs(idparti).eq.21) then
                idpart=idpartj
             elseif(idpartj.eq.21.and.j_fks.le.nincoming) then
                idpart=-idparti
@@ -1131,7 +1092,7 @@ c S events
               xmj=mcmass(idpart)
             else
 c j_fks is an heavy particle
-              if(idparti.ne.21)then
+              if(abs(idparti).ne.21)then
                 write(*,*)'Error #3 in put_on_MC_mshell',
      &            i_fks,j_fks,i,pmass(j_fks)
                 stop

@@ -17,6 +17,9 @@
 import sys
 import re
 import os
+import logging
+
+logger = logging.getLogger('madgraph.shower_card') 
 
 pjoin = os.path.join
 
@@ -29,13 +32,12 @@ class ShowerCard(dict):
     false = ['.false.', 'f', 'false', '0']
     logical_vars = ['ue_enabled', 'hadronize', 'b_stable', 'pi_stable', 'wp_stable', 
                     'wm_stable', 'z_stable', 'h_stable', 'tap_stable', 'tam_stable', 
-                    'mup_stable', 'mum_stable', 'is_4lep', 'is_bbar']
+                    'mup_stable', 'mum_stable', 'is_4lep', 'is_bbar', 'combine_td']
     string_vars = ['extralibs', 'extrapaths', 'includepaths', 'analyse']
     for i in range(1,100):
-        dmstring='dm_'+str(i)
-        string_vars.append(dmstring)
-    int_vars = ['maxprint', 'nevents', 'pdfcode', 'rnd_seed', 'rnd_seed2', 'modbos_1', 'modbos_2']
-    float_vars = ['maxerrs', 'lambda_5', 'b_mass']
+        string_vars.append('dm_'+str(i))
+    int_vars = ['nsplit_jobs', 'maxprint', 'nevents', 'pdfcode', 'rnd_seed', 'rnd_seed2', 'njmax']
+    float_vars = ['maxerrs', 'lambda_5', 'b_mass', 'qcut']
 
     # names_dict has the following structure:
     # var : {PYTHIA6: varpy6, HERWIG6: varhw6, HERWIGPP: varhwpp, PYTHIA8: varpy8}
@@ -62,12 +64,13 @@ class ShowerCard(dict):
             'maxprint' : {'HERWIG6':'maxpr_hw', 'PYTHIA6': 'maxpr_py', 'HERWIGPP': 'maxpr_hwpp', 'PYTHIA8': 'maxpr_py8'},
             'rnd_seed' : {'HERWIG6':'rndevseed1_hw', 'PYTHIA6': 'rndevseed_py', 'HERWIGPP': 'rndevseed_hwpp', 'PYTHIA8': 'rndevseed_py8'},
             'rnd_seed2' : {'HERWIG6':'rndevseed2_hw'},
-            'modbos_1' : {'HERWIG6':'modbos_1'},
-            'modbos_2' : {'HERWIG6':'modbos_2'},
             'maxerrs' : {'HERWIG6':'err_fr_hw', 'PYTHIA6': 'err_fr_py', 'HERWIGPP': 'err_fr_hwpp', 'PYTHIA8': 'err_fr_py8'},
             'lambda_5' : {'HERWIG6':'lambdaherw', 'PYTHIA6': 'lambdapyth', 'HERWIGPP': 'lambdaherw', 'PYTHIA8': 'lambdapyth'},
             'b_mass' : {'HERWIG6':'b_mass', 'PYTHIA6': 'b_mass', 'HERWIGPP': 'b_mass', 'PYTHIA8': 'b_mass'},
-            'analyse' : {'HERWIG6':'hwuti', 'PYTHIA6':'pyuti', 'HERWIGPP':'hwpputi', 'PYTHIA8':'py8uti'}}
+            'analyse' : {'HERWIG6':'hwuti', 'PYTHIA6':'pyuti', 'HERWIGPP':'hwpputi', 'PYTHIA8':'py8uti'},
+            'qcut' : {'PYTHIA8':'qcut'},
+            'njmax' : {'PYTHIA8':'njmax'}}
+    
     stdhep_dict = {'HERWIG6':'mcatnlo_hwan_stdhep.o', 'PYTHIA6':'mcatnlo_pyan_stdhep.o'}
     
     def __init__(self, card=None, testing=False):
@@ -75,7 +78,7 @@ class ShowerCard(dict):
         self.testing = testing
         dict.__init__(self)
         self.keylist = self.keys()
-            
+
         if card:
             self.read_card(card)
 
@@ -86,41 +89,99 @@ class ShowerCard(dict):
             content = open(card_path).read()
         else:
             content = card_path
-        lines = [l for l in content.split('\n') \
-                    if '=' in l and not l.startswith('#')] 
+        lines = content.split('\n')
+        list_dm = []
         for l in lines:
-            args =  l.split('#')[0].split('=')
-            key = args[0].strip().lower()
-            value = args[1].strip()
-            #key
-            if key in self.logical_vars:
-                if value.lower() in self.true:
-                    self[key] = True
-                elif value.lower() in self.false:
-                    self[key] = False
-                else:
-                    raise ShowerCardError('%s is not a valid value for %s' % \
-                            (value, key))
-            elif key in self.string_vars:
-                if value.lower() == 'none':
-                    self[key] = ''
-                else:
-                    self[key] = value
-            elif key in self.int_vars:
-                try:
-                    self[key] = int(value)
-                except ValueError:
-                    raise ShowerCardError('%s is not a valid value for %s. An integer number is expected' % \
-                            (key, value))
-            elif key in self.float_vars:
-                try:
-                    self[key] = float(value)
-                except ValueError:
-                    raise ShowerCardError('%s is not a valid value for %s. A floating point number is expected' % \
-                            (key, value))
+          if '#' in l:
+             l = l.split('#',1)[0]
+          if '=' not in l:
+             continue
+          args = l.split('=',1) # here the 1 is important in case of string passed
+          key = args[0].strip().lower()
+          value = args[1].strip()
+          self.set_param(key, value)
+          if str(key).upper().startswith('DM'):
+              list_dm.append(int(key.split('_',1)[1]))
+          #special case for DM_*
+          for i in range(1,100):
+              if not i in list_dm: 
+                  self['dm_'+str(i)] = ''
+
+        self.text=content
+
+
+    def set_param(self, key, value, write_to = ''):
+        """set the param key to value.
+        if write_to is passed then write the new shower_card:
+        if not testing write_to is an input path, if testing the text is
+        returned by the function
+        """
+        if key in self.logical_vars:
+            if str(value).lower() in self.true:
+                self[key] = True
+            elif str(value).lower() in self.false:
+                self[key] = False
             else:
-                raise ShowerCardError('Unknown entry: %s = %s' % (key, value))
-            self.keylist.append(key)
+                raise ShowerCardError('%s is not a valid value for %s' % \
+                        (value, key))
+        elif key in self.string_vars:
+            if value.lower() == 'none':
+                self[key] = ''
+            else:
+                self[key] = value
+        elif key in self.int_vars:
+            try:
+                self[key] = int(value)
+            except ValueError:
+                raise ShowerCardError('%s is not a valid value for %s. An integer number is expected' % \
+                        (value, key))
+        elif key in self.float_vars:
+            try:
+                self[key] = float(value)
+            except ValueError:
+                raise ShowerCardError('%s is not a valid value for %s. A floating point number is expected' % \
+                        (value, key))
+        else:
+            raise ShowerCardError('Unknown entry: %s = %s' % (key, value))
+        self.keylist.append(key)
+
+        #then update self.text and write the new card
+        if write_to:
+            logger.info('modify parameter %s of the shower_card.dat to %s' % (key, value))
+            key_re = re.compile('^(\s*)%s\s*=\s*(.+)\s*$' % key , re.IGNORECASE)
+            newlines = []
+            for line in self.text.split('\n'):
+                key_match = key_re.match(line)
+                if key_match and not str(key).upper().startswith('DM'):
+                    try:
+                        comment = line.split('#')[1]
+                    except:
+                        comment = ''
+                    if key not in self.logical_vars:
+                        newlines.append('%s = %s #%s' % (key, value, comment))
+                    else:
+                        if key:
+                            newlines.append('%s = %s #%s' % (key, 'T', comment))
+                        else:
+                            newlines.append('%s = %s #%s' % (key, 'F', comment))
+                elif key_match and str(key).upper().startswith('DM'):
+                    pass
+                else:
+                    newlines.append(line)
+
+            if str(key).upper().startswith('DM') and not value.lower() in ['','none','default']:
+                newlines.append('%s = %s' % (str(key).upper(), value[0:len(value)]))
+                logger.info('please specify a decay through set dm_1 M > D1 D2 @ BR @ ME; see shower_card.dat for details')
+                
+            self.text = '\n'.join(newlines) + '\n'
+
+            if self.testing:
+                return self.text
+            else:
+                open(write_to, 'w').write(self.text)
+                return ''
+        else:
+            return ''
 
 
 
@@ -136,6 +197,7 @@ class ShowerCard(dict):
         lines = []
         bool_dict = {True: '.true.', False: '.false.'}
         bool_dict_num = {True: '1', False: '0'}
+        
         for key in self.keylist:
             value = self[key]
             if key in self.logical_vars:

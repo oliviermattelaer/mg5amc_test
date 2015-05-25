@@ -155,6 +155,7 @@ C POSSIBILITY TO MAKE BARIONS STABLE (AVOIDS TROUBLES FOR SINGLE TOP)
             MDCY(PYCOMP(ISIGN*521),1)=0
             MDCY(PYCOMP(ISIGN*531),1)=0
             MDCY(PYCOMP(ISIGN*541),1)=0
+            MDCY(PYCOMP(551),1)=0
             MDCY(PYCOMP(553),1)=0
             MDCY(PYCOMP(ISIGN*5112),1)=0
             MDCY(PYCOMP(ISIGN*5122),1)=0
@@ -317,10 +318,7 @@ C HOW TO RESET BRANCHING RATIOS FOR PYTHIA?
 C---EVENTS ARE NORMALIZED TO SUM OR AVERAGE TO THE TOTAL CROSS SECTION
       WRITE(*,*)'How are the events normalized ("average" or "sum")?'
       READ(*,*)NORM_EVENT
-      if (NORM_EVENT.eq.'average') then
-c     not need to multiply by the number of events
-         MQQ=1
-      endif
+      if (NORM_EVENT.eq.'average')MQQ=1
 
 C---USER'S INITIAL CALCULATIONS
       CALL PYABEG

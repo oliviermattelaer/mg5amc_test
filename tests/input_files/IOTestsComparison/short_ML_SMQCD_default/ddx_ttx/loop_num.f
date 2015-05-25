@@ -1,7 +1,7 @@
 C     THE CORE SUBROUTINE CALLED BY CUTTOOLS WHICH CONTAINS THE HELAS
 C      CALLS BUILDING THE LOOP
 
-      SUBROUTINE LOOPNUM(Q,RES)
+      SUBROUTINE ML5_0_LOOPNUM(Q,RES)
 C     
 C     CONSTANTS 
 C     
@@ -12,7 +12,7 @@ C
       INTEGER NBORNAMPS
       PARAMETER (NBORNAMPS=1)
       INTEGER    NLOOPAMPS
-      PARAMETER (NLOOPAMPS=43)
+      PARAMETER (NLOOPAMPS=40)
       INTEGER    NWAVEFUNCS
       PARAMETER (NWAVEFUNCS=6)
       INTEGER    MAXLCOUPLINGS
@@ -34,29 +34,29 @@ C
 C     GLOBAL VARIABLES
 C     
       INTEGER WE(NEXTERNAL)
-      INTEGER ID, SYMFACT,AMPLNUM
-      COMMON/LOOP/WE,ID,SYMFACT,AMPLNUM
+      INTEGER ID, SYMFACT, MULTIPLIER, AMPLNUM
+      COMMON/ML5_0_LOOP/WE,ID,SYMFACT,MULTIPLIER,AMPLNUM
 
       LOGICAL GOODHEL(NCOMB)
       LOGICAL GOODAMP(NLOOPAMPS,NCOMB)
-      COMMON/FILTERS/GOODAMP,GOODHEL
+      COMMON/ML5_0_FILTERS/GOODAMP,GOODHEL
 
       INTEGER NTRY
       LOGICAL CHECKPHASE,HELDOUBLECHECKED
       REAL*8 REF
-      COMMON/INIT/NTRY,CHECKPHASE,HELDOUBLECHECKED,REF
+      COMMON/ML5_0_INIT/NTRY,CHECKPHASE,HELDOUBLECHECKED,REF
 
       INTEGER CF_D(NLOOPAMPS,NBORNAMPS)
       INTEGER CF_N(NLOOPAMPS,NBORNAMPS)
-      COMMON/CF/CF_D,CF_N
+      COMMON/ML5_0_CF/CF_D,CF_N
 
       COMPLEX*16 AMP(NBORNAMPS,NCOMB)
-      COMMON/AMPS/AMP
+      COMMON/ML5_0_AMPS/AMP
       COMPLEX*16 W(20,NWAVEFUNCS,NCOMB)
-      COMMON/WFCTS/W
+      COMMON/ML5_0_WFCTS/W
 
       INTEGER HELPICKED
-      COMMON/HELCHOICE/HELPICKED
+      COMMON/ML5_0_HELCHOICE/HELPICKED
 
       RES=(0.0D0,0.0D0)
 
@@ -64,7 +64,7 @@ C
         IF (((HELPICKED.EQ.-1).OR.(HELPICKED.EQ.H)).AND.((CHECKPHASE.OR
      $   ..NOT.HELDOUBLECHECKED).OR.(GOODHEL(H).AND.GOODAMP(AMPLNUM
      $   ,H)))) THEN
-          CALL LOOPNUMHEL(-Q,BUFF,H)
+          CALL ML5_0_LOOPNUMHEL(-Q,BUFF,H)
           DO I=1,NBORNAMPS
             CFTOT=DCMPLX(CF_N(AMPLNUM,I)/DBLE(ABS(CF_D(AMPLNUM,I)))
      $       ,0.0D0)
@@ -73,11 +73,11 @@ C
           ENDDO
         ENDIF
       ENDDO
-      RES=RES/SYMFACT
+      RES=(RES*MULTIPLIER)/SYMFACT
 
       END
 
-      SUBROUTINE LOOPNUMHEL(Q,RES,H)
+      SUBROUTINE ML5_0_LOOPNUMHEL(Q,RES,H)
 C     
 C     CONSTANTS 
 C     
@@ -94,7 +94,7 @@ C
       INTEGER NBORNAMPS
       PARAMETER (NBORNAMPS=1)
       INTEGER    NLOOPAMPS
-      PARAMETER (NLOOPAMPS=43)
+      PARAMETER (NLOOPAMPS=40)
       INTEGER    NCOMB
       PARAMETER (NCOMB=16)
 C     
@@ -114,16 +114,16 @@ C     GLOBAL VARIABLES
 C     
       COMPLEX*16 LC(MAXLCOUPLINGS)
       COMPLEX*16 ML(NEXTERNAL+2)
-      COMMON/DP_LOOP/LC,ML
+      COMMON/ML5_0_DP_LOOP/LC,ML
 
       INTEGER WE(NEXTERNAL)
-      INTEGER ID, SYMFACT,AMPLNUM
-      COMMON/LOOP/WE,ID,SYMFACT,AMPLNUM
+      INTEGER ID, SYMFACT,MULTIPLIER,AMPLNUM
+      COMMON/ML5_0_LOOP/WE,ID,SYMFACT,MULTIPLIER,AMPLNUM
 
       COMPLEX*16 AMP(NBORNAMPS,NCOMB)
-      COMMON/AMPS/AMP
+      COMMON/ML5_0_AMPS/AMP
       COMPLEX*16 W(20,NWAVEFUNCS,NCOMB)
-      COMMON/WFCTS/W
+      COMMON/ML5_0_WFCTS/W
 
 C     ----------
 C     BEGIN CODE
@@ -181,7 +181,7 @@ C       Loop diagram number 6 (might be others, just an example)
         ENDDO
         CALL CLOSE_4(BUFF(1),RES)
       ELSEIF (ID.EQ.6) THEN
-C       Loop diagram number 12 (might be others, just an example)
+C       Loop diagram number 9 (might be others, just an example)
         DO I=1,4
           CALL LCUT_AF(Q(0),I,WL(1,2))
           CALL FFV1LP0_3(WL(1,2),W(1,WE(1),H),LC(1),ML(3),ZERO,WL(1,3))
@@ -191,7 +191,7 @@ C       Loop diagram number 12 (might be others, just an example)
         ENDDO
         CALL CLOSE_4(BUFF(1),RES)
       ELSEIF (ID.EQ.7) THEN
-C       Loop diagram number 13 (might be others, just an example)
+C       Loop diagram number 10 (might be others, just an example)
         DO I=1,4
           CALL LCUT_V(Q(0),I,WL(1,2))
           CALL FFV1L_1(W(1,WE(1),H),WL(1,2),LC(1),ML(3),ZERO,WL(1,3))
@@ -201,7 +201,7 @@ C       Loop diagram number 13 (might be others, just an example)
         ENDDO
         CALL CLOSE_4(BUFF(1),RES)
       ELSEIF (ID.EQ.8) THEN
-C       Loop diagram number 14 (might be others, just an example)
+C       Loop diagram number 11 (might be others, just an example)
         DO I=1,4
           CALL LCUT_V(Q(0),I,WL(1,2))
           CALL VVV1LP0_1(WL(1,2),W(1,WE(1),H),LC(1),ML(3),ZERO,WL(1,3))
@@ -210,7 +210,7 @@ C       Loop diagram number 14 (might be others, just an example)
         ENDDO
         CALL CLOSE_4(BUFF(1),RES)
       ELSEIF (ID.EQ.9) THEN
-C       Loop diagram number 15 (might be others, just an example)
+C       Loop diagram number 12 (might be others, just an example)
         DO I=1,1
           CALL LCUT_S(Q(0),I,WL(1,2))
           CALL GHGHGL_1(WL(1,2),W(1,WE(1),H),LC(1),ML(3),ZERO,WL(1,3))
@@ -221,7 +221,7 @@ C       Loop diagram number 15 (might be others, just an example)
       ENDIF
       END
 
-      SUBROUTINE MPLOOPNUM(Q,RES)
+      SUBROUTINE ML5_0_MPLOOPNUM(Q,RES)
 
       INCLUDE 'cts_mprec.h'
       IMPLICIT NONE
@@ -235,7 +235,7 @@ C
       INTEGER NBORNAMPS
       PARAMETER (NBORNAMPS=1)
       INTEGER    NLOOPAMPS
-      PARAMETER (NLOOPAMPS=43)
+      PARAMETER (NLOOPAMPS=40)
       INTEGER    NWAVEFUNCS
       PARAMETER (NWAVEFUNCS=6)
       INTEGER    MAXLCOUPLINGS
@@ -262,39 +262,39 @@ C
 C     GLOBAL VARIABLES
 C     
       LOGICAL MP_DONE
-      COMMON/MP_DONE/MP_DONE
+      COMMON/ML5_0_MP_DONE/MP_DONE
 
       REAL*16 MP_PS(0:3,NEXTERNAL),MP_P(0:3,NEXTERNAL)
-      COMMON/MP_PSPOINT/MP_PS,MP_P
+      COMMON/ML5_0_MP_PSPOINT/MP_PS,MP_P
 
       REAL*8 LSCALE
       INTEGER CTMODE
-      COMMON/CT/LSCALE,CTMODE
+      COMMON/ML5_0_CT/LSCALE,CTMODE
 
       INTEGER WE(NEXTERNAL)
-      INTEGER ID, SYMFACT,AMPLNUM
-      COMMON/LOOP/WE,ID,SYMFACT,AMPLNUM
+      INTEGER ID, SYMFACT,MULTIPLIER,AMPLNUM
+      COMMON/ML5_0_LOOP/WE,ID,SYMFACT,MULTIPLIER,AMPLNUM
 
       LOGICAL GOODHEL(NCOMB)
       LOGICAL GOODAMP(NLOOPAMPS,NCOMB)
-      COMMON/FILTERS/GOODAMP,GOODHEL
+      COMMON/ML5_0_FILTERS/GOODAMP,GOODHEL
 
       INTEGER NTRY
       LOGICAL CHECKPHASE,HELDOUBLECHECKED
       REAL*8 REF
-      COMMON/INIT/NTRY,CHECKPHASE,HELDOUBLECHECKED,REF
+      COMMON/ML5_0_INIT/NTRY,CHECKPHASE,HELDOUBLECHECKED,REF
 
       INTEGER CF_D(NLOOPAMPS,NBORNAMPS)
       INTEGER CF_N(NLOOPAMPS,NBORNAMPS)
-      COMMON/CF/CF_D,CF_N
+      COMMON/ML5_0_CF/CF_D,CF_N
 
       COMPLEX*32 AMP(NBORNAMPS,NCOMB)
-      COMMON/MP_AMPS/AMP
+      COMMON/ML5_0_MP_AMPS/AMP
       COMPLEX*32 W(20,NWAVEFUNCS,NCOMB)
-      COMMON/MP_WFS/W
+      COMMON/ML5_0_MP_WFS/W
 
       INTEGER HELPICKED
-      COMMON/HELCHOICE/HELPICKED
+      COMMON/ML5_0_HELCHOICE/HELPICKED
 C     ----------
 C     BEGIN CODE
 C     ----------
@@ -305,7 +305,7 @@ C     ----------
 
       IF(.NOT.MP_DONE.AND.CTMODE.EQ.0) THEN
 C       This is just to compute the wfs in quad prec
-        CALL MP_BORN_AMPS_AND_WFS(MP_P)
+        CALL ML5_0_MP_BORN_AMPS_AND_WFS(MP_P)
         MP_DONE=.TRUE.
       ENDIF
 
@@ -313,7 +313,7 @@ C       This is just to compute the wfs in quad prec
         IF (((HELPICKED.EQ.-1).OR.(HELPICKED.EQ.H)).AND.((CHECKPHASE.OR
      $   ..NOT.HELDOUBLECHECKED).OR.(GOODHEL(H).AND.GOODAMP(AMPLNUM
      $   ,H)))) THEN
-          CALL MPLOOPNUMHEL(-QPQ,BUFF,H)
+          CALL ML5_0_MPLOOPNUMHEL(-QPQ,BUFF,H)
           DO I=1,NBORNAMPS
             CFTOT=CMPLX(CF_N(AMPLNUM,I)/(1.0E0_16*ABS(CF_D(AMPLNUM
      $       ,I))),0.0E0_16,KIND=16)
@@ -322,12 +322,12 @@ C       This is just to compute the wfs in quad prec
           ENDDO
         ENDIF
       ENDDO
-      QPRES=QPRES/SYMFACT
+      QPRES=(QPRES*MULTIPLIER)/SYMFACT
 
       RES=QPRES
       END
 
-      SUBROUTINE MPLOOPNUMHEL(Q,RES,H)
+      SUBROUTINE ML5_0_MPLOOPNUMHEL(Q,RES,H)
 C     
 C     CONSTANTS 
 C     
@@ -344,7 +344,7 @@ C
       INTEGER NBORNAMPS
       PARAMETER (NBORNAMPS=1)
       INTEGER    NLOOPAMPS
-      PARAMETER (NLOOPAMPS=43)
+      PARAMETER (NLOOPAMPS=40)
       INTEGER    NCOMB
       PARAMETER (NCOMB=16)
 C     
@@ -364,16 +364,16 @@ C     GLOBAL VARIABLES
 C     
       COMPLEX*32 LC(MAXLCOUPLINGS)
       COMPLEX*32 ML(NEXTERNAL+2)
-      COMMON/MP_LOOP/LC,ML
+      COMMON/ML5_0_MP_LOOP/LC,ML
 
       INTEGER WE(NEXTERNAL)
-      INTEGER ID, SYMFACT,AMPLNUM
-      COMMON/LOOP/WE,ID,SYMFACT,AMPLNUM
+      INTEGER ID, SYMFACT,MULTIPLIER,AMPLNUM
+      COMMON/ML5_0_LOOP/WE,ID,SYMFACT,MULTIPLIER,AMPLNUM
 
       COMPLEX*32 AMP(NBORNAMPS,NCOMB)
-      COMMON/MP_AMPS/AMP
+      COMMON/ML5_0_MP_AMPS/AMP
       COMPLEX*32 W(20,NWAVEFUNCS,NCOMB)
-      COMMON/MP_WFS/W
+      COMMON/ML5_0_MP_WFS/W
 C     ----------
 C     BEGIN CODE
 C     ----------
@@ -446,7 +446,7 @@ C       Loop diagram number 6 (might be others, just an example)
         ENDDO
         CALL MP_CLOSE_4(BUFF(1),RES)
       ELSEIF (ID.EQ.6) THEN
-C       Loop diagram number 12 (might be others, just an example)
+C       Loop diagram number 9 (might be others, just an example)
         DO I=1,4
           CALL MP_LCUT_AF(Q(0),I,WL(1,2))
           CALL MP_FFV1LP0_3(WL(1,2),W(1,WE(1),H),LC(1),ML(3),ZERO,WL(1
@@ -459,7 +459,7 @@ C       Loop diagram number 12 (might be others, just an example)
         ENDDO
         CALL MP_CLOSE_4(BUFF(1),RES)
       ELSEIF (ID.EQ.7) THEN
-C       Loop diagram number 13 (might be others, just an example)
+C       Loop diagram number 10 (might be others, just an example)
         DO I=1,4
           CALL MP_LCUT_V(Q(0),I,WL(1,2))
           CALL MP_FFV1L_1(W(1,WE(1),H),WL(1,2),LC(1),ML(3),ZERO,WL(1
@@ -472,7 +472,7 @@ C       Loop diagram number 13 (might be others, just an example)
         ENDDO
         CALL MP_CLOSE_4(BUFF(1),RES)
       ELSEIF (ID.EQ.8) THEN
-C       Loop diagram number 14 (might be others, just an example)
+C       Loop diagram number 11 (might be others, just an example)
         DO I=1,4
           CALL MP_LCUT_V(Q(0),I,WL(1,2))
           CALL MP_VVV1LP0_1(WL(1,2),W(1,WE(1),H),LC(1),ML(3),ZERO,WL(1
@@ -483,7 +483,7 @@ C       Loop diagram number 14 (might be others, just an example)
         ENDDO
         CALL MP_CLOSE_4(BUFF(1),RES)
       ELSEIF (ID.EQ.9) THEN
-C       Loop diagram number 15 (might be others, just an example)
+C       Loop diagram number 12 (might be others, just an example)
         DO I=1,1
           CALL MP_LCUT_S(Q(0),I,WL(1,2))
           CALL MP_GHGHGL_1(WL(1,2),W(1,WE(1),H),LC(1),ML(3),ZERO,WL(1
@@ -496,7 +496,7 @@ C       Loop diagram number 15 (might be others, just an example)
       ENDIF
       END
 
-      SUBROUTINE MPLOOPNUM_DUMMY(Q,RES)
+      SUBROUTINE ML5_0_MPLOOPNUM_DUMMY(Q,RES)
 C     
 C     ARGUMENTS 
 C     
@@ -518,7 +518,7 @@ C     ----------
         DQ(I) = Q(I)
       ENDDO
 
-      CALL LOOPNUM(DQ,DRES)
+      CALL ML5_0_LOOPNUM(DQ,DRES)
       RES=DRES
 
       END

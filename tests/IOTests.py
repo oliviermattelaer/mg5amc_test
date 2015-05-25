@@ -94,7 +94,7 @@ class IOTest(object):
     what kind of IO test will be necessary later """
 
     # Handy definitions
-    proc_files = ['[^.+\.(f|dat|inc)$]']
+    proc_files = ['[^.+\.(f|dat|inc)$]','MadLoop5_resources/[^ML5_.*\.dat]']
     # Some model files are veto because they are sourced by dictionaries whose 
     # order is random.
     model_files = ['../../Source/MODEL/[^.+\.(f|inc)$]',
@@ -107,7 +107,8 @@ class IOTest(object):
     # dictionaries.
     all_files = proc_files+model_files
 
-    def __init__(self, procdef=None,
+    def __init__(self, test_instance=None,
+                       procdef=None,
                        exporter=None,
                        helasModel=None,
                        testedFiles=None,
@@ -126,9 +127,10 @@ class IOTest(object):
             raise MadGraph5Error, "outputPath must be specified in IOTest."
         
         self.testedFiles = testedFiles
+        self.test_instance = test_instance
         self.procdef = procdef
         self.helasModel = helasModel
-        self.exporter = copy.deepcopy(exporter)
+        self.exporter_name = exporter
         # Security mesure
         if not str(path.dirname(_file_path)) in str(outputPath) and \
                                         not str(outputPath).startswith('/tmp/'):
@@ -144,6 +146,8 @@ class IOTest(object):
         self.clean_output()
 
         model = self.procdef.get('model')
+        self.exporter = self.test_instance.get_exporter_withName(\
+                                                            self.exporter_name)
         myloopamp = loop_diagram_generation.LoopAmplitude(self.procdef)
         isOptimized = isinstance(self.exporter, \
                            loop_exporters.LoopProcessOptimizedExporterFortranSA) 
@@ -456,7 +460,6 @@ class IOTestManager(unittest.TestCase):
             all modified file and if 1 you will monitor each modified file of
             a given name only once.
         """
-        
         # First make sure that the tarball need not be untarred
         # Extract the tarball for hardcoded in all cases to make sure the 
         # IOTestComparison folder is synchronized with it.
@@ -480,7 +483,7 @@ class IOTestManager(unittest.TestCase):
 
         # In update = True mode, we keep track of the modification to 
         # provide summary information
-        modifications={'updated':[],'created':[], 'removed':[]}
+        modifications={'updated':[],'created':[], 'removed':[], 'missing':[]}
         
         # List all the names of the files for which modifications have been
         # reviewed at least once.The approach taken here is different than
@@ -546,12 +549,15 @@ class IOTestManager(unittest.TestCase):
                                     filesToCheck.append(new_target)
                 else:
                     fn = fname[1:] if fname.startswith('-') else fname
-                    if not path.exists(pjoin(files_path,fn)):
-                        raise MadGraph5Error, \
-                         'The IOTest %s does not create file %s.'%(test_name,fn)
-                    elif path.islink(pjoin(files_path,fn)):
-                        raise MadGraph5Error, \
-                         'The file %s created by the IOTest %s is a symbolic link.'%(fn,test_name)
+                    if (not path.exists(pjoin(files_path,fn))) or path.islink(pjoin(files_path,fn)):
+                        if force in [0,1]:
+                            answer = Cmd.timed_input(question=
+"""The IOTest %s does not create file '%s'. Fix it! [type 'enter'] >"""\
+                                    %(test_name,fn),default="y")
+                        modifications['missing'].append(
+                        "%s/%s/%s"%(folder_name,test_name,path.basename(fname)))
+                        if verbose: print "    > [ %s ] "%(colored%(31,"MISSING"))+\
+                          "%s/%s/%s"%(folder_name,test_name,path.basename(fname))
                     else:
                         if fname.startswith('-'):
                             veto_rules.append(fn)
@@ -566,9 +572,14 @@ class IOTestManager(unittest.TestCase):
                 activeFiles = [self.toFileName(f) for f in filesToCheck]
                 for file in glob.glob(pjoin(_hc_comparison_files,folder_name,\
                                                                 test_name,'*')):
-                    # Ignore the .BackUp files and directories
-                    if path.basename(file).endswith('.BackUp') or\
-                                                               path.isdir(file):
+                    # Ignore the .BackUp files and directories. Also ignore
+                    # a file which was previously flagged missing because it
+                    # was explicitly specified in the list of files that the
+                    # test *must* provide.
+                    if path.basename(file).endswith('.BackUp') or \
+                       path.isdir(file) or \
+                       pjoin(folder_name,test_name,path.basename(file)) in \
+                                                       modifications['missing']:
                         continue
                     if path.basename(file) not in activeFiles:
                         if force==0 or (force==1 and \
@@ -646,7 +657,6 @@ class IOTestManager(unittest.TestCase):
                             print colored%(34,'Consider creating it with '+
                                             './test_manager.py -U %s'%test_name)
                             exit(0)
-
                     goal = open(comparison_path).read()%misc.get_pkg_info()
                     if not verbose:
                         self.assertFileContains(open(file_path), goal)
@@ -693,9 +703,15 @@ class IOTestManager(unittest.TestCase):
                     # Transform the package information to make it a template
                     file = open(file_path,'r')
                     target=file.read()
+                    # So that if % appear, we cast them to %% which are not formatted.
+                    target = target.replace('%','%%')
+                    # So that the version and date is automatically updated
                     target = target.replace('MadGraph5_aMC@NLO v. %(version)s, %(date)s'\
                                                            %misc.get_pkg_info(),
                                           'MadGraph5_aMC@NLO v. %(version)s, %(date)s')
+                    target = target.replace('v%(version)s (%(date)s)'\
+                                                           %misc.get_pkg_info(),
+                                                      'v%(version)s (%(date)s)')
                     file.close()
                     if os.path.isfile(comparison_path):
                         file = open(comparison_path,'r')
@@ -706,7 +722,7 @@ class IOTestManager(unittest.TestCase):
                         else:
                             # Copying the existing reference as a backup
                             tmp_path = pjoin(_hc_comparison_files,folder_name,\
-                                        test_name,self.toFileName(fname)+'.tmp')
+                                        test_name,self.toFileName(fname)+'.BackUp')
                             if os.path.isfile(tmp_path):
                                 os.remove(tmp_path)
                             file = open(tmp_path,'w')
@@ -728,9 +744,19 @@ class IOTestManager(unittest.TestCase):
                                 else:
                                     pydoc.pager(text)
                                     print "Difference displayed in editor."
-                                answer = Cmd.timed_input(question=
-"""Ref. file %s differs from the new one (see diff. before), update it? [y/n] >"""%fname
+                                answer = ''
+                                while answer not in ['y', 'n']:
+                                    answer = Cmd.timed_input(question=
+"""Ref. file %s differs from the new one (see diff. before), update it? [y/n/h/r] >"""%fname
                                                                    ,default="y")
+                                    if answer not in ['y','n']:
+                                        if answer == 'r':
+                                            pydoc.pager(text)
+                                        else:
+                                            print "reference path: %s" % comparison_path
+                                            print "code returns: %s" % tmp_path
+                                
+                                
                                 os.remove(tmp_path)
                                 reviewed_file_names[path.basename(\
                                                       comparison_path)] = answer        

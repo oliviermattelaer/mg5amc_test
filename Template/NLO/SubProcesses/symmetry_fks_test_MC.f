@@ -11,6 +11,8 @@ c
       include 'nexternal.inc'
       include '../../Source/run_config.inc'
       include 'nFKSconfigs.inc'
+      include 'fks_info.inc'
+      include 'run.inc'
       
       double precision ZERO,one
       parameter       (ZERO = 0d0)
@@ -72,6 +74,7 @@ c
       integer nmatch, ibase
       logical mtc, even
 
+      double precision totmass
 
       double precision xi_i_fks_fix_save,y_ij_fks_fix_save
       double precision xi_i_fks_fix,y_ij_fks_fix
@@ -144,15 +147,30 @@ c helicity stuff
       
       character*10 MonteCarlo
       common/cMonteCarloType/MonteCarlo
+
+      double precision shower_S_scale(fks_configs*2)
+     &     ,shower_H_scale(fks_configs*2),ref_H_scale(fks_configs*2)
+     &     ,pt_hardness
+      common /cshowerscale2/shower_S_scale,shower_H_scale,ref_H_scale
+     &     ,pt_hardness
+
 c      integer icomp
 c
 c     DATA
 c
       integer tprid(-max_branch:-1,lmaxconfigs)
       include 'born_conf.inc'
+      include 'pmass.inc'
 c-----
 c  Begin Code
 c-----
+      if (fks_configs.eq.1) then
+         if (pdg_type_d(1,fks_i_d(1)).eq.-21) then
+            write (*,*) 'Process generated with [LOonly=QCD]. '/
+     $           /'No tests to do.'
+            return
+         endif
+      endif
       write(*,*)'Enter the Monte Carlo name: possible choices are'
       write(*,*)'HERWIG6, HERWIGPP, PYTHIA6Q, PYTHIA6PT, PYTHIA8'
       read(*,*)MonteCarlo
@@ -199,6 +217,15 @@ c-----
       call setrun                !Sets up run parameters
       call setpara('param_card.dat')   !Sets up couplings and masses
       call setcuts               !Sets up cuts 
+
+c When doing hadron-hadron collision reduce the effect collision energy.
+c Note that tests are always performed at fixed energy with Bjorken x=1.
+      totmass = 0.0d0
+      do i=1,nexternal
+        totmass = totmass + pmass(i)
+      enddo
+      if (lpp(1).ne.0) ebeam(1)=max(ebeam(1)/20d0,totmass)
+      if (lpp(2).ne.0) ebeam(2)=max(ebeam(2)/20d0,totmass)
 c
 
       write (*,*) 'Give FKS configuration number ("0" loops over all)'
@@ -226,8 +253,6 @@ c
          write (*,*) 'FKS partons are: i=',i_fks,'  j=',j_fks
          write (*,*) 'with PDGs:       i=',PDG_type(i_fks),'  j='
      $        ,PDG_type(j_fks)
-
-
 c
       ndim = 22
       ncall = 10000
@@ -371,6 +396,10 @@ c configurations close to the soft-collinear limit
 
          call set_cms_stuff(0)
          calculatedBorn=.false.
+
+c Initialise shower_S_scale to a large value, not to get spurious dead zones
+         shower_S_scale=1d20
+
          if(ilim.eq.0)then
            call xmcsubt_wrap(p1_cnt(0,1,0),zero,y_ij_fks_ev,fxl)
          else
@@ -605,6 +634,8 @@ c Dummy routines
 c
 c
       subroutine clear_events()
+      end
+      subroutine initplot
       end
       subroutine store_events()
       end

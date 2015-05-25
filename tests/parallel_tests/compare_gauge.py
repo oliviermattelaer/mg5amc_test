@@ -28,7 +28,7 @@ import subprocess
 import loop_me_comparator
 
 from madgraph import MG5DIR
-import tests.unit_tests.various.test_aloha as test_aloha
+import tests.parallel_tests.test_aloha as test_aloha
 
 pjoin = os.path.join
 _file_path = os.path.dirname(os.path.realpath(__file__))
@@ -271,7 +271,7 @@ class GaugeComparator(unittest.TestCase):
                              tolerance = 1e-3)          
 
 class GaugeComparatorLoop(unittest.TestCase):
-    """A class to compare the values of unitary and Feynman gauge in complex and fix width schemes"""
+    """A class to compare the values of unitary and Feynman gauge in complex and fixed width schemes"""
     
     nb_test = 0
     

@@ -192,6 +192,10 @@ c +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       character*(*) param_name
       data iunit/21/
       data logfile/22/
+
+      logical WriteParamLog
+      common/IOcontrol/WriteParamLog
+
       GL=0
       npara=1
 
@@ -207,7 +211,9 @@ c +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       endif
       
       ! Try to open log file
-      open (unit = logfile, file = "param.log")
+      if (WriteParamLog) then
+        open (unit = logfile, file = "param.log")
+      endif
       
       ! Scan the data file
       do while(.true.)  
@@ -243,8 +249,10 @@ c +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                   param(npara)=ctemp
                   npara=npara+1
                   GL=0
-                  write (logfile,*) 'Parameter ',ctemp,
+                  if (WriteParamLog) then
+                    write (logfile,*) 'Parameter ',ctemp,
      &                                  ' has been read with value ',val
+                  endif
              endif
 
          endif
@@ -252,8 +260,10 @@ c +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       
       npara=npara-1
 c      close(iunit)
-      close(logfile)
-      
+      if (WriteParamLog) then
+        close(logfile)
+      endif
+
  99   return
  
       end
@@ -316,11 +326,11 @@ c
 
       subroutine LHA_open_file(lun,filename,fopened)
 c***********************************************************************
-c     opens file input-card.dat in current directory or above
+c     opens file input-card.dat in current directory or above
 c***********************************************************************
       implicit none
 c
-c     Arguments
+c     Arguments
 c
       integer lun
       logical fopened
@@ -330,10 +340,10 @@ c
       integer dirup,i
 
 c-----
-c  Begin Code
+c     Begin Code
 c-----
 c
-c     first check that we will end in the main directory
+c     first check that we will end in the main directory
 c
       open(unit=lun,file=filename,status='old',ERR=20)
 c      write(*,*) 'read model file ',filename
@@ -345,7 +355,7 @@ c      write(*,*) 'read model file ',filename
       if(fine.eq.0) fine=len(tempname)
       tempname=tempname(1:fine)
 c
-c         if I have to read a card
+c     if I have to read a card
 c
       if(index(filename,"_card").gt.0) then
         tempname='./Cards/'//tempname
@@ -360,7 +370,7 @@ c        write(*,*) 'read model file ',tempname
 30      tempname='../'//tempname
         if (i.eq.5)then
            write(*,*) 'Warning: file ',filename,
-     &                           ' not found in the parent directories!'
+     &                           ' not found in the parent directories!(lha_read)'
            stop
         endif
       enddo

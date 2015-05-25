@@ -19,6 +19,7 @@ import re
 import shutil
 import sys
 import logging
+import tempfile
 
 pjoin = os.path.join
 
@@ -28,6 +29,7 @@ import tests.unit_tests.iolibs.test_file_writers as test_file_writers
 
 import madgraph.interface.master_interface as Cmd
 import madgraph.interface.launch_ext_program as launch_ext
+import madgraph.iolibs.files as files
 import madgraph.various.misc as misc
 _file_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0]
 _pickle_path =os.path.join(_file_path, 'input_files')
@@ -79,6 +81,14 @@ class TestCmdShell1(unittest.TestCase):
         self.do('generate e+ e- > z | a > e+ e-')
         self.assertEqual(len(self.cmd._curr_amps), 1)
         self.assertEqual(len(self.cmd._curr_amps[0].get('diagrams')), 2)
+        self.do('generate d d~ > u u~ WEIGHTED^2>-1')
+        self.assertEqual(len(self.cmd._curr_amps), 1)
+        self.assertEqual(len(self.cmd._curr_amps[0].get('diagrams')), 4)
+        self.do('generate d d~ > u u~ WEIGHTED^2>-2')
+        self.assertEqual(len(self.cmd._curr_amps), 1)
+        self.assertEqual(len(self.cmd._curr_amps[0].get('diagrams')), 3)
+        self.assertRaises(MadGraph5Error, self.do, 
+                                           'generate d d~ > u u~ WEIGHTED^2>-4')
         self.assertRaises(MadGraph5Error, self.do, 'generate a V > e+ e-')
         self.assertRaises(MadGraph5Error, self.do, 'generate e+ e+|e- > e+ e-')
         self.assertRaises(MadGraph5Error, self.do, 'generate e+ e- > V a')
@@ -129,6 +139,8 @@ class TestCmdShell1(unittest.TestCase):
                     'text_editor': None, 
                     'cluster_queue': None,
                     'nb_core': None,
+                    'pjfry': 'auto',
+                    'golem': 'auto',
                     'run_mode': 2,
                     'pythia-pgs_path': './pythia-pgs', 
                     'td_path': './td', 
@@ -140,6 +152,7 @@ class TestCmdShell1(unittest.TestCase):
                     'color_ordering': 0,
                     'optimization': 1,
                     'fortran_compiler': None, 
+                    'cpp_compiler': None,
                     'exrootanalysis_path': './ExRootAnalysis', 
                     'eps_viewer': None, 
                     'automatic_html_opening': True, 
@@ -160,7 +173,12 @@ class TestCmdShell1(unittest.TestCase):
                     'syscalc_path':'./SysCalc',
                     'hepmc_path': './hepmc',
                     'hwpp_path': './herwigPP',
-                    'thepeg_path': './thepeg'
+                    'thepeg_path': './thepeg',
+                    'amcfast': 'amcfast-config',
+                    'applgrid': 'applgrid-config',
+                    'cluster_size': 100,
+                    'loop_color_flows': False,
+                    'cluster_local_path': '/cvmfs/cp3.uclouvain.be/madgraph/'
                     }
 
         self.assertEqual(config, expected)
@@ -182,23 +200,24 @@ class TestCmdShell2(unittest.TestCase,
                     test_file_writers.CheckFileCreate):
     """Test all command line related to MG_ME"""
 
+    debugging = False
     def setUp(self):
-        """ basic building of the class to test """
         
         self.cmd = Cmd.MasterCmd()
-        if  MG4DIR:
-            logger.debug("MG_ME dir: " + MG4DIR)
-            self.out_dir = os.path.join(MG4DIR, 'AUTO_TEST_MG5')
+        if not self.debugging:
+            self.tmpdir = tempfile.mkdtemp(prefix='amc')
         else:
-            raise Exception, 'NO MG_ME dir for this test'   
-        if os.path.exists(self.out_dir):
-            shutil.rmtree(self.out_dir)
+            if os.path.exists(pjoin(MG5DIR, 'TEST_AMC')):
+                shutil.rmtree(pjoin(MG5DIR, 'TEST_AMC'))
+            os.mkdir(pjoin(MG5DIR, 'TEST_AMC'))
+            self.tmpdir = pjoin(MG5DIR, 'TEST_AMC')
+            
+        self.out_dir = pjoin(self.tmpdir,'MGProcess')
+        
         
     def tearDown(self):
-        """ basic destruction after have run """
-        if os.path.exists(self.out_dir):
-            shutil.rmtree(self.out_dir)
-
+        if not self.debugging and os.path.exists(self.out_dir):
+            shutil.rmtree(self.tmpdir)
     
     join_path = TestCmdShell1.join_path
 
@@ -550,6 +569,53 @@ class TestCmdShell2(unittest.TestCase,
         self.assertTrue(me_groups)
         self.assertAlmostEqual(float(me_groups.group('value')), 5.8183784340260782)
     
+    
+    def test_standalone_cpp_output_consistency(self):
+        """test that standalone cpp is working"""
+
+        if os.path.isdir(self.out_dir):
+            shutil.rmtree(self.out_dir)
+
+        #step 0 cpp output
+        self.do('generate p p > t t~, t > b mu+ vm, t~ > b~ mu- vm~')
+        self.do('output standalone_cpp %s ' % self.out_dir)
+        devnull = open(os.devnull,'w')
+    
+        directories= ['P0_Sigma_sm_gg_bmupvmbxmumvmx', 'P0_Sigma_sm_uux_bmupvmbxmumvmx']
+        def get_values():
+            values = []
+            for oneproc in directories:
+                logfile = os.path.join(self.out_dir,'SubProcesses', oneproc,
+                                       'check.log')
+                # Check that check_sa.cc compiles
+                subprocess.call(['make'],
+                                stdout=devnull, stderr=devnull, 
+                                cwd=os.path.join(self.out_dir, 'SubProcesses', oneproc))
+                
+                subprocess.call('./check', 
+                                stdout=open(logfile, 'w'), stderr=subprocess.STDOUT,
+                                cwd=os.path.join(self.out_dir, 'SubProcesses',
+                                                 oneproc), shell=True)
+            
+                log_output = open(logfile, 'r').read()
+                me_re = re.compile('Matrix element\s*=\s*(?P<value>[\d\.eE\+-]+)\s*GeV',
+                                   re.IGNORECASE)
+                me_groups = me_re.search(log_output)
+                self.assertTrue(me_groups)
+                values.append(float(me_groups.group('value')))
+            return values
+        original = get_values()
+        #step 1 standalone output
+        shutil.rmtree(self.out_dir)
+        self.do('output standalone %s -f' % self.out_dir)
+        shutil.rmtree(self.out_dir)            
+        self.do('output standalone_cpp %s -f' % self.out_dir)     
+        new = get_values()
+        
+        for i,_ in enumerate(original):
+            self.assertEqual(original[i], new[i])
+
+         
         
     def test_color_ordered_standalone(self):
         """Test output of color ordered Standalone directory with BG currents"""
@@ -1641,7 +1707,7 @@ P1_qq_wp_wp_lvl
         """check that the import banner command works"""
         
         cwd = os.getcwd()
-        os.chdir(MG5DIR)
+        os.chdir(self.tmpdir)
         self.do('import banner %s --no_launch' % pjoin(MG5DIR, 'tests', 'input_files', 'tt_banner.txt'))
         
         # check that the output exists:

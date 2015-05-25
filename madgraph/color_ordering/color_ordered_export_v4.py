@@ -857,6 +857,11 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         """Finalize ME v4 directory by creating jpeg diagrams, html
         pages,proc_card_mg5.dat and madevent.tar.gz."""
 
+        #proc_charac
+        self.proc_characteristic['color_ordering'] = True
+        self.create_proc_charac()
+        self.create_run_card(matrix_elements, history)
+
         # Write maxconfigs.inc based on max of ME's/subprocess groups
         filename = os.path.join(self.dir_path,'Source','maxconfigs.inc')
         self.write_maxconfigs_file(writers.FortranWriter(filename),
@@ -944,7 +949,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
     
 
     def write_matrix_element_v4(self, writer, matrix_element, helas_call_writer,
-                                proc_id = "", config_map = []):
+                                proc_id = "", config_map = [], subproc_number=0):
         """Export a matrix element to a matrix.f file in MadEvent
         color ordered amplitude format"""
 

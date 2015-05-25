@@ -40,7 +40,6 @@ def load_from_file(filename):
 
     if not isinstance(filename, str):
         raise SaveObjectError, "filename must be a string"
-
     return files.read_from_file(filename, unpickle_object)
     
 def pickle_object(fsock, object):
@@ -57,11 +56,14 @@ class UnPickler(pickle.Unpickler):
            This routine helps to find back which one we need. 
         """
 
+        # A bit of an ugly hack, but it works and has no side effect.
+        if module == 'loop_me_comparator':
+            module = 'tests.parallel_tests.loop_me_comparator'
+
         try:
             return pickle.Unpickler.find_class(self, module, name)
         except ImportError:
             pass
-        
         newmodule = 'internal.%s' % module.rsplit('.',1)[1]
         try:
             return pickle.Unpickler.find_class(self, newmodule , name)
@@ -73,6 +75,12 @@ class UnPickler(pickle.Unpickler):
             return pickle.Unpickler.find_class(self, newmodule , name)
         except Exception:
             pass        
+
+        newmodule = 'madgraph.madevent.%s' % module.rsplit('.',1)[1]
+        try:
+            return pickle.Unpickler.find_class(self, newmodule , name)
+        except Exception:
+            pass  
 
         newmodule = 'madgraph.various.%s' % module.rsplit('.',1)[1]
         try:

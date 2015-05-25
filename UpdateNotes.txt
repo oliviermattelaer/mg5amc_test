@@ -1,8 +1,181 @@
 Update notes for MadGraph5_aMC@NLO (in reverse time order)
 
-2.2.0 (XX/XX/XX)  )M+JA+YT: Implemented color ordered recursion relations and 
+3.0.0 (XX/XX/XX)  OM+JA+YT: Implemented color ordered recursion relations and 
                       new phase space mapping to allow generation of up to
                       6 final-state partons in multiparton processes.
+
+2.3.1 RF: Reduce the collision energy for the soft and collinear tests: for 100TeV collider many were failing
+	    due to numerical instabilities. 
+      OM+VH: Change the phase-space probing for loop-induced for matched/merged generation
+      OM+VH: Allow 1>N body decay for loop-induced processes
+      OM+VH: Various bug fixing linked to loop-induced processes
+
+
+2.3.0.beta(10/04/15) OM+VH: Adding the possibility to compute cross-section/generate events for loop-induced process
+		JB+OM: Addign matchbox output for matching in the Matchbox framework
+                OM+VH: Change the handling of the run_card.
+                      - The default value depends now of your running process
+                      - cut_decays is now on False by default
+                      - nhel can only take 0/1 value. 1 is a real MC over helicity (with importance sampling)
+                      - use_syst is set on by default (but for matching where it is keep off)                    
+                      - New options added: dynamical_scale_choice, it can take the following value
+		            -1 : MadGraph5_aMC@NLO default (different for LO/NLO/ ickkw mode) same as previous version. 
+                             0 : Tag reserved for user define dynamical scale (need to be added in setscales.f).
+                             1 : Total transverse energy of the event.
+                             2 : sum of the transverse mass 
+                             3 : sum of the transverse mass divide by 2 
+			     4 : \sqrt(s), partonic energy 
+                OM: Cuts are also applied for 1>N processes (but the default run_card doesn't have any cut).         
+                PT: Set command available for shower_card parameters
+                OM: New MultiCore class with better thread support
+                RF: Fixed a bug in the aMCfast/APPLGrid interface introduced in version 2.2.3
+		RF: Fixed a bug in the setting of the integration grids (LO process generation) for the minimum
+		    energy needed for photons. The bug did not lead to any bias in event generation.
+		RF: Re-factoring of the structure of the code for NLO+PS computations.
+		RF+VH: Replaced the default topdrawer histograms with HwU histograms for f(N)LO runs
+                    and allow it also for aMC@NLO runs.
+		RF+VB: Allow for variable bin-sizes in MG5_aMC+aMCfast+ApplGrid runs.
+                MZ+RF: Added 'LOonly' asNLO mode to export processes without any real and virtuals 
+                       (useful e.g. for higher multiplicities when merging)
+		RF: Added support for the computation of NLO+NNLL jet veto cross sections
+		RF: Fixed a bug in the Pythia8 interface: FxFx was not correctly initialized and all
+                    events were incorrectly kept (introduced in v.2.2.3)
+                OM: Improve the function "print_result" (in the running interface)
+                    add an option --format=short allowing to print the result in a multi-column format
+                OM: Possibility to not transfer pdf file to the node for each job. 
+                       This is done via a new option (cluster_local_path) which should contain the pdf set.
+                       This path is intented to point to a node specific filesystem.
+                    New way to submit job on cluster without writting the command file on the disk.
+                OM: Allowing MadSpin to have a mode without full spin-correlation but handling three (and more) 
+                    body decay. (set spinmode=none).
+                OM+PA: Fixing various bug in MadSpin.
+
+2.2.3(10/02/15) RF: Re-factoring of the structure of the code for fNLO computations.
+                OM: Fix a bug in MadWeight (correlated param_card was not creating the correct input file)
+		RF: When requiring more than 1M events for (N)LO+PS runs, do not go to higher precision than 0.001
+                    for the grids and cross section (can be overwritten with the req_acc run_card parameter).
+		RF: Make sure that reweight info (for PDF and scale uncertainties) also works for UNLOPS events.
+		RF: When setting the B's stable in the shower_card, also set the eta_b (PDG=551) stable.
+		OM: Change the Breit-Wigner splitting for the multi-channel integration, use the bwcutoff instead of
+                    the hardcoded value 5.
+                MZ: Fix to bug 1406000 (segfault appearing when doing FxFx merging). Thanks to Josh Bendavid for
+                    having reported it
+                MZ: Fix to a bug occurring when generating event in the "split" mode: the required output was 
+                    not correctly specified
+                OM: The built-in pdf "nn23lo" and "nn23lo1" where associate to the wrong lhapdfid in the lhef file
+                    This was creating bias in using SysCalc. (Thanks Alexis)
+                OM: Fix a bug in the LO re-weighing  module which was removing the 
+                    SysCalc weight from the lhe file (thanks Shin-Shan)
+                Team: Fixes to different small bugs / improvement in the error and warning messages
+		RF: For aMC runs, If a NAN is found, the code now skips that PS point and continues instead of
+		    leading to NAN.
+                RF: For fNLO runs the virtuals were included twice in the setting of the integration grids. 
+                    This was not leading to any bias in previous version of the code.
+
+2.2.2(06/11/14) OM: Correct a bug in the integration grid (introduces in 2.1.2). This was biasing the cross-section of 
+                    processes like a a > mu+ mu- in the Effective Photon Approximation by three order of magnitude.
+                    For LHC processes no sizeable effect have been observe so far.
+                MZ: some informations for aMC@NLO runs which were before passed via include files are
+                    now read at runtime. The size of executables as well as compilation time / memory usage
+                    is reduced for complicated processes
+                RF: Fix crash #1377187 (check that cuts were consistent with the grouping was too restrictive) 
+		RF: For NLO running: added 'strip' to the makefiles to reduce executable sizes (removes symbol info)
+		Stefano Carrazza (by RF): fix for the photon PDF for the internal NNPDF sets
+		RF: Improved the check on the consistency of the cuts and the grouping of subprocesse (LO running)
+                PT: enabled PYTHIA8.2
+                OM: restore the usage of external gzip library for file larger than 4Gb which were crashing with
+                    the python gzip library
+                OM: Fixing the default card for Delphes
+                OM: Improve support of lsf cluster (thanks Josh) 
+                OM: Adding support for the UFO file functions.py (which was ignored before)
+                OM: Reduce the amount of RAM used by MadSpin in gridpack mode.
+                OM: discard in MadWidth partial width lower than \Lambda_QCD for colored particle.
+
+2.2.1(25/09/14) OM: Fix a bug preventing the generation of events at LO due to a wrong treatment of 
+                      the color-flow.
+
+2.2.0(24/09/14) VH: General mixed order corrections in MadLoop (only), including QCD/EW/QED and 
+                    the UFO@NLO model 'loop_qcd_qed_sm'.
+                VH: Re-design of both the tree and MadLoop matrix elements output to compute
+                    contributions of different coupling order combinations independently from one another.
+                VH+HS: Tensor integral reduction as implemented in PJFry and IREGI readily available
+                    and interfaced to MadLoop's output.
+                VH: Re-structuring of MadLoop's standalone output so as to easily create a single dynamic 
+                    library including many processes at once. Useful for interfacing MadLoop to other MC's
+                    and already working with Sherpa.
+                VH+HS: This branch contains all the fixes for proper treatment of the latest BSM@NLO models 
+                    produced by FeynRules@NLO. In particular, the fixed related to the presence of majorana 
+                    particles in loop ME's.
+                RF: Corrected the behaviour of the pdfcode parameter in the shower_card for NLO+PS runs.
+                PT: Redesigned shower_card.dat and eliminated modbos options for Herwig6          
+                RF: Change the SPINUP information in the NLO LHEF from 0 to 9 (i.e. sum over helicities)
+                RF: Fixed a bug in the check on the determination of the conflicting BWs.
+		RF: Added the aMCfast+APPLgrid interface (arXiv:1406.7693 [hep-ph])
+                PT: Redesigned shower_card.dat and eliminated modbos options for Herwig6          
+                RF: Change the SPINUP information in the NLO LHEF from 0 to 9 (i.e. sum over helicities)
+                RF: Fixed a bug in the check on the determination of the conflicting BWs.
+                MZ: enabled LHAPDF6 interface 
+                OM: Fixed a crash in some HEFT merging case.
+                OM: Fix various compatibility problem created by the LHEFv3 version (Thanks to S. Brochet)
+                OM: Fix a bug for MadSpin in gridpack mode
+                OM: Add a routine to check the validity of LHE file (check_event command)
+                OM: Fix bug for UFO model with custom propagators
+                OM: Fix Bug in the computation of cross-section in presence of negative contribution 
+                OM: Change colorflow information of LHE file in presence of two epsilon_ijk
+                    since PY8 was not able to handle such flow in that format.
+                OM: Add the function print_result for aMC@(n)LO run.
+                OM: Add some shortcut in the card edition 
+                    set ebeam 500 # edit both beams
+                    set lpp 0     # edit both lpp1 and lpp2
+                    set lhc 14    # configure for LHC 14TeV
+                    set ilc 1000  # configure for ilc 1TeV
+                    set fixed_scale 100 # set all scale to fixed and at 100GeV
+		    set showerkt T # set showerkt on T in the shower card
+ 		    set qcut 20    # set the qctu to 20 in the shower card 
+                OM: Fix a bug in the card edition mode which was sometimes returning to default value
+                    which were edited by hand and not via the set command.
+                Seoyoung Kim (by OM): Implementation of the htcaas (super-)cluster support.
+		Juan Rojo (by RF): extended the 3 internal NNPDF sets for scales relevant for a 100TeV collider.
+                OM: Fix a problem with the creation of DJR plot with root 6
+                OM: allow the set the width to Auto in NLO computation (width computated at LO accuracy)
+                OM: Adding the possibility to have automatic plot after the parton shower for Herwig6/Pythia6.
+                    This require MadAnalysis and the pythia-pgs package. 
+
+2.1.2(03/07/14) OM: Fix a bug in ALOHA in presence of customized propagator (Thanks Saurabh)
+                OM: Fixing some compilation issue with MadWeight (Thanks A. Pin)
+                OM: Fixing a bug preventing MadWidth to run due to the model prefixing (depending
+                    on the way it was called)
+                OM: Fixing a bug in MadSpin in the mssm model
+		RF: Added the invariant mass and DeltaR cuts for *same flavour* opposite sign lepton
+                    pairs to the run_card for NLO-type generations.
+		RF: Added FxFx and UNLOPS merging with Pythia8
+		RF: Prevent an infinite loop in MadSpin by forcing the correct sign to the invariants
+		RF: Catch a possible error related to grouping subprocesses and setcuts
+		OM: Fix an error when using the "customize_model" command
+                S. Mrenna (by OM): Fix the include file in pythia8 output to be compliant with the latest
+                    PY8 version
+		RF: Added a string with functional form for the scales to the event file banner (NLO only)
+                S. Brochet (by OM): Fix a bug in MadSpin with the writting of the mother ID in the LHE file.
+                    Force the tag in the banner to always have the same case
+                    increase momenta precision for the LHE file written by MadSpin 
+                    (thanks a lot to S. Brochet for all those patch)
+                PT: Integrated Jimmy's underlying event for Herwig6
+                OM: improve "add model" functionality allow to force particle identification.
+                PT: Bug fix in the normalisation of topdrawer plots for option 'sum' (as opposed to 'average')
+		RF: Fixed a bug related to the random seed when the code was not recompiled for a new run.
+                OM: Fixed a bug in MadEvent(LO) run, the generated sample were bias in presence of 
+                    negative cross-section. A negative cross-section is possible only if you use a NLO PDF 
+                    and/or if you edit the matrix.f by hand to have a non-definite positive matrix-element.
+		OM: When importing a model, check that there is not more than 1 parameter with the same name.
+                PT: Subsantial recoding of montecarlocounter.f and of a subroutine in fks_singular.f. Will help 
+                    future extensions like EW NLO+PS matching and numerical derivatives      
+                OM: Fixing a wrong assignement in the color flow in presence of epsilon_ijk color structure.
+                    Those events were rejected by Pythia8 due to this wrong color-flow.
+                MZ: Added the possibility to run the shower on a cluster, possibly splitting the lhe file 
+                MZ: The c++ compiler can be specified as an option in the interface. On MACOSX, clang should
+                    work now
+                OM: MadEvent output is now LHEFv3 fully compliant. A parameter in the run_tag (lhe_version) 
+                    allows to return LHEF version 2 format for retro-compatibility.
 
 2.1.1(31/03/14) OM: Change the way the UFO model is handle by adding a prefix (mdl_) to all model variable.
                     This avoid any potential name conflict with other part of the code. This feature can be

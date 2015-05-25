@@ -18,6 +18,9 @@ COLORS = {
     'WHITE'    : WHITE,
 }
 
+for i in range(0,11):
+    COLORS['Level %i'%i] = COLORS['DEBUG']
+
 RESET_SEQ = "\033[0m"
 COLOR_SEQ = "\033[1;%dm"
 BOLD_SEQ  = "\033[1m"
@@ -30,7 +33,10 @@ class ColorFormatter(logging.Formatter):
 
     def format(self, record):
         levelname = record.levelname
-        color_choice = COLORS[levelname]
+        try:
+            color_choice = COLORS[levelname]
+        except KeyError:
+            color_choice = COLORS['INFO']
         new_args=[]
         # A not-so-nice but working way of passing arguments to this formatter
         # from MadGraph.
@@ -42,6 +48,8 @@ class ColorFormatter(logging.Formatter):
                     if elems[1]=='color':
                         color_specified = True                            
                         color_choice = COLORS[elems[2]]
+                    if color_choice == 0:
+                        color_choice = 30
             else:
                 new_args.append(arg)
         record.args = tuple(new_args)
@@ -50,10 +58,10 @@ class ColorFormatter(logging.Formatter):
         if not message.endswith('$RESET'):
             message +=  '$RESET'
         for k,v in COLORS.items():
-            message = message.replace("$" + k,    COLOR_SEQ % (v+30))\
+            color_flag = COLOR_SEQ % (v+30)
+            message = message.replace("$" + k, color_flag)\
                          .replace("$BG" + k,  COLOR_SEQ % (v+40))\
                          .replace("$BG-" + k, COLOR_SEQ % (v+40))        
-        
         
         if levelname == 'INFO':
             message   = message.replace("$RESET", '' if not color_specified else RESET_SEQ)\

@@ -67,10 +67,12 @@ class ColorBasis(dict):
             min_index, res_dict = self.add_vertex(vertex, diagram, model,
                             repl_dict, res_dict, min_index)
 
-        # Return an empty list if all entries are empty
-        if all([cs == color_algebra.ColorString() \
-                        for cs in res_dict.values()]):
-            res_dict = {}
+        # if the process has no QCD particles
+        # Return a list filled with ColorOne if all entries are empty ColorString()
+        empty_colorstring = color_algebra.ColorString()
+        if all(cs == empty_colorstring for cs in res_dict.values()):
+            res_dict = dict((key, color_algebra.ColorString(
+                               [color_algebra.ColorOne()])) for key in res_dict)
                     
         return res_dict
 
@@ -232,15 +234,14 @@ class ColorBasis(dict):
         the colorize dictionary (produced by the colorize routine)
         associated to diagram with index index. Keep track of simplification
         results for maximal optimization."""
-
+        import madgraph.various.misc as misc
         # loop over possible color chains
         for col_chain, col_str in colorize_dict.items():
             # Create a canonical immutable representation of the the string
             canonical_rep, rep_dict = col_str.to_canonical()
-
             try:
                 # If this representation has already been considered,
-                # recycle the result. 
+                # recycle the result.                               
                 col_fact = self._canonical_dict[canonical_rep].create_copy()
             except KeyError:
                 # If the representation is really new
@@ -270,9 +271,12 @@ class ColorBasis(dict):
                 # for matching, we have to multiply col_fact by it.
                 for cs in col_fact:
                     cs.coeff = cs.coeff * col_str.coeff
-                # Must simplify once to put traces in a canonical ordering
-                col_fact = col_fact.simplify()
-
+                # Must simplify up to two times at NLO (since up to two traces
+                # can appear with a loop) to put traces in a canonical ordering.
+                # If it still causes issue, just do a full_simplify(), it would
+                # not bring any heavy additional computational load.
+                col_fact = col_fact.simplify().simplify()
+                
                 # Here we need to force a specific order for the summed indices
                 # in case we have K6 or K6bar Clebsch Gordan coefficients
                 for colstr in col_fact: colstr.order_summation()
@@ -286,7 +290,8 @@ class ColorBasis(dict):
                                 col_chain,
                                 col_str.coeff,
                                 col_str.is_imaginary,
-                                col_str.Nc_power)
+                                col_str.Nc_power,
+                                col_str.loop_Nc_power)
                 try:
                     self[immutable_col_str].append(basis_entry)
                 except KeyError:
@@ -369,7 +374,6 @@ class ColorBasis(dict):
         indices) associated to my_color_string. Take a list of the external leg
         color octet state indices as an input. Returns only the leading N 
         contribution!"""
-
         # Create a new color factor to allow for simplification
         my_cf = color_algebra.ColorFactor([my_color_string])
         # Add one T per external octet
@@ -451,7 +455,6 @@ class ColorBasis(dict):
             # Rebuild a color string from a CB entry
             col_str = color_algebra.ColorString()
             col_str.from_immutable(col_basis_entry)
-
             for (leg_num, leg_repr) in repr_dict.items():
                 # By default, assign a (0,0) color flow
                 res_dict[leg_num] = [0, 0]
@@ -546,7 +549,7 @@ class ColorMatrix(dict):
 
         self.col_matrix_fixed_Nc = {}
         self.inverted_col_matrix = {}
-
+        
         self._col_basis1 = col_basis
         if col_basis2:
             self._col_basis2 = col_basis2
@@ -572,7 +575,6 @@ class ColorMatrix(dict):
                     enumerate(sorted(self._col_basis1.keys())):
             for i2, struct2 in \
                     enumerate(sorted(self._col_basis2.keys())):
-
                 # Only scan upper right triangle if symmetric
                 if is_symmetric and i2 < i1:
                     continue
@@ -712,13 +714,18 @@ class ColorMatrix(dict):
         appearing in struct1. Assumes internal summed indices are negative."""
 
         # First, determines what is the smallest index appearing in struct1
-        min_index = min(reduce(operator.add,
-                                [list(elem[1]) for elem in struct1])) - 1
+        #list2 = reduce(operator.add,[list(elem[1]) for elem in struct1])
+        list2 = sum((list(elem[1]) for elem in struct1),[])
+        if not list2: 
+            min_index = -1
+        else:
+           min_index = min(list2) - 1
+
         # Second, determines the summed indices in struct2 and create a 
         # replacement dictionary
         repl_dict = {}
-        list2 = reduce(operator.add,
-                       [list(elem[1]) for elem in struct1])
+        #list2 = reduce(operator.add,
+        #               [list(elem[1]) for elem in struct1])
         for summed_index in list(set([i for i in list2 \
                                       if list2.count(i) == 2])):
             repl_dict[summed_index] = min_index
@@ -745,5 +752,8 @@ class ColorMatrix(dict):
     @staticmethod
     def lcmm(*args):
         """Return lcm of args."""
-        return reduce(ColorMatrix.lcm, args)
+        if args:
+            return reduce(ColorMatrix.lcm, args)
+        else:
+            return 1
 

@@ -41,7 +41,6 @@ _input_file_path = os.path.join(_file_path, os.path.pardir, os.path.pardir,
 class IOExportFKSTest(IOTests.IOTestManager):
     """Test class for the export fks module"""
 
-
     def generate(self, process, model, multiparticles=[]):
         """Create a process"""
 
@@ -70,4 +69,7 @@ class IOExportFKSTest(IOTests.IOTestManager):
         self.generate(['p p > t t~ [real=QCD]'], 'sm')
 
 
-
+    @IOTests.createIOTest()
+    def testIO_test_pptt_fks_loonly(self):
+        """ target: SubProcesses/[P0.*\/.+\.(inc|f)]"""
+        self.generate(['p p > t t~ [LOonly=QCD]'], 'sm')
