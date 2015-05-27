@@ -4154,10 +4154,9 @@ c           This is dummy particle used in multiparticle vertices
     #===========================================================================
     # write_driver
     #===========================================================================
-    def write_driver(self, writer, ncomb, n_grouped_proc, v5=True):
+    def write_driver(self, writer, ncomb, n_grouped_proc, v5=True, **opt):
         """Write the SubProcess/driver.f file for MG4"""
 
-        misc.sprint("call write driver")
         path = pjoin(_file_path,'iolibs','template_files','madevent_driver.f')
         
         if self.model_name == 'mssm' or self.model_name.startswith('mssm-'):
@@ -4171,7 +4170,9 @@ c           This is dummy particle used in multiparticle vertices
         # twice for each IMIRROR.
         replace_dict = {'param_card_name':card, 
                         'ncomb':ncomb,
-                        'hel_init_points':n_grouped_proc*10*2}
+                        'hel_init_points':n_grouped_proc*10*2,
+                        'cf_dimension': 1} #this last arguem 
+        replace_dict.update(opt)
         if v5:
             replace_dict['secondparam']=',.true.'
         else:
@@ -4490,7 +4491,8 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
 
         filename = 'driver.f'
         self.write_driver(writers.FortranWriter(filename),ncomb,
-                                  n_grouped_proc=len(matrix_elements), v5=False)
+                                  n_grouped_proc=len(matrix_elements), v5=False,
+                                  matrix_element=matrix_elements)
 
         for ime, matrix_element in \
                 enumerate(matrix_elements):

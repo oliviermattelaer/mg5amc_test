@@ -11,6 +11,7 @@ C for the point in phase space P(0:3,NEXTERNAL)
 C  
 %(process_lines)s
 C  
+      use DiscreteSampler
       IMPLICIT NONE
 C  
 C CONSTANTS
@@ -60,6 +61,9 @@ C
     SAVE FRAC,GOODHEL,T_IDENT,ICOUNT
     DATA ICOUNT/0/
     DOUBLE PRECISION ANSCF(NPERMS)
+C       This is just to temporarily store the reference grid for helicity of the DiscreteSampler so as to obtain its number of entries with ref_helicity_grid%%n_tot_entries
+    type(SampledDimension) ref_helicity_grid
+    
 C  
 C GLOBAL VARIABLES
 C  
@@ -100,10 +104,45 @@ C ----------
 C BEGIN CODE
 C ----------
     NTRY(IMIRROR)=NTRY(IMIRROR)+1
-
-    IF (NTRY(IMIRROR).eq.1) THEN
-        call generate_CF_integration_basis()
-    ENDIF    
+    
+!   If the CF grid status is 0, this means that it is not yet initialized.
+    IF(DS_get_dim_status('color_flow').eq.0.or.cf_picked.eq.-1) THEN
+        DO I=1, NPERMS ! loop over color-flow
+           T=0
+           DO J=1,NCOMB ! loop over helicity        
+c           Get permutation/color flow
+            CALL GETPERM%(proc_id)s(I, PERM)
+            TS(J)=MATRIX%(proc_id)s(P,NHEL(1,J),PERM,.FALSE.,1)
+            DO JJ=1,nincoming
+               IF(POL(JJ).NE.1d0.AND.NHEL(JJ,I).EQ.INT(SIGN(1d0,POL(JJ)))) THEN
+                  TS(J)=TS(J)*ABS(POL(JJ))
+               ELSE IF(POL(JJ).NE.1d0)THEN
+                  TS(J)=TS(J)*(2d0-ABS(POL(JJ)))
+               ENDIF
+            ENDDO
+            call DS_add_entry('Helicity',J,TS(J))
+            call DS_add_entry('color_flow',I,T)
+            T = T + TS(J)
+           ENDDO
+        ENDDO
+        IF(NTRY(IMIRROR).EQ.(MAXTRIES+1)) THEN
+         write(*,*) "calling reset variable"
+         call reset_cumulative_variable() ! avoid biais of the initialization
+        ENDIF
+        ref_helicity_grid = DS_get_dimension(ref_grid,'Helicity')
+        IF((DS_get_dim_status('Helicity').eq.1).and.(ref_helicity_grid%%n_tot_entries.eq.0)) then 
+!           If we finished the initialization we can update the grid so as to start sampling over it.
+!           However the grid will now be filled by dsample with different kind of weights (including pdf, flux, etc...) so by setting the grid_mode of the reference grid to 'initialization' we make sure it will be overwritten (as opposed to 'combined') by the running grid at the next update.
+            write(*,*) "calling the first(?) update of the grid"
+            CALL DS_UPDATE_GRID('Helicity')
+            CALL DS_SET_GRID_MODE('Helicity','init')
+            CALL DS_UPDATE_GRID('color_flow')
+            CALL DS_SET_GRID_MODE('color_flow','init')
+          endif 
+          CF_PICKED = -1
+          HEL_PICKED = -1
+    ENDIF
+    
     
     IF (multi_channel) THEN
         DO I=1,NDIAGS
@@ -125,29 +164,39 @@ C ----------
           TSCF(I,J)=0d0
        ENDDO 
     ENDDO
-    NSELPERMS=MIN(NUMPERMS,NPERMS)
-    IF(NSELPERMS.EQ.0) NSELPERMS=NPERMS
-    IF(NTRY(IMIRROR).EQ.1)THEN
-c     Calculate summed permutation weight
-      TOTFACT=NPERMS
-c      FRAC=NSELPERMS*1D0/TOTFACT
+    
+    IF (HEL_PICKED.eq.-1) THEN
+        ANS=1d0
+        return
     ENDIF
+    
+    NSELPERMS = 1 ! For the moment only one CF by PS point
+    
+c    NSELPERMS=MIN(NUMPERMS,NPERMS)
+c    IF(NSELPERMS.EQ.0) NSELPERMS=NPERMS
+c    IF(NTRY(IMIRROR).EQ.1)THEN
+c     Calculate summed permutation weight
+c      TOTFACT=NPERMS
+c      FRAC=NSELPERMS*1D0/TOTFACT
+c    ENDIF
 c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
-      JHELBK=JHEL(IMIRROR)
-      IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
-         NUPPER=NCOMB
+c      JHELBK=JHEL(IMIRROR)
+c      IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
+c         NUPPER=NCOMB
          HWGT=1.
-      ELSE
-         NUPPER=ISHEL(IMIRROR)
-         HWGT = REAL(NGOOD(IMIRROR))/REAL(ISHEL(IMIRROR))
-      ENDIF
+c      ELSE
+c         NUPPER=ISHEL(IMIRROR)
+c         HWGT = REAL(NGOOD(IMIRROR))/REAL(ISHEL(IMIRROR))
+c      ENDIF
  10 FIRSTFLOW=.TRUE.
-c     Choose permutations completely randomly ! need to be improve!
-      CALL SELECT_COLOR_FLOW(NSELPERMS, .true., SUBDIAG(1), NSELPERM, JAC)
-c     Start loop over chosen permutations
+c     Color-flow already selected!
+c      CALL SELECT_COLOR_FLOW(NSELPERMS, .true., SUBDIAG(1), NSELPERM, JAC)
+c     Start loop over chosen permutations ! only one for the moment.
+      NSELPERM(1) = CF_PICKED
+      JAC(1) = cf_jacobian
       DO ISEL=1,NSELPERMS
 c     Reset helicity info
-        JHEL(IMIRROR)=JHELBK
+        JHEL(IMIRROR)= HEL_PICKED
 c     Get permutation
         IPERM=NSELPERM(ISEL)
         CALL GETPERM%(proc_id)s(IPERM,PERM)
@@ -158,21 +207,23 @@ C       Reset if above highest relevant value
            IF(ICOUNT.EQ.NLCFACT**(ICO-1)+1) ICOUNT=1
         ENDIF
 c     Start loop over helicities
-        DO J=1,NUPPER
-          IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
-            I=J
-            IF(.NOT.GOODHEL(I,IMIRROR) .AND. NTRY(IMIRROR) .GT. MAXTRIES) CYCLE
-          ELSE
-            JHEL(IMIRROR)=JHEL(IMIRROR)+1
-            IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
-            I = IGOOD(JHEL(IMIRROR),IMIRROR)
-          ENDIF
-          IF(T_IDENT(I,IMIRROR).LT.0) THEN
+c        DO J=1,NUPPER
+c          IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
+c            I=J
+c            IF(.NOT.GOODHEL(I,IMIRROR) .AND. NTRY(IMIRROR) .GT. MAXTRIES) CYCLE
+c          ELSE
+c            JHEL(IMIRROR)=JHEL(IMIRROR)+1
+c            IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
+c            I = IGOOD(JHEL(IMIRROR),IMIRROR)
+c          ENDIF
+
+          I = HEL_PICKED
+C          IF(T_IDENT(I,IMIRROR).LT.0) THEN
 C         Calculate matrix element if no identical helicity
              T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
-          ELSE IF(TS(T_IDENT(I,IMIRROR)).EQ.0)THEN
-             T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
-          ENDIF
+C          ELSE IF(TS(T_IDENT(I,IMIRROR)).EQ.0)THEN
+C             T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
+C          ENDIF
           IF(ICO.GT.1.AND.MOD(ICOUNT,NLCFACT).EQ.0) THEN
 C         Sample NLC contributions
             T=T+NLCFACT*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,2)
@@ -191,28 +242,29 @@ C         Sample NNLC and higher contributions
             ENDIF
           ENDDO
           TSCF(I,IPERM) = TSCF(I,IPERM) + T*HWGT*JAC(ISEL)
-        ENDDO
+c        ENDDO
         FIRSTFLOW=.FALSE.
 C       Calculate ANSCF 
+        ANSCF(IPERM) = TSCF(I,IPERM)
 c       First reset helicity info
 c        JHEL(IMIRROR)=JHELBK
-        DO J=1,NUPPER
-          IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
-            I=J
-            IF(.NOT.GOODHEL(I,IMIRROR) .AND. NTRY(IMIRROR) .GT. MAXTRIES) CYCLE
-          ELSE
-            JHEL(IMIRROR)=JHEL(IMIRROR)+1
-            IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
-            I = IGOOD(JHEL(IMIRROR),IMIRROR)
-          ENDIF
-          IF(T_IDENT(I,IMIRROR).GT.0.AND.TSCF(MAX(1,T_IDENT(I,IMIRROR)),IPERM).NE.0)THEN                                                                                                                    
+c        DO J=1,NUPPER
+c          IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
+c            I=J
+c            IF(.NOT.GOODHEL(I,IMIRROR) .AND. NTRY(IMIRROR) .GT. MAXTRIES) CYCLE
+c          ELSE
+c            JHEL(IMIRROR)=JHEL(IMIRROR)+1
+c            IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
+c            I = IGOOD(JHEL(IMIRROR),IMIRROR)
+c          ENDIF
+c          IF(T_IDENT(I,IMIRROR).GT.0.AND.TSCF(MAX(1,T_IDENT(I,IMIRROR)),IPERM).NE.0)THEN                                                                                                                    
 C           If identical helicity, set TS(I) to that value                                                                                                                                                    
-            TSCF(I,IPERM)=TSCF(T_IDENT(I,IMIRROR),IPERM)
-          ENDIF
-          ANSCF(IPERM)=ANSCF(IPERM)+DABS(TSCF(I,IPERM))
-        ENDDO
+c            TSCF(I,IPERM)=TSCF(T_IDENT(I,IMIRROR),IPERM)
+c          ENDIF
+c          ANSCF(IPERM)=ANSCF(IPERM)+DABS(TSCF(I,IPERM))
+c        ENDDO
 C     Determine which helicities to include
-      IF(NTRY(IMIRROR).LE.MAXTRIES)THEN
+      IF(HEL_PICKED.eq.-1.and.NTRY(IMIRROR).LE.MAXTRIES)THEN
         DO I=1,NCOMB
           IF (.NOT.GOODHEL(I,IMIRROR) .AND. (DABS(TSCF(I,IPERM)).GT.ANSCF(IPERM)*LIMHEL/NCOMB)) THEN
             GOODHEL(I,IMIRROR)=.TRUE.
@@ -235,20 +287,17 @@ C           Look for identical helicities
         ENDDO
       ENDIF        
 C     Set how many helicities to sum over
-      IF(NTRY(IMIRROR).EQ.MAXTRIES)THEN
-        ISHEL(IMIRROR)=MIN(ISUM_HEL,NGOOD(IMIRROR))
-      ENDIF
+c      IF(NTRY(IMIRROR).EQ.MAXTRIES)THEN
+c        ISHEL(IMIRROR)=MIN(ISUM_HEL,NGOOD(IMIRROR))
+c      ENDIF
 
 
       IF (MULTI_CHANNEL) THEN
-          IF (CF_BASIS(SUBDIAG(1),IPERM).AND.AMP2(SUBDIAG(1)).GT.0D0)THEN
+          IF (AMP2(SUBDIAG(1)).GT.0D0)THEN
             XTOT=0D0
             DO J=1,NDIAGS
-              IF (CF_BASIS(J,IPERM))THEN
                 XTOT = XTOT + AMP2(J)
-              ENDIF
             ENDDO
-
             ANSCF(IPERM) = ANSCF(IPERM)*AMP2(SUBDIAG(1))/XTOT
           ELSE
             ANSCF(IPERM) = 0D0
@@ -257,7 +306,7 @@ C     Set how many helicities to sum over
       ENDDO        
       DO I = 1,NPERMS
         ANS = ANS +ANSCF(I)
-      ENDDO
+      ENDDO      
       do i = 1,NCOMB
          do j = 1,NPERMS
             TS(i) = TS(i) +TSCF(i,j)
@@ -266,7 +315,11 @@ C     Set how many helicities to sum over
         
 
 c     Choose a helicity to write out
-      IF (ISHEL(IMIRROR) .EQ. 1) THEN
+      IF (HEL_PICKED.ne.-1) THEN
+         WRITE(HEL_BUFF,'(20i5)')(NHEL(II,HEL_PICKED),II=1,NEXTERNAL)
+c         Set right sign for ANS, based on sign of chosen helicity
+         ANS=DSIGN(ANS,TS(HEL_PICKED))      
+      ELSEIF (ISHEL(IMIRROR) .EQ. 1) THEN
          WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
 c         Set right sign for ANS, based on sign of chosen helicity
          ANS=DSIGN(ANS,TS(I))

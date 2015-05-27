@@ -35,9 +35,16 @@ c*************************************************************************
       PARAMETER(MAXTRIES=100,NUMPERMS=10)
       INTEGER NLCFACT
       PARAMETER(NLCFACT=10)
-C     To pass the helicity configuration chosen by the DiscreteSampler to 
+C     To pass the helicity/ColorFlow configuration chosen by the DiscreteSampler to 
 C     matrix<i>.f
       double precision hel_jacobian
       INTEGER HEL_PICKED
       COMMON/HEL_PICKED/HEL_PICKED,hel_jacobian
-
+      double precision cf_jacobian
+      INTEGER CF_PICKED
+      COMMON/CF_PICKED/CF_PICKED,cf_jacobian
+C    
+C     PARAMETER TO DISTINGUISH Color ordered computation from the rest
+      LOGICAL COLOR_ORDERED
+      data COLOR_ORDERED/.False./
+    

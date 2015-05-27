@@ -26,7 +26,9 @@ c              p        == transformed points call is f(p(x))
 c     COMMON:
 c           hel_picked  == Modified integer in gen_ps.inc to pass the
 c                          chosen helicity configuration to matrix<i>.f
-c
+c           CF_picked   == Modified integer in gen_ps.inc to pass the
+c                          color-flow configuration to matrix<i>.f
+c                          [for color ordered computation]
 c**************************************************************************
       implicit none
 c
@@ -61,8 +63,15 @@ c-----
 C     Pick the helicity configuration from the DiscreteSampler if user
 C     decided to perform MC over helicity configurations.
       if(ISUM_HEL.ne.0) then
-        call sample_get_discrete_x(wgt,hel_picked,iconfig,'Helicity')
+        call sample_get_discrete_x('Helicity',iconfig,hel_picked, hel_jacobian)
       endif
+      if(COLOR_ORDERED) then
+        call sample_get_discrete_x('color_flow',iconfig, cf_picked, cf_jacobian)
+      else
+        cf_jacobian = 1d0
+        cf_picked = -1
+      endif
+
       end
 
       subroutine gen_mom(iconfig,mincfig,maxcfig,invar,wgt,x,p1)

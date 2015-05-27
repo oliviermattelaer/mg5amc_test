@@ -419,10 +419,13 @@ class SubProcessGroup(base_objects.PhysicsObject):
     #===========================================================================
     # group_amplitudes
     #===========================================================================
-    @classmethod
-    def group_amplitudes(cls, amplitudes, criteria='madevent', matrix_elements_opts={}):
+    @staticmethod
+    def group_amplitudes(cls, amplitudes=None, criteria='madevent', matrix_elements_opts={}):
         """Return a SubProcessGroupList with the amplitudes divided
         into subprocess groups"""
+
+        if not amplitudes:
+            cls, amplitudes = SubProcessGroup, cls
 
         assert isinstance(amplitudes, diagram_generation.AmplitudeList), \
                   "Argument to group_amplitudes must be AmplitudeList"

@@ -976,6 +976,8 @@ c************************************************************************
       INTEGER                    ISUM_HEL
       LOGICAL                    MULTI_CHANNEL
       COMMON/TO_MATRIX/ISUM_HEL, MULTI_CHANNEL
+      LOGICAL COLOR_ORDERED
+      COMMON/COLOR_ORDERED/COLOR_ORDERED
 c
 c     Begin code
 c
@@ -987,6 +989,11 @@ c
         call write_good_hel(stream_id)  
       endif
       
+      if(color_ordered)then
+        call DS_write_grid(stream_id, dim_name='color_flow',
+     &                                              grid_type=grid_type)
+      endif
+
 
 
       if(MC_grouped_subproc.and.
@@ -1015,12 +1022,13 @@ c************************************************************************
 
       end subroutine read_discrete_grids
 
-      subroutine sample_get_discrete_x(wgt,picked_bin,iconfig,dim_name)
+      subroutine sample_get_discrete_x(dim_name, iconfig, picked_bin, local_jac)
 c************************************************************************
-c     Returns maxdim random numbers between 0 and 1, and the wgt
-c     associated with this set of points, and the iteration number
-c     This routine chooses the point within the range specified by
-c     xmin and xmax for dimension j in configuration ipole
+c     Returns the bin picked by the discrete sampler (picked_bin)
+c             and the associated jacobian (local_jac)
+c     For the dimension of the discrete sampler name dim_name
+c     iconfig is suppose to be a dummy variable
+c     (it is passed to the random number generator)
 c************************************************************************
       use DiscreteSampler
 
@@ -1034,7 +1042,7 @@ C     This variable iconfig is what corresponds to ipole in sample_get_x
 C     and is used for random number generation
       integer iconfig
 C     Local variables
-      real*8 jacobian
+      real*8 jacobian, local_jac
       real*8 rdm
       integer dummy
 c     
@@ -1046,11 +1054,11 @@ c     The fourth argument is not used and therefore a dummy
       call ntuple(rdm,0.0d0,1.0d0,dummy,iconfig)
 C     Pick a point using the DiscreteSampler module
       CALL DS_get_point(dim_name, rdm, picked_bin, jacobian, 'norm') 
-C     Store the helicity sampling jacobian so that it can be divided out
-c     of wgt later when adding an entry to the DiscreteSampler helicity
+C     Store the sampling jacobian so that it can be divided out
+c     of wgt later when adding an entry to the DiscreteSampler
 c      grid. Also we don't want to multiply wgt by it yet since this is
 c     taken care of at the level of matrix<i> already.
-      hel_jacobian = jacobian
+      local_jac = jacobian
       
       end subroutine sample_get_discrete_x
 
@@ -1413,7 +1421,11 @@ c       and added individually to the grid directly by matrix<i>.f so
 c       that they shouldn't be added here.
         if(ISUM_HEL.ne.0.and.HEL_PICKED.ne.-1.and.
      &                            (.NOT.CUTSDONE.or.CUTSPASSED)) then
-          call DS_add_entry('Helicity',HEL_PICKED,(wgt/hel_jacobian))
+          call DS_add_entry('Helicity',HEL_PICKED,(wgt/hel_jacobian/cf_jacobian))
+        endif
+        if(COLOR_ORDERED.and.CF_PICKED.ne.-1.and.
+     &                            (.NOT.CUTSDONE.or.CUTSPASSED)) then
+          call DS_add_entry('color_flow',CF_PICKED,(wgt/hel_jacobian/cf_jacobian))
         endif
 
       end subroutine add_entry_to_discrete_dimensions
@@ -1459,6 +1471,11 @@ C       Security in case of all helicity vanishing (G1 of gg > qq )
       if(MC_grouped_subproc.and.DS_get_dim_status('grouped_processes').ne.-1) then
         call DS_update_grid('grouped_processes', filterZeros=.True.)
       endif
+
+      if(COLOR_ORDERED)then
+        call DS_update_grid('color_flow', filterZeros=.True.)
+      endif
+
 
       end subroutine update_discrete_dimensions
 

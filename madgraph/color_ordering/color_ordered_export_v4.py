@@ -943,10 +943,18 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                                       'internal', 'gen_cardhtml-pl')],
                         stdout = devnull)
 
+
+        # modify genps.inc to set the COLOR_ORDERED logical to true
+        text = open(os.path.join('Source', 'genps.inc')).read()
+        assert "COLOR_ORDERED/.False./" in text
+        text = text.replace("COLOR_ORDERED/.False./", "COLOR_ORDERED/.True./")
+        open(os.path.join('Source', 'genps.inc'),"w").write(text)
+
         #return to the initial dir
         os.chdir(old_pos)               
 
-    
+    def write_driver(self, writer, ncomb, n_grouped_proc, v5=True):
+        """Write the SubProcess/driver.f file for MG4"""
 
     def write_matrix_element_v4(self, writer, matrix_element, helas_call_writer,
                                 proc_id = "", config_map = [], subproc_number=0):
@@ -1227,7 +1235,21 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
         """Just pass on to ProcessExporterFortranCOME"""
 
         return ProcessExporterFortranCOME.get_icolamp_lines(self, *args, **opts)
+    
+    def write_driver(self, writer, ncomb, n_grouped_proc, v5=True, **opt):
+        """Write the SubProcess/driver.f file for MG4"""
         
+        assert 'matrix_element' in opt
+        matrix_element = opt["matrix_element"]
+        opt["cf_dimension"] =  len(matrix_element[0].get('permutations'))
+        
+        misc.sprint(super(ProcessExporterFortranCOMEGroup, self).write_driver)
+        #return super(ProcessExporterFortranCOMEGroup, self).write_driver(writer, ncomb, n_grouped_proc, v5=v5,
+        #                                                          **opt)
+        n_grouped_proc *= opt["cf_dimension"]
+        return export_v4.ProcessExporterFortranMEGroup.write_driver(self,writer, ncomb, n_grouped_proc, v5=v5,
+                                                                  **opt)
+
 
 #===============================================================================
 # COFortranUFOHelasCallWriter

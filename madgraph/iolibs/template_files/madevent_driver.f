@@ -202,6 +202,7 @@ c     Constants
 c
       include 'nexternal.inc'
       include 'maxparticles.inc'
+
       integer NCOMB
       parameter (NCOMB=%(ncomb)i)
 c
@@ -227,7 +228,8 @@ c
 
       integer        lbw(0:nexternal)  !Use of B.W.
       common /to_BW/ lbw
-
+      logical color_ordered
+      common/color_ordered/color_ordered
 c-----
 c  Begin Code
 c-----
@@ -271,6 +273,10 @@ c-----
          write(*,*) 'Monte-Carlo over helicities'
 c        initialize the discrete sampler module
          call DS_register_dimension('Helicity',NCOMB)
+         if(COLOR_ORDERED) THEN
+            call DS_register_dimension('color_flow', %(cf_dimension)i)
+            call DS_set_min_points(%(hel_init_points)d,'color_flow')
+         ENDIF
 c        Also set the minimum number of points for which each helicity
 c        should be probed before the grid is used for sampling.
 C        Typically 10 * n_matrix<i>
