@@ -46,5 +46,5 @@ C     matrix<i>.f
 C    
 C     PARAMETER TO DISTINGUISH Color ordered computation from the rest
       LOGICAL COLOR_ORDERED
-      data COLOR_ORDERED/.False./
+      COMMON/TO_COLOR_ORDERED/COLOR_ORDERED
     

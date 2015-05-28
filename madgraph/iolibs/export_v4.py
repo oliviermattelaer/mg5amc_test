@@ -4171,7 +4171,9 @@ c           This is dummy particle used in multiparticle vertices
         replace_dict = {'param_card_name':card, 
                         'ncomb':ncomb,
                         'hel_init_points':n_grouped_proc*10*2,
-                        'cf_dimension': 1} #this last arguem 
+                        'cf_dimension': 1, #for color ordered output
+                        'color_ordered': '.false.'  #for color ordered output
+                        } 
         replace_dict.update(opt)
         if v5:
             replace_dict['secondparam']=',.true.'

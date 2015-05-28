@@ -229,10 +229,11 @@ c
       integer        lbw(0:nexternal)  !Use of B.W.
       common /to_BW/ lbw
       logical color_ordered
-      common/color_ordered/color_ordered
+      common/to_color_ordered/color_ordered
 c-----
 c  Begin Code
 c-----
+      color_ordered = %(color_ordered)s
       write(*,'(a)') 'Enter number of events and max and min iterations: '
       read(*,*) ncall,itmax,itmin
       write(*,*) 'Number of events and iterations ',ncall,itmax,itmin
