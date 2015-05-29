@@ -395,16 +395,16 @@ class EventFile(object):
                     event.wgt = -1 * max(abs(wgt), max_wgt)
                     if abs(wgt) > max_wgt:
                         trunc_cross += abs(wgt) - max_wgt
-                    if event_target ==0 or nb_keep <= event_target: 
+                    if (event_target ==0 or nb_keep <= event_target) and outputpath:
                         outfile.write(str(event))
             
             if event_target and nb_keep > event_target:
+                if not outputpath:
+                    #no outputpath define -> wants only the nb of unweighted events
+                    continue                    
                 if event_target and i != nb_try-1 and nb_keep >= event_target *1.05:
                     outfile.close()
 #                    logger.log(log_level, "Found Too much event %s. Try to reduce truncation" % nb_keep)
-                    continue
-                elif not outputpath:
-                    #no outputpath define -> wants only the nb of unweighted events
                     continue
                 else:
                     outfile.write("</LesHouchesEvents>\n")

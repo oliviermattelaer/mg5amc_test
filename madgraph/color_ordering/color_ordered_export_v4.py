@@ -125,27 +125,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return len(filter(lambda call: call.find('#') != 0, helas_calls))
 
-    def write_make_chcf_table(self, writer, matrix_element, write=True):
-        """Return the file make_chcf_table which creates the 
-        table for the PS integration channeling"""
-        
-        replace_dict = {}
-        # Extract ndiags
-        ndiags = len(matrix_element.get('diagrams'))
-        replace_dict['ndiags'] = ndiags
-        replace_dict['nperms'] = len(matrix_element.get('permutations'))
-        
-        if write:
-            file = open(os.path.join(_file_path, \
-                                 'color_ordering/template_files/co_make_chcf_table.f')
-                        ).read()
-            file = file % replace_dict
-
-            # Write the file
-            writer.writelines(file)
-        else:
-            return replace_dict 
-
        
     def get_ic_data_line(self, flow):
         """Get the IC line, giving sign for external HELAS wavefunctions"""
@@ -683,10 +662,6 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                 flow,
                 co_helas_call_writer)
 
-        filename = 'make_chcf_table.f'
-        self.write_make_chcf_table(writers.FortranWriter(filename),
-                                                                 matrix_element)
-
         filename = 'auto_dsig.f'
         self.write_auto_dsig_file(writers.FortranWriter(filename),
                              matrix_element)
@@ -1192,12 +1167,6 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
                     flow,
                     co_helas_call_writer,
                     me_flag)
-          
-            filename = os.path.join(self.dir_path,
-                                        'SubProcesses',
-                                        subprocdir,
-                                        'make_chcf_table_%d.f' % ime)
-            self.write_make_chcf_table(writers.FortranWriter(filename), me)
 
         # Rewrite maxamps.inc with correct values for flow
         filename = os.path.join(self.dir_path,
@@ -1237,7 +1206,7 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
         opt["cf_dimension"] =  len(matrix_element[0].get('permutations'))
         opt['color_ordered'] = '.true.'
         
-        n_grouped_proc *= opt["cf_dimension"]
+        n_grouped_proc *= 2
         return export_v4.ProcessExporterFortranMEGroup.write_driver(self,writer, ncomb, n_grouped_proc, v5=v5,
                                                                   **opt)
 

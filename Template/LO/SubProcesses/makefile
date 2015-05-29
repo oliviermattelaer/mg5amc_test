@@ -27,8 +27,8 @@ PROCESS= driver.o myamp.o genps.o unwgt.o setcuts.o get_color.o ipnext.o idenpar
          cuts.o cluster.o reweight.o initcluster.o addmothers.o setscales.o \
          $(patsubst %.f,%.o,$(wildcard auto_dsig*.f)) \
          $(patsubst %.f,%.o,$(wildcard matrix*.f)) \
-         $(patsubst %.f,%.o,$(wildcard flow*.f)) \
-         $(patsubst %.f,%.o,$(wildcard make_chcf*.f)) 
+         $(patsubst %.f,%.o,$(wildcard flow*.f))
+         
 SYMMETRY = symmetry.o idenparts.o 
 
 # Binaries

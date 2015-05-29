@@ -174,7 +174,7 @@ class PeriferalDiagramTagChainLink(OrderDiagramTagChainLink):
             # A decay vertex has one non-zero mass parameter coming
             # only once
             masses = [p.get('mass') for p in \
-                      model.get_interaction(self.vertex_id[0]).get('particles') \
+                      model.get_interaction(self.vertex_id[0][0]).get('particles') \
                       if p.get('mass').lower() != 'zero']
             for mass in set(masses):
                 if len([m for m in masses if m == mass]) == 1:

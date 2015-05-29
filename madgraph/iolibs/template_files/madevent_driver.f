@@ -269,6 +269,10 @@ c-----
       if (i .eq. 0) then
          isum_hel = 0
          write(*,*) 'Explicitly summing over helicities'
+         if(COLOR_ORDERED) THEN
+            call DS_register_dimension('color_flow', %(cf_dimension)i)
+            call DS_set_min_points(%(hel_init_points)d,'color_flow')
+         ENDIF
       else
          isum_hel= i
          write(*,*) 'Monte-Carlo over helicities'

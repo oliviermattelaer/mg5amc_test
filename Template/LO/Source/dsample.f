@@ -977,7 +977,7 @@ c************************************************************************
       LOGICAL                    MULTI_CHANNEL
       COMMON/TO_MATRIX/ISUM_HEL, MULTI_CHANNEL
       LOGICAL COLOR_ORDERED
-      COMMON/COLOR_ORDERED/COLOR_ORDERED
+      COMMON/TO_COLOR_ORDERED/COLOR_ORDERED
 c
 c     Begin code
 c
@@ -1053,7 +1053,7 @@ c     The fourth argument is not used and therefore a dummy
       dummy = 0
       call ntuple(rdm,0.0d0,1.0d0,dummy,iconfig)
 C     Pick a point using the DiscreteSampler module
-      CALL DS_get_point(dim_name, rdm, picked_bin, jacobian, 'norm') 
+      CALL DS_get_point(dim_name, rdm, picked_bin, jacobian, 'norm')
 C     Store the sampling jacobian so that it can be divided out
 c     of wgt later when adding an entry to the DiscreteSampler
 c      grid. Also we don't want to multiply wgt by it yet since this is
@@ -1421,11 +1421,11 @@ c       and added individually to the grid directly by matrix<i>.f so
 c       that they shouldn't be added here.
         if(ISUM_HEL.ne.0.and.HEL_PICKED.ne.-1.and.
      &                            (.NOT.CUTSDONE.or.CUTSPASSED)) then
-          call DS_add_entry('Helicity',HEL_PICKED,(wgt/hel_jacobian/cf_jacobian))
+          call DS_add_entry('Helicity',HEL_PICKED,(wgt/hel_jacobian))
         endif
         if(COLOR_ORDERED.and.CF_PICKED.ne.-1.and.
      &                            (.NOT.CUTSDONE.or.CUTSPASSED)) then
-          call DS_add_entry('color_flow',CF_PICKED,(wgt/hel_jacobian/cf_jacobian))
+          call DS_add_entry('color_flow',CF_PICKED,(wgt/cf_jacobian))
         endif
 
       end subroutine add_entry_to_discrete_dimensions

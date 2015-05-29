@@ -64,6 +64,9 @@ C     Pick the helicity configuration from the DiscreteSampler if user
 C     decided to perform MC over helicity configurations.
       if(ISUM_HEL.ne.0) then
         call sample_get_discrete_x('Helicity',iconfig,hel_picked, hel_jacobian)
+      else
+        hel_picked = -1
+        hel_jacobian = 1d0
       endif
       if(COLOR_ORDERED) then
         call sample_get_discrete_x('color_flow',iconfig, cf_picked, cf_jacobian)

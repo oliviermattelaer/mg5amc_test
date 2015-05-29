@@ -62,7 +62,7 @@ C
     DATA ICOUNT/0/
     DOUBLE PRECISION ANSCF(NPERMS)
 C       This is just to temporarily store the reference grid for helicity of the DiscreteSampler so as to obtain its number of entries with ref_helicity_grid%%n_tot_entries
-    type(SampledDimension) ref_helicity_grid
+    type(SampledDimension) ref_cf_grid
     
 C  
 C GLOBAL VARIABLES
@@ -85,9 +85,11 @@ C
 
     INTEGER IMIRROR
     COMMON/TO_MIRROR/ IMIRROR
-
-    LOGICAL CF_BASIS(NDIAGS,NPERMS)
-    COMMON/TO_CF_BASIS/CF_BASIS
+    
+C     To be able to control when the matrix<i> subroutine can add                                                                                                                                           
+C      entries to the grid for the MC over helicity configuration                                                                                                                                           
+    LOGICAL ALLOW_HELICITY_GRID_ENTRIES
+    COMMON/TO_ALLOW_HELICITY_GRID_ENTRIES/ALLOW_HELICITY_GRID_ENTRIES
 
 %(define_iconfigs_lines)s
     DATA IDUM /0/
@@ -113,36 +115,60 @@ C ----------
 c           Get permutation/color flow
             CALL GETPERM%(proc_id)s(I, PERM)
             TS(J)=MATRIX%(proc_id)s(P,NHEL(1,J),PERM,.FALSE.,1)
+
             DO JJ=1,nincoming
-               IF(POL(JJ).NE.1d0.AND.NHEL(JJ,I).EQ.INT(SIGN(1d0,POL(JJ)))) THEN
-                  TS(J)=TS(J)*ABS(POL(JJ))
-               ELSE IF(POL(JJ).NE.1d0)THEN
-                  TS(J)=TS(J)*(2d0-ABS(POL(JJ)))
+               IF(POL(JJ).NE.1d0)THEN
+                    IF(NHEL(JJ,J).EQ.INT(SIGN(1d0,POL(JJ)))) THEN
+                        TS(J)=TS(J)*ABS(POL(JJ))
+                    ELSE 
+                        TS(J)=TS(J)*(2d0-ABS(POL(JJ)))
+                    ENDIF
                ENDIF
             ENDDO
-            call DS_add_entry('Helicity',J,TS(J))
-            call DS_add_entry('color_flow',I,T)
+            if (ALLOW_HELICITY_GRID_ENTRIES.and.ISUM_HEL.ne.0) then
+                call DS_add_entry('Helicity',J,TS(J))
+                call DS_add_entry('color_flow',I,TS(J))
+            endif
             T = T + TS(J)
            ENDDO
+           if (ISUM_HEL.eq.0) then
+               call DS_add_entry('color_flow',I, T)
+c              check for irrrelevant helicity               
+               do J=1,NCOMB
+               IF (.NOT.GOODHEL(J,IMIRROR) .AND. (DABS(TS(J)).GT.T*LIMHEL/NCOMB)) THEN
+                   GOODHEL(J,IMIRROR) = .True.
+               endif
+               enddo
+c              Look for identical helicities
+c               DO JJ = 1, NCOMB
+c                    DO J=1,I-1
+c                        IF (TS(J).ne.0d0.)then
+c                            IF(DABS(TS(JJ)/TS(J)-1D0).LT.1D-12)THEN
+c                            PRINT *,'Found identical helicity ',I,J,TS(JJ)/T
+c                            T_IDENT(JJ,IMIRROR)=J
+c                         ENDIF
+c                     ENDDO
+c               ENDDO   
+           endif
         ENDDO
-        IF(NTRY(IMIRROR).EQ.(MAXTRIES+1)) THEN
-         write(*,*) "calling reset variable"
-         call reset_cumulative_variable() ! avoid biais of the initialization
-        ENDIF
-        ref_helicity_grid = DS_get_dimension(ref_grid,'Helicity')
-        IF((DS_get_dim_status('Helicity').eq.1).and.(ref_helicity_grid%%n_tot_entries.eq.0)) then 
-!           If we finished the initialization we can update the grid so as to start sampling over it.
-!           However the grid will now be filled by dsample with different kind of weights (including pdf, flux, etc...) so by setting the grid_mode of the reference grid to 'initialization' we make sure it will be overwritten (as opposed to 'combined') by the running grid at the next update.
-            write(*,*) "calling the first(?) update of the grid"
-            CALL DS_UPDATE_GRID('Helicity')
-            CALL DS_SET_GRID_MODE('Helicity','init')
-            CALL DS_UPDATE_GRID('color_flow')
-            CALL DS_SET_GRID_MODE('color_flow','init')
-          endif 
           CF_PICKED = -1
           HEL_PICKED = -1
+          ANS=1d0
+          RETURN
     ENDIF
-    
+    ref_cf_grid = DS_get_dimension(ref_grid,'color_flow')
+    IF((DS_get_dim_status('color_flow').eq.1).and.(ref_cf_grid%%n_tot_entries.eq.0)) then 
+!          If we finished the initialization we can update the grid so as to start sampling over it.
+!           However the grid will now be filled by dsample with different kind of weights (including pdf, flux, etc...) so by setting the grid_mode of the reference grid to 'initialization' we make sure it will be overwritten (as opposed to 'combined') by the running grid at the next update.
+       write(*,*) "calling the first(?) update of the grid"
+       if (ISUM_HEL.ne.0)then
+            CALL DS_UPDATE_GRID('Helicity')
+            CALL DS_SET_GRID_MODE('Helicity','init')
+       endif
+       CALL DS_UPDATE_GRID('color_flow')
+       CALL DS_SET_GRID_MODE('color_flow','init')
+       call reset_cumulative_variable() ! avoid biais of the initialization
+    endif 
     
     IF (multi_channel) THEN
         DO I=1,NDIAGS
@@ -165,11 +191,6 @@ c           Get permutation/color flow
        ENDDO 
     ENDDO
     
-    IF (HEL_PICKED.eq.-1) THEN
-        ANS=1d0
-        return
-    ENDIF
-    
     NSELPERMS = 1 ! For the moment only one CF by PS point
     
 c    NSELPERMS=MIN(NUMPERMS,NPERMS)
@@ -181,13 +202,13 @@ c      FRAC=NSELPERMS*1D0/TOTFACT
 c    ENDIF
 c   Decide between helicity all-sum case (ISUM_HEL=0) and partial sum case
 c      JHELBK=JHEL(IMIRROR)
-c      IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
-c         NUPPER=NCOMB
-         HWGT=1.
-c      ELSE
-c         NUPPER=ISHEL(IMIRROR)
-c         HWGT = REAL(NGOOD(IMIRROR))/REAL(ISHEL(IMIRROR))
-c      ENDIF
+      IF (ISUM_HEL .EQ. 0) THEN
+         NUPPER=NCOMB
+         HWGT=1
+      ELSE
+         NUPPER=1
+         HWGT = hel_jacobian
+      ENDIF
  10 FIRSTFLOW=.TRUE.
 c     Color-flow already selected!
 c      CALL SELECT_COLOR_FLOW(NSELPERMS, .true., SUBDIAG(1), NSELPERM, JAC)
@@ -207,33 +228,25 @@ C       Reset if above highest relevant value
            IF(ICOUNT.EQ.NLCFACT**(ICO-1)+1) ICOUNT=1
         ENDIF
 c     Start loop over helicities
-c        DO J=1,NUPPER
-c          IF (ISUM_HEL .EQ. 0 .OR. NTRY(IMIRROR) .LE. MAXTRIES) THEN
-c            I=J
-c            IF(.NOT.GOODHEL(I,IMIRROR) .AND. NTRY(IMIRROR) .GT. MAXTRIES) CYCLE
-c          ELSE
-c            JHEL(IMIRROR)=JHEL(IMIRROR)+1
-c            IF (JHEL(IMIRROR) .GT. NGOOD(IMIRROR)) JHEL(IMIRROR)=1
-c            I = IGOOD(JHEL(IMIRROR),IMIRROR)
-c          ENDIF
-
-          I = HEL_PICKED
-C          IF(T_IDENT(I,IMIRROR).LT.0) THEN
-C         Calculate matrix element if no identical helicity
-             T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
-C          ELSE IF(TS(T_IDENT(I,IMIRROR)).EQ.0)THEN
-C             T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
-C          ENDIF
-          IF(ICO.GT.1.AND.MOD(ICOUNT,NLCFACT).EQ.0) THEN
-C         Sample NLC contributions
-            T=T+NLCFACT*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,2)
-            IF(ICO.GT.2.AND.MOD(ICOUNT,NLCFACT**2).EQ.0) THEN
-C         Sample NNLC and higher contributions
-              DO JJ=3,ICO
-                T=T+NLCFACT**2*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)
-              ENDDO
-            ENDIF
+        DO J=1,NUPPER
+          IF (ISUM_HEL .EQ. 0) THEN
+            I= J
+            IF(.NOT.GOODHEL(I,IMIRROR)) CYCLE
+          ELSE
+            I = HEL_PICKED
           ENDIF
+C         Calculate matrix element
+          T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
+C         partial probing of subleading color only 1/NLCFACT point used         
+          IF(ICO.GT.1.AND.MOD(ICOUNT,NLCFACT).EQ.0) THEN
+                T=T+NLCFACT*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,2)
+                IF(ICO.GT.2.AND.MOD(ICOUNT,NLCFACT**2).EQ.0) THEN
+                DO JJ=3,ICO
+                 T=T+NLCFACT**2*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)
+                ENDDO
+                ENDIF
+          ENDIF
+C         END COMPUTE MATRIX ELEMENT
           DO JJ=1,NINCOMING
             IF(POL(JJ).NE.1D0.AND.NHEL(JJ,I).EQ.INT(SIGN(1D0,POL(JJ)))) THEN
               T=T*ABS(POL(JJ))
@@ -242,10 +255,10 @@ C         Sample NNLC and higher contributions
             ENDIF
           ENDDO
           TSCF(I,IPERM) = TSCF(I,IPERM) + T*HWGT*JAC(ISEL)
-c        ENDDO
+          ANSCF(IPERM) = ANSCF(IPERM) + T*HWGT*JAC(ISEL)
+        ENDDO ! end loop over helicities
         FIRSTFLOW=.FALSE.
-C       Calculate ANSCF 
-        ANSCF(IPERM) = TSCF(I,IPERM)
+        
 c       First reset helicity info
 c        JHEL(IMIRROR)=JHELBK
 c        DO J=1,NUPPER
@@ -263,34 +276,11 @@ c            TSCF(I,IPERM)=TSCF(T_IDENT(I,IMIRROR),IPERM)
 c          ENDIF
 c          ANSCF(IPERM)=ANSCF(IPERM)+DABS(TSCF(I,IPERM))
 c        ENDDO
-C     Determine which helicities to include
-      IF(HEL_PICKED.eq.-1.and.NTRY(IMIRROR).LE.MAXTRIES)THEN
-        DO I=1,NCOMB
-          IF (.NOT.GOODHEL(I,IMIRROR) .AND. (DABS(TSCF(I,IPERM)).GT.ANSCF(IPERM)*LIMHEL/NCOMB)) THEN
-            GOODHEL(I,IMIRROR)=.TRUE.
-            NGOOD(IMIRROR) = NGOOD(IMIRROR) +1
-            IGOOD(NGOOD(IMIRROR),IMIRROR) = I
-C           Look for identical helicities
-            DO J=1,I-1
-              IF (TSCF(J,IPERM).ne.0d0)then
-              IF(DABS(TSCF(I,IPERM)/TSCF(J,IPERM)-1D0).LT.1D-12)THEN
-                PRINT *,'Found identical helicity ',I,J,TSCF(I,IPERM)/ANSCF(IPERM)
-                T_IDENT(I,IMIRROR)=J
-                EXIT
-              ENDIF
-              endif
-            ENDDO
-            IF(T_IDENT(I,IMIRROR).LT.0)THEN
-              PRINT *,'Added good helicity ',I,TSCF(I,IPERM)/ANSCF(IPERM), ' in event ',NTRY(IMIRROR)
-            ENDIF
-          ENDIF
-        ENDDO
-      ENDIF        
+        
 C     Set how many helicities to sum over
 c      IF(NTRY(IMIRROR).EQ.MAXTRIES)THEN
 c        ISHEL(IMIRROR)=MIN(ISUM_HEL,NGOOD(IMIRROR))
 c      ENDIF
-
 
       IF (MULTI_CHANNEL) THEN
           IF (AMP2(SUBDIAG(1)).GT.0D0)THEN
@@ -338,6 +328,7 @@ c           Set right sign for ANS, based on sign of chosen helicity
  20     CONTINUE
       ENDIF
       ANS=ANS/DBLE(IDEN)
+      ANS = ANS
       END
 
 C     ------------------------------------------------------------
@@ -512,134 +503,4 @@ C ----------
          IF(OK) I=I+1
       ENDDO
       END
-
-    SUBROUTINE SELECT_COLOR_FLOW(NB_TO_SELECT, FLAT, CHANNEL, NSELPERM, JAC)
-    IMPLICIT NONE  
-c     PARAMETER      
-      INTEGER    NPERMS
-      PARAMETER (NPERMS=%(nperms)d)
-      INTEGER    NDIAGS
-      PARAMETER (NDIAGS=%(ndiags)d)  
-c     INPUT
-      INTEGER NB_TO_SELECT ! can be change if impossible to reach taht number.
-      LOGICAL FLAT
-      INTEGER CHANNEL ! current diagram under consideration
-c     OUTPUT
-      INTEGER NSELPERM(*)
-      DOUBLE PRECISION JAC(NPERMS)
-c     LOCAL
-      INTEGER ISEL,I,J,K
-      INTEGER  TOT_PICK, ALLOWED
-      DOUBLE PRECISION TOTAL,TMP
-      DOUBLE PRECISION LIMIT(0:NPERMS)
-      DOUBLE PRECISION RANDOM
-      DOUBLE PRECISION LOC_JAC       
-c     GLOBAL
-      LOGICAL CF_BASIS(NDIAGS, NPERMS)
-      COMMON/TO_CF_BASIS/CF_BASIS  
-c
-      INTEGER FACTORIAL
-      include 'maxamps.inc' ! define MAXAMPS and MAXFLOW       
-      DOUBLE PRECISION AMP2(MAXAMPS),JAMP2(0:MAXFLOW)
-      COMMON/TO_AMPS/  AMP2, JAMP2       
-       
-      TOTAL=0d0
-      JAC=1d0
-c      
-c    PREPARE GRID FOR PICKING COLOR FLOW RANDOMLY
-c   
-      LIMIT(0) = 0d0
-      ALLOWED=0
-      IF (FLAT) THEN
-        DO I=1,NPERMS
-           IF (CF_BASIS(CHANNEL,I)) THEN
-                ALLOWED = ALLOWED +1
-                TOTAL = TOTAL + 1d0
-           ENDIF
-           LIMIT(I) = TOTAL  
-        ENDDO
-c
-c     WEIGHTED CASE
-c        
-      ELSE
-        DO I=1,NPERMS
-           TMP = 0d0
-           IF (CF_BASIS(CHANNEL, I)) THEN
-                DO J=1,NDIAGS
-                    IF (CF_BASIS(J, I)) THEN
-                        TMP = TMP + AMP2(J)
-                    ENDIF
-                ENDDO
-           ENDIF
-           IF (TMP.ne.0d0) THEN
-               TOTAL = TOTAL + 1d0/TMP
-               ALLOWED = ALLOWED + 1
-           ENDIF     
-           LIMIT(I) = TOTAL  
-        ENDDO
-      ENDIF
-       
-      
-      IF (ALLOWED.le.NB_TO_SELECT)then
-c        select all
-         ISEL = 0
-         DO I=1,NPERMS
-           if (LIMIT(I).ne.LIMIT(I-1))then
-              ISEL = ISEL +1
-              NSELPERM(ISEL)=I
-              JAC(ISEL) =1 
-           endif        
-        ENDDO
-        DO I= ISEL+1, NB_TO_SELECT
-            NSELPERM(I) = 0
-            JAC(I) = 0
-        ENDDO
-        NB_TO_SELECT = ALLOWED
-      ELSE
-       
-c     Choose permutations 
-      LOC_JAC =1d0
-      TOT_PICK = 0
-      DO ISEL=1,NB_TO_SELECT
-c     Pick a permutation
- 20        TOT_PICK = TOT_PICK + 1
-           CALL RANMAR(RANDOM)
-           DO J=1,NPERMS
-             IF ((LIMIT(J)/TOTAL)>RANDOM) THEN
-                LOC_JAC =  TOTAL/(LIMIT(J)-LIMIT(J-1))
-                do k=1,ISEL-1
-                    if (NSELPERM(K).eq.J) then
-                        JAC(K) = JAC(k) + LOC_JAC
-                        goto 20
-                    endif   
-                enddo     
-                NSELPERM(ISEL)=J
-                JAC(ISEL) = LOC_JAC
-c               FORBID THIS PICK TO BE TAKEN A SECOND TIME.                
-c                TMP = LIMIT(J) - LIMIT(J-1)
-c                TOTAL = TOTAL - TMP
-c                DO K=J,NPERMS
-c                    LIMIT(K) = LIMIT(K) - TMP
-c                ENDDO
-                GOTO 10
-             ENDIF
-         ENDDO
-         IF (LIMIT(NPERMS).eq.0d0) THEN
-             NSELPERM(ISEL)=0d0
-             NB_TO_SELECT = ISEL - 1
-             TOT_PICK = TOT_PICK - 1
-             goto 30
-         ELSE
-             STOP 1
-         ENDIF
- 10    ENDDO 
-c         
-c     COMPUTE GLOBAL JAC FACTOR         
-c
- 30    DO ISEL=1,NB_TO_SELECT
-         JAC(ISEL) = JAC(ISEL) / TOT_PICK
-     ENDDO
-     ENDIF
-          
-      RETURN
-    END             
+           
