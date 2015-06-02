@@ -46,5 +46,6 @@ C     matrix<i>.f
 C    
 C     PARAMETER TO DISTINGUISH Color ordered computation from the rest
       LOGICAL COLOR_ORDERED
-      COMMON/TO_COLOR_ORDERED/COLOR_ORDERED
+      INTEGER MC_symfact
+      COMMON/to_Discrete_sampler_mode/COLOR_ORDERED,MC_symfact
     

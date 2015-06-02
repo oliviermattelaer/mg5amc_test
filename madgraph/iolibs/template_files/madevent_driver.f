@@ -229,7 +229,8 @@ c
       integer        lbw(0:nexternal)  !Use of B.W.
       common /to_BW/ lbw
       logical color_ordered
-      common/to_color_ordered/color_ordered
+      integer mc_symfact
+      common/to_Discrete_sampler_mode/color_ordered, mc_symfact
 c-----
 c  Begin Code
 c-----
@@ -287,6 +288,17 @@ c        should be probed before the grid is used for sampling.
 C        Typically 10 * n_matrix<i>
          call DS_set_min_points(%(hel_init_points)d,'Helicity')
       endif
+c
+c
+c
+      write(*,10) 'Sub-Channel Handling (0 all (importance-sampling), n>0: a specific one)? '
+      read(*,*) i
+      MC_symfact = i
+      if (MC_symfact.eq.0)then
+        write(*,*) "MC over all symmetric diagram"
+      else
+        write(*,*) "Using only diagram number", MC_symfact
+      endif
 
       write(*,10) 'Enter Configuration Number: '
       read(*,*) dconfig
@@ -320,6 +332,10 @@ c         enddo
       endif
  10   format( a)
  12   format( a,i4)
+
+
+
+
       end
 c     $E$ get_user_params $E$ ! tag for MadWeight
 c     change this routine to read the input in a file

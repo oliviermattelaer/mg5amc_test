@@ -44,6 +44,15 @@ for i in $@ ; do
      if [[ ! -e input_app.txt  ]]; then
 	 cat ../input_app.txt >& input_app.txt;
      fi
+#    Check entry for color ordering     
+     if [[ $i == *"X"* ]]
+     then
+	 cf_tag=${i##*X};
+	 i=${i%X*};
+     else
+	 cf_tag=0;
+     fi
+     echo $cf_tag >> input_app.txt;
      echo $i >> input_app.txt;
 
      for((try=1;try<=10;try+=1)); 

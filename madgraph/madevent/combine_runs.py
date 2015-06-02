@@ -59,10 +59,10 @@ def get_inc_file(path):
 
 class CombineRuns(object):
     
-    def __init__(self, me_dir, subproc=None):
+    def __init__(self, me_dir, subproc=None, procinfo=None):
         
         self.me_dir = me_dir
-        
+        self.proc_characteristics = procinfo
         if not subproc:
             subproc = [l.strip() for l in open(pjoin(self.me_dir,'SubProcesses', 
                                                                  'subproc.mg'))]
@@ -163,12 +163,13 @@ class CombineRuns(object):
         
         ncode = int(math.log10(3)*(self.maxparticles-3))+1
         channels = []
+        nb_dir = {}
         for line in open(sympath):
             try:
                 xi, j = line.split()
             except Exception:
                 break
-            xi, j  = float(xi), int(j)
+            xi, j  = float(xi), float(j)
             
             if j > 0:
                 k = int(xi) 
@@ -178,7 +179,24 @@ class CombineRuns(object):
                     dirname = 'G%i' % k
                 else:
                     dirname = 'G%.{0}f'.format(ncode) % xi
+                nb_dir[xi] = 1
                 channels.append(os.path.join(proc_path,dirname))
+            else:
+                nb_dir[-j] += 1
+                
+        if self.proc_characteristics['color_ordering']:
+            channels = []
+            for xi,nb in nb_dir.items():
+                k = int(xi) 
+                npos = int(math.log10(k))+1
+                #Write with correct number of digits
+                if xi == k:
+                    dirname = 'G%i' % k
+                else:
+                    dirname = 'G%.{0}f'.format(ncode) % xi
+                for j in range(1, nb + 1):
+                    name = "%sX%s" % (dirname, j)
+                    channels.append(os.path.join(proc_path,name))                
         return channels
     
         

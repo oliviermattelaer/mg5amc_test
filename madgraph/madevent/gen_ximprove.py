@@ -96,6 +96,11 @@ class gensym(object):
             if hasattr(self.cmd, "opts") and self.cmd.opts['accuracy'] == 0.1:
                 self.cmd.opts['accuracy'] = 0.02
         
+        if self.cmd.proc_characteristics['color_ordering']:
+            self.split_symfact = True
+        else:
+            self.split_symfact = False
+        
         if isinstance(cmd.cluster, cluster.MultiCore) and self.splitted_grid > 1:
             self.splitted_grid = int(cmd.cluster.nb_core**0.5)
             if self.splitted_grid == 1 and cmd.cluster.nb_core >1:
@@ -149,13 +154,32 @@ class gensym(object):
                                  stderr=subprocess.STDOUT, cwd=Pdir)
             #sym_input = "%(points)d %(iterations)d %(accuracy)f \n" % self.opts
             (stdout, _) = p.communicate('')
-            
+
+                    
             if os.path.exists(pjoin(self.me_dir,'error')):
                 files.mv(pjoin(self.me_dir,'error'), pjoin(Pdir,'ajob.no_ps.log'))
                 P_zero_result.append(subdir)
                 continue            
             
-            job_list[Pdir] = stdout.split()
+            job_list[Pdir] = stdout.split()           
+            #For color ordering 
+            if self.split_symfact:
+                # read the number of diag in symfact.dat
+                ff = open(pjoin(Pdir,'symfact.dat'))
+                nb_diag= {}
+                for line in ff:
+                    main, sub = line.split()
+                    main, sub = int(main), int(sub)
+                    if sub == 1:
+                        nb_diag[main] = 1
+                    else:
+                        nb_diag[-1*sub] +=1
+                new = []
+                for pid  in job_list[Pdir]:
+                    new += ["%sX%s" % (pid, i) for i in range(1, nb_diag[int(pid)]+1)]
+                job_list[Pdir] = new
+                     
+            
             self.cmd.compile(['madevent'], cwd=Pdir)
             self.submit_to_cluster(job_list)
         return job_list, P_zero_result
@@ -609,8 +633,11 @@ For offline investigation, the problematic discarded events are stored in:
                'helicity': run_card['nhel_survey'] if 'nhel_survey' in run_card \
                             else run_card['nhel'],
                'gridmode': -2,
-               'channel' : ''
+               'channel' : '',
+               'symchoice': 0,
                } 
+        if 'X' in G:
+            options['symchoice'] = int(G.split('X')[1])
         
         if int(options['helicity']) == 1:
             options['event'] = options['event'] * 2**(self.cmd.proc_characteristics['nexternal']//3)
@@ -646,6 +673,7 @@ For offline investigation, the problematic discarded events are stored in:
   %(gridmode)s       !Grid Adjustment 0=none, 2=adjust
   1       !Suppress Amplitude 1=yes
   %(helicity)s        !Helicity Sum/event 0=exact
+  %(symchoice)s        
   %(channel)s      """        
         options['event'] = int(options['event'])
         open(path, 'w').write(template % options)
@@ -664,7 +692,8 @@ For offline investigation, the problematic discarded events are stored in:
                    'helicity': run_card['nhel_survey'] if 'nhel_survey' in run_card \
                                 else run_card['nhel'],
                    'gridmode': 2,
-                   'channel': ''
+                   'channel': '',
+                   'symchoice': ''
                    }
         
         if int(options['helicity'])== 1:
@@ -1003,7 +1032,13 @@ class gen_ximprove_v4(gen_ximprove):
                     'grid_refinment' : 0,    #no refinment of the grid
                     'base_directory': '',   #should be change in splitted job if want to keep the grid
                     'packet': packet, 
+                    'symchoice': 0,
                     }
+            if self.cmd.proc_characteristics['color_ordering']:
+                name = info['channel']
+                channel, symchoice = name.split('X')
+                info['channel'] = channel
+                info['symchoice'] = symchoice
 
             if nb_split == 1:
                 jobs.append(info)
@@ -1024,7 +1059,6 @@ class gen_ximprove_v4(gen_ximprove):
         
         if not jobs:
             return
-        
         #filter the job according to their SubProcess directory # no mix submition
         P2job= collections.defaultdict(list)
         for j in jobs:

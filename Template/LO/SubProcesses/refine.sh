@@ -15,23 +15,24 @@ grid_directory=%(base_directory)s
 j=%(directory)s
      if [[ ! -e $j ]]; then
           mkdir $j
-          if [[ -e $grid_directory/ftn26 ]];then
-             cp $grid_directory/ftn26 $j/ftn25
-          fi 
-          if [[ ! -e ../../SubProcesses ]];then
-          	 if [[ -e ftn26 ]]; then
-          	 	cp ./ftn26 $j/ftn25
-          	 fi
-          fi	
+#          if [[ -e $grid_directory/ftn26 ]];then
+#             cp $grid_directory/ftn26 $j/ftn25
+#          fi 
+#          if [[ ! -e ../../SubProcesses ]];then
+#          	 if [[ -e ftn26 ]]; then
+#          	 	cp ./ftn26 $j/ftn25
+#          	 fi
+#          fi	
      fi
      
      cd $j
      rm -f $k
      rm -f moffset.dat >& /dev/null
       echo   %(offset)s  > moffset.dat
-     if  [[ -e ftn26 ]]; then
-          cp ftn26 ftn25
-     fi
+#     if  [[ -e ftn26 ]]; then
+#          cp ftn26 ftn25
+#     fi
+    rm -f ftn25 &> /dev/null
      # create the input file
          echo "    %(nevents)s       %(maxiter)s       %(miniter)s" >& input_sg.txt
          echo "    %(precision)s" >> input_sg.txt
@@ -44,6 +45,7 @@ j=%(directory)s
          echo "1" >> input_sg.txt
      fi
      echo "%(nhel)s" >> input_sg.txt
+     echo "%(symchoice)s" >> input_sg.txt
      echo "%(channel)s" >> input_sg.txt
 
      # run the executable. The loop is design to avoid

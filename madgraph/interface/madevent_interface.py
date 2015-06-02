@@ -2788,8 +2788,8 @@ Beware that this can be dangerous for local multicore runs.""")
         
         if isinstance(x_improve, gen_ximprove.gen_ximprove_v4):
             # the merge of the events.lhe is handle in the x_improve class
-            # for splitted runs. (and partly in store_events).        
-            combine_runs.CombineRuns(self.me_dir)
+            # for splitted runs. (and partly in store_events).       
+            combine_runs.CombineRuns(self.me_dir, procinfo=self.proc_characteristics)
             self.refine_mode = "old"
         else:
             self.refine_mode = "new"
@@ -2840,6 +2840,9 @@ Beware that this can be dangerous for local multicore runs.""")
 
         self.update_status('Combining Events', level='parton')
 
+        if self.proc_characteristics['color_ordering']:
+            self.refine_mode = "new"
+        
         
         if not hasattr(self, "refine_mode") or self.refine_mode == "old":
             try:
@@ -2934,6 +2937,7 @@ Beware that this can be dangerous for local multicore runs.""")
                               get_wgt, trunc_error=1e-2, event_target=self.run_card['nevents'],
                               log_level=logging.DEBUG)
             
+                    
             self.results.add_detail('nb_event', nb_event)
         
         eradir = self.options['exrootanalysis_path']
@@ -3896,9 +3900,24 @@ Beware that this can be dangerous for local multicore runs.""")
         Pdirs = self.get_Pdir()
         Gdirs = []        
         for P in Pdirs:
-            for line in open(pjoin(P, "symfact.dat")):
-                tag, mfactor = line.split()
-                Gdirs.append( (pjoin(P, "G%s" % tag), int(mfactor)) )
+            if not self.proc_characteristics['color_ordering']:
+                for line in open(pjoin(P, "symfact.dat")):
+                    tag, mfactor = line.split()
+                    Gdirs.append( (pjoin(P, "G%s" % tag), int(mfactor)) )
+            else:
+                nbdir = {}
+                mfactors = {}
+                for line in open(pjoin(P, "symfact.dat")):
+                    tag, mfactor = line.split()
+                    if float(mfactor) > 0:
+                        nbdir[tag] = 1
+                        mfactors[tag] = mfactor
+                    else:
+                        nbdir[mfactor[1:]] +=1
+
+                for tag, nb in nbdir.items():
+                    for i in range(1, nb+1):
+                        Gdirs.append( (pjoin(P, "G%sX%s" % (tag,i)), int(mfactors[tag])) )                
             
         
         self.Gdirs = Gdirs

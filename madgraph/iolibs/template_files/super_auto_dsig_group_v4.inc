@@ -171,6 +171,9 @@ C   IMODE.EQ.0, regular run mode
 	    call DS_register_dimension('grouped_processes', 0)
 		call DS_set_min_points(10,'grouped_processes')
         DO J=1,SYMCONF(0)
+          if (MC_SYMFACT.ne.0) then
+            if (J.ne.MC_SYMFACT) CYCLE
+          endif   
           DO IPROC=1,MAXSPROC
             IF(CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
               DO IMIRROR=1,2
@@ -187,11 +190,16 @@ C   IMODE.EQ.0, regular run mode
 	    call DS_register_dimension('PDF_convolution', 0, all_grids=.False.)
 	  ENDIF
 	
+	
+	
 C     Select among the subprocesses based on PDF weight
       SUMPROB=0D0
 C     Turn caching on in dsigproc to avoid too many calls to switchmom
       LAST_ICONF=0
       DO J=1,SYMCONF(0)
+          if (MC_SYMFACT.ne.0) then
+            if (J.ne.MC_SYMFACT) CYCLE
+         endif
          DO IPROC=1,MAXSPROC
             IF(CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
                DO IMIRROR=1,2
@@ -236,6 +244,9 @@ c       We must initialize the grid and probe all channels
 C       Turn caching on in dsigproc to avoid too many calls to switchmom
         LAST_ICONF=0
         DO J=1,SYMCONF(0)
+          if (MC_SYMFACT.ne.0) then
+            if (J.ne.MC_SYMFACT) CYCLE
+          endif
           DO I=1,MAXSPROC
             IF(CONFSUB(I,SYMCONF(J)).NE.0) THEN		  
               DO K=1,2
@@ -280,6 +291,9 @@ c     If we are still initializing the grid or simply not using one at all, then
       IPROC=0
       TOTWGT=0D0
       DO J=1,SYMCONF(0)
+        if (MC_SYMFACT.ne.0) then
+            if (J.ne.MC_SYMFACT) CYCLE
+        endif
         DO I=1,MAXSPROC
           DO K=1,2
             TOTWGT=TOTWGT+SELPROC(K,I,J)

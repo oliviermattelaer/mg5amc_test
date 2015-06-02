@@ -977,7 +977,8 @@ c************************************************************************
       LOGICAL                    MULTI_CHANNEL
       COMMON/TO_MATRIX/ISUM_HEL, MULTI_CHANNEL
       LOGICAL COLOR_ORDERED
-      COMMON/TO_COLOR_ORDERED/COLOR_ORDERED
+      INTEGER MC_symfact
+      COMMON/to_Discrete_sampler_mode/COLOR_ORDERED,MC_symfact
 c
 c     Begin code
 c
