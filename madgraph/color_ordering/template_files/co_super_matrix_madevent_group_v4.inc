@@ -238,8 +238,8 @@ c     Start loop over helicities
 C         Calculate matrix element
           T=MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,1)
 C         partial probing of subleading color only 1/NLCFACT point used         
-          IF(ICO.GT.1.AND.MOD(ICOUNT,NLCFACT).EQ.0) THEN
-                T=T+NLCFACT*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,2)
+          IF(ICO.GT.1) THEN
+                T=T+MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,2)
                 IF(ICO.GT.2.AND.MOD(ICOUNT,NLCFACT**2).EQ.0) THEN
                 DO JJ=3,ICO
                  T=T+NLCFACT**2*MATRIX%(proc_id)s(P,NHEL(1,I),PERM,FIRSTFLOW,JJ)

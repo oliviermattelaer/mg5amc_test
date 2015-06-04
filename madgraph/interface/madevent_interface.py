@@ -3894,31 +3894,30 @@ Beware that this can be dangerous for local multicore runs.""")
         """get the list of Gdirectory if not yet saved."""
         
         if hasattr(self, "Gdirs"):
-            if self.me_dir in self.Gdirs[0]:
+            if self.me_dir in self.Gdirs[0][0]:
                 return self.Gdirs
-
+        
+        # store additional information to allow to split a channel in component    
+        if self.proc_characteristics['color_ordering']: 
+            self.symfact_info = {}
         Pdirs = self.get_Pdir()
         Gdirs = []        
         for P in Pdirs:
-            if not self.proc_characteristics['color_ordering']:
-                for line in open(pjoin(P, "symfact.dat")):
-                    tag, mfactor = line.split()
+            nbdir = {}
+            mfactors = {}            
+            for line in open(pjoin(P, "symfact.dat")):
+                tag, mfactor = line.split()
+                if float(mfactor) > 0:
                     Gdirs.append( (pjoin(P, "G%s" % tag), int(mfactor)) )
-            else:
-                nbdir = {}
-                mfactors = {}
-                for line in open(pjoin(P, "symfact.dat")):
-                    tag, mfactor = line.split()
+                if self.proc_characteristics['color_ordering']:
                     if float(mfactor) > 0:
-                        nbdir[tag] = 1
-                        mfactors[tag] = mfactor
+                        nbdir["G%s" % tag] = 1
+                        mfactors["G%s" %tag] = mfactor
                     else:
-                        nbdir[mfactor[1:]] +=1
-
-                for tag, nb in nbdir.items():
-                    for i in range(1, nb+1):
-                        Gdirs.append( (pjoin(P, "G%sX%s" % (tag,i)), int(mfactors[tag])) )                
-            
+                        nbdir["G%s" % mfactor[1:]] +=1
+            if self.proc_characteristics['color_ordering']:
+                self.symfact_info[P] = (nbdir, mfactors)
+                        
         
         self.Gdirs = Gdirs
         return self.Gdirs
@@ -3972,7 +3971,6 @@ Beware that this can be dangerous for local multicore runs.""")
         else:
             # Read run_card
             run_card = pjoin(self.me_dir, 'Cards','run_card.dat')
-            misc.sprint(run_card)
             self.run_card = banner_mod.RunCard(run_card)   
         
         if tag:

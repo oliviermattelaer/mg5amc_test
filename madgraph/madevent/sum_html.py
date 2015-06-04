@@ -343,7 +343,26 @@ class OneResult(object):
 
     def set_mfactor(self, value):
         self.mfactor = int(value)
+    
+    def split(self, m):
+        """ returns m one result with update information """
         
+        output = []
+        for i in range(1, m+1):
+            new_name = "%sX%s" % (self.name,i)
+            new_C = OneResult(new_name)
+            new_C.parent_name = self.parent_name
+            for key in ['xsec', 'axsec','xerru','xerrc','nunwgt','nw', 'nevents',
+                        'luminosity', 'th_nunwgt']:
+                setattr(new_C, key, getattr(self, key)/ m)
+            new_C.maxit = self.maxit
+            new_C.mfactor = self.mfactor # number of times that this channel occur (due to symmetry)
+            new_C.maxwgt = self.maxwgt
+            new_C.th_maxwgt = self.th_maxwgt
+            output.append(new_C)
+        return output
+    
+    
     def change_iterations_number(self, nb_iter):
         """Change the number of iterations for this process"""
             
@@ -646,6 +665,8 @@ function check_link(url,alt, id){
 def collect_result(cmd, folder_names):
     """ """ 
 
+    all_Gdir = cmd.get_Gdir()
+    
     run = cmd.results.current['run_name']
     all = Combine_results(run)
     
@@ -654,53 +675,18 @@ def collect_result(cmd, folder_names):
         P_comb = Combine_results(Pdir)
         
         P_path = pjoin(cmd.me_dir, 'SubProcesses', Pdir)
-        G_dir = [G for G in os.listdir(P_path) if G.startswith('G') and 
-                                                os.path.isdir(pjoin(P_path,G))]
-
-        if not cmd.proc_characteristics['color_ordering']:
-            for line in open(pjoin(P_path, 'symfact.dat')):
-                name, mfactor = line.split()
-                if float(mfactor) < 0:
-                    continue          
-                if not folder_names:
-                    name = 'G' + name
-                    P_comb.add_results(name, pjoin(P_path,name,'results.dat'), mfactor)
-    
-                        
-                else:
-                    for folder in folder_names:
-                        if 'G' in folder:
-                            dir = folder.replace('*', name)
-                        else:
-                            dir = folder.replace('*', '_G' + name)
-                        P_comb.add_results(dir, pjoin(P_path,dir,'results.dat'), mfactor)
-        else:
-            nb_diag = {}
-            mfactors = {}
-            for line in open(pjoin(P_path, 'symfact.dat')):
-                name, factor = line.split()
-                mfactor = float(factor)
-                if mfactor > 0:
-                    nb_diag[name] = 1
-                    mfactors[name] = mfactor
-                else:
-                    nb_diag[factor[1:]] += 1
-
-            for name, nb in nb_diag.items():
-                for i in range(1,nb+1):
-                    if not folder_names:
-                        mfactor = mfactors[name]
-                        new_name = 'G%sX%s' % (name, i)
-                        P_comb.add_results(new_name, pjoin(P_path,new_name,'results.dat'), mfactor)
+        G_dir = [G for G in all_Gdir if G[0].startswith(P_path)]
+        for G_path, mfactor in G_dir:
+            name = os.path.basename(G_path)
+            if not folder_names:
+                P_comb.add_results(name, pjoin(G_path,'results.dat'), mfactor)
+            else:
+                for folder in folder_names:
+                    if 'G' in folder:
+                        dir = folder.replace('*', name)
                     else:
-                        mfactor = mfactors[name]
-                        new_name = 'G%sX%s' % (name, i)
-                        if 'G' in folder:
-                            dir = folder.replace('*', new_name)
-                        else:
-                            dir = folder.replace('*', '_G' + new_name)
-                        P_comb.add_results(dir, pjoin(P_path,dir,'results.dat'), mfactor)                        
-            
+                        dir = folder.replace('*', '_G' + name)
+                    P_comb.add_results(dir, pjoin(P_path,dir,'results.dat'), mfactor)
             
         P_comb.compute_values()
         all.append(P_comb)

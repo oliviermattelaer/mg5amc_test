@@ -96,10 +96,12 @@ class gensym(object):
             if hasattr(self.cmd, "opts") and self.cmd.opts['accuracy'] == 0.1:
                 self.cmd.opts['accuracy'] = 0.02
         
-        if self.cmd.proc_characteristics['color_ordering']:
-            self.split_symfact = True
-        else:
-            self.split_symfact = False
+        
+        self.split_symfact = False # Not use at survey
+#         if self.cmd.proc_characteristics['color_ordering']:
+#             self.split_symfact = True
+#         else:
+#             self.split_symfact = False
         
         if isinstance(cmd.cluster, cluster.MultiCore) and self.splitted_grid > 1:
             self.splitted_grid = int(cmd.cluster.nb_core**0.5)
@@ -736,8 +738,9 @@ class gen_ximprove(object):
 
     def __new__(cls, cmd, opt):
         """Choose in which type of refine we want to be"""
-        
-        if cmd.proc_characteristics['loop_induced']:
+        if cmd.proc_characteristics['color_ordering']:
+            return super(gen_ximprove, cls).__new__(gen_ximprove_color_ordering, cmd, opt)
+        elif cmd.proc_characteristics['loop_induced']:
             return super(gen_ximprove, cls).__new__(gen_ximprove_share, cmd, opt)
         elif gen_ximprove.format_variable(cmd.run_card['gridpack'], bool):
             raise Exception, "Not implemented"
@@ -927,7 +930,11 @@ class gen_ximprove_v4(gen_ximprove):
         """ """
         if nb_split <=1:
             return
-        f = open(pjoin(self.me_dir, 'SubProcesses', Channel.get('name'), 'multijob.dat'), 'w')
+        try:
+            f = open(pjoin(self.me_dir, 'SubProcesses', Channel.get('name'), 'multijob.dat'), 'w')
+        except IOError:
+            os.mkdir(pjoin(self.me_dir, 'SubProcesses', Channel.get('name')))
+            f = open(pjoin(self.me_dir, 'SubProcesses', Channel.get('name'), 'multijob.dat'), 'w')
         f.write('%i\n' % nb_split)
         f.close()
     
@@ -1005,7 +1012,7 @@ class gen_ximprove_v4(gen_ximprove):
             #
             # forbid too low/too large value
             nevents = max(self.min_event_in_iter, min(self.max_event_in_iter, nevents))
-            logger.debug("%s : need %s event. Need %s split job of %s points", C.name, needed_event, nb_split, nevents)
+            logger.debug("%s : need %s event. Need %s split job of %s points", C.name, int(needed_event)+1, nb_split, nevents)
 
             
             # write the multi-job information
@@ -1512,6 +1519,55 @@ class gen_ximprove_share(gen_ximprove, gensym):
 
     
     
+class gen_ximprove_color_ordering(gen_ximprove_v4):
     
+    def find_job_for_event(self):
+        """return the list of channel that need to be improved"""
+    
+        # runs standard gen_ximprove
+        goal_lum, channels = super(gen_ximprove_color_ordering, self).find_job_for_event()
+        
+        # For each channel now decide if it is interesting to split them or not:
+        to_refine = []
+        for C in channels:
+            if "X" in C.name:
+                #already splitted
+                to_refine.append(C)
+                continue
+            
+            # get basic info
+            P_path = pjoin(self.cmd.me_dir, 'SubProcesses', C.parent_name)
+            G_path = pjoin(P_path, C.name)
+            nb_split = self.cmd.symfact_info[P_path][0][C.name]
+            mfactor = self.cmd.symfact_info[P_path][1][C.name]
+            
+            # Number of events requested + efficiency
+            nb_event = goal_lum * C.axsec
+            efficiency = (C.get('nevents') / C.get('nunwgt'))
+                        
+            if (nb_event*efficiency < 2**(self.min_iter)*self.max_event_in_iter):
+                to_refine.append(C)
+            elif(nb_event*efficiency)/nb_split <  2**(self.min_iter)*self.min_event_in_iter:
+                to_refine.append(C)                 
+            else:
+                # Do the splitting
+                to_refine += C.split(nb_split)
+
+                # Need to update the cmd information to have the correct Gdir
+                new_Gdir = []
+                for G, mfact in self.cmd.Gdirs:
+                    if G != G_path:
+                        new_Gdir.append((G,mfact))
+                    else:
+                        for i in xrange(1, nb_split+1):
+                            new_Gdir.append(("%sX%s" % (G,i),mfact))
+                self.cmd.Gdirs = new_Gdir
+
+
+            
+        
+        
+                
+        return goal_lum, to_refine   
     
         
