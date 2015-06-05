@@ -29,6 +29,8 @@ c                          chosen helicity configuration to matrix<i>.f
 c           CF_picked   == Modified integer in gen_ps.inc to pass the
 c                          color-flow configuration to matrix<i>.f
 c                          [for color ordered computation]
+c           CH_picked == Value of the (sub) channel of integration
+c
 c**************************************************************************
       implicit none
 c
@@ -47,6 +49,7 @@ c
 c
 c     Local
 c
+      double precision loc_jac
 c
 c     External
 c     
@@ -59,7 +62,9 @@ c
 c-----
 c  Begin Code
 c-----
+      call sample_get_discrete_x('channel',iconfig, ch_picked, loc_jac)
       call gen_mom(iconfig,mincfig,maxcfig,invar,wgt,x,p)
+      wgt = wgt * loc_jac
 C     Pick the helicity configuration from the DiscreteSampler if user
 C     decided to perform MC over helicity configurations.
       if(ISUM_HEL.ne.0) then
@@ -94,6 +99,7 @@ c                p1(0:3,n) == 4 momentum of external particles
 c
 c     REQUIRES: IFOREST() set in data statement (see configs.inc)
 c               NEXTERNAL set in data statement (see genps.inc)
+c               ch_picked (from genps.inc) set in x_to_f_arg
 c
 c     Note regarding integration variables mapping to invarients
 c     the first nbranch variables go for the masses of branches -1,-2,..
@@ -293,10 +299,10 @@ c            i = isym(k)
 c     Initialize dsig (needed for subprocess group running mode)
          dum=dsig(0,0,1)
 
-      else
-         do i=1,11
+c      else
+c         do i=1,11
 c            swidth(i)=-5d0         !tells us to use the same point over again
-         enddo
+c         enddo
 c         swidth(10)=0d0
       endif                          !First_time
 

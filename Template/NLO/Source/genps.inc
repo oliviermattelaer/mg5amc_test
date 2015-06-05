@@ -30,12 +30,12 @@ c      parameter (maxproc=100)
 c*************************************************************************
 c	Parameters used for parrallel running
 c*************************************************************************
-      integer    max_host   ,maxplace    ,maxpoints    ,maxans
-      parameter (max_host=9,maxplace=9,maxpoints=10,maxans=5)
-      integer    maxprb
-      parameter (maxprb = maxconfigs*maxplace*maxpoints)
-      integer    maxfprb
-      parameter (maxfprb = maxinvar*maxplace*maxpoints)
+c      integer    max_host   ,maxplace    ,maxpoints    ,maxans
+c      parameter (max_host=9,maxplace=9,maxpoints=10,maxans=5)
+c      integer    maxprb
+c      parameter (maxprb = maxconfigs*maxplace*maxpoints)
+c      integer    maxfprb
+c      parameter (maxfprb = maxinvar*maxplace*maxpoints)
 
 
 

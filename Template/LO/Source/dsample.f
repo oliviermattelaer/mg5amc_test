@@ -28,6 +28,7 @@ c
       integer ievent,kevent,nwrite,iter,nun,luntmp,itsum
       integer jmax,i,j,ipole
       integer itmax_adjust
+      integer ichannel
 c
 c     External
 c
@@ -45,7 +46,8 @@ c
       integer           mincfig, maxcfig
       common/to_configs/mincfig, maxcfig
 
-      double precision     xmean(99),xsigma(99),xwmax(99),xeff(99), xrmean(99)
+      double precision     xmean(99),xsigma(99)
+      double precision xwmax(99),xeff(99), xrmean(99)
       common/to_iterations/xmean,    xsigma,    xwmax,    xeff,     xrmean
 
       double precision    accur
@@ -55,9 +57,9 @@ c
       integer                             lun, nw, itminx
       common/to_unwgt/twgt, maxwgt, swgt, lun, nw, itminx
 
-      integer nzoom
-      double precision  tx(1:3,maxinvar)
-      common/to_xpoints/tx, nzoom
+c      integer nzoom
+c      double precision  tx(1:3,maxinvar)
+c      common/to_xpoints/tx, nzoom
 
       double precision xzoomfact
       common/to_zoom/  xzoomfact
@@ -66,6 +68,7 @@ c
       integer             dim, events, itm, kn, cur_it, invar, configs
       common /sample_common/
      .     tmean, trmean, tsigma, dim, events, itm, kn, cur_it, invar, configs
+
 
       integer           use_cut
       common /to_weight/use_cut
@@ -103,7 +106,7 @@ c Begin Code
 c-----
       ievent = 0
       kevent = 0
-      nzoom = 0
+c      nzoom = 0
       xzoomfact = 1d0
       itminx = itmin
       if (nsteps .lt. 1) nsteps=1
@@ -114,9 +117,10 @@ C     Fix for 2>1 process where ndim is 2 and not 1
 
       call sample_init(ndim,ncall,itmax,ninvar,nconfigs)
       call graph_init
+
       do i=1,itmax
-         xmean(i)=0d0
-         xsigma(i)=0d0
+           xmean(i)=0d0
+           xsigma(i)=0d0
       enddo
 c      mincfig=1
 c      maxcfig=nconfigs
@@ -136,7 +140,7 @@ c
             if (pass_point(p)) then
                fx = dsig(p,wgt,0) !Evaluate function
                wgt = wgt*fx
-               if (wgt .ne. 0d0) call graph_point(p,wgt) !Update graphs
+c               if (wgt .ne. 0d0) call graph_point(p,wgt) !Update graphs
             else
                fx =0d0
                wgt=0d0
@@ -270,7 +274,7 @@ c     Reset counters
 c
       ievent = 0
       kevent = 0
-      nzoom = 0
+c      nzoom = 0
       xzoomfact = 1d0
 
       ncall = ncall*4 ! / 2**(itmax-2)
@@ -316,12 +320,12 @@ c
                fx =0d0
                wgt=0d0
             endif
-            if (nzoom .le. 0) then
+c            if (nzoom .le. 0) then
                call sample_put_point(wgt,x(1),iter,ipole,itmin) !Store result
-            else
-               nzoom = nzoom -1
-               ievent=ievent-1
-            endif
+c            else
+c               nzoom = nzoom -1
+c               ievent=ievent-1
+c            endif
          endif
          if (wgt .gt. 0d0) kevent=kevent+1    
 199   enddo
@@ -494,7 +498,8 @@ c
 c
 c     Global
 c
-      double precision     xmean(99),xsigma(99),xwmax(99),xeff(99), xrmean(99)
+      double precision     xmean(99),xsigma(99)
+      double precision xwmax(99),xeff(99), xrmean(99)
       common/to_iterations/xmean,    xsigma,    xwmax,    xeff,     xrmean
 
 c-----
@@ -553,6 +558,7 @@ c     $     ntot/1000,'</th><th align=right>',teff,'</th></tr>'
 c************************************************************************
 c     Initialize grid and random number generators
 c************************************************************************
+      use DiscreteSampler
       implicit none
 c
 c     Constants
@@ -570,6 +576,8 @@ c     Local
 c
       integer i, j
       integer get_maxsproc
+      integer ichannel ! counter for the channel of integration
+      double precision val
 c
 c     Global
 c
@@ -585,7 +593,7 @@ c
       common /sample_common/
      .     tmean, trmean, tsigma, dim, events, itm, kn, cur_it, invar, configs
 
-      double precision   grid(2, ng, 0:maxinvar)
+      double precision   grid(2*nb_channel, ng, 0:maxinvar)
       common /data_grid/ grid
       integer           Minvar(maxdim,lmaxconfigs)
       common /to_invar/ Minvar
@@ -615,10 +623,14 @@ c
       data read_grid_file/.False./
       common/read_grid_file/read_grid_file
 
+
+
       data use_cut/2/            !Grid: 0=fixed , 1=standard, 2=non-zero
       data ituple/1/             !1=htuple, 2=sobel 
       data Minvar(1,1)/-1/       !No special variable mapping
 
+
+      call DS_register_dimension('channel', nb_channel)
 c-----
 c  Begin Code
 c-----
@@ -706,16 +718,19 @@ c
       tsigma = 0d0
       kn = 0
       cur_it = 1
-      do j=1,ng
-         grid(2,j,0) = xgmin+(xgmax-xgmin)*j/dble(ng)
+      do ichannel = 1, nb_channel
+        do j=1,ng
+             grid(2*ichannel,j,0) = xgmin+(xgmax-xgmin)*j/dble(ng)
+        enddo
       enddo
 c
 c     Try to read grid from file
 c
       flat_grid=.true.
       open(unit=25,file='ftn25',status='unknown',err=102)
-      read(25,*, err=1011, end=1012)
-     .     ((grid(2,i,j),i=1,ng),j=1,invar)
+      do ichannel =1, nb_channel
+          read(25,*, err=1011, end=1012) ((grid(2*ichannel,i,j),i=1,ng),j=1,invar)
+      enddo
       read(25,*) twgt, force_max_wgt
       call read_discrete_grids(25)
       write(*,*) 'Grid read from file'
@@ -767,7 +782,10 @@ c
       force_max_wgt = -1d0
       do j = 1, maxinvar
          do i = 1, ng
-            grid(2, i, j) = xgmin+ (xgmax-xgmin)*(i / dble(ng))**1
+            val = xgmin+ (xgmax-xgmin)*(i / dble(ng))**1
+            do ichannel = 1, nb_channel
+                grid(2*ichannel, i, j) = val
+            end do
          end do
       end do
       do j=1,maxconfigs
@@ -811,10 +829,11 @@ c     Local
 c
       integer i,k
       integer ngu, ngd
+      integer ichannel
 c
 c     Global
 c
-      double precision   grid(2, ng, 0:maxinvar)
+      double precision   grid(2*nb_channel, ng, 0:maxinvar)
       common /data_grid/ grid
 
       logical            flat_grid
@@ -823,6 +842,7 @@ c
 c----- 
 c  Begin Code
 c-----
+      do ichannel=1,nb_channel
       if (flat_grid) then
          if (itype.gt.1) then
             write(*,'(a,i4,2e15.5,i4)') 'Setting grid',j,xo,a,itype
@@ -834,8 +854,8 @@ c-----
          else
             write(*,'(a,i4,1e15.5,i4)') 'Setting grid',j,xo,itype            
          endif
-c     grid(2,1,j) = xo
-         grid(2,ng,j)=xgmax
+c     grid(2*ichannel,1,j) = xo
+         grid(2*ichannel,ng,j)=xgmax
          if (itype .eq. 1) then
 c
 c     We'll use most for the peak, but save some for going down
@@ -848,23 +868,23 @@ c-------------------
 c     tjs 6/30/2009; tjs & ja 2/25/2011
 c     New form for setgrid
 c-------------------
-c               grid(2,i+ngd,j)=((1d0-a)/(xo-a))**(1d0-dble(i)/dble(ngu))
-c               grid(2,i+ngd,j)=1d0/grid(2,i+ngd,j)+a
-c               grid(2,i+ngd,j) = xo + ((dble(i)+xo-a)/(dble(ngu)+xo-a))**2
-               grid(2,i+ngd,j) = xo**(1-dble(i)/dble(ngu))
+c               grid(2*ichannel,i+ngd,j)=((1d0-a)/(xo-a))**(1d0-dble(i)/dble(ngu))
+c               grid(2*ichannel,i+ngd,j)=1d0/grid(2*ichannel,i+ngd,j)+a
+c               grid(2*ichannel,i+ngd,j) = xo + ((dble(i)+xo-a)/(dble(ngu)+xo-a))**2
+               grid(2*ichannel,i+ngd,j) = xo**(1-dble(i)/dble(ngu))
 
             enddo
 c
 c     Now lets go down the other side
 c
-            grid(2,ngd,j) =  xo
+            grid(2*ichannel,ngd,j) =  xo
             do i=1,ngd-1
-c               grid(2,i,j) = ((1d0-a)/(xo-a))**(1d0-dble(i)/dble(ngd))
-               grid(2,ngd-i,j) = xo-(grid(2,ngd+i,j)-xo)
-               if (grid(2,ngd-i,j) .lt. -1d0) then
-                  write(*,*) 'Error grid set too low',grid(2,ngd-i,j)
+c               grid(2*ichannel,i,j) = ((1d0-a)/(xo-a))**(1d0-dble(i)/dble(ngd))
+               grid(2*ichannel,ngd-i,j) = xo-(grid(2*ichannel,ngd+i,j)-xo)
+               if (grid(2*ichannel,ngd-i,j) .lt. -1d0) then
+                  write(*,*) 'Error grid set too low',grid(2*ichannel,ngd-i,j)
                   do k=1,ng
-                     write(*,*) k,grid(2,k,j)
+                     write(*,*) k,grid(2*ichannel,k,j)
                   enddo
                   stop
                endif
@@ -873,25 +893,26 @@ c
 c     tjs, ja 2/25/11
 c     Make sure sample all the way down to zero only if minimum positive
 c     
-            if (grid(2,1,j) .gt. 0) grid(2,1,j) = 0d0
+            if (grid(2*ichannel,1,j) .gt. 0) grid(2*ichannel,1,j) = 0d0
 c            write(*,*) "Adjusted bin 1 to zero"
 
          elseif (itype .eq. 2) then
             do i=2,ng-1
-               grid(2,i,j)=(1d0/(xo-a))*(1d0-dble(i)/dble(ng))+
+               grid(2*ichannel,i,j)=(1d0/(xo-a))*(1d0-dble(i)/dble(ng))+
      $              (dble(i)/dble(ng))*(1d0/(1d0-a))
-               grid(2,i,j)=1d0/grid(2,i,j)+a
+               grid(2*ichannel,i,j)=1d0/grid(2*ichannel,i,j)+a
             enddo         
          else
             write(*,*) 'No modification in setgrid',itype
          endif
          do i=1,ng
-c             write(*,*) j,i,grid(2,i,j)
+c             write(*,*) j,i,grid(2*ichannel,i,j)
          enddo
          call sample_write_g(j,'_0')
       else
          write(*,*) 'No modification is setgrid, grid read from file'
       endif
+      enddo
       end
 
       subroutine sample_get_config(wgt, iteration, iconfig)
@@ -1099,7 +1120,7 @@ c
       common /sample_common/
      .     tmean, trmean, tsigma, dim, events, itm, kn, cur_it, invar, configs
 
-      double precision    grid(2, ng, 0:maxinvar)
+      double precision    grid(2*nb_channel, ng, 0:maxinvar)
       common /data_grid/ grid
       integer           Minvar(maxdim,lmaxconfigs)
       common /to_invar/ Minvar
@@ -1110,9 +1131,9 @@ c
       double precision      spole(maxinvar),swidth(maxinvar),bwjac
       common/to_brietwigner/spole        ,swidth        ,bwjac
 
-      integer nzoom
-      double precision  tx(1:3,maxinvar)
-      common/to_xpoints/tx, nzoom
+c      integer nzoom
+c      double precision  tx(1:3,maxinvar)
+c      common/to_xpoints/tx, nzoom
 
       data ddum/maxdim*0d0/
       data icount/0/
@@ -1149,30 +1170,27 @@ c
 c     Line which allows us to keep choosing same x
 c
 c         if (swidth(j) .ge. 0) then
-         if (nzoom .le. 0) then
+c         if (nzoom .le. 0) then
             call ntuple(ddum(j), xbin_min,xbin_max, j, ipole)
-         else
+c         else
 c            write(*,*) 'Reusing num',j,nzoom,tx(2,j)
-
-            call ntuple(ddum(j),max(xbin_min,dble(int(tx(2,j)))),
-     $           min(xbin_max,dble(int(tx(2,j))+1)),j,ipole)
-
-            if(max(xbin_min,dble(int(tx(2,j)))).gt.
-     $           min(xbin_max,dble(int(tx(2,j))+1))) then
+c
+c            call ntuple(ddum(j),max(xbin_min,dble(int(tx(2,j)))),
+c     $           min(xbin_max,dble(int(tx(2,j))+1)),j,ipole)
+c
+c            if(max(xbin_min,dble(int(tx(2,j)))).gt.
+c     $           min(xbin_max,dble(int(tx(2,j))+1))) then
 c               write(*,*) 'not good'
-            endif
+c            endif
 
 c            write(*,'(2i6,4e15.5)') nzoom,j,ddum(j),tx(2,j),
 c     $           max(xbin_min,dble(int(tx(2,j)))),
 c     $           min(xbin_max,dble(int(tx(2,j))+1))
-
 c            ddum(j) = tx(2,j)                 !Use last value
-
-
-         endif
-         tx(1,j) = xbin_min
-         tx(2,j) = ddum(j)
-         tx(3,j) = xbin_max
+c         endif
+c         tx(1,j) = xbin_min
+c         tx(2,j) = ddum(j)
+c         tx(3,j) = xbin_max
       elseif (ituple .eq. 2) then
          if (ipole .gt. 1) then
             print*,'Sorry Sobel not configured for multi-pole.'
@@ -1200,11 +1218,11 @@ c
 c     New method of choosing x from bins
 c
       if (ip .eq. 1) then         !This is in the first bin
-         xo = grid(2, ip, ij)-xgmin
-         x = grid(2, ip, ij) - xo * (dble(ip) - ddum(j))
+         xo = grid(2*ch_picked, ip, ij)-xgmin
+         x = grid(2*ch_picked, ip, ij) - xo * (dble(ip) - ddum(j))
       else           
-         xo = grid(2, ip, ij)-grid(2,im,ij)
-         x = grid(2, ip, ij) - xo * (dble(ip) - ddum(j))
+         xo = grid(2*ch_picked, ip, ij)-grid(2*ch_picked,im,ij)
+         x = grid(2*ch_picked, ip, ij) - xo * (dble(ip) - ddum(j))
       endif
 c
 c     Now we transform x if there is a B.W., S, or T  pole
@@ -1278,7 +1296,7 @@ c
       common /sample_common/
      .     tmean, trmean, tsigma, dim, events, itm, kn, cur_it, invar, configs
 
-      double precision    grid(2, ng, 0:maxinvar)
+      double precision    grid(2*nb_channel, ng, 0:maxinvar)
       common /data_grid/ grid
       integer           Minvar(maxdim,lmaxconfigs)
       common /to_invar/ Minvar
@@ -1287,6 +1305,8 @@ c
       double precision      spole(maxinvar),swidth(maxinvar),bwjac
       common/to_brietwigner/spole        ,swidth        ,bwjac
 
+
+      stop 1 !"Not updated not clear with ichannel/ch_picked to use "
 c-----
 c  Begin Code
 c-----
@@ -1328,15 +1348,15 @@ c
 c     New method for finding bin
 c
       if (ip .eq. 1) then
-         xo=grid(2,ip,ij)-xgmin
+         xo=grid(2*ch_picked,ip,ij)-xgmin
       else
-         xo=grid(2,ip,ij)-grid(2,im,ij)
+         xo=grid(2*ch_picked,ip,ij)-grid(2*ch_picked,im,ij)
       endif
       wgt = wgt * xo * dble(xbin_max-xbin_min)*bwjac
       if (wgt .le. 0d0) then
 c         write(*,'(a,3i4,2f6.1,3e15.3)') 'Error wgt<0',j,ij,ip,
 c     &        xbin_min,xbin_max,xo,xmin,xmax
-c         write(*,'(2e25.15)') grid(2, ip, ij),grid(2, im, ij)
+c         write(*,'(2e25.15)') grid(2*ichannel, ip, ij),grid(2*ichannel, im, ij)
 c         write(*,'(a,5e15.5)') 'Wgt',wgt,xo,
 c     &        dble(xbin_max-xbin_min),bwjac
       endif
@@ -1348,7 +1368,8 @@ c     &        dble(xbin_max-xbin_min),bwjac
       integer i,cur_it,itmin,itsum
       double precision tsigma,tmean,trmean,tsig,tdem
 
-      double precision     xmean(99),xsigma(99),xwmax(99),xeff(99), xrmean(99)
+      double precision     xmean(99),xsigma(99)
+      double precision xwmax(99),xeff(99), xrmean(99)
       common/to_iterations/xmean,    xsigma,    xwmax,    xeff,     xrmean
 
 
@@ -1420,6 +1441,8 @@ C       Also, if HEL_PICKED is equal to -1, it means that MadEvent
 C       is in the initialization stage where all helicity were probed
 c       and added individually to the grid directly by matrix<i>.f so
 c       that they shouldn't be added here.
+      call DS_add_entry('channel', ch_picked, wgt)
+
         if(ISUM_HEL.ne.0.and.HEL_PICKED.ne.-1.and.
      &                            (.NOT.CUTSDONE.or.CUTSPASSED)) then
           call DS_add_entry('Helicity',HEL_PICKED,(wgt/hel_jacobian))
@@ -1461,6 +1484,7 @@ c
 c
 c     Begin code
 c
+      call DS_update_grid('channel', filterZeros=.True.)
       if(ISUM_HEL.ne.0) then
         call DS_update_grid('Helicity', filterZeros=.True.)
         tmp_dim = DS_get_dimension(ref_grid,'Helicity')
@@ -1512,6 +1536,7 @@ c
       double precision twgt1,xchi2,xxmean,tmeant,tsigmat
       integer iavg,navg
       save twgt1,iavg,navg
+      integer ichannel
 c
 c     External
 c
@@ -1532,14 +1557,15 @@ c
       double precision    accur
       common /to_accuracy/accur
 
-      double precision     xmean(99),xsigma(99),xwmax(99),xeff(99), xrmean(99)
+      double precision     xmean(99),xsigma(99)
+      double precision xwmax(99),xeff(99), xrmean(99)
       common/to_iterations/xmean,    xsigma,    xwmax,    xeff,     xrmean
 
       double precision mean,rmean,sigma
       common/to_result/mean,rmean,sigma
 
-      double precision grid2(0:ng,maxinvar)
-      integer               inon_zero(ng,maxinvar), non_zero
+      double precision grid2(nb_channel,0:ng,maxinvar)
+      integer               inon_zero(nb_channel,ng,maxinvar), non_zero(0:nb_channel)
       common/to_grid2/grid2,inon_zero,non_zero
 
       double precision tmean, trmean, tsigma
@@ -1547,7 +1573,7 @@ c
       common /sample_common/
      .     tmean, trmean, tsigma, dim, events, itm, kn, cur_it, invar, configs
 
-      double precision    grid(2, ng, 0:maxinvar)
+      double precision    grid(2*nb_channel, ng, 0:maxinvar)
       common /data_grid/ grid
       integer                                      nsteps
       character*40          result_file,where_file
@@ -1556,9 +1582,9 @@ c
       common/to_first/first_time
       integer           use_cut
       common /to_weight/use_cut
-      double precision   xmin(maxinvar),xmax(maxinvar)
+      double precision   xmin(nb_channel,maxinvar),xmax(nb_channel,maxinvar)
       common /to_extreme/xmin        ,xmax
-      double precision reliable(ng,maxdim)
+      double precision reliable(nb_channel,ng,maxdim)
       common /to_error/reliable
 
       double precision twgt, maxwgt,swgt(maxevents)
@@ -1605,7 +1631,9 @@ c-----
          rmean = 0d0
          sigma = 0d0
          chi2 = 0d0
-         non_zero = 0
+         do ichannel=0,nb_channel
+            non_zero(ichannel) = 0
+         enddo
          vol = 1d0 / dble(events * itm)
          knt = events
 
@@ -1613,12 +1641,16 @@ c-----
             psect(i)=0d0
          enddo
          do i=1,invar
-            xmin(i) = xgmax
-            xmax(i) = xgmin
+            do ichannel=1,nb_channel
+                xmin(ichannel,i) = xgmax
+                xmax(ichannel,i) = xgmin
+            enddo
             do j=1,ng
-               inon_zero(j,i)=0
-               grid(1,j,i)   =0d0
-               grid2(j,i)    =0d0
+                do ichannel=1,nb_channel
+                    inon_zero(ichannel,j,i)=0
+                    grid(2*ichannel-1,j,i)   =0d0
+                    grid2(ichannel,j,i)    =0d0
+                enddo
             enddo
          enddo
       endif
@@ -1637,7 +1669,9 @@ c        Add the current point to the DiscreteSamplerGrid
             rmean = 0d0
             sigma = 0d0
             chi2 = 0d0
-            non_zero = 0
+            do ichannel=0, nb_channel
+                non_zero(ichannel) = 0
+            enddo
             vol = 1d0 / dble(events * itm)
             knt = events
             do i=1,maxconfigs
@@ -1661,25 +1695,26 @@ c        Add the current point to the DiscreteSamplerGrid
             if (dabs(wgt)*itm*events .gt. wmax) then
                wmax=dabs(wgt)*itm*events
             endif
-            non_zero = non_zero + 1
+            non_zero(ch_picked) = non_zero(ch_picked) + 1
+            non_zero(0) = non_zero(0) + 1
             mean = mean + dabs(wgt)
             rmean = rmean + wgt
-            if (.true. ) then
+c            if (.true. ) then
 c               psect(ipole)=psect(ipole)+wgt*wgt/alpha(ipole)  !Ohl 
 c               psect(ipole)=1d0                 !Not doing multi_config
-            else
-               tot = 0d0
-               do i=1,configs
-                  tot=tot+prb(i,jpnt,jplace)*alpha(i)
-               enddo
-               do i=1,configs
-                  if (tot .gt. 0d0) then !Pittau hep-ph/9405257
-                     psect(i)=psect(i)+wgt*wgt*prb(i,jpnt,jplace)/tot
-                  else
-                     psect(i)=psect(i)+wgt*wgt*alpha(i) !prb not set....
-                  endif
-               enddo
-            endif
+c            else
+c               tot = 0d0
+c               do i=1,configs
+c                  tot=tot+prb(i,jpnt,jplace)*alpha(i)
+c               enddo
+c               do i=1,configs
+c                  if (tot .gt. 0d0) then !Pittau hep-ph/9405257
+c                     psect(i)=psect(i)+wgt*wgt*prb(i,jpnt,jplace)/tot
+c                  else
+c                     psect(i)=psect(i)+wgt*wgt*alpha(i) !prb not set....
+c                  endif
+c               enddo
+c            endif
 c            write(123,'(2i6,1e15.5)') 1,1,wgt
 c            write(123,'(5e15.9)') (fprb(i,jpnt,jplace),i=1,invar) 
 c            write(123,'(5e15.9)') (prb(i,jpnt,jplace),i=1,configs) 
@@ -1694,15 +1729,15 @@ c               write(*,*) 'bin choice',j,i,lastbin(j)
                   print*,'error i>ng',i,j,ng,point(j)
                   i=ng
                endif
-               grid(1, i, j) = grid(1, i, j) + abs(wgt)
-               grid2(i, j) = grid2(i, j) + wgt**2
+               grid(2*ch_picked - 1, i, j) = grid(2*ch_picked - 1, i, j) + abs(wgt)
+               grid2(ch_picked, i, j) = grid2(ch_picked, i, j) + wgt**2
 c
 c     Lines below are for multiconfiguration
 c
-c               grid(1, i, j) = grid(1, i, j) +
+c               grid(2*ichannel-1, i, j) = grid(2*ichannel-1, i, j) +
 c     &                          (abs(wgt)**2)*fprb(j,jpnt,jplace)
-c               grid2(i, j) = grid2(i, j) + wgt**4*fprb(j,jpnt,jplace)
-               if (abs(wgt) .gt. 0) inon_zero(i,j) = inon_zero(i,j)+1
+c               grid2(ichannel,i, j) = grid2(ichannel,i, j) + wgt**4*fprb(j,jpnt,jplace)
+               if (abs(wgt) .gt. 0) inon_zero(ch_picked, i,j) = inon_zero(ch_picked,i,j)+1
 c
 c     Here we need to look out for point(j) which has been transformed
 c     for Briet-Wigner pole
@@ -1717,33 +1752,35 @@ c
                      endif
                   endif
                endif
-               if (abs(wgt) .gt. 0) xmin(j)=min(xmin(j),point(j))
-               if (abs(wgt) .gt. 0) xmax(j)=max(xmax(j),point(j))
-               if (xmin(j) .lt. xgmin) then
-                  print*,'Warning xmin<0',j,xmin(j),point(j)
+               if (abs(wgt) .gt. 0) xmin(ch_picked,j)=min(xmin(ch_picked,j),point(j))
+               if (abs(wgt) .gt. 0) xmax(ch_picked,j)=max(xmax(ch_picked,j),point(j))
+               if (xmin(ch_picked,j) .lt. xgmin) then
+                  print*,'Warning xmin<0',j,xmin(ch_picked,j),point(j)
                endif
-               xmin(j)=max(xmin(j),xgmin)
+               xmin(ch_picked,j)=max(xmin(ch_picked,j),xgmin)
             end do
          endif
 c
 c     Now if done with an iteration, print out stats, rebin, reset
 c         
 c         if (kn .eq. events) then
-         if (kn .ge. max_events .and. non_zero .le. 5) then
+         if (kn .ge. max_events .and. non_zero(0) .le. 5) then
             call none_pass(max_events)
          endif
-         if (non_zero .eq. events .or. (kn .gt. 200*events .and.
-     $        non_zero .gt. 5)) then
+         if (non_zero(0) .eq. events .or. (kn .gt. 200*events .and.
+     $        non_zero(0) .gt. 5)) then
 
 c          # special mode where we store information to combine them
            if(use_cut.eq.-2)then
                 open(unit=22, file="grid_information")
-                write(22,*) non_zero, ng, invar
-                write(22,*) ((grid(1,i,j),i=1,ng),j=1,invar)
-                write(22,*) ((grid(2,i,j),i=1,ng),j=1,invar)
-                write(22,*) ((inon_zero(i,j),i=1,ng),j=1,invar)
-                write(22,*) (xmin(j), j=1,invar)
-                write(22,*) (xmax(j), j=1,invar)
+                write(22,*) non_zero(0), ng, invar
+                do ichannel=1, nb_channel
+                    write(22,*) ((grid(2*ichannel-1,i,j),i=1,ng),j=1,invar)
+                    write(22,*) ((grid(2*ichannel,i,j),i=1,ng),j=1,invar)
+                    write(22,*) ((inon_zero(ichannel,i,j),i=1,ng),j=1,invar)
+                    write(22,*) (xmin(ichannel,j), j=1,invar)
+                    write(22,*) (xmax(ichannel,j), j=1,invar)
+                enddo
                 write(22,*) mean, rmean, sigma, wmax, kn,events, force_max_wgt
 c               In order not to write out the reference grid but just
 c               the points which were added for this last iteration,
@@ -1760,19 +1797,19 @@ C    choice in the grouped case.
 C
            call update_discrete_dimensions()
 
-            mean=mean*dble(events)/dble(non_zero)
-            rmean=rmean*dble(events)/dble(non_zero)
-            twgt1=twgt1*dble(events)/dble(non_zero)
+            mean=mean*dble(events)/dble(non_zero(0))
+            rmean=rmean*dble(events)/dble(non_zero(0))
+            twgt1=twgt1*dble(events)/dble(non_zero(0))
             sigma=sigma+twgt1**2    !This line for averaging over points
-            if (non_zero .eq. 0) then
+            if (non_zero(0) .eq. 0) then
                write(*,*) 'Error no points passed the cuts.'
                write(*,*) 'Try running with more points or looser cuts.'
                stop
             endif
 c            mean = mean * itm                 !Used if don't have non_zero
             if (.true.) then
-               mean = mean * itm *dble(non_zero)/dble(kn)
-               rmean = rmean * itm *dble(non_zero)/dble(kn)
+               mean = mean * itm *dble(non_zero(0))/dble(kn)
+               rmean = rmean * itm *dble(non_zero(0))/dble(kn)
                knt = kn
             endif
 c
@@ -1783,7 +1820,7 @@ c     &        (sigma/vol/vol-knt*mean*mean*navg)/dble(knt-1)/ dble(knt)
 
             if (.true.) then
 c               vol = 1d0/(knt*itm)
-               sigma = (sigma/vol/vol-non_zero*mean*mean*navg)  !knt replaced by non_zero
+               sigma = (sigma/vol/vol-non_zero(0)*mean*mean*navg)  !knt replaced by non_zero
      .              / dble(knt-1) / dble(knt)
             else
 
@@ -1801,18 +1838,18 @@ c               vol = 1d0/(knt*itm)
                xmean(cur_it) = mean
                xrmean(cur_it) = rmean
                xsigma(cur_it) = sigma
-               xwmax(cur_it)= wmax*dble(non_zero)/dble(kn)
-               xeff(cur_it)= sigma*sqrt(dble(non_zero))/mean
+               xwmax(cur_it)= wmax*dble(non_zero(0))/dble(kn)
+               xeff(cur_it)= sigma*sqrt(dble(non_zero(0)))/mean
 c               call sample_writehtm()
             endif
             write(*,222) 'Iteration',cur_it,'Mean: ',rmean,
      &           ' Abs mean: ',mean, '  Fluctuation: ',sigma,
-     &           wmax*(dble(non_zero)/dble(kn)),
-     &           dble(non_zero)/dble(kn)*100.,'%'
+     &           wmax*(dble(non_zero(0))/dble(kn)),
+     &           dble(non_zero(0))/dble(kn)*100.,'%'
  222        format(a10,I3,3x,a6,e10.4,a11,e10.4,a16,e10.3,e12.3,3x,f5.1,a1)
 
             write(*,223) cur_it, rmean, mean,' +- ', sigma,
-     &           sigma*sqrt(dble(non_zero))/mean
+     &           sigma*sqrt(dble(non_zero(0)))/mean
  223        format( i3,3x,2e11.4,a,e10.4,f10.2)
             tot=0d0
             do i=1,configs
@@ -1851,7 +1888,7 @@ c               wmax1 = wmax*(dble(non_zero)/dble(kn))
                wmax1 = sigma/(mean+1d-99)
 c               open(26, file='ftn99',status='unknown')
 c               write(26,fmt='(4f20.17)')
-c     $              ((grid(2,i,j),i=1,ng),j=1,maxinvar)
+c     $              ((grid(2*ichannel,i,j),i=1,ng),j=1,maxinvar)
 c               write(26,fmt='(4f20.17)') (alpha(i),i=1,maxconfigs)
 c               close(26)
             endif
@@ -1902,63 +1939,67 @@ c     do so adjusting of weights according to number of events in bin
 c
             do j=1,invar
                do i = 1, ng
+               do ichannel = 1, nb_channel
                   if (abs(use_cut) .ne. 2 .and.
      &                use_cut .ne. 3 .and. use_cut .ne. 5)
-     $                 inon_zero(i,j) = 0
-                  if (use_cut .eq. 3) grid(1,i,j)=grid2(i,j)
-                  if (inon_zero(i,j) .ne. 0) then
-                     grid(1,i,j) = grid(1,i,j)
-     &                 *dble(min((real(non_zero)/real(inon_zero(i,j))),
-     $                    10000.))
-                     grid2(i,j) = grid2(i,j)
-     &                 *dble(min((real(non_zero)/real(inon_zero(i,j))),
-     $                    10000.))**2
-                     if (real(non_zero)/real(inon_zero(i,j))
+     $                 inon_zero(ichannel,i,j) = 0
+                  if (use_cut .eq. 3) grid(2*ichannel-1,i,j)=grid2(ichannel,i,j)
+                  if (inon_zero(ichannel,i,j) .ne. 0) then
+                     grid(2*ichannel-1,i,j) = grid(2*ichannel-1,i,j)
+     &                 *dble(min((real(non_zero(ichannel))/
+     $                        real(inon_zero(ichannel,i,j))), 10000.))
+                     grid2(ichannel,i,j) = grid2(ichannel,i,j)
+     &                 *dble(min((real(non_zero(ichannel))
+     &                  /real(inon_zero(ichannel,i,j))), 10000.))**2
+
+                     if (real(non_zero(ichannel))/real(inon_zero(ichannel,i,j))
      &                    .gt. 100000) then
 c                        if (j .eq. 1) then
                            print*,'Exceeded boost',j,i,
-     &                          real(non_zero)/real(inon_zero(i,j))
+     &                    real(non_zero(ichannel))/real(inon_zero(ichannel,i,j))
 c                        endif
                      endif
-                     inon_zero(i,j) = 0
+                     inon_zero(ichannel,i,j) = 0
                   endif
                   if (use_cut .eq. 4)
-     &                 reliable(i,j)=dsqrt(grid2(i,j))/grid(1,i,j)
+     &                 reliable(ichannel,i,j)=dsqrt(grid2(ichannel,i,j))/grid(2*ichannel-1,i,j)
+               enddo
                enddo
             enddo
             if (use_cut .eq. 4) then
                use_cut=0
             endif
+            do ichannel =1, nb_channel
             do j = 1, invar
                k=1
 c
 c              special routines to deal with xmin cutoff
 c
-               do while(grid(1,k,j) .le. 0d0 .and. k+1 .lt. ng)
+               do while(grid(2*ichannel-1,k,j) .le. 0d0 .and. k+1 .lt. ng)
                   k=k+1
                enddo
 
 c               if (j .eq. 1) then
 c                  open(unit=22,file='x1.dat',status='unknown')
 c                  do i=1,ng
-c                     write(22,'(i6,2e20.8)') i,grid(1,i,j),
-c     $                    dsqrt(grid2(i,j))
+c                     write(22,'(i6,2e20.8)') i,grid(2*ichannel-1,i,j),
+c     $                    dsqrt(grid2(ichannel,i,j))
 c                  enddo
 c                  close(22)
 c               endif
 
                x(j)=0d0
                do i=1,ng
-                  x(j)=x(j)+grid(1,i,j)
+                  x(j)=x(j)+grid(2*ichannel-1,i,j)
                enddo
 
-               call average_grid(j,k,grid,grid2,x)
+               call average_grid(j,k,grid,grid2,x, ichannel)
 
 c               if (j .eq. 1 .and. .true.) then
 c               open(unit=22,file='x1avg.dat',status='unknown')
 c               do i=1,ng
-c                  write(22,'(i6,2e20.8)') i,grid(1,i,1),
-c     $                 dsqrt(grid2(i,1))
+c                  write(22,'(i6,2e20.8)') i,grid(2*ichannel-1,i,1),
+c     $                 dsqrt(grid2(ichannel,i,1))
 c               enddo
 c               close(22)
 c               endif
@@ -1968,9 +2009,9 @@ c     Now take logs to help the rebinning converge quicker
 c
                rc = 0d0
                do i= k, ng
-                  xo = (1.0d-14) + grid(1, i, j) / x(j)
-                  grid(1, i, j) = ((xo - 1d0) / log(xo))**1.5 !this is 1.5
-                  rc = rc + grid(1, i, j)
+                  xo = (1.0d-14) + grid(2*ichannel-1, i, j) / x(j)
+                  grid(2*ichannel-1, i, j) = ((xo - 1d0) / log(xo))**1.5 !this is 1.5
+                  rc = rc + grid(2*ichannel-1, i, j)
 c                  write(*,*) i,rc
                end do      
                rc = rc / dble(ng)
@@ -1988,31 +2029,31 @@ c
 
                xnmin = xgmin              !Endpoints for grid usually 0d0
                xnmax = xgmax              !Endpoint for grid usually 1d0
-               if (xmin(j)-xgmin .gt. (grid(2,2,j)-grid(2,1,j)))then
-                  xnmin = xmin(j)-(grid(2,2,j)-grid(2,1,j))/5d0
+               if (xmin(ichannel,j)-xgmin .gt. (grid(2*ichannel,2,j)-grid(2*ichannel,1,j)))then
+                  xnmin = xmin(ichannel,j)-(grid(2*ichannel,2,j)-grid(2*ichannel,1,j))/5d0
                   i = 1
                   dum(i)= xnmin
                   xn = xnmin
                   rc = rc * dble(ng)/dble(ng-i)
                endif
                dum(ng-1) = -1d0
-               if (xgmax-xmax(j).gt.(grid(2,ng-1,j)-grid(2,ng-2,j)))then
-                  xnmax = xmax(j)+(grid(2,ng-1,j)-grid(2,ng-2,j))/5d0
+               if (xgmax-xmax(ichannel,j).gt.(grid(2*ichannel,ng-1,j)-grid(2*ichannel,ng-2,j)))then
+                  xnmax = xmax(ichannel,j)+(grid(2*ichannel,ng-1,j)-grid(2*ichannel,ng-2,j))/5d0
                   dum(ng-1)= xnmax
                   rc = rc * dble(ng-i)/dble(ng-i-1)
 c                  print*,'xmax',j,xmax(j),dum(ng-1)
                endif
                
  25            k = k + 1
-               dr = dr + grid(1, k, j)
+               dr = dr + grid(2*ichannel-1, k, j)
                xo = xn
-               xn = max(grid(2, k, j),xnmin)
+               xn = max(grid(2*ichannel, k, j),xnmin)
                xn = min(xn,xnmax)
  26            if (rc .gt. dr) goto 25
 
                i = i + 1
                dr = dr - rc
-               dum(i) = xn - (xn - xo) * dr / grid(1, k, j)
+               dum(i) = xn - (xn - xo) * dr / grid(2*ichannel-1, k, j)
 c
 c     Put in check for 0 width bin NEED TO FIX THIS
 c
@@ -2038,24 +2079,26 @@ c
 c     Now reset counters and set new grid as necessary
 c
                do i = 1, ng - 1
-                  grid(1, i, j) = 0d0
-                  grid2(i,j) = 0d0
+                  grid(2*ichannel-1, i, j) = 0d0
+                  grid2(ichannel,i,j) = 0d0
                   if (use_cut .ne. 0 .and. j .gt. 0)
-     $                 grid(2, i, j) = dum(i)
+     $                 grid(2*ichannel, i, j) = dum(i)
                end do
-               grid(1, ng, J) = 0d0
-               grid(2, ng, J) = xgmax
-               grid2(ng,j)  = 0d0
-               non_zero = 0
+               grid(2*ichannel-1, ng, J) = 0d0
+               grid(2*ichannel, ng, J) = xgmax
+               grid2(ichannel,ng,j)  = 0d0
 
+               non_zero(0) = 0
+               non_zero(ichannel) = 0
                call sample_write_g(j,'_1')
 
             end do
+            enddo !ichannel
 c            write(*,*) (irebin(j),j=1,dim)
 c            open(unit=26,file='grid.dat',status='unknown')
 c            do j=1,maxinvar
 c               do i=1,ng
-c                  write(26,*) grid(2,i,j),j,i
+c                  write(26,*) grid(2*ichannel,i,j),j,i
 c               enddo
 c            enddo
 c            close(26)
@@ -2088,11 +2131,15 @@ c               if (1d0/sqrt(tsigma) .lt. accur) then
                      chi2=0d0
                   endif
                   tsigma = tmean / sqrt(tsigma)
+                  write(*,*) "chi2", chi2
                   write(*, 80) real(tmean), real(tsigma), real(trmean), real(chi2)
+                  write(*,*) "pass in 2136"
                   if (use_cut .ne. 0) then
                   open(26, file='ftn26',status='unknown')
-                  write(26,fmt='(4f21.17)')
-     $                 ((grid(2,i,j),i=1,ng),j=1,invar)
+                  do ichannel =1, nb_channel
+                       write(26,fmt='(4f21.17)')
+     $                         ((grid(2*ichannel,i,j),i=1,ng),j=1,invar)
+                  enddo
                   write(26,*) twgt, force_max_wgt
 c                  write(26,fmt='(4f21.16)') (alpha(i),i=1,maxconfigs)
                   call write_discrete_grids(26,'ref')
@@ -2152,17 +2199,22 @@ c     JA 8/17/2011 Redefined -accur as lumi, so nevents is -accur*cross section
 c     Check nun and chi2 (ja 03/11)
                if (nun .gt. -accur*tmeant .and. chi2tmp .lt. 10d0)then   
                   tmean = tmean / tsigma
+                  write(*,*) "chi2, tmean, tsigma, cur_it",chi2, tmean, tsigma, cur_it
+                  write(*,*) chi2/tmean/tmean, tsigma
                   if (cur_it .gt. 2) then
                      chi2 = (chi2/tmean/tmean-tsigma)/dble(cur_it-2)
                   else
                      chi2=0d0
                   endif
+                  if (chi2.lt.0) chi2 = 0
                   tsigma = tmean / sqrt(tsigma)
                   write(*, 80) real(tmean), real(tsigma), real(chi2)
                   if (use_cut .ne. 0) then
                   open(26, file='ftn26',status='unknown')
-                  write(26,fmt='(4f21.17)')
-     $                 ((grid(2,i,j),i=1,ng),j=1,invar)
+                  do ichannel=1,nb_channel
+                     write(26,fmt='(4f21.17)')
+     $                 ((grid(2*ichannel,i,j),i=1,ng),j=1,invar)
+                  enddo
                   write(26,*) twgt, force_max_wgt
 c                  write(26,fmt='(4f21.17)') (alpha(i),i=1,maxconfigs)
                   call write_discrete_grids(26,'ref')
@@ -2174,6 +2226,7 @@ c                  open(unit=22,file=result_file,status='old',
 c     $                 access='append',err=129)
 c                  write(22, 80) real(tmean), real(tsigma), real(chi2)
 c 129              close(22)
+                  write(*,*) "from dsample chi2", chi2
                   tsigma = tsigma*sqrt(chi2) !This gives the 68% confidence cross section
                   cur_it = itm+20
                   return
@@ -2198,8 +2251,10 @@ c 129              close(22)
      .              13X,21HChi**2 per DoF.     =,f12.4/1X,79(1H-))
                if (use_cut .ne. 0) then
                open(26, file='ftn26',status='unknown')
-               write(26,fmt='(4f21.17)')
-     $              ((grid(2,i,j),i=1,ng),j=1,invar)
+               do ichannel=1,nb_channel
+                 write(26,fmt='(4f21.17)')
+     $              ((grid(2*ichannel,i,j),i=1,ng),j=1,invar)
+               enddo
                write(26,*) twgt, force_max_wgt
                call write_discrete_grids(26,'ref')
 c               write(26,fmt='(4f21.17)') (alpha(i),i=1,maxconfigs)
@@ -2282,7 +2337,7 @@ c     Remove file events.lhe (otherwise event combination gets screwed up)
       stop
       end
             
-      subroutine average_grid(j,k,grid,grid2,x)
+      subroutine average_grid(j,k,grid,grid2,x, ichannel)
 c**************************************************************************
 c     Special routine to deal with averaging over the grid bins
 c     This routine starts averaging at bin k rather than bin 1 so that
@@ -2301,8 +2356,10 @@ c
 c     Arguments
 c
       integer j,k
-      double precision grid(2,ng,0:maxinvar),grid2(0:ng,maxinvar)
+      double precision grid(2*nb_channel,ng,0:maxinvar)
+      double precision grid2(nb_channel,0:ng,maxinvar)
       double precision x(maxinvar)
+      integer ichannel ! wich grid to update
 c
 c     Local
 c
@@ -2313,23 +2370,23 @@ c  Begin Code
 c-----
       kmax=k
       do i=k+1,ng
-         if (grid(1,i,j) .gt. 0d0) kmax=i
+         if (grid(2*ichannel-1,i,j) .gt. 0d0) kmax=i
       enddo
-      xo = grid(1,k,j)
-      xn = grid(1,k+1,j)
-      grid(1,k,j) = (xo+xn)/2d0
-      x(j) = grid(1,k,j)
+      xo = grid(2*ichannel-1,k,j)
+      xn = grid(2*ichannel-1,k+1,j)
+      grid(2*ichannel-1,k,j) = (xo+xn)/2d0
+      x(j) = grid(2*ichannel-1,k,j)
 c      do i=k+1,ng-1                      !Original without kmax stuff
       do i=k+1,kmax-1
-         grid(1, i, j) = xo + xn
+         grid(2*ichannel-1, i, j) = xo + xn
          xo = xn
-         xn = grid(1, i+1, j)
-         grid(1, i, j) = (grid(1, i, j) + xn) / 3d0
-         x(j) = x(j) + grid(1, i, j)
+         xn = grid(2*ichannel-1, i+1, j)
+         grid(2*ichannel-1, i, j) = (grid(2*ichannel-1, i, j) + xn) / 3d0
+         x(j) = x(j) + grid(2*ichannel-1, i, j)
       end do
-c      grid(1, ng, j) = (xn + xo) / 2d0  !Original without kmax stuff
-      grid(1, kmax, j) = (xn + xo) / 2d0
-      x(j) = x(j) + grid(1, kmax, j)
+c      grid(2*ichannel-1, ng, j) = (xn + xo) / 2d0  !Original without kmax stuff
+      grid(2*ichannel-1, kmax, j) = (xn + xo) / 2d0
+      x(j) = x(j) + grid(2*ichannel-1, kmax, j)
       end
 
       double precision function xbin(y,j)
@@ -2359,7 +2416,7 @@ c
 c
 c     Global
 c
-      double precision    grid(2, ng, 0:maxinvar)
+      double precision    grid(2*nb_channel, ng, 0:maxinvar)
       common /data_grid/ grid
       double precision      spole(maxinvar),swidth(maxinvar),bwjac
       common/to_brietwigner/spole        ,swidth        ,bwjac
@@ -2385,31 +2442,31 @@ c-----
          xbin = dble(ng)
       elseif (x .eq. xgmin) then
          xbin=0d0
-      elseif(x .le. grid(2,1,j)) then
+      elseif(x .le. grid(2*ch_picked,1,j)) then
          i=1
-         xo = grid(2,i,j)-xgmin
-         xbin = dble(i)+(x-grid(2,i,j))/xo
+         xo = grid(2*ch_picked,i,j)-xgmin
+         xbin = dble(i)+(x-grid(2*ch_picked,i,j))/xo
       else
          jl = 1
          ju = ng
          do while (ju-jl .gt. 1)                    !Binary search
             i = (ju-jl)/2+jl
-            if (grid(2,i,j) .le. x) then
+            if (grid(2*ch_picked,i,j) .le. x) then
                jl=i
             else
                ju=i
             endif
          enddo
          i=ju
-         xo = grid(2,i,j)-grid(2,i-1,j)
-         xbin = dble(i)+(x-grid(2,i,j))/xo
+         xo = grid(2*ch_picked,i,j)-grid(2*ch_picked,i-1,j)
+         xbin = dble(i)+(x-grid(2*ch_picked,i,j))/xo
       endif
 c      jbin=i
 c      x = 
-c      if (x+tol .gt. grid(2,i,j) .and. i .ne. ng) then
+c      if (x+tol .gt. grid(2*ichannel,i,j) .and. i .ne. ng) then
 c         write(*,'(a,2e23.16,e9.2)') 'Warning in DSAMPLE:JBIN ',
-c     &                x,grid(2,i,j),tol
-c         x=2d0*grid(2,i,j)-x
+c     &                x,grid(2*ichannel,i,j),tol
+c         x=2d0*grid(2*ichannel,i,j)-x
 c         jbin=i+1
 c      endif
       end
@@ -2436,10 +2493,11 @@ c
       character*60 fname
       integer i
       double precision xo,yo
+      integer ichannel ! iterator to loop over MC grid
 c
 c     Global
 c
-      double precision   grid(2, ng, 0:maxinvar)
+      double precision   grid(2*nb_channel, ng, 0:maxinvar)
       common /data_grid/ grid
 
 c-----
@@ -2456,10 +2514,12 @@ c-----
          write(fname,'(a,i2,a,a)') 'g_',idim,cpost,'.dat'
       endif
       open(unit=21,file=fname,status='unknown',err=99)
+      do ichannel=1,nb_channel
       do i=1,ng-1
-         xo = (grid(2,i,idim)+grid(2,i+1,idim))/2d0
-         yo =1d0/(-grid(2,i,idim)+grid(2,i+1,idim))
+         xo = (grid(2*ichannel,i,idim)+grid(2*ichannel,i+1,idim))/2d0
+         yo =1d0/(-grid(2*ichannel,i,idim)+grid(2*ichannel,i+1,idim))
          write(21,*) xo,yo
+      enddo
       enddo
       close(21)
       return
@@ -2505,10 +2565,10 @@ C       Due to the initialization of the helicity sum.
       implicit none
       include 'genps.inc'
 
-      double precision grid2(0:ng,maxinvar)
-      integer               inon_zero(ng,maxinvar), non_zero
+      double precision grid2(nb_channel, 0:ng,maxinvar)
+      integer               inon_zero(nb_channel,ng,maxinvar), non_zero(0:nb_channel)
       common/to_grid2/grid2,inon_zero, non_zero
-      double precision    grid(2, ng, 0:maxinvar)
+      double precision    grid(2*nb_channel, ng, 0:maxinvar)
       common /data_grid/ grid
 
       double precision tmean, trmean, tsigma
@@ -2519,14 +2579,19 @@ C       Due to the initialization of the helicity sum.
 
 C     LOCAL
       integer i,j
+      integer ichannel
 
       write(*,*) "RESET CUMULATIVE VARIABLE"
-      non_zero = 0
+      do ichannel=0,nb_channel
+        non_zero(ichannel) = 0
+      enddo
       do j=1,maxinvar
          do i=1,ng -1
-            inon_zero = 0
-            grid2(i,j) = 0
-            grid(1,i,j) = 0
+            do ichannel=1,nb_channel
+               inon_zero(ichannel, i,j) = 0
+               grid2(ichannel,i,j) = 0
+               grid(2*ichannel-1,i,j) = 0
+            enddo
          enddo
       enddo
       tmean = 0.0

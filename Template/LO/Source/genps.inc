@@ -18,14 +18,23 @@ c      parameter (ng = 43, maxdim = 25, maxinvar= 57 , maxconfigs=20)
 c*************************************************************************
 c	Parameters used for parallel running
 c*************************************************************************
-      integer    max_host   ,maxplace    ,maxpoints    ,maxans
-      parameter (max_host=9,maxplace=9,maxpoints=10,maxans=5)
-c      parameter (max_host=99,maxplace=199,maxpoints=100,maxans=50)
+      integer  maxplace    ,maxpoints    ,maxans
+      parameter (maxplace=9,maxpoints=10,maxans=5)
+c      parameter (maxplace=199,maxpoints=100,maxans=50)
       integer    maxprb
       parameter (maxprb = maxconfigs*maxplace*maxpoints)
       integer    maxfprb
       parameter (maxfprb = maxinvar*maxplace*maxpoints)
+c*************************************************************************
+c   NB_subchannel (number of multi-channel handle at fortran level)
+c************************************************************************* 
+      integer nb_channel
+      parameter (nb_channel=1)
+c     store which of the change of variable/integrand to use
+      integer ch_picked
+      common/secondary_multichannel/ch_picked
 
+     
 c*************************************************************************
 c	Parameters for helicity and color flow sums in matrixN.f
 c*************************************************************************

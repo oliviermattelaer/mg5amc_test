@@ -18,7 +18,7 @@ GENERIC = $(alfas_functions).o transpole.o \
            rw_routines.o kin_functions.o open_file.o  setrun.o \
           run_printout.o 
 
-INCLUDEF= coupl.inc genps.inc hbook.inc DECAY/decay.inc psample.inc cluster.inc sudgrid.inc
+INCLUDEF= coupl.inc genps.inc hbook.inc DECAY/decay.inc cluster.inc sudgrid.inc
 
 BANNER  =  write_banner.o  rw_events.o ranmar.o  kin_functions.o open_file.o  rw_routines.o alfas_functions.o
 
