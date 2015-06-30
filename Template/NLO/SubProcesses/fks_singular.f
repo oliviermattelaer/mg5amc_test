@@ -1043,6 +1043,8 @@ c        the iproc contribution
      &                         fkssymmetryfactorDeg,ngluons,nquarks
       double precision       wgt_ME_born,wgt_ME_real
       common /c_wgt_ME_tree/ wgt_ME_born,wgt_ME_real
+      double precision     iden_comp
+      common /c_iden_comp/ iden_comp
       if (wgt1.eq.0d0 .and. wgt2.eq.0d0 .and. wgt3.eq.0d0) return
       icontr=icontr+1
       if (icontr.gt.max_contr) then
@@ -1070,7 +1072,11 @@ c     Born contribution
 c     Anything else
          QCDpower(icontr)=nint(2*wgtbpower+2)
       endif
-      wgt_ME_tree(1,icontr)=wgt_me_born*max(dble(ngluons),1d0)
+c Compensate for the fact that in the Born matrix elements, we use the
+c identical particle symmetry factor of the corresponding real emission
+c matrix elements
+c IDEN_COMP STUFF NEEDS TO BE UPDATED WHEN MERGING WITH 'FKS_EW' STUFF
+      wgt_ME_tree(1,icontr)=wgt_me_born/iden_comp
       wgt_ME_tree(2,icontr)=wgt_me_real
       do i=1,nexternal
          do j=0,3
@@ -5302,11 +5308,15 @@ c$$$      m1l_W_finite_CDR=m1l_W_finite_CDR*born
       common/numberofparticles/fkssymmetryfactor,fkssymmetryfactorBorn,
      &                         fkssymmetryfactorDeg,ngluons,nquarks
 
+      double precision iden_comp
+      common /c_iden_comp/iden_comp
+
       include 'coupl.inc'
       include 'genps.inc'
       include 'nexternal.inc'
       include 'fks_powers.inc'
       include 'nFKSconfigs.inc'
+      include 'c_weight.inc'
       integer fks_j_from_i(nexternal,0:nexternal)
      &     ,particle_type(nexternal),pdg_type(nexternal)
       common /c_fks_inc/fks_j_from_i,particle_type,pdg_type
@@ -5342,13 +5352,14 @@ c$$$      m1l_W_finite_CDR=m1l_W_finite_CDR*born
       character*1 integrate
       integer i_fks,j_fks
       common/fks_indices/i_fks,j_fks
-      integer fac_i,fac_j,i_fks_pdg,j_fks_pdg
+      integer fac_i,fac_j,i_fks_pdg,j_fks_pdg,iden(nexternal)
 
       integer fac_i_FKS(fks_configs),fac_j_FKS(fks_configs)
-     $     ,i_type_FKS(fks_configs),j_type_FKS(fks_configs)
-     $     ,m_type_FKS(fks_configs),ngluons_FKS(fks_configs)
+     &     ,i_type_FKS(fks_configs),j_type_FKS(fks_configs)
+     &     ,m_type_FKS(fks_configs),ngluons_FKS(fks_configs)
+     &     ,iden_real_FKS(fks_configs),iden_born_FKS(fks_configs)
       save fac_i_FKS,fac_j_FKS,i_type_FKS,j_type_FKS,m_type_FKS
-     $     ,ngluons_FKS
+     $     ,ngluons_FKS,iden_real_FKS,iden_born_FKS
 
       character*13 filename
 
@@ -5521,12 +5532,56 @@ c Set color types of i_fks, j_fks and fks_mother.
          i_type_FKS(nFKSprocess)=i_type
          j_type_FKS(nFKSprocess)=j_type
          m_type_FKS(nFKSprocess)=m_type
+
+
+c Compute the identical particle symmetry factor that is in the
+c real-emission matrix elements.
+         iden_real_FKS(nFKSprocess)=1
+         do i=1,nexternal
+            iden(i)=1
+         enddo
+         do i=nincoming+2,nexternal
+            do j=nincoming+1,i-1
+               if (pdg_type(j).eq.pdg_type(i)) then
+                  iden(j)=iden(j)+1
+                  iden_real_FKS(nFKSprocess)=
+     &                 iden_real_FKS(nFKSprocess)*iden(j)
+                  exit
+               endif
+            enddo
+         enddo
+c Compute the identical particle symmetry factor that is in the
+c Born matrix elements.
+         iden_born_FKS(nFKSprocess)=1
+         call set_pdg(0,nFKSprocess)
+         do i=1,nexternal
+            iden(i)=1
+         enddo
+         do i=nincoming+2,nexternal-1
+            do j=nincoming+1,i-1
+               if (pdg_uborn(j,0).eq.pdg_uborn(i,0)) then
+                  iden(j)=iden(j)+1
+                  iden_born_FKS(nFKSprocess)=
+     &                 iden_born_FKS(nFKSprocess)*iden(j)
+                  exit
+               endif
+            enddo
+         enddo
       endif
 
       i_type=i_type_FKS(nFKSprocess)
       j_type=j_type_FKS(nFKSprocess)
       m_type=m_type_FKS(nFKSprocess)
 
+c Difference in identical particle factor in the Born and real emission
+c matrix elements. To define wgt_ME_tree for the Born, we need to
+c include this factor, because in the current Born the symmetry factor
+c for the real is used. THIS NEEDS TO BE CHANGED WHEN MERGING WITH THE
+c 'FKS_EW' STUFF
+      iden_comp=dble(iden_born_FKS(nFKSprocess))/
+     &          dble(iden_real_FKS(nFKSprocess))
+      
+      
 c Set matrices used by MC counterterms
       call set_mc_matrices
 
