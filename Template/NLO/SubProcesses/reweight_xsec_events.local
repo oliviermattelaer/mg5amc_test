@@ -12,6 +12,10 @@ if [[ -e ./reweight_xsec_events ]]
 then
     (echo $event_file; echo $save_wgts) | ./reweight_xsec_events > reweight_xsec_events.output
 else
+    rm param_card.dat
+    ln -s ../../ML5lib_reweight/Cards/param_card.dat .
+    ln -s ../../ML5lib_reweight/SubProcesses/MadLoop5_resources .
+    ln -s ../../ML5lib_reweight/SubProcesses/MadLoop5_resources/ident_card.dat .
     (echo $event_file; echo $save_wgts) | ../reweight_xsec_events > reweight_xsec_events.output
 fi
 

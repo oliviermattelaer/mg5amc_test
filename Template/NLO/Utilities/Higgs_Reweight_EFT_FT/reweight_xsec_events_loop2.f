@@ -756,10 +756,9 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       character*200 loop_id
       character*512 path
       if (firsttime) then
-         path="../../ML5lib_reweight/"/
-     &        /"SubProcesses/MadLoop5_resources"
+         path="MadLoop5_resources"
          call SETMADLOOPPATH(path)
-         path="../../ML5lib_reweight/Cards/param_card.dat"
+         path="param_card.dat"
          call setpara2(path)
          call printout
          firsttime=.false.

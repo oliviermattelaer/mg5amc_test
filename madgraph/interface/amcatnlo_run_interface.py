@@ -3146,6 +3146,10 @@ Integrated cross-section
             path, evt = os.path.split(evt_file)
             files.ln(pjoin(self.me_dir, 'SubProcesses', exe), \
                      pjoin(self.me_dir, 'SubProcesses', path))
+#            files.ln(pjoin(self.me_dir, 'SubProcesses','ML5lib_reweight','SubProcesses','MadLoop5_resources'), \
+#                     pjoin(self.me_dir, 'SubProcesses', path))
+#            files.ln(pjoin(self.me_dir,'SubProcesses/ML5lib_reweight/Cards/param_card.dat'), \
+#                     pjoin(self.me_dir, 'SubProcesses', path))
             job_dict[path] = [exe]
 
         self.run_all(job_dict, [[evt, '1']], 'Running reweight')
@@ -3404,11 +3408,13 @@ Integrated cross-section
                 input_files.append(pdfinput)
             input_files.append(pjoin(os.path.dirname(exe), os.path.pardir, 'reweight_xsec_events'))
             input_files.append(pjoin(cwd, os.path.pardir, 'leshouche_info.dat'))
+            input_files.append(pjoin(cwd, '../../ML5lib_reweight/Cards', 'param_card.dat'))
+            input_files.append(pjoin(cwd, '../../ML5lib_reweight/SubProcesses', 'MadLoop5_resources'))
+            input_files.append(pjoin(cwd, '../../ML5lib_reweight/SubProcesses', 'MadLoop5_resources','ident_card.dat'))
             input_files.append(args[0])
             output_files.append('%s.rwgt' % os.path.basename(args[0]))
             output_files.append('reweight_xsec_events.output')
-            output_files.append('scale_pdf_dependence.dat')
-
+	    output_files.append('scale_pdf_dependence.dat')
             return self.cluster.submit2(exe, args, cwd=cwd, 
                              input_files=input_files, output_files=output_files,
                              required_output=output_files) 
