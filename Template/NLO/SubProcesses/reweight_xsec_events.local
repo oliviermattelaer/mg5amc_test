@@ -3,27 +3,35 @@
 event_file=$1
 save_wgts=$2
 
-# For support of LHAPATH in cluster mode                                                                                                                                                                    
 if [ $CLUSTER_LHAPATH ]; then
   export LHAPATH=$CLUSTER_LHAPATH;
 fi
 
 if [[ -e ./reweight_xsec_events ]]
 then
+    # running at remote location (reweight_xsec_events is copied to the run location)
     (echo $event_file; echo $save_wgts) | ./reweight_xsec_events > reweight_xsec_events.output
 else
-    rm param_card.dat
-#    rm MadLoop5_resources
-#    rm ident_card.dat
-    ln -s ../../ML5lib_reweight/Cards/param_card.dat .
-    ln -s ../../ML5lib_reweight/SubProcesses/MadLoop5_resources .
-    ln -s ../../ML5lib_reweight/SubProcesses/MadLoop5_resources/ident_card.dat .
+    # running locally (reweight_xsec_events is one directory up
+    if [[ -e param_card.dat ]] ; then
+	rm -f param_card.dat
+    fi
+    if [[ -e MadLoop5_resources ]] ; then
+	rm -f MadLoop5_resources
+    fi
+    if [[ -e ident_card.dat ]] ; then
+	rm -f ident_card.dat
+    fi
+    # This is for gg->H reweighting to include finite top quark mass dependence
+    if [[ -e ../../ML5lib_reweight/Cards/param_card.dat ]] ; then
+	ln -s ../../ML5lib_reweight/Cards/param_card.dat .
+    fi
+    if [[ -e ../../ML5lib_reweight/SubProcesses/MadLoop5_resources ]] ; then
+	ln -s ../../ML5lib_reweight/SubProcesses/MadLoop5_resources .
+    fi
+    if [[ -e ../../ML5lib_reweight/SubProcesses/MadLoop5_resources/ident_card.dat ]] ; then
+	ln -s ../../ML5lib_reweight/SubProcesses/MadLoop5_resources/ident_card.dat .
+    fi
     (echo $event_file; echo $save_wgts) | ../reweight_xsec_events > reweight_xsec_events.output
 fi
-
-#old version
-#echo $event_file > reweight_xsec_events.input
-#echo $save_wgts >> reweight_xsec_events.input
-#../reweight_xsec_events < reweight_xsec_events.input > reweight_xsec_events.output
-
 
