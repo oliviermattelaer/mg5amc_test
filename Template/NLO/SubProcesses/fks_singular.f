@@ -1046,6 +1046,10 @@ c        the iproc contribution
       double precision     iden_comp
       common /c_iden_comp/ iden_comp
       if (wgt1.eq.0d0 .and. wgt2.eq.0d0 .and. wgt3.eq.0d0) return
+c Check for NaN's and INF's. Simply skip the contribution
+      if (wgt1.ne.wgt1) return
+      if (wgt2.ne.wgt2) return
+      if (wgt3.ne.wgt3) return
       icontr=icontr+1
       if (icontr.gt.max_contr) then
          write (*,*) 'ERROR in add_wgt: too many contributions'
@@ -1194,7 +1198,7 @@ c iwgt=1 is the central value (i.e. no scale/PDF reweighting).
          iwgt=1
          wgt_wo_pdf=(wgt(1,i) + wgt(2,i)*log(mu2_r/mu2_q) + wgt(3,i)
      &        *log(mu2_f/mu2_q))*g_strong(i)**QCDpower(i)
-     &        *rwgt_muR_dep_fac(sqrt(mu2_r))
+     &        *rwgt_muR_dep_fac(sqrt(mu2_r),sqrt(mu2_r))
          wgts(iwgt,i)=xlum * wgt_wo_pdf
          do j=1,iproc
             parton_iproc(j,i)=parton_iproc(j,i) * wgt_wo_pdf
@@ -1204,9 +1208,9 @@ c Special for the soft-virtual needed for the virt-tricks. The
 c *_wgt_mint variable should be directly passed to the mint-integrator
 c and not be part of the plots nor computation of the cross section.
             virt_wgt_mint=virt_wgt_mint*xlum*g_strong(i)**QCDpower(i)
-     &           *rwgt_muR_dep_fac(sqrt(mu2_r))
+     &           *rwgt_muR_dep_fac(sqrt(mu2_r),sqrt(mu2_r))
             born_wgt_mint=born_wgt_mint*xlum*g_strong(i)**QCDpower(i)
-     &           /(8d0*Pi**2)*rwgt_muR_dep_fac(sqrt(mu2_r))
+     &           /(8d0*Pi**2)*rwgt_muR_dep_fac(sqrt(mu2_r),sqrt(mu2_r))
          endif
       enddo
       call cpu_time(tAfter)
@@ -1318,7 +1322,7 @@ c add the weights to the array
      &              /mu2_q)+wgt(3,i)*log(mu2_f(kf)/mu2_q))*g(kr)
      &              **QCDpower(i)
                wgts(iwgt,i)=wgts(iwgt,i)
-     &              *rwgt_muR_dep_fac(sqrt(mu2_r(kr)))
+     &              *rwgt_muR_dep_fac(sqrt(mu2_r(kr)),sqrt(mu2_r(1)))
             enddo
          enddo
       enddo
@@ -1403,7 +1407,7 @@ c special for the itype=7 (i.e, the veto-compensating factor)
      &                 *veto_compensating_factor_new
                endif
                wgts(iwgt,i)=wgts(iwgt,i)
-     &              *rwgt_muR_dep_fac(sqrt(mu2_r(ks)))
+     &              *rwgt_muR_dep_fac(sqrt(mu2_r(ks)),sqrt(mu2_r(1)))
                wgts(iwgt,i)=wgts(iwgt,i)*veto_multiplier_new(ks,kh)
             enddo
          enddo
@@ -1457,7 +1461,8 @@ c allows for better caching of the PDFs
 c add the weights to the array
             wgts(iwgt,i)=xlum * (wgt(1,i) + wgt(2,i)*log(mu2_r/mu2_q) +
      &           wgt(3,i)*log(mu2_f/mu2_q))*g_strong(i)**QCDpower(i)
-            wgts(iwgt,i)=wgts(iwgt,i)*rwgt_muR_dep_fac(sqrt(mu2_r))
+            wgts(iwgt,i)=wgts(iwgt,i)*
+     &                       rwgt_muR_dep_fac(sqrt(mu2_r),sqrt(mu2_r))
          enddo
       enddo
       call InitPDF(izero)
@@ -1484,7 +1489,7 @@ c must do MC over FKS directories.
       integer iproc_save(fks_configs),eto(maxproc,fks_configs),
      &     etoi(maxproc,fks_configs),maxproc_found
       common/cproc_combination/iproc_save,eto,etoi,maxproc_found
-      if (icontr.gt.6) then
+      if (icontr.gt.7) then
          write (*,*) 'ERROR: too many applgrid weights. '/
      &        /'Should have at most one of each itype.',icontr
          stop 1
@@ -1526,8 +1531,9 @@ c     born
             appl_QES2(2)=scales2(1,i)
             appl_muR2(2)=scales2(2,i)
             appl_muF2(2)=scales2(3,i)
-         elseif (itype(i).eq.3 .or. itype(i).eq.4) then
-c     soft-virtual or soft-counter
+         elseif (itype(i).eq.3 .or. itype(i).eq.4 .or. itype(i).eq.14)
+     $           then
+c     virtual, soft-virtual or soft-counter
             appl_w0(2)=appl_w0(2)+wgt(1,i)*final_state_rescaling
             appl_wR(2)=appl_wR(2)+wgt(2,i)*final_state_rescaling
             appl_wF(2)=appl_wF(2)+wgt(3,i)*final_state_rescaling
@@ -1979,7 +1985,7 @@ c on the imode we should or should not include the virtual corrections.
       include 'mint.inc'
       integer i,j,ict
       double precision f(nintegrals),sigint,sigint1,sigint_ABS
-     $     ,n1body_wgt,tmp_wgt
+     $     ,n1body_wgt,tmp_wgt,max_weight
       double precision           virt_wgt_mint,born_wgt_mint
       common /virt_born_wgt_mint/virt_wgt_mint,born_wgt_mint
       double precision virtual_over_born
@@ -1991,6 +1997,7 @@ c on the imode we should or should not include the virtual corrections.
       sigint1=0d0
       sigint_ABS=0d0
       n1body_wgt=0d0
+      max_weight=0d0
       if (icontr.eq.0) then
          sigint_ABS=0d0
          sigint=0d0
@@ -1998,25 +2005,41 @@ c on the imode we should or should not include the virtual corrections.
       else
          do i=1,icontr
             sigint=sigint+wgts(1,i)
+            max_weight=max(max_weight,abs(wgts(1,i)))
             if (icontr_sum(0,i).eq.0) cycle
             do j=1,niproc(i)
                sigint_ABS=sigint_ABS+abs(unwgt(j,i))
                sigint1=sigint1+unwgt(j,i) ! for consistency check
+               max_weight=max(max_weight,abs(unwgt(j,i)))
             enddo
          enddo
-c check the consistency of the results
+c check the consistency of the results up to machine precision (10^-10 here)
          if (imode.ne.1 .or. only_virt) then
-            if (abs((sigint-sigint1)/(sigint+sigint1)).gt.1d-3) then
+            if (abs((sigint-sigint1)/max_weight).gt.1d-10) then
                write (*,*) 'ERROR: inconsistent integrals #0',sigint
-     $              ,sigint1,abs((sigint-sigint1)/(sigint+sigint1))
+     $              ,sigint1,max_weight,abs((sigint-sigint1)/max_weight)
+               do i=1, icontr
+                  write (*,*) i,icontr_sum(0,i),niproc(i),wgts(1,i)
+                  if (icontr_sum(0,i).eq.0) cycle
+                  do j=1,niproc(i)
+                     write (*,*) j,unwgt(j,i)
+                  enddo
+               enddo
                stop 1
             endif
          else
             sigint1=sigint1+virt_wgt_mint
-            if (abs((sigint-sigint1)/(sigint+sigint1)).gt.1d-3) then
+            if (abs((sigint-sigint1)/max_weight).gt.1d-10) then
                write (*,*) 'ERROR: inconsistent integrals #1',sigint
-     $              ,sigint1,abs((sigint-sigint1)/(sigint+sigint1))
+     $              ,sigint1,max_weight,abs((sigint-sigint1)/max_weight)
      $              ,virt_wgt_mint
+               do i=1, icontr
+                  write (*,*) i,icontr_sum(0,i),niproc(i),wgts(1,i)
+                  if (icontr_sum(0,i).eq.0) cycle
+                  do j=1,niproc(i)
+                     write (*,*) j,unwgt(j,i)
+                  enddo
+               enddo
                stop 1
             endif
          endif
@@ -2687,6 +2710,9 @@ c Born and multiplies with the AP splitting function or eikonal factors.
 
       double precision zero,tiny
       parameter (zero=0d0)
+      
+      integer icount
+      data icount /0/
 
 c Particle types (=color) of i_fks, j_fks and fks_mother
       integer i_type,j_type,m_type
@@ -2741,11 +2767,20 @@ c i_fks is (anti-)quark
       endif
 
       if(wgt.lt.0.d0)then
-         write(*,*) 'Fatal error #2 in sreal',wgt,xi_i_fks,y_ij_fks
-         do i=1,nexternal
-            write(*,*) 'particle ',i,', ',(pp(j,i),j=0,3)
-         enddo
-         stop
+         icount=icount+1
+         if (icount.le.10) then
+            write(*,*) 'Warning, numerical problem found in sreal. '/
+     $           /'Setting weight to zero',wgt,xi_i_fks,y_ij_fks
+            do i=1,nexternal
+               write(*,*) 'particle ',i,', ',(pp(j,i),j=0,3)
+            enddo
+            if (icount.eq.25) then
+               write (*,*) 'ERROR 25 problems found... '/
+     $              /'stopping the code'
+               stop
+            endif
+         endif
+         wgt=0d0
       endif
 
       return

@@ -202,8 +202,8 @@ class Particle(PhysicsObject):
 
     sorted_keys = ['name', 'antiname', 'spin', 'color',
                    'charge', 'mass', 'width', 'pdg_code',
-                   'texname', 'antitexname', 'line', 'propagating', 'propagator',
-                   'is_part', 'self_antipart', 'ghost', 'counterterm']
+                  'line', 'propagator',
+                   'is_part', 'self_antipart', 'type', 'counterterm']
 
     def default_setup(self):
         """Default values for all properties"""
@@ -216,18 +216,54 @@ class Particle(PhysicsObject):
         self['mass'] = 'ZERO'
         self['width'] = 'ZERO'
         self['pdg_code'] = 0
-        self['texname'] = 'none'
-        self['antitexname'] = 'none'
+        #self['texname'] = 'none'
+        #self['antitexname'] = 'none'
         self['line'] = 'dashed'
-        self['propagating'] = True
+        #self['propagating'] = True -> removed in favor or 'line' = None
         self['propagator'] = ''
         self['is_part'] = True
         self['self_antipart'] = False
         # True if ghost, False otherwise
-        self['ghost'] = False
+        #self['ghost'] = False
+        self['type'] = '' # empty means normal can also be ghost or goldstone 
         # Counterterm defined as a dictionary with format:
         # ('ORDER_OF_COUNTERTERM',((Particle_list_PDG))):{laurent_order:CTCouplingName}
         self['counterterm'] = {}
+
+    def get(self, name):
+        
+        if name == 'ghost':
+            return self['type'] == 'ghost'
+        elif name == 'goldstone':
+            return self['type'] == 'goldstone'
+        elif name == 'propagating':
+            return self['line'] is not None
+        else:
+            return super(Particle, self).get(name)
+
+    def set(self, name, value, force=False):
+        
+        if name in ['texname', 'antitexname']:
+            return True
+        elif name == 'propagating':
+            if not value:
+                return self.set('line', None, force=force)
+            elif not self.get('line'):
+                return self.set('line', 'dashed',force=force)
+            return True
+        elif name  in ['ghost', 'goldstone']:
+            if self.get('type') == name:
+                if value:
+                    return True
+                else:
+                    return self.set('type', '', force=force)
+            else:
+                if value:
+                    return self.set('type', name, force=force)
+                else:
+                    return True
+        return super(Particle, self).set(name, value,force=force)
+        
 
     def filter(self, name, value):
         """Filter for valid particle property values."""
@@ -1082,6 +1118,8 @@ class Model(PhysicsObject):
             if not value in [True ,False]:
                 raise self.PhysicsObjectError, \
                     "Object of type %s is not a boolean" % type(value)
+            
+
         return True
 
     def get(self, name):
@@ -1211,7 +1249,7 @@ class Model(PhysicsObject):
             if isinstance(id, int):
                 try:
                     return self.get("particle_dict")[id]
-                except Exception:
+                except Exception,error:
                     return None
             else:
                 if not hasattr(self, 'name2part'):
@@ -1439,7 +1477,7 @@ class Model(PhysicsObject):
     def change_parameter_name_with_prefix(self, prefix='mdl_'):
         """ Change all model parameter by a given prefix.
         Modify the parameter if some of them are identical up to the case"""
-        
+
         lower_dict={}
         duplicate = set()
         keys = self.get('parameters').keys()
@@ -1454,8 +1492,8 @@ class Model(PhysicsObject):
                     lower_dict[lower_name] = [param]
                 else:
                     duplicate.add(lower_name)
-                    logger.debug('%s is define both as lower case and upper case.' 
-                                 % lower_name)
+                    logger.debug('%s is defined both as lower case and upper case.' 
+                                                                   % lower_name)
         
         if prefix == '' and  not duplicate:
             return
@@ -1479,10 +1517,12 @@ class Model(PhysicsObject):
                     param.name = change[param.name]
             
         for value in duplicate:
-            for i, var in enumerate(lower_dict[value][1:]):
+            for i, var in enumerate(lower_dict[value]):
                 to_change.append(var.name)
-                change[var.name] = '%s%s__%s' % (prefix, var.name.lower(), i+2)
-                var.name = '%s%s__%s' %(prefix, var.name.lower(), i+2)
+                new_name = '%s%s%s' % (prefix, var.name.lower(), 
+                                                  ('__%d'%(i+1) if i>0 else ''))
+                change[var.name] = new_name
+                var.name = new_name
                 to_change.append(var.name)
         assert 'zero' not in to_change
         replace = lambda match_pattern: change[match_pattern.groups()[0]]
@@ -1494,7 +1534,14 @@ class Model(PhysicsObject):
             new_dict = dict( (change[name] if (name in change) else name, value) for
                              name, value in self['parameter_dict'].items())
             self['parameter_dict'] = new_dict
-        
+    
+        if hasattr(self,'map_CTcoup_CTparam'):
+            # If the map for the dependence of couplings to CTParameters has
+            # been defined, we must apply the renaming there as well. 
+            self.map_CTcoup_CTparam = dict( (coup_name, 
+            [change[name] if (name in change) else name for name in params]) 
+                  for coup_name, params in self.map_CTcoup_CTparam.items() )
+
         i=0
         while i*1000 <= len(to_change): 
             one_change = to_change[i*1000: min((i+1)*1000,len(to_change))]
@@ -2103,9 +2150,9 @@ class Vertex(PhysicsObject):
     # because the phase-space generation is not suited to map contact interactions
     # This parameter controls up to how many legs should loop-induced diagrams
     # be considered for multichanneling.
-    # Notice that if -2 is not added to the list ID_to_veto_for_multichanneling 
-    # then all loop are considered by default and the constraint below is not
-    # applied.
+    # Notice that, in the grouped subprocess case mode, if -2 is not added to 
+    # the list ID_to_veto_for_multichanneling then all loop are considered by 
+    # default and the constraint below is not applied.
     max_n_loop_for_multichanneling = 4
     
     def default_setup(self):
@@ -2140,6 +2187,17 @@ class Vertex(PhysicsObject):
         """Return particle property names as a nicely sorted list."""
 
         return self.sorted_keys  #['id', 'legs']
+
+    def nice_string(self):
+        """return a nice string"""
+        
+        mystr = []
+        for leg in self['legs']:
+            mystr.append( str(leg['number']) + '(%s)' % str(leg['id']))
+        mystr = '(%s,id=%s ,obj_id:%s)' % (', '.join(mystr), self['id'], id(self))
+        
+        return(mystr)
+
 
     def get_s_channel_id(self, model, ninitial):
         """Returns the id for the last leg as an outgoing
@@ -2298,21 +2356,32 @@ class Diagram(PhysicsObject):
     def nice_string(self):
         """Returns a nicely formatted string of the diagram content."""
 
+        pass_sanity = True
         if self['vertices']:
             mystr = '('
             for vert in self['vertices']:
+                used_leg = [] 
                 mystr = mystr + '('
                 for leg in vert['legs'][:-1]:
                     mystr = mystr + str(leg['number']) + '(%s)' % str(leg['id']) + ','
-
+                    used_leg.append(leg['number'])
+                if __debug__ and len(used_leg) != len(set(used_leg)):
+                    pass_sanity = False
+                    responsible = id(vert)
+                    
                 if self['vertices'].index(vert) < len(self['vertices']) - 1:
                     # Do not want ">" in the last vertex
                     mystr = mystr[:-1] + '>'
                 mystr = mystr + str(vert['legs'][-1]['number']) + '(%s)' % str(vert['legs'][-1]['id']) + ','
                 mystr = mystr + 'id:' + str(vert['id']) + '),'
+                                
             mystr = mystr[:-1] + ')'
-            mystr += " (%s)" % ",".join(["%s=%d" % (key, self['orders'][key]) \
-                                     for key in sorted(self['orders'].keys())])
+            mystr += " (%s)" % (",".join(["%s=%d" % (key, self['orders'][key]) \
+                                     for key in sorted(self['orders'].keys())]))
+            
+            if not pass_sanity:
+                raise Exception, "invalid diagram: %s. vert_id: %s" % (mystr, responsible) 
+                
             return mystr
         else:
             return '()'
@@ -2433,11 +2502,11 @@ class Diagram(PhysicsObject):
 
         if max_n_loop == 0:
             max_n_loop = Vertex.max_n_loop_for_multichanneling
-           
+        
         res = [len(v.get('legs')) for v in self.get('vertices') if (v.get('id') \
                                   not in veto_inter_id) or (v.get('id')==-2 and 
                                                  len(v.get('legs'))>max_n_loop)]
-    
+
         return res
     
     def get_num_configs(self, model, ninitial):
@@ -3396,6 +3465,10 @@ class ProcessDefinition(Process):
         """ Check that this process definition will yield a single process, as
         each multileg only has one leg"""
         
+        for process in self['decay_chains']:
+            if process.has_multiparticle_label():
+                return True
+            
         for mleg in self['legs']:
             if len(mleg['ids'])>1:
                 return True

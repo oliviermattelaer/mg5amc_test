@@ -128,8 +128,8 @@ class Banner(dict):
         store = False
         for line in input_path:
             if self.pat_begin.search(line):
-                tag = self.pat_begin.search(line).group('name').lower()
-                if tag in self.tag_to_file:
+                if self.pat_begin.search(line).group('name').lower() in self.tag_to_file:
+                    tag = self.pat_begin.search(line).group('name').lower()
                     store = True
                     continue
             if store and self.pat_end.search(line):
@@ -292,7 +292,62 @@ class Banner(dict):
                 if pid not in pid2label.keys(): 
                     block.remove((pid,))
 
+    def get_lha_strategy(self):
+        """get the lha_strategy: how the weight have to be handle by the shower"""
+        
+        if not self["init"]:
+            raise Exception, "No init block define"
+        
+        data = self["init"].split('\n')[0].split()
+        if len(data) != 10:
+            misc.sprint(len(data), self['init'])
+            raise Exception, "init block has a wrong format"
+        return int(float(data[-2]))
+        
+    def set_lha_strategy(self, value):
+        """set the lha_strategy: how the weight have to be handle by the shower"""
+        
+        if not (-4 <= int(value) <= 4):
+            raise Exception, "wrong value for lha_strategy", value
+        if not self["init"]:
+            raise Exception, "No init block define"
+        
+        all_lines = self["init"].split('\n')
+        data = all_lines[0].split()
+        if len(data) != 10:
+            misc.sprint(len(data), self['init'])
+            raise Exception, "init block has a wrong format"
+        data[-2] = '%s' % value
+        all_lines[0] = ' '.join(data)
+        self['init'] = '\n'.join(all_lines)
 
+    def modify_init_cross(self, cross):
+        """modify the init information with the associate cross-section"""
+
+        assert isinstance(cross, dict)
+#        assert "all" in cross
+        assert "init" in self
+        
+        all_lines = self["init"].split('\n')
+        new_data = []
+        new_data.append(all_lines[0])
+        for i in range(1, len(all_lines)):
+            line = all_lines[i]
+            split = line.split()
+            if len(split) == 4:
+                xsec, xerr, xmax, pid = split 
+            else:
+                new_data += all_lines[i:]
+                break
+            if int(pid) not in cross:
+                raise Exception
+            pid = int(pid)
+            ratio = cross[pid]/float(xsec)
+            line = "   %+13.7e %+13.7e %+13.7e %i" % \
+                (float(cross[pid]), ratio* float(xerr), ratio*float(xmax), pid)
+            new_data.append(line)
+        self['init'] = '\n'.join(new_data)
+                
     ############################################################################
     #  WRITE BANNER
     ############################################################################
@@ -374,6 +429,8 @@ class Banner(dict):
                 tag = 'madspin'
             elif 'FO_analyse_card' in card_name:
                 tag = 'foanalyse'
+            elif 'reweight_card' in card_name:
+                tag='reweight_card'
             else:
                 raise Exception, 'Impossible to know the type of the card'
 
@@ -589,21 +646,29 @@ def recover_banner(results_object, level, run=None, tag=None):
     """
     
     if not run:
-        try:    
-            tag = results_object.current['tag'] 
+        try: 
+            _run = results_object.current['run_name']   
+            _tag = results_object.current['tag'] 
         except Exception:
             return Banner()
+    else:
+        _run = run
     if not tag:
         try:    
-            tag = results_object[run].tags[-1] 
+            _tag = results_object[run].tags[-1] 
         except Exception,error:
-            return Banner()                                        
+            return Banner()      
+    else:
+        _tag = tag
+                                          
     path = results_object.path
     banner_path = pjoin(path,'Events',run,'%s_%s_banner.txt' % (run, tag))
     
     if not os.path.exists(banner_path):
-        # security if the banner was remove (or program canceled before created it)
-        return Banner()  
+         if level != "parton" and tag != _tag:
+            return recover_banner(results_object, level, _run, results_object[_run].tags[0])
+         # security if the banner was remove (or program canceled before created it)
+         return Banner()  
     banner = Banner(banner_path)
     
     
@@ -1209,7 +1274,12 @@ class RunCard(ConfigFile):
             if len(line) != 2:
                 continue
             value, name = line
-            self.set( name, value, user=True)
+            name = name.lower().strip()
+            if name not in self and ('min' in name or 'max' in name):
+                #looks like an entry added by one user -> add it nicely
+                self.add_param(name, float(value), hidden=True, cut=True)
+            else:
+                self.set( name, value, user=True)
                 
     def write(self, output_file, template=None, python_template=False):
         """Write the run_card in output_file according to template 
@@ -1398,9 +1468,10 @@ class RunCardLO(RunCard):
     
     def default_setup(self):
         """default value for the run_card.dat"""
-
+        
         self.add_param("run_tag", "tag_1", include=False)
         self.add_param("gridpack", False)
+        self.add_param("time_of_flight", -1.0, include=False, hidden=True)
         self.add_param("nevents", 10000)        
         self.add_param("iseed", 0)
         self.add_param("lpp1", 1, fortran_name="lpp(1)")
@@ -1423,7 +1494,7 @@ class RunCardLO(RunCard):
         self.add_param("ickkw", 0)
         self.add_param("highestmult", 1, fortran_name="nhmult")
         self.add_param("ktscheme", 1)
-        self.add_param("alpsfact", 1)
+        self.add_param("alpsfact", 1.0)
         self.add_param("chcluster", False)
         self.add_param("pdfwgt", True)
         self.add_param("asrwgtflavor", 5)
@@ -1566,6 +1637,7 @@ class RunCardLO(RunCard):
         self.add_param('job_strategy', 0, hidden=True, include=False)
         self.add_param('survey_splitting', -1, hidden=True, include=False)
         self.add_param('refine_evt_by_job', -1, hidden=True, include=False)
+
  
 
         
@@ -1600,7 +1672,7 @@ class RunCardLO(RunCard):
             if self['scalefact'] != 1.0:
                 logger.warning('Since use_syst=T, We change the value of \'scalefact\' to 1')
                 self['scalefact'] = 1.0
-    
+     
         # CKKW Treatment
         if self['ickkw'] > 0:
             if self['use_syst']:
@@ -1610,6 +1682,11 @@ class RunCardLO(RunCard):
                     self['alpsfact'] =1.0
             if self['maxjetflavor'] == 6:
                 raise InvalidRunCard, 'maxjetflavor at 6 is NOT supported for matching!'
+            if self['ickkw'] == 2:
+                # add warning if ckkw selected but the associate parameter are empty
+                self.get_default('highestmult', log_level=20)                   
+                self.get_default('issgridfile', 'issudgrid.dat', log_level=20)
+        if self['xqcut'] > 0:
             if self['drjj'] != 0:
                 logger.warning('Since icckw>0, We change the value of \'drjj\' to 0')
                 self['drjj'] = 0
@@ -1620,10 +1697,7 @@ class RunCardLO(RunCard):
                 if self['mmjj'] > self['xqcut']:
                     logger.warning('mmjj > xqcut (and auto_ptj_mjj = F). MMJJ set to 0')
                     self['mmjj'] = 0.0 
-            if self['ickkw'] == 2:
-                # add warning if ckkw selected but the associate parameter are empty
-                self.get_default('highestmult', log_level=20)                   
-                self.get_default('issgridfile', 'issudgrid.dat', log_level=20)
+
 
         # check validity of the pdf set
         possible_set = ['lhapdf','mrs02nl','mrs02nn', 'mrs0119','mrs0117','mrs0121','mrs01_j', 'mrs99_1','mrs99_2','mrs99_3','mrs99_4','mrs99_5','mrs99_6', 'mrs99_7','mrs99_8','mrs99_9','mrs9910','mrs9911','mrs9912', 'mrs98z1','mrs98z2','mrs98z3','mrs98z4','mrs98z5','mrs98ht', 'mrs98l1','mrs98l2','mrs98l3','mrs98l4','mrs98l5', 'cteq3_m','cteq3_l','cteq3_d', 'cteq4_m','cteq4_d','cteq4_l','cteq4a1','cteq4a2', 'cteq4a3','cteq4a4','cteq4a5','cteq4hj','cteq4lq', 'cteq5_m','cteq5_d','cteq5_l','cteq5hj','cteq5hq', 'cteq5f3','cteq5f4','cteq5m1','ctq5hq1','cteq5l1', 'cteq6_m','cteq6_d','cteq6_l','cteq6l1', 'nn23lo','nn23lo1','nn23nlo']
@@ -1659,10 +1733,11 @@ class RunCardLO(RunCard):
             # check for beam_id
             beam_id = set()
             for proc in proc_def:
-                for leg in proc[0]['legs']:
-                    if not leg['state']:
-                        beam_id.add(leg['id'])
-            if any(i in beam_id for i in [1,-1,2,-2,3,-3,4,-4,5,-5,21]):
+                for oneproc in proc:
+                    for leg in oneproc['legs']:
+                        if not leg['state']:
+                            beam_id.add(leg['id'])
+            if any(i in beam_id for i in [1,-1,2,-2,3,-3,4,-4,5,-5,21,22]):
                 maxjetflavor = max([4]+[abs(i) for i in beam_id if  -7< i < 7])
                 self['maxjetflavor'] = maxjetflavor
                 self['asrwgtflavor'] = maxjetflavor
@@ -1771,12 +1846,13 @@ class RunCardNLO(RunCard):
         self.add_param('iseed', 0)
         self.add_param('lpp1', 1, fortran_name='lpp(1)')        
         self.add_param('lpp2', 1, fortran_name='lpp(2)')                        
-        self.add_param('ebeam1', 6500, fortran_name='ebeam(1)')
-        self.add_param('ebeam2', 6500, fortran_name='ebeam(2)')        
+        self.add_param('ebeam1', 6500.0, fortran_name='ebeam(1)')
+        self.add_param('ebeam2', 6500.0, fortran_name='ebeam(2)')        
         self.add_param('pdlabel', 'nn23nlo')                
         self.add_param('lhaid', 244600)
         #shower and scale
         self.add_param('parton_shower', 'HERWIG6', fortran_name='shower_mc')        
+        self.add_param('shower_scale_factor',1.0)
         self.add_param('fixed_ren_scale', False)
         self.add_param('fixed_fac_scale', False)
         self.add_param('mur_ref_fixed', 91.118)                       
@@ -1867,9 +1943,17 @@ class RunCardNLO(RunCard):
         if self['pdlabel'] not in possible_set:
             raise InvalidRunCard, 'Invalid PDF set (argument of pdlabel) possible choice are:\n %s' % ','.join(possible_set)
     
-        # check that we use lhapdf if reweighting is ON
-        if self['reweight_pdf'] and self['pdlabel'] != "lhapdf":
-            raise InvalidRunCard, 'Reweight PDF option requires to use pdf sets associated to lhapdf. Please either change the pdlabel or set reweight_pdf to False.'
+
+        # PDF reweighting check
+        if self['reweight_pdf']:
+            # check that we use lhapdf if reweighting is ON
+            if self['pdlabel'] != "lhapdf":
+                raise InvalidRunCard, 'Reweight PDF option requires to use pdf sets associated to lhapdf. Please either change the pdlabel or set reweight_pdf to False.'
+            
+            # check that the number of pdf set is coherent for the reweigting:    
+            if (self['pdf_set_max'] - self['pdf_set_min'] + 1) % 2:
+                raise InvalidRunCard, "The number of PDF error sets must be even" 
+        
 
     def write(self, output_file, template=None, python_template=False):
         """Write the run_card in output_file according to template 
@@ -1900,7 +1984,7 @@ class RunCardNLO(RunCard):
             for leg in proc[0]['legs']:
                 if not leg['state']:
                     beam_id.add(leg['id'])
-        if any(i in beam_id for i in [1,-1,2,-2,3,-3,4,-4,5,-5,21]):
+        if any(i in beam_id for i in [1,-1,2,-2,3,-3,4,-4,5,-5,21,22]):
             maxjetflavor = max([4]+[abs(i) for i in beam_id if  -7< i < 7])
             self['maxjetflavor'] = maxjetflavor
             pass
@@ -1923,7 +2007,7 @@ class MadLoopParam(ConfigFile):
     def default_setup(self):
         """initialize the directory to the default value"""
         
-        self.add_param("MLReductionLib", "1|4|3|2")
+        self.add_param("MLReductionLib", "1|3|2")
         self.add_param("IREGIMODE", 2)
         self.add_param("IREGIRECY", True)
         self.add_param("CTModeRun", -1)

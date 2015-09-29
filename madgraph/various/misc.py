@@ -15,6 +15,7 @@
 
 """A set of functions performing routine administrative I/O tasks."""
 
+import contextlib
 import logging
 import os
 import re
@@ -26,20 +27,24 @@ import sys
 import optparse
 import time
 import shutil
+import traceback
 import gzip as ziplib
 
 try:
     # Use in MadGraph
     import madgraph
-    from madgraph import MadGraph5Error, InvalidCmd
-    import madgraph.iolibs.files as files
 except Exception, error:
-    if __debug__:
-        print error
     # Use in MadEvent
-    import internal as madgraph
+    import internal
     from internal import MadGraph5Error, InvalidCmd
     import internal.files as files
+    MADEVENT = True    
+else:
+    from madgraph import MadGraph5Error, InvalidCmd
+    import madgraph.iolibs.files as files
+    MADEVENT = False
+
+
     
 logger = logging.getLogger('cmdprint.ext_program')
 logger_stderr = logging.getLogger('madevent.misc')
@@ -106,14 +111,19 @@ def get_pkg_info(info_str=None):
     string can be passed to be read instead of the file content.
     """
 
-    if info_str is None:
+    if info_str:
+        info_dict = parse_info_str(StringIO.StringIO(info_str))
+
+    elif MADEVENT:
+        info_dict ={}
+        info_dict['version'] = open(pjoin(internal.__path__[0],'..','..','MGMEVersion.txt')).read().strip()
+        info_dict['date'] = '20xx-xx-xx'                        
+    else:
         info_dict = files.read_from_file(os.path.join(madgraph.__path__[0],
                                                   "VERSION"),
                                                   parse_info_str, 
                                                   print_error=False)
-    else:
-        info_dict = parse_info_str(StringIO.StringIO(info_str))
-
+        
     return info_dict
 
 #===============================================================================
@@ -168,6 +178,68 @@ def which(program):
                 return exe_file
     return None
 
+def has_f2py():
+    has_f2py = False
+    if which('f2py'):
+        has_f2py = True
+    elif sys.version_info[1] == 6:
+        if which('f2py-2.6'):
+            has_f2py = True
+        elif which('f2py2.6'):
+            has_f2py = True                 
+    else:
+        if which('f2py-2.7'):
+            has_f2py = True 
+        elif which('f2py2.7'):
+            has_f2py = True  
+    return has_f2py       
+        
+#===============================================================================
+#  Activate dependencies if possible. Mainly for tests
+#===============================================================================
+
+def deactivate_dependence(dependency, cmd=None, log = None):
+    """ Make sure to turn off some dependency of MG5aMC. """
+    
+    def tell(msg):
+        if log == 'stdout':
+            print msg
+        elif callable(log):
+            log(msg)
+    
+
+    if dependency in ['pjfry','golem']:
+        if cmd.options[dependency] not in ['None',None,'']:
+            tell("Deactivating MG5_aMC dependency '%s'"%dependency)
+            cmd.options[dependency] = 'None'
+
+def activate_dependence(dependency, cmd=None, log = None):
+    """ Checks whether the specfieid MG dependency can be activated if it was
+    not turned off in MG5 options."""
+    
+    def tell(msg):
+        if log == 'stdout':
+            print msg
+        elif callable(log):
+            log(msg)
+
+    if cmd is None:
+        cmd = MGCmd.MasterCmd()
+
+    if dependency=='pjfry':
+        if cmd.options['pjfry'] in ['None',None,''] or \
+         (cmd.options['pjfry'] == 'auto' and which_lib('libpjfry.a') is None) or\
+          which_lib(pjoin(cmd.options['pjfry'],'libpjfry.a')) is None:
+            tell("Installing PJFry...")
+            cmd.do_install('PJFry')
+
+    if dependency=='golem':
+        if cmd.options['golem'] in ['None',None,''] or\
+         (cmd.options['golem'] == 'auto' and which_lib('libgolem.a') is None) or\
+         which_lib(pjoin(cmd.options['golem'],'libgolem.a')) is None:
+            tell("Installing Golem95...")
+            cmd.do_install('Golem95')
+    
 #===============================================================================
 # find a library
 #===============================================================================
@@ -236,6 +308,7 @@ def multiple_try(nb_try=5, sleep=20):
                         logger_stderr.debug('fail to do %s function with %s args. %s try on a max of %s (%s waiting time)' %
                                  (str(f), ', '.join([str(a) for a in args]), i+1, nb_try, sleep * (i+1)))
                         logger_stderr.debug('error is %s' % str(error))
+                        if __debug__: logger_stderr.debug('and occurred at :'+traceback.format_exc())
                     wait_once = True
                     time.sleep(sleep * (i+1))
 
@@ -353,6 +426,8 @@ def mod_compilator(directory, new='gfortran', current=None, compiler_type='gfort
                 lines[iline] = result.group(1) + var + "=" + new
         if mod:
             open(name,'w').write('\n'.join(lines))
+            # reset it to change the next file
+            mod = False
 
 #===============================================================================
 # mute_logger (designed to work as with statement)
@@ -443,6 +518,49 @@ class MuteLogger(object):
             #for i, h in enumerate(my_logger.handlers):
             #    h.setLevel(cls.logger_saved_info[logname][2][i])
 
+nb_open =0
+@contextlib.contextmanager
+def stdchannel_redirected(stdchannel, dest_filename):
+    """                                                                                                                                                                                                     
+    A context manager to temporarily redirect stdout or stderr                                                                                                                                              
+                                                                                                                                                                                                            
+    e.g.:                                                                                                                                                                                                   
+                                                                                                                                                                                                            
+                                                                                                                                                                                                            
+    with stdchannel_redirected(sys.stderr, os.devnull):                                                                                                                                                     
+        if compiler.has_function('clock_gettime', libraries=['rt']):                                                                                                                                        
+            libraries.append('rt')                                                                                                                                                                          
+    """
+
+    try:
+        oldstdchannel = os.dup(stdchannel.fileno())
+        dest_file = open(dest_filename, 'w')
+        os.dup2(dest_file.fileno(), stdchannel.fileno())
+        yield
+    finally:
+        if oldstdchannel is not None:
+            os.dup2(oldstdchannel, stdchannel.fileno())
+            os.close(oldstdchannel)
+        if dest_file is not None:
+            dest_file.close()
+        
+def get_open_fds():
+    '''
+    return the number of open file descriptors for current process
+
+    .. warning: will only work on UNIX-like os-es.
+    '''
+    import subprocess
+    import os
+
+    pid = os.getpid()
+    procs = subprocess.check_output( 
+        [ "lsof", '-w', '-Ff', "-p", str( pid ) ] )
+    nprocs = filter( 
+            lambda s: s and s[ 0 ] == 'f' and s[1: ].isdigit(),
+            procs.split( '\n' ) )
+        
+    return nprocs
 
 def detect_current_compiler(path, compiler_type='fortran'):
     """find the current compiler for the current directory"""
@@ -705,6 +823,10 @@ class TMP_directory(object):
 
     
     def __exit__(self, ctype, value, traceback ):
+        #True only for debugging:
+        if False and isinstance(value, Exception):
+            sprint("Directory %s not cleaned. This directory can be removed manually" % self.path)
+            return False
         try:
             shutil.rmtree(self.path)
         except OSError:
@@ -740,8 +862,21 @@ def gunzip(path, keep=False, stdout=None):
         return 0
     
     if not stdout:
-        stdout = path[:-3]        
-    open(stdout,'w').write(ziplib.open(path, "r").read())
+        stdout = path[:-3]
+    try:
+        gfile = ziplib.open(path, "r")
+    except IOError:
+        raise
+    else:    
+        try:    
+            open(stdout,'w').write(gfile.read())
+        except IOError:
+            # this means that the file is actually not gzip
+            if stdout == path:
+                return
+            else:
+                files.cp(path, stdout)
+            
     if not keep:
         os.remove(path)
     return 0
@@ -1014,6 +1149,29 @@ class chdir:
     def __exit__(self, etype, value, traceback):
         os.chdir(self.savedPath)
 
+################################################################################
+# Timeout FUNCTION
+################################################################################
+
+def timeout(func, args=(), kwargs={}, timeout_duration=1, default=None):
+    '''This function will spwan a thread and run the given function using the args, kwargs and 
+    return the given default value if the timeout_duration is exceeded 
+    ''' 
+    import threading
+    class InterruptableThread(threading.Thread):
+        def __init__(self):
+            threading.Thread.__init__(self)
+            self.result = default
+        def run(self):
+            try:
+                self.result = func(*args, **kwargs)
+            except Exception,error:
+                print error
+                self.result = default
+    it = InterruptableThread()
+    it.start()
+    it.join(timeout_duration)
+    return it.result
 
 
 ################################################################################

@@ -225,7 +225,7 @@ class TestMECmdShell(unittest.TestCase):
         interface.exec_cmd("import model loop_qcd_qed_sm", errorhandling=False, 
                                                         printcmd=False, 
                                                         precmd=True, postcmd=False)
-        interface.exec_cmd("compute_widths H Z  --nlo --output=%s" % \
+        interface.exec_cmd("compute_widths H Z W+ t --nlo --output=%s" % \
                            pjoin(self.path, "param_card.dat")
                            , errorhandling=False, 
                                                         printcmd=False, 
@@ -233,15 +233,19 @@ class TestMECmdShell(unittest.TestCase):
         
         # test the param_card is correctly written
         self.assertTrue(os.path.exists('%s/param_card.dat' % self.path))
-        print self.path
         text = open('%s/param_card.dat' % self.path).read()
-        print text
         pattern = re.compile(r"decay\s+23\s+([+-.\de]*)", re.I)
         value = float(pattern.search(text).group(1))
-        self.assertAlmostEqual(2.42862,value, delta=1e-4)
+        self.assertAlmostEqual(2.42823,value, delta=1e-3)
+        pattern = re.compile(r"decay\s+24\s+([+-.\de]*)", re.I)
+        value = float(pattern.search(text).group(1))
+        self.assertAlmostEqual(2.028440,value, delta=1e-3)
         pattern = re.compile(r"decay\s+25\s+([+-.\de]*)", re.I)
         value = float(pattern.search(text).group(1))
-        self.assertAlmostEqual(4.074640e-03,value, delta=1e-4)        
+        self.assertAlmostEqual(3.514960e-03,value, delta=1e-3)
+        pattern = re.compile(r"decay\s+6\s+([+-.\de]*)", re.I)
+        value = float(pattern.search(text).group(1))
+        self.assertAlmostEqual(1.354080,value, delta=5e-3)        
         
 
 
@@ -457,7 +461,7 @@ class TestMEfromfile(unittest.TestCase):
                  generate_events
                  parton
                  set nevents 100
-                 add_time_of_flight --threshold=3e-26
+                 add_time_of_flight --threshold=4e-14
                  pythia
                  """ %self.run_dir
         open(pjoin(self.path, 'mg5_cmd'),'w').write(cmd)
@@ -485,7 +489,7 @@ class TestMEfromfile(unittest.TestCase):
         for event in lhe_parser.EventFile(event):
             for particle in event:
                 if particle.pid in [23,25]:
-                    self.assertTrue(particle.vtim ==0 or particle.vtim > 3e-26)
+                    self.assertTrue(particle.vtim ==0 or particle.vtim > 4e-14)
                     if particle.vtim == 0 :
                         has_zero = True
                     else:

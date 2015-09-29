@@ -111,16 +111,16 @@ class Event:
             # change the wgt associate to the additional weight
             start, stop = self.rwgt.find('<rwgt>'), self.rwgt.find('</rwgt>')
             if start != -1 != stop :
-                pattern = re.compile(r'''<\s*wgt id=\'(?P<id>[^\']+)\'\s*>\s*(?P<val>[\ded+-.]*)\s*</wgt>''')
+                pattern = re.compile(r'''<\s*wgt id=[\'\"](?P<id>[^\'\"]+)[\'\"]\s*>\s*(?P<val>[\ded+-.]*)\s*</wgt>''')
                 data = pattern.findall(self.rwgt)
+                if len(data)==0:
+                    print self.rwgt
                 try:
                     text = ''.join('   <wgt id=\'%s\'> %+15.7e </wgt>\n' % (pid, float(value) * factor)
                                      for (pid,value) in data) 
                 except ValueError, error:
                     raise Exception, 'Event File has unvalid weight. %s' % error
-                self.rwgt = self.rwgt[:start] + '<rwgt>\n'+ text + self.rwgt[stop:]
-            
-            
+                self.rwgt = self.rwgt[:start] + '<rwgt>\n'+ text + self.rwgt[stop:]          
 
     def string_event_compact(self):
         """ return a string with the momenta of the event written 
@@ -886,6 +886,7 @@ class AllMatrixElement(dict):
         self.decay_ids = set([abs(id) for id in decay_ids])
         self.has_particles_ambiguity = False
         self.model = model
+
         
     def add(self, topologies, keys):
         """Adding one element to the list of production_topo"""
@@ -905,7 +906,7 @@ class AllMatrixElement(dict):
             if init[0] in self.banner.param_card['decay'].decay_table:
                 br *= self.banner.param_card['decay'].decay_table[init[0]].get(lhaid).value
                 br *= self.get_br(decay)
-            else:
+            elif -init[0] in self.banner.param_card['decay'].decay_table:
                 init = -init[0]
                 lhaid=[x if self.model.get_particle(x)['self_antipart'] else -x
                        for x in final]
@@ -913,6 +914,13 @@ class AllMatrixElement(dict):
                 lhaid = tuple([len(final)] + lhaid)
                 br *= self.banner.param_card['decay'].decay_table[init].get(lhaid).value
                 br *= self.get_br(decay)
+            elif init[0] not in self.decay_ids and -init[0] not in self.decay_ids:
+                logger.warning("No Branching ratio applied for %s. Please check if this is expected" % init[0])
+                br *= self.get_br(decay)
+            else:
+                raise MadGraph5Error,"No valid decay for %s. No 2 body decay for that particle. (three body are not supported by MadSpin)" % init[0]
+
+                
 
         for decays in ids.values():
             if len(decays) == 1:
@@ -928,7 +936,7 @@ class AllMatrixElement(dict):
                     except ValueError:
                         break
                 br /= math.factorial(nb)
-
+                
         return br
 
             
@@ -1012,7 +1020,7 @@ class AllMatrixElement(dict):
         self[tag]['decaying'] = tuple(decaying)
                 
         # sanity check
-        assert self[tag]['total_br'] <= 1.01, self[tag]['total_br']
+        assert self[tag]['total_br'] <= 1.01, "wrong BR for %s: %s " % (tag,self[tag]['total_br'])
 
 
         
@@ -1921,7 +1929,7 @@ class decay_all_events(object):
         self.evtfile = inputfile
         self.curr_event = Event(self.evtfile, banner) 
         self.inverted_decay_mapping={}
-               
+        self.width_estimator = None
         self.curr_dir = os.getcwd()
         # dictionary to fortan evaluator
         self.calculator = {}
@@ -3775,6 +3783,7 @@ class decay_all_events(object):
                               'decay_struct':None, 'decay_tag': None}
                 production['decays'].append(fake_decay)
                 production['total_br'] = max_br
+
 
 
 
