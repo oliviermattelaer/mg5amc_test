@@ -3173,10 +3173,6 @@ Integrated cross-section
             path, evt = os.path.split(evt_file)
             files.ln(pjoin(self.me_dir, 'SubProcesses', exe), \
                      pjoin(self.me_dir, 'SubProcesses', path))
-#            files.ln(pjoin(self.me_dir, 'SubProcesses','ML5lib_reweight','SubProcesses','MadLoop5_resources'), \
-#                     pjoin(self.me_dir, 'SubProcesses', path))
-#            files.ln(pjoin(self.me_dir,'SubProcesses/ML5lib_reweight/Cards/param_card.dat'), \
-#                     pjoin(self.me_dir, 'SubProcesses', path))
             job_dict[path] = [exe]
 
         self.run_all(job_dict, [[evt, '1']], 'Running reweight')
@@ -3435,9 +3431,11 @@ Integrated cross-section
                 input_files.append(pdfinput)
             input_files.append(pjoin(os.path.dirname(exe), os.path.pardir, 'reweight_xsec_events'))
             input_files.append(pjoin(cwd, os.path.pardir, 'leshouche_info.dat'))
-            input_files.append(pjoin(cwd, '../../ML5lib_reweight/Cards', 'param_card.dat'))
-            input_files.append(pjoin(cwd, '../../ML5lib_reweight/SubProcesses', 'MadLoop5_resources'))
-            input_files.append(pjoin(cwd, '../../ML5lib_reweight/SubProcesses', 'MadLoop5_resources','ident_card.dat'))
+            if 'reweight_with_loop' in options.keys() and options['reweight_with_loop']:
+                # this is for gg->H reweighting to include finite top quark mass effects
+                input_files.append(pjoin(cwd, '../../ML5lib_reweight/Cards', 'param_card.dat'))
+                input_files.append(pjoin(cwd, '../../ML5lib_reweight/SubProcesses', 'MadLoop5_resources'))
+                input_files.append(pjoin(cwd, '../../ML5lib_reweight/SubProcesses', 'MadLoop5_resources','ident_card.dat'))
             input_files.append(args[0])
             output_files.append('%s.rwgt' % os.path.basename(args[0]))
             output_files.append('reweight_xsec_events.output')
