@@ -2657,7 +2657,7 @@ RESTART = %(mint_mode)s
         """
         scale_pdf_info={}
         if self.run_card['reweight_scale'] or self.run_card['reweight_PDF'] :
-            scale_pdf_info = self.run_reweight(options['reweightonly'])
+            scale_pdf_info = self.run_reweight(options)
         self.update_status('Collecting events', level='parton', update_results=True)
         misc.compile(['collect_events'], 
                     cwd=pjoin(self.me_dir, 'SubProcesses'))
@@ -3426,14 +3426,14 @@ RESTART = %(mint_mode)s
         return shower
 
 
-    def run_reweight(self, only):
+    def run_reweight(self, options):
         """runs the reweight_xsec_events executables on each sub-event file generated
         to compute on the fly scale and/or PDF uncertainities"""
         logger.info('   Doing reweight')
 
         nev_unw = pjoin(self.me_dir, 'SubProcesses', 'nevents_unweighted')
         # if only doing reweight, copy back the nevents_unweighted file
-        if only:
+        if options['reweightonly']:
             if os.path.exists(nev_unw + '.orig'):
                 files.cp(nev_unw + '.orig', nev_unw)
             else:
@@ -3457,7 +3457,10 @@ RESTART = %(mint_mode)s
                      pjoin(self.me_dir, 'SubProcesses', path))
             job_dict[path] = [exe]
 
-        self.run_all(job_dict, [[evt, '1']], 'Running reweight')
+        if not ('reweight_with_loop' in options.keys() and options['reweight_with_loop']):
+            self.run_all(job_dict, [[evt, '1']], 'Running reweight')
+        else:
+            self.run_all(job_dict, [[evt, '1']], 'Running reweight with loop')
 
         #check that the new event files are complete
         for evt_file in evt_files:
@@ -3687,7 +3690,7 @@ RESTART = %(mint_mode)s
                 input_files.append(pdfinput)
             input_files.append(pjoin(os.path.dirname(exe), os.path.pardir, 'reweight_xsec_events'))
             input_files.append(pjoin(cwd, os.path.pardir, 'leshouche_info.dat'))
-            if 'reweight_with_loop' in options.keys() and options['reweight_with_loop']:
+            if run_type == 'Running reweight with loop' :
                 # this is for gg->H reweighting to include finite top quark mass effects
                 input_files.append(pjoin(cwd, '../../ML5lib_reweight/Cards', 'param_card.dat'))
                 input_files.append(pjoin(cwd, '../../ML5lib_reweight/SubProcesses', 'MadLoop5_resources'))
