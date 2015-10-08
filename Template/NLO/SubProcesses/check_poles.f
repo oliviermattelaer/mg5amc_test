@@ -34,6 +34,11 @@ C
       parameter (fksprefact=.true.)
       integer nfksprocess
       common/c_nfksprocess/nfksprocess
+      double precision fkssymmetryfactor,fkssymmetryfactorBorn,
+     &     fkssymmetryfactorDeg
+      integer ngluons,nquarks(-6:6)
+      common/numberofparticles/fkssymmetryfactor,fkssymmetryfactorBorn,
+     &                         fkssymmetryfactorDeg,ngluons,nquarks
       integer fks_j_from_i(nexternal,0:nexternal)
      &     ,particle_type(nexternal),pdg_type(nexternal)
       common /c_fks_inc/fks_j_from_i,particle_type,pdg_type
@@ -177,9 +182,9 @@ c initialization
      1 accuracies,return_code)
           accuracy=accuracies(0)
 
-          finite = virt_wgts(1,0)
-          single = virt_wgts(2,0)
-          double = virt_wgts(3,0)
+          finite = virt_wgts(1,0)/dble(ngluons)
+          single = virt_wgts(2,0)/dble(ngluons)
+          double = virt_wgts(3,0)/dble(ngluons)
 
 C         If MadLoop was still in initialization mode, then skip this
 C         point for the checks
