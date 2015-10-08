@@ -19,7 +19,7 @@ endif
 
 
 NLOLIBS=-L$(MADLOOPLIBDIR) -lMadLoop $(libcuttools) $(libOLP) -ldhelas -lmodel
-LINKLIBS = -L$(LIBDIR) -lgeneric -lpdf -lcernlib $(lhapdf)
+LINKLIBS = -L$(LIBDIR) -lgeneric -lpdf -lcernlib $(lhapdf) -lsushiFH -lFH
 LIBS =  $(MADLOOPLIBDIR)libdhelas.a $(LIBDIR)libgeneric.a $(MADLOOPLIBDIR)libmodel.a \
 $(LIBDIR)libpdf.a $(LIBDIR)libcernlib.a $(MADLOOPLIBDIR)$(libmadloop)
 
