@@ -3790,7 +3790,8 @@ RESTART = %(mint_mode)s
                      pjoin(cwd, 'initial_states_map.dat'),
                      pjoin(cwd, 'configs_and_props_info.dat'),
                      pjoin(cwd, 'leshouche_info.dat'),
-                     pjoin(cwd, 'FKS_params.dat')]
+                     pjoin(cwd, 'FKS_params.dat'),
+                     pjoin(cwd, 'param_card.dat')]
 
         if os.path.exists(pjoin(cwd,'nevents.tar')):
             input_files.append(pjoin(cwd,'nevents.tar'))
