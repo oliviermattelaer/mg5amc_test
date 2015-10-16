@@ -30,7 +30,7 @@ RWGFILES=reweight_xsec_events_loop2.o handling_lhe_events.o reweight_xsec.o	\
          boostwdir2.o 			\
 	$(reweight_xsec_events_pdf_dummy) fill_MC_mshell.o cluster.o	\
 	reweight.o get_color.o iproc_map.o fks_inc_chooser.o 		\
-	leshouche_inc_chooser.o loop_matrix_lib.o
+	leshouche_inc_chooser.o loop_matrix_lib.f $(patsubst %.f,%.o,$(wildcard loop_matrix_lib_*.f))
 
 %.o: %.f
 	$(FC) $(FFLAGS) -c -I. $<

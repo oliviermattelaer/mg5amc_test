@@ -134,6 +134,9 @@ def compile_dir(*arguments):
             else:
                 files.ln(pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/reweight_xsec_events_loop2.f"),this_dir)
                 files.ln(pjoin(this_dir,"../loop_matrix_lib.f"),this_dir)
+                loop_matrix_files = glob.glob(pjoin(this_dir,"../loop_matrix_lib_*.f"))
+                for loop_matrix_file in loop_matrix_files:
+                    files.ln(loop_matrix_file,this_dir)
                 files.ln(pjoin(this_dir,"../../Utilities/Higgs_Reweight_EFT_FT/makefile2"),this_dir)
                 misc.compile(arg=['-f','makefile2','reweight_loop_events'], cwd=this_dir, job_specs = False)
 

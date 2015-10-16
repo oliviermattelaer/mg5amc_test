@@ -1,45 +1,71 @@
       program write_proc_labels_virtual
       implicit none
       character*200 procid,str_j,str_mult,str_temp,library,line
-     &     ,str_permut,str_i
+     &     ,str_permut,str_i,incoming,incoming1,incoming2
+     &     ,str_init1,str_init2
       character*1 s1
       character*2 s2
       character*3 s3
       character*60 buff,model
-      integer maxproc,maxpart
-      parameter (maxproc=999,maxpart=20)
+      integer maxproc,maxpart,maxchannels
+      parameter (maxproc=999,maxpart=20,maxchannels=999)
       integer total_proc,i,j,proc_number(maxproc),npart(maxproc),
      &     partid(maxpart,maxproc),lstr(maxproc),l,iproc,mult
-      character*140 str(maxproc)
+      character*140 str(maxproc),initial_states(maxchannels)
       character*2 ls
-      logical need_switching
+      logical need_switching,found,firsttime(maxchannels)
       integer date(3),time(3),len_line
       integer flst_ml5(maxproc),k,alpha(maxproc),alphas(maxproc)
-      integer n,permut(10)
+      integer n,permut(10),ident,ident_max
       logical nextp
       external nextp
 
       model='sm-no_b_mass'
       library='ML5lib_reweight'
 
-      open (unit=11,file='processes.dat',status='old',err=33)
+      open (unit=1,file='processes.dat',status='old',err=33)
       i = 0
       iproc = 0
  100  i = i + 1
-      read(11,*,END=101) line
+      read(1,*,END=101) line
       if ((line(1:1).eq.' ').or.(line(1:1).eq.'#')) then
          GOTO 100
       endif
       iproc = iproc+1
-      backspace(11)
-      read(11,*,err=33) proc_number(iproc),npart(iproc),
+      backspace(1)
+      read(1,*,err=33) proc_number(iproc),npart(iproc),
      &     (partid(j,iproc),j=1,npart(iproc)),alpha(iproc),alphas(iproc)
       total_proc=proc_number(iproc)
       GOTO 100
- 101  close(11)
+ 101  close(1)
 
-      open(unit=18,file='MadLoop.mg5',err=35)
-      open(unit=12,file='loop_matrix_lib.f',status='unknown')
+com-- this is to split the wrapper function with respect to the 
+com-- different initial states
+      ident = 0
+      
+      do j=1,total_proc
+         write (incoming1,*) partid(1,j)
+         write (incoming2,*) partid(2,j)
+         do i=1,200
+            if (incoming1(i:i) .eq. "-") incoming1(i:i) = "m"
+            if (incoming2(i:i) .eq. "-") incoming2(i:i) = "m"
+         enddo
+        incoming=trim(adjustl(incoming1))//"_"//trim(adjustl(incoming2))
+!         print*, trim(incoming)
+         if ( .not. ANY( initial_states 
+     &       .eq. trim(adjustl(incoming)) ) ) then
+            ident = ident+1
+            initial_states(ident)=trim(adjustl(incoming))
+            firsttime(ident)=.true.
+         endif
+      enddo
+      ident_max = ident
+
+c$$$      do ident=10,ident_max
+c$$$         print*, ident,trim(adjustl(initial_states(ident)))
+c$$$      enddo
+
+      open(unit=3,file='MadLoop.mg5',err=35)
       write(*,*) '************************************************'//
      $     '******'
       write(*,*) 'Writing the orderfile for MadLoop5...'
@@ -47,19 +73,39 @@
       write(*,*) ''
        
 
-      write(18,*) '# MadLoop.mg5'
-      write(18,*) '# Created for heft-mergin + reweighting'
-      write(18,*)
-      write(18,*) 'import model loop_'//model
-      write (12,*) 
-     f '     subroutine loop_matrix_lib(procid,P,WGT)'
-      write (12,*) '     implicit none'
-      write (12,*) '     character*200 procid'
-      write (12,*) '     integer i,j,ans_dim'
-      write (12,*) '     double precision P3(0:3,3),P4(0:3,4),P5(0:3,5)'
-      write (12,*) '    f     ,P6(0:3,6),P7(0:3,7),P8(0:3,8),P9(0:3,9)'
-      write (12,*) '    f     ,P(0:3,*),ANS(0:3,0:1),WGT'
-      write (12,*) '     '
+      write(3,*) '# MadLoop.mg5'
+      write(3,*) '# Created for heft-mergin + reweighting'
+      write(3,*)
+      write(3,*) 'import model loop_'//model
+
+com-- this creates a wrapper function of the wrapper functions
+      open(unit=2,file='loop_matrix_lib.f',status='unknown')
+      write(2,*) '     subroutine loop_matrix_lib(procid,P,WGT)'
+      write(2,*) '     implicit none'
+      write(2,*) '     character*200 procid'
+      write(2,*) '     integer init1, init2'
+      write(2,*) '     double precision P(0:3,*),WGT'
+      write(2,*) '     '
+      write(2,*) '     read(procid,*) init1 , init2'
+com-- this creates now separate files for each subchannel
+com-- each of these files contain a different library
+com-- with the name of file and subroutine containing the subchannel 
+      do i=1,ident_max
+       j=i+10
+        open(unit=j,file='loop_matrix_lib_'
+     f        //trim(adjustl(initial_states(i)))
+     f        //'.f',status='unknown')
+        write(j,*) '     subroutine loop_matrix_lib_'
+     f      //trim(adjustl(initial_states(i)))//'(procid,P,WGT)'
+        write(j,*) '     implicit none'
+        write(j,*) '     character*200 procid'
+        write(j,*) '     integer i,j,ans_dim'
+        write(j,*) '     double precision P3(0:3,3),P4(0:3,4),P5(0:3,5)'
+        write(j,*) '    f     ,P6(0:3,6),P7(0:3,7),P8(0:3,8),P9(0:3,9)'
+        write(j,*) '    f     ,P(0:3,*),ANS(0:3,0:1),WGT'
+        write(j,*) '     '
+      enddo
+
       do j=1,total_proc
 
          if (npart(j).gt.9) then
@@ -71,16 +117,15 @@
             flst_ml5(k)=partid(k,j)
             if (flst_ml5(k).eq.0) flst_ml5(k)=21
          enddo
-         write(18,*) 'add process '
+         write(3,*) 'add process '
      $        ,(flst_ml5(k),k=1,2),' >', (flst_ml5(k),k=3,npart(j))
      $        ,' QED=',alpha(j),' QCD=',alphas(j)-1,' [virt=QCD] @ ',j
-
 
 com-- create array with incremental numbers to be permuted
          do i=1,npart(j)-2
             permut(i)=i
          enddo
-com-- 1110 goto-loop loops over all permutations of array permute
+com-- 1110 goto-loop loops over all permutations of array permut
  1110    procid=""
 com-- do-loop loops over initial state particles to apply permutations
          do k=1,2
@@ -93,59 +138,114 @@ com-- do-loop loops over all final state particles to apply permutations
             procid = trim(adjustl(procid))//' '//trim(adjustl(str_temp))
          enddo
 
+com-- find out to which file to write the process (ie, which subchannel)
+         write (incoming1,*) partid(1,j)
+         write (incoming2,*) partid(2,j)
+         do i=1,200
+            if (incoming1(i:i) .eq. "-") incoming1(i:i) = "m"
+            if (incoming2(i:i) .eq. "-") incoming2(i:i) = "m"
+         enddo
+        incoming=trim(adjustl(incoming1))//"_"//trim(adjustl(incoming2))
+         found = .false.
+         do i = 1,200
+            if (initial_states(i) .eq. incoming) then
+               ident = i
+               found = .true.
+               exit
+            endif
+         end do
+         if (.not. found) then
+            write(*,*) "ERROR could not find channel in initial_states"
+            stop
+         endif
+
          write(str_j,*) j
          write(str_mult,*) npart(j)
-         if (j.eq.1) then
-            write (12,*) '     if(trim(procid) .eq. "',trim(procid)
+com-- determine first write for each ident value
+         if (firsttime(ident)) then
+            write(ident+10,*) '     if(trim(procid) .eq. "',trim(procid)
      &           ,'") then'
+            firsttime(ident)=.false.
+com-- use this loop also to create the wrapper of the wrappers
+            write(str_init1,*) partid(1,j)
+            write(str_init2,*) partid(2,j)            
+            if(j.eq.1) then
+               write (2,*)
+     &       '     if(init1 .eq. ',trim(adjustl(str_init1))
+     &      ,' .and. init2 .eq. ',trim(adjustl(str_init2)),') then'
+               write(2,*) '        call loop_matrix_lib_'
+     f              //trim(adjustl(initial_states(i)))//'(procid,P,WGT)'
+            else
+               write (2,*)
+     &       '     elseif(init1 .eq. ',trim(adjustl(str_init1))
+     &      ,' .and. init2 .eq. ',trim(adjustl(str_init2)),') then'
+               write(2,*) '        call loop_matrix_lib_'
+     f              //trim(adjustl(initial_states(i)))//'(procid,P,WGT)'
+            endif
          else
-            write (12,*) '     elseif(trim(procid) .eq. "',trim(procid)
-     &           ,'") then'
+            write(ident+10,*)'     elseif(trim(procid) .eq. "'
+     &           ,trim(procid),'") then'
          endif
-         write(12,*) '         do j=0,3'
-         write(12,*) '            P',trim(adjustl(str_mult))
+         write(ident+10,*) '         do j=0,3'
+         write(ident+10,*) '            P',trim(adjustl(str_mult))
      &        ,'(j,1)=P(j,1)'
-         write(12,*) '            P',trim(adjustl(str_mult))
+         write(ident+10,*) '            P',trim(adjustl(str_mult))
      &        ,'(j,2)=P(j,2)'
          do i=1,npart(j)-2
          write(str_permut,*) 2+permut(i)
          write(str_i,*) 2+i
-         write(12,*) '            P',trim(adjustl(str_mult))
+         write(ident+10,*) '            P',trim(adjustl(str_mult))
      &        ,'(j,',trim(adjustl(str_permut)),')=P(j,'
      &        ,trim(adjustl(str_i)),')'
          enddo
-         write(12,*) '         enddo'
-         write(12,*) '         call ML5_',trim(adjustl(str_j))
+         write(ident+10,*) '         enddo'
+         write(ident+10,*) '         call ML5_',trim(adjustl(str_j))
      &        ,'_GET_ANSWER_DIMENSION(ans_dim)'
-         write(12,*) '         if (ans_dim.ne.1) then'
-         write(12,*) '            write (*,*) "ERROR ans_dim not zero",'
+         write(ident+10,*) '         if (ans_dim.ne.1) then'
+       write(ident+10,*)
+     &        '            write (*,*) "ERROR ans_dim not zero",'
      &        //'ans_dim'
-         write(12,*) '            stop 1'
-         write(12,*) '         endif'
-         write(12,*) '         call ML5_',trim(adjustl(str_j))
+         write(ident+10,*) '            stop 1'
+         write(ident+10,*) '         endif'
+         write(ident+10,*) '         call ML5_',trim(adjustl(str_j))
      f        ,'_SLOOPMATRIX(P',trim(adjustl(str_mult)),',ANS)'
          if(nextp(npart(j)-2,permut) .and. npart(j) .gt. 3) go to 1110
 
          if (j.eq. total_proc) then
-            write(12,*) '     else'
-            write(12,*) '        write (*,*) "ERROR procid not found",'
-     &           //' procid'
-            write(12,*) '        stop 1'
-            write(12,*) '     endif'
+           do i=1,ident_max
+             write(i+10,*) '     else'
+            write(i+10,*)'        write (*,*) "ERROR procid not found",'
+     &            //' procid'
+             write(i+10,*) '        stop 1'
+             write(i+10,*) '     endif'
+           enddo
+           write(2,*) '     else'
+           write(2,*)
+     &'        write (*,*)"ERROR procid does not match initial states",'
+     &            //' procid'
+           write(2,*) '        stop 1'
+           write(2,*) '     endif'
          endif
          
       enddo
 
-      write(18,*) 'output ',trim(adjustl(library))
-      write(18,*) 'launch -f'
-      write(12,*) '     '
-      write(12,*) '     WGT=ANS(1,0)'
-      write(12,*) '     '
-      write(12,*) '     return'
-      write(12,*) '     end'
-      write(12,*) '     '
-      close(18)
-      close(12)
+      write(3,*) 'output ',trim(adjustl(library))
+      write(3,*) 'launch -f'
+      close(3)
+      write(2,*) '     end'
+      write(2,*) '     '
+      close(2)
+      do i=1,ident_max
+         write(i+10,*) '     '
+         write(i+10,*) '     WGT=ANS(1,0)'
+         write(i+10,*) '     '
+         write(i+10,*) '     return'
+         write(i+10,*) '     end'
+         write(i+10,*) '     '
+         close(i+10)
+      enddo
+
+      stop
 
       call system("../../bin/mg5_aMC MadLoop.mg5")
 c$$$      call system("mv loop_matrix_lib.f "
