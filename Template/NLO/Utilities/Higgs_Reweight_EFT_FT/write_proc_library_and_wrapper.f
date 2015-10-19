@@ -245,8 +245,6 @@ com-- use this loop also to create the wrapper of the wrappers
          close(i+10)
       enddo
 
-      stop
-
       call system("../../bin/mg5_aMC MadLoop.mg5")
 c$$$      call system("mv loop_matrix_lib.f "
 c$$$     f     //trim(adjustl(library))//"/SubProcesses/")
@@ -274,9 +272,13 @@ c$$$      GOTO 200
 c$$$ 201  close(20)
 c$$$      close(21)
 
-      call system("cd "//trim(adjustl(library))//"/SubProcesses/ "/
-     &     /"; make OLP_static ; cd ../../" )
-      
+      call system("cd "//trim(adjustl(library))//"/SubProcesses/;"
+     & //"make OLP_static > create_lib.sh;"
+     & //"chmod +x create_lib.sh;"
+     & //"./create_lib.sh;"
+     & //"cp libMadLoop.* ../lib/;"
+     & //"cd ../../")
+
 
       return
  32   write (*,*)
