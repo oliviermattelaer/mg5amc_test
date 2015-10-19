@@ -32,17 +32,8 @@ C----------------------------------------------------------------------
       REAL*8 pi
       PARAMETER (PI=3.14159265358979312D0)
       integer j,kk,l,i,nnn
-c
-c     The type suffix of the histogram title, with syntax 
-c     |T@<type_name> is semantic in the HwU format. It allows for
-c     various filtering when using the histogram.py module
-c     (see comment at the beginning of this file).
-c     It is in general a good idea to keep the same title for the
-c     same observable (if they use the same range) and differentiate
-c     them only using the type suffix.
-c
-      character*12 HwUtype
-      data HwUtype/'|T@M30MFT012'/
+      character*5 Cuts(4)
+      data Cuts/' inc ',' 2jet',' vbf1',' vbf2'/
       integer nwgt,max_weight,nwgt_analysis
       common/cnwgt/nwgt
       common/c_analysis/nwgt_analysis
@@ -62,25 +53,39 @@ c Set method for error estimation to '0', i.e., use Poisson statistics
 c for the uncertainty estimate
       call set_error_estimation(0)
       nwgt_analysis=nwgt
-      k=0
-      call HwU_book(k+ 1,'Higgs pt        '//HwUtype,40,0.d0,400.d0)
-      call HwU_book(k+ 2,'Higgs y         '//HwUtype,50,-5.d0,5.d0)
-      call HwU_book(k+ 3,'== jets         '//HwUtype,10,-0.5d0,9.5d0)
-      call HwU_book(k+ 4,'>= jets         '//HwUtype,10,-0.5d0,9.5d0)
-      call HwU_book(k+ 5,'Higgs pt == 0j  '//HwUtype,20,0.d0,400.d0)
-      call HwU_book(k+ 6,'Higgs pt == 1j  '//HwUtype,20,0.d0,400.d0)
-      call HwU_book(k+ 7,'Higgs pt == 2j  '//HwUtype,20,0.d0,400.d0)
-      call HwU_book(k+ 8,'Higgs pt >= 3j  '//HwUtype,20,0.d0,400.d0)
-      call HwU_book(k+ 9,'pt[j1]          '//HwUtype,30,0.d0,300.d0)
-      call HwU_book(k+10,'pt[j2]          '//HwUtype,30,0.d0,300.d0)
-      call HwU_book(k+11,'pt[j3]          '//HwUtype,30,0.d0,300.d0)
-      call HwU_book(k+12,'y[j1]           '//HwUtype,20,-5.d0,5.d0)
-      call HwU_book(k+13,'y[j2]           '//HwUtype,20,-5.d0,5.d0)
-      call HwU_book(k+14,'y[j3]           '//HwUtype,20,-5.d0,5.d0)
-      call HwU_book(k+15,'mjj             '//HwUtype,40,0.d0,1000.d0)
-      call HwU_book(k+16,'Delta y[j1,j2]  '//HwUtype,40,0.d0,10.d0)
-      call HwU_book(k+17,'Delta phi[j1,j2]'//HwUtype,20,0.d0,pi)
-      call HwU_book(k+18,'cross section   '//HwUtype,10,-0.5d0,9.5d0)
+      call HwU_book(1,'cross section   ',10,-0.5d0,9.5d0)
+c Loop over the 4 sets of cuts ("inclusive", "at least two jets", 
+c "loose VBF cuts" and "tight VBF cuts")
+      do i=1,4
+      k=(i-1)*27+1
+      call HwU_book(k+ 1,'Higgs pt        '//Cuts(i),40,0.d0,400.d0)
+      call HwU_book(k+ 2,'Higgs y         '//Cuts(i),50,-5.d0,5.d0)
+      call HwU_book(k+ 3,'== jets         '//Cuts(i),10,-0.5d0,9.5d0)
+      call HwU_book(k+ 4,'>= jets         '//Cuts(i),10,-0.5d0,9.5d0)
+      call HwU_book(k+ 5,'Higgs pt == 0j  '//Cuts(i),20,0.d0,400.d0)
+      call HwU_book(k+ 6,'Higgs pt == 1j  '//Cuts(i),20,0.d0,400.d0)
+      call HwU_book(k+ 7,'Higgs pt == 2j  '//Cuts(i),20,0.d0,400.d0)
+      call HwU_book(k+ 8,'Higgs pt >= 3j  '//Cuts(i),20,0.d0,400.d0)
+      call HwU_book(k+ 9,'d0              '//Cuts(i),40,0.d0,500.d0)
+      call HwU_book(k+10,'log10[d0]       '//Cuts(i),40,-0.5d0,3.5d0)
+      call HwU_book(k+11,'d1              '//Cuts(i),40,0.d0,500.d0)
+      call HwU_book(k+12,'log10[d1]       '//Cuts(i),40,-0.5d0,3.5d0)
+      call HwU_book(k+13,'d2              '//Cuts(i),40,0.d0,500.d0)
+      call HwU_book(k+14,'log10[d2]       '//Cuts(i),40,-0.5d0,3.5d0)
+      call HwU_book(k+15,'d3              '//Cuts(i),40,0.d0,500.d0)
+      call HwU_book(k+16,'log10[d3]       '//Cuts(i),40,-0.5d0,3.5d0)
+      call HwU_book(k+17,'pt[j1]          '//Cuts(i),30,0.d0,300.d0)
+      call HwU_book(k+18,'pt[j2]          '//Cuts(i),30,0.d0,300.d0)
+      call HwU_book(k+19,'pt[j3]          '//Cuts(i),30,0.d0,300.d0)
+      call HwU_book(k+20,'pt[j4]          '//Cuts(i),30,0.d0,300.d0)
+      call HwU_book(k+21,'eta[j1]         '//Cuts(i),20,-5.d0,5.d0)
+      call HwU_book(k+22,'eta[j2]         '//Cuts(i),20,-5.d0,5.d0)
+      call HwU_book(k+23,'eta[j3]         '//Cuts(i),20,-5.d0,5.d0)
+      call HwU_book(k+24,'eta[j4]         '//Cuts(i),20,-5.d0,5.d0)
+      call HwU_book(k+25,'mjj             '//Cuts(i),40,0.d0,1000.d0)
+      call HwU_book(k+26,'Delta y[j1,j2]  '//Cuts(i),40,0.d0,10.d0)
+      call HwU_book(k+27,'Delta phi[j1,j2]'//Cuts(i),20,0.d0,pi)
+      enddo
  999  END
 
 C----------------------------------------------------------------------
@@ -111,11 +116,11 @@ C----------------------------------------------------------------------
       INTEGER ICHSUM,ICHINI,IHEP,IFH,IST,ID,IJ,I,J,II
       INTEGER NMAX
       PARAMETER (NMAX=2000)
-      INTEGER ITMP,NN,NJET,NJET30,JET(NMAX),IORJET(NMAX)
-      DOUBLE PRECISION palg,rfj,sycut,PTU,PTL,PTCALC,ptj,yj, PP(4,NMAX)
-     $     ,PJET(4,NMAX),d01,d12,d23,d34,fastjetdmergemax, getrapidity
-     $     ,getpseudorap,etaj,getdelphi,ptj1,ptj2,ptj3,dphi12
-     $     ,dphi13,dphi23,deta12,invm,mjj
+      INTEGER NN,NJET,JET(NMAX)
+      DOUBLE PRECISION palg,rfj,sycut,PTCALC,ptj,PP(4,NMAX)
+     &     ,PJET(4,NMAX),d01,d12,d23,d34,fastjetdmergemax,getrapidity
+     &     ,getpseudorap,etaj,getdelphi,ptj1,ptj2,ptj3,dphi12,deta12
+     &     ,invm,mjj
       REAL*8 WWW0,TINY
       INTEGER KK,KK1,ibin
       DATA TINY/.1D-5/
@@ -144,11 +149,6 @@ C EFFECT, SO THROW THE EVENT AWAY
          GOTO 999
       ENDIF
       DO I=1,nwgt_analysis
-c$$$         if (i.eq.1) then 
-c$$$            WWW(I)=EVWGT*ww(2)/ww(1)
-c$$$         else
-c$$$            WWW(I)=EVWGT*ww(i)/ww(1)
-c$$$         endif
          www(i)=ww(i)
       ENDDO
 
@@ -177,19 +177,45 @@ c$$$         endif
          write (*,*) 'ERROR 501 in pyanal'
          stop
       ENDIF
-
-C FILL THE HISTOS
+      
       xmh=pph(5)
       pth=sqrt(pph(1)**2+pph(2)**2)
       yh=getrapidity(pph(4),pph(3))
 
-c
-      kk=0
-         
+c Call fastjet with kT-algo to get the jet scales
+      palg=1.d0
+      rfj=1.0d0
+      sycut=0.d0
+      call fastjetppgenkt(pp,nn,rfj,sycut,palg,pjet,njet,jet)
+      if (NN.ge.1) then
+         d01=dsqrt(fastjetdmergemax(0))
+      else
+         d01=-1d8
+      endif
+      if (NN.ge.2) then
+         d12=dsqrt(fastjetdmergemax(1))
+      else
+         d12=-1d8
+      endif
+      if (NN.ge.3) then
+         d23=dsqrt(fastjetdmergemax(2))
+      else
+         d23=-1d8
+      endif
+      if (NN.ge.4) then
+         d34=dsqrt(fastjetdmergemax(3))
+      else
+         d34=-1d8
+      endif
+
+c Call fastjet with anti-kT to get the actual jets
       palg=-1.d0
       rfj=0.4d0
       sycut=30.d0
+      njet=0
       call fastjetppgenkt(pp,nn,rfj,sycut,palg,pjet,njet,jet)
+c Jets are already ordered in pT; remove jets that are outside of
+c rapidity range
       do i=1,njet
          if (abs(getrapidity(pjet(4,i),pjet(3,i))).gt.4.4d0) then
             do j=i,njet-1
@@ -201,48 +227,87 @@ c
          endif
       enddo
 
-      call HwU_fill(kk+1,pth,WWW)
-      call HwU_fill(kk+2,yh,WWW)
-      call HwU_fill(kk+3,dble(njet),WWW)
-      do i=njet,0,-1
-         call HwU_fill(kk+4,dble(i),WWW)
-      enddo
-         
-      if (njet.eq.0) call HwU_fill(kk+5,pth,WWW)
-      if (njet.eq.1) call HwU_fill(kk+6,pth,WWW)
-      if (njet.eq.2) call HwU_fill(kk+7,pth,WWW)
-      if (njet.ge.3) call HwU_fill(kk+8,pth,WWW)
+      do ii=1,4
+         kk=(ii-1)*27+1
+c Apply the cuts:
+         if (ii.eq.2) then
+            if (njet.lt.2) cycle
+         endif
+         if (ii.eq.3) then
+            if (njet.lt.2) cycle
+            if (mjj.lt.400d0 .or. deta12.lt.2.8d0) cycle
+         endif
+         if (ii.eq.4) then
+            if (njet.lt.2) cycle
+            if (mjj.lt.600d0 .or. deta12.lt.4.0d0) cycle
+         endif
 
-      do i=1,njet
-         ptj=PTCALC(PJET(1,i))
-         etaj=getrapidity(PJET(4,i),PJET(3,I))
-         call HwU_fill(kk+8+min(i,3),ptj,WWW)
-         call HwU_fill(kk+11+min(i,3),etaj,WWW)
-      enddo
-      if (njet.ge.2) then
+c Fill the cross section histogram         
+         if (ii.eq.1) then
+            call HwU_fill(1,0d0,WWW)
+            if (njet.eq.2) call HwU_fill(1,1d0,WWW)
+         elseif (ii.eq.2) then
+            call HwU_fill(1,2d0,WWW)
+            if (njet.eq.2) call HwU_fill(1,3d0,WWW)
+         elseif (ii.eq.3) then
+            call HwU_fill(1,4d0,WWW)
+            if (njet.eq.2) call HwU_fill(1,5d0,WWW)
+         elseif (ii.eq.4) then
+            call HwU_fill(1,6d0,WWW)
+            if (njet.eq.2) call HwU_fill(1,7d0,WWW)
+         endif
+
+c Higgs and number of jets plots
+         call HwU_fill(kk+1,pth,WWW)
+         call HwU_fill(kk+2,yh,WWW)
+         call HwU_fill(kk+3,dble(njet),WWW)
+         do i=0,njet
+            call HwU_fill(kk+4,dble(i),WWW)
+         enddo
+         if (njet.eq.0) call HwU_fill(kk+5,pth,WWW)
+         if (njet.eq.1) call HwU_fill(kk+6,pth,WWW)
+         if (njet.eq.2) call HwU_fill(kk+7,pth,WWW)
+         if (njet.ge.3) call HwU_fill(kk+8,pth,WWW)
+
+
+c Diff. jet rates
+         call HwU_fill(kk+9,d01,www)
+         if (d01.ge.1d-3)
+     &        call HwU_fill(kk+10,log10(d01),www)
+         call HwU_fill(kk+11,d12,www)
+         if (d12.ge.1d-3)
+     &        call HwU_fill(kk+12,log10(d12),www)
+         call HwU_fill(kk+13,d23,www)
+         if (d23.ge.1d-3)
+     &        call HwU_fill(kk+14,log10(d23),www)
+         call HwU_fill(kk+15,d34,www)
+         if (d34.ge.1d-3)
+     &        call HwU_fill(kk+16,log10(d34),www)
+
+         
+c below are jet-observables. Need to have at least one jet
+         if (njet.eq.0) cycle
+
+         do i=1,njet
+            if (i.eq.5) exit ! only fill 4 plots
+            ptj=PTCALC(PJET(1,i))
+            etaj=getrapidity(PJET(4,i),PJET(3,I))
+            call HwU_fill(kk+16+i,ptj,WWW)
+            call HwU_fill(kk+20+i,etaj,WWW)
+         enddo
+
+c below are 2-jet-observables. Need to have at least two jets
+         if (njet.lt.2) cycle
+
          mjj=invm(pjet(1,1),pjet(1,2))
          deta12=abs(getrapidity(pjet(4,1),pjet(3,1))-
-     $              getrapidity(pjet(4,2),pjet(3,2)))
+     $        getrapidity(pjet(4,2),pjet(3,2)))
          dphi12=getdelphi(PJET(1,1),PJET(2,1),PJET(1,2),PJET(2,2))
+         call HwU_fill(kk+25,mjj,WWW)
+         call HwU_fill(kk+26,deta12,WWW)
+         call HwU_fill(kk+27,dphi12,WWW)
+      enddo
 
-         call HwU_fill(kk+15,mjj,WWW)
-         call HwU_fill(kk+16,deta12,WWW)
-         call HwU_fill(kk+17,dphi12,WWW)
-      endif
-      
-c total cross section
-      call HwU_fill(kk+18,0d0,WWW)
-      if (njet.ge.2) then
-         if (mjj.gt.400d0 .and. deta12.ge.2.8d0) then
-            call HwU_fill(kk+18,1d0,WWW)
-            if (njet.eq.2) call HwU_fill(kk+18,2d0,WWW)
-         endif
-         if (mjj.gt.600d0 .and. deta12.ge.4.0d0) then
-            call HwU_fill(kk+18,3d0,WWW)
-            if (njet.eq.2) call HwU_fill(kk+18,4d0,WWW)
-         endif
-      endif
-         
       call HwU_add_points
 
  999  return
@@ -289,8 +354,12 @@ c
 
       double precision function invm(p1,p2)
       implicit none
-      double precision p1(4),p2(4),getinvm
-      invm=getinvm(p1(4)+p2(4),p1(1)+p2(1),p1(2)+p2(2),p1(3)+p2(3))
+      integer i
+      double precision p1(4),p2(4),tmp(4),getinvm
+      do i=1,4
+         tmp(i)=p1(i)+p2(i)
+      enddo
+      invm=getinvm(tmp(4),tmp(1),tmp(2),tmp(3))
       end
 
 
