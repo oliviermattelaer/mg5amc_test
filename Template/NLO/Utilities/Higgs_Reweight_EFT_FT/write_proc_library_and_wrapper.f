@@ -278,6 +278,9 @@ c$$$      close(21)
      & //"./create_lib.sh;"
      & //"cp libMadLoop.* ../lib/;"
      & //"cd ../../")
+      write(*,*) ""
+      write(*,*) "Ignore previous ERROR! library should be created now."
+      write(*,*) ""
 
 
       return
