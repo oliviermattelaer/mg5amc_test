@@ -366,7 +366,19 @@ Press ctrl-C to force the update.''' % self.options['cluster_status_update'][0])
         
 
         if job_id not in self.retry_args:
-            return True
+            if job_id in self.id_to_packet:
+                nb_in_packet = self.id_to_packet[job_id].remove_one()
+                if nb_in_packet == 0:
+                    # packet done run the associate function
+                    packet = self.id_to_packet[job_id]
+                    # fully ensure that the packet is finished (thread safe)
+                    packet.queue.join()
+                    #running the function
+                    packet.fct(*packet.args)                    
+                del self.id_to_packet[job_id]
+                return 'resubmit'
+            else:
+                return True
 
         args = self.retry_args[job_id]
         if 'time_check' in args:
@@ -606,6 +618,8 @@ class MultiCore(Cluster):
                     if isinstance(exe,str):
                         if os.path.exists(exe) and not exe.startswith('/'):
                             exe = './' + exe
+                        if isinstance(opt['stdout'],str):
+                            opt['stdout'] = open(opt['stdout'],'w')
                         if opt['stderr'] == None:
                             opt['stderr'] = subprocess.STDOUT
                         proc = misc.Popen([exe] + arg,  **opt)
@@ -629,7 +643,7 @@ class MultiCore(Cluster):
                         # the error message otherwise
                         returncode = exe(*arg, **opt)
                         if returncode != 0:
-                            logger.warning("fct %s does not return 0. Starts to stop the code in a clean way.", exe)
+                            logger.warning("fct %s does not return 0. Stopping the code in a clean way. The error was:\n%s", exe, returncode)
                             self.stoprequest.set()
                             self.remove("fct %s does not return 0:\n %s" % (exe, returncode))
                 except Exception,error:
@@ -661,7 +675,6 @@ class MultiCore(Cluster):
         
         tag = (prog, tuple(argument), cwd, nb_submit)
         if isinstance(prog, str):
-            
     
             opt = {'cwd': cwd, 
                    'stdout':stdout,
@@ -793,6 +806,7 @@ class MultiCore(Cluster):
                 elif isinstance(self.fail_msg, str):
                     raise Exception, self.fail_msg
                 else:
+                    misc.sprint(self.fail_msg)
                     raise self.fail_msg[0], self.fail_msg[1], self.fail_msg[2]
             # reset variable for next submission
             try:
@@ -1655,6 +1669,7 @@ class SLURMCluster(Cluster):
 
         if not id.isdigit():
             raise ClusterManagmentError, 'fail to submit to the cluster: \n%s' \
+                    % (output[0] + '\n' + output[1])
 
         self.submitted += 1
         self.submitted_ids.append(id)
@@ -2113,3 +2128,5 @@ from_name = {'condor':CondorCluster, 'pbs': PBSCluster, 'sge': SGECluster,
              'lsf': LSFCluster, 'ge':GECluster, 'slurm': SLURMCluster, 
              'htcaas':HTCaaSCluster, 'htcaas2':HTCaaS2Cluster}
 
+onecore=MultiCore(1) # create a thread to run simple bash job without having to
+                     #fork the main process

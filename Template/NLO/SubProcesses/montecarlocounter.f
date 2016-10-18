@@ -21,7 +21,7 @@ c is the number of color flows at Born level
       integer nglu,nsngl
       logical isspecial,isspecial0
       common/cisspecial/isspecial
-
+      logical spec_case
       ipartners(0)=0
       do i=1,nexternal-1
          colorflow(i,0)=0
@@ -132,14 +132,16 @@ c Therefore, ipartners(k0)=j
                         write(*,*)i,j,l,k0,ipartners(k0)
                         stop
                      endif
+                     spec_case=l.eq.2 .and. colorflow(k0,0).ge.1 .and.
+     &                    colorflow(k0,colorflow(k0,0)).eq.i 
+                     if (.not.spec_case)then
 c Increase by one the number of colour flows in which the father is
 c (anti)colour-connected with its k0^th partner (according to the
 c list defined by ipartners)
-                     colorflow(k0,0)=colorflow(k0,0)+1
+                        colorflow(k0,0)=colorflow(k0,0)+1
 c Store the label of the colour flow thus found
-                     colorflow(k0,colorflow(k0,0))=i
-                     if (l.eq.2 .and. colorflow(k0,0).gt.1 .and.
-     &                    colorflow(k0,colorflow(k0,0)-1).eq.i )then
+                        colorflow(k0,colorflow(k0,0))=i
+                     elseif (spec_case)then
 c Special case: father and ipartners(k0) are both gluons, connected
 c by colour AND anticolour: the number of colour flows was overcounted
 c by one unit, so decrease it
@@ -150,7 +152,7 @@ c by one unit, so decrease it
                             write(*,*)i,j,l,k0,i1(1),i1(2)
                             stop
                          endif
-                         colorflow(k0,0)=colorflow(k0,0)-1
+                         colorflow(k0,colorflow(k0,0))=i
                          isspecial0=.true.
                      endif
                   endif
@@ -1014,11 +1016,13 @@ c the same method
 
       logical calculatedBorn
       common/ccalculatedBorn/calculatedBorn
+      double precision iden_comp
+      common /c_iden_comp/iden_comp
 
 c Particle types (=color) of i_fks, j_fks and fks_mother
       integer i_type,j_type,m_type
       common/cparticle_types/i_type,j_type,m_type
-
+      
 c
 c BORN
       call sborn(p_born,wgt1)
@@ -1149,7 +1153,7 @@ c Insert the extra factor due to Madgraph convention for polarization vectors
 c BARRED AMPLITUDES
       do i=1,max_bcol
          if (sumborn.ne.0d0) then
-            bornbars(i)=jamp2(i)/sumborn * born
+            bornbars(i)=jamp2(i)/sumborn * born *iden_comp
          elseif (born.eq.0d0 .or. jamp2(i).eq.0d0) then
             bornbars(i)=0d0
          else
@@ -1157,7 +1161,7 @@ c BARRED AMPLITUDES
             stop
          endif
          if (sumborn.ne.0d0) then
-            bornbarstilde(i)=jamp2(i)/sumborn * borntilde
+            bornbarstilde(i)=jamp2(i)/sumborn * borntilde *iden_comp
          elseif (borntilde.eq.0d0 .or. jamp2(i).eq.0d0) then
             bornbarstilde(i)=0d0
          else

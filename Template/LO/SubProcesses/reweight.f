@@ -485,7 +485,6 @@ C
 C   ARGUMENTS 
 C   
       DOUBLE PRECISION P(0:3,NEXTERNAL)
-
 C   global variables
 C     Present process number
       INTEGER IMIRROR,IPROC
@@ -498,7 +497,8 @@ c     q2bck holds the central q2fact scales
       integer jlast(2)
       integer njetstore(lmaxconfigs),iqjetstore(nexternal-2,lmaxconfigs)
       real*8 q2bck(2)
-      common /to_rw/jlast,njetstore,iqjetstore,q2bck
+      integer njets,iqjets(nexternal)
+      common /to_rw/jlast,njetstore,iqjetstore,njets,iqjets,q2bck
       data njetstore/lmaxconfigs*-1/
       real*8 xptj,xptb,xpta,xptl,xmtc
       real*8 xetamin,xqcut,deltaeta
@@ -526,7 +526,6 @@ C   local variables
 
 c     Variables for keeping track of jets
       logical goodjet(n_max_cl)
-      integer njets,iqjets(nexternal)
       integer fsnum(2),ida(2),imo,jcode
       logical chclusold,fail,increasecode
       save chclusold
@@ -557,8 +556,8 @@ c
 c     First time, cluster according to this config and store jets
 c     (following times, only accept configurations if the same partons
 c      are flagged as jets)
+      chclusold=chcluster
       if(njetstore(iconfig).eq.-1)then
-         chclusold=chcluster
          chcluster=.true.
       endif
  100  clustered = cluster(p(0,1))
@@ -844,7 +843,7 @@ c               if (iqjetstore(njets,iconfig).ne.i) fail=.true.
      $           write(*,*) 'Bad clustering, jets fail. Reclustering ',
      $           iconfig
             chcluster=.true.
-c            goto 100 ! not
+            goto 100
          endif
       endif
       
@@ -995,21 +994,21 @@ c     Take care of case when jcentral are zero
             pt2ijcl(nexternal-2)=q2fact(1)
             if(nexternal.gt.3) pt2ijcl(nexternal-3)=q2fact(1)
          else
-            q2fact(1)=pt2ijcl(nexternal-2)
-            q2fact(2)=q2fact(1)
+            q2fact(1)=scalefact**2*pt2ijcl(nexternal-2)
+            q2fact(2)=scalefact**2*q2fact(1)
          endif
       elseif(jcentral(1).eq.0)then
-            q2fact(1) = pt2ijcl(jfirst(1))
+            q2fact(1) = scalefact**2*pt2ijcl(jfirst(1))
       elseif(jcentral(2).eq.0)then
-            q2fact(2) = pt2ijcl(jfirst(2))
+            q2fact(2) = scalefact**2*pt2ijcl(jfirst(2))
       elseif(ickkw.eq.2.or.(pdfwgt.and.ickkw.gt.0))then
 c     Total pdf weight is f1(x1,pt2E)*fj(x1*z,Q)/fj(x1*z,pt2E)
 c     f1(x1,pt2E) is given by DSIG, just need to set scale.
 c     Use the minimum scale found for fact scale in ME
          if(jlast(1).gt.0.and.jfirst(1).le.jlast(1))
-     $        q2fact(1)=min(pt2ijcl(jfirst(1)),q2fact(1))
+     $        q2fact(1)=scalefact**2*min(pt2ijcl(jfirst(1)),q2fact(1))
          if(jlast(2).gt.0.and.jfirst(2).le.jlast(2))
-     $        q2fact(2)=min(pt2ijcl(jfirst(2)),q2fact(2))
+     $        q2fact(2)=scalefact**2*min(pt2ijcl(jfirst(2)),q2fact(2))
       endif
 
 c     Check that factorization scale is >= 2 GeV
@@ -1088,7 +1087,53 @@ c
       endif
       return
       end
+
+      double precision function custom_bias(p, original_weight, numproc)
+c***********************************************************
+c     Returns a bias weight as instructed by the bias module
+c***********************************************************
+      implicit none
+
+      include 'nexternal.inc'
+      include 'maxparticles.inc'
+      include 'run_config.inc'
+      include 'lhe_event_infos.inc'
+      include 'run.inc'
+
+      DOUBLE PRECISION P(0:3,NEXTERNAL)
+      integer numproc
+
+      double precision original_weight
+
+      double precision bias_weight
+      logical is_bias_dummy, requires_full_event_info
+      common/bias/bias_weight,is_bias_dummy,requires_full_event_info
+
       
+C     If the bias module necessitates the full event information
+C     then we must call write_leshouches here already so as to set it.
+C     The weight specified at this stage is irrelevant since we
+C     use do_write_events set to .False.
+      AlreadySetInBiasModule = .False.      
+      if (requires_full_event_info) then
+        call write_leshouche(p,-1.0d0,numproc,.False.)
+C     Write the event in the string evt_record, part of the
+C     lhe_event_info common block
+        event_record(:) = ''
+        call write_event_to_stream(event_record,pb(0,1),1.0d0,npart,
+     &      jpart(1,1),ngroup,sscale,aaqcd,aaqed,buff,use_syst,
+     &      s_buff, nclus, buffclus)
+        AlreadySetInBiasModule = .True. 
+      else
+        AlreadySetInBiasModule = .False.
+      endif
+C     Apply the bias weight. The default run_card entry 'None' for the 
+c     'bias_weight' option will implement a constant bias_weight of 1.0 below.
+      call bias_wgt(p, original_weight, bias_weight)
+      custom_bias = bias_weight
+
+      end
+
       double precision function rewgt(p)
 c**************************************************
 c   reweight the hard me according to ckkw
@@ -1128,17 +1173,19 @@ c     q2bck holds the central q2fact scales
       integer jlast(2)
       integer njetstore(lmaxconfigs),iqjetstore(nexternal-2,lmaxconfigs)
       real*8 q2bck(2)
-      common /to_rw/jlast,njetstore,iqjetstore,q2bck
+      integer njets,iqjets(nexternal)
+      common /to_rw/jlast,njetstore,iqjetstore,njets,iqjets,q2bck
       integer idup(nexternal,maxproc,maxsproc)
       integer mothup(2,nexternal)
       integer icolup(2,nexternal,maxflow,maxsproc)
       include 'leshouche.inc'
 
 C   local variables
-      integer i, j, idi, idj,ijet
+      integer i, j, idi, idj
       real*8 PI
       parameter( PI = 3.14159265358979323846d0 )
 
+      logical setclscales
       integer mapconfig(0:lmaxconfigs), this_config
       integer iforest(2,-max_branch:-1,lmaxconfigs)
       integer sprop(maxsproc,-max_branch:-1,lmaxconfigs)
@@ -1196,7 +1243,32 @@ c     Set incoming particle identities
 
       endif
       
+
+      if(ickkw.le.0)then
 c     Store pdf information for systematics studies (initial)
+         if(use_syst)then
+            do j=1,2
+                n_pdfrw(j)=1
+                i_pdgpdf(1,j)=ipdgcl(j,igraphs(1),iproc)
+                s_xpdf(1,j)=xbk(ib(j))
+                s_qpdf(1,j)=sqrt(q2fact(j))
+            enddo
+           endif
+         asref=0 ! usefull for syscalc
+         goto 100
+      endif
+
+
+      if(.not.setclscales(p)) then ! assign the correct id information.
+         write(*,*) "Fail to cluster the events from the rewgt function"
+         stop 1
+c        rewgt = 0d0
+        return
+      endif
+
+
+c     Store pdf information for systematics studies (initial)
+c     need to be done after      setclscales since that one clean the syscalc value
       if(use_syst)then
          do j=1,2
             n_pdfrw(j)=1
@@ -1206,10 +1278,6 @@ c     Store pdf information for systematics studies (initial)
          enddo
       endif
 
-      if(ickkw.le.0)then
-         asref=0 ! usefull for syscalc
-         goto 100
-      endif
 c   Preparing graph particle information (ipart, needed to keep track of
 c   external particle clustering scales)
       do i=1,nexternal
@@ -1259,7 +1327,6 @@ c     Prepare for resetting q2fact based on PDF reweighting
       endif
 
 c     Prepare checking for parton vertices
-      ijet=1
       do i=1,nexternal
          j=ishft(1,i-1)
 c        Set jet identities according to chosen subprocess
@@ -1270,10 +1337,8 @@ c        Set jet identities according to chosen subprocess
      $        i,ipdgcl(j,igraphs(1),iproc)
          if(i.le.2)then
             goodjet(j)=isparton(ipdgcl(j,igraphs(1),iproc))
-         elseif(ijet.le.njetstore(iconfig).and.
-     $        i.eq. iqjetstore(ijet,iconfig)) then
+         elseif(iqjets(i).gt.0) then
             goodjet(j)=.true.
-            ijet=ijet+1
          elseif(isparton(ipdgcl(j,igraphs(1),iproc)).and.
      $          .not.isjet(ipdgcl(j,igraphs(1),iproc))) then
             goodjet(j)=.true.            
