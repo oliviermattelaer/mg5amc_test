@@ -5,7 +5,6 @@ c FO_analyse_card.
       implicit none
       integer nwgt
       character*(*) weights_info(*)
-      call inihist
       end
       subroutine analysis_end(xnorm)
       implicit none

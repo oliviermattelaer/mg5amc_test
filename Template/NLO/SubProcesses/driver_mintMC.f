@@ -93,6 +93,19 @@ c general MadFKS parameters
       logical              fixed_order,nlo_ps
       common /c_fnlo_nlops/fixed_order,nlo_ps
 
+c     py8 variables if py is run on the fly
+
+      character*7 event_norm
+      common /event_normalisation/event_norm
+      logical run_shower_onthefly
+      common /to_run_shower_onthefly/run_shower_onthefly
+      character*50 py8_input
+      double precision py8_norm
+      integer nevents_tot
+      common /to_nevents_tot/ nevents_tot
+      double precision wgtfrac
+
+
 C-----
 C  BEGIN CODE
 C-----  
@@ -131,6 +144,7 @@ c
       call printout              !Prints out a summary of paramaters
       call run_printout          !Prints out a summary of the run settings
       call initcluster
+
 c     
 c     Get user input
 c
@@ -307,7 +321,7 @@ c Mass-shell stuff. This is MC-dependent
          if (ickkw.eq.-1) putonshell=.false.
          unwgt=.true.
          open (unit=99,file='nevts',status='old',err=999)
-         read (99,*) nevts
+         read (99,*) nevts, wgtfrac
          close(99)
          write(*,*) 'Generating ', nevts, ' events'
          if(nevts.eq.0) then
@@ -351,6 +365,13 @@ c fill the information for the write_header_init common block
          uncer=unc(2,1)
 
          weight=(ans(1,1)+ans(5,1))/ncall
+
+         ! init if the shower has to be run on-the-fly
+         if (run_shower_onthefly) then
+           py8_input = 'pythia8.cmd'//char(0) ! terminate strings for C 
+           !                           xsecup xerrup xmaxup        lprup
+           call init_pythia(py8_input, inter, uncer, absint/ievents, 66)
+         endif
 
          if (abrv(1:3).ne.'all' .and. abrv(1:4).ne.'born' .and.
      $        abrv(1:4).ne.'virt') then
@@ -471,6 +492,16 @@ c         write (*,*) 'Integral from virt points computed',x(5),x(6)
      $        ,unc(2,1),itmax,ncall,tTot
       endif
       close(12)
+
+      ! close if the shower had to be run on-the-fly
+      if (run_shower_onthefly) then
+         if (event_norm == 'average') then
+            py8_norm = dble(nevts) * wgtfrac 
+         else
+            py8_norm = dble(nevts)
+         endif
+         call end_pythia(py8_norm)
+      endif
 
       return
  999  write (*,*) 'nevts file not found'

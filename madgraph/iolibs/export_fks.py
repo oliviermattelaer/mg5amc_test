@@ -589,6 +589,8 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
                      'FKSParamReader.f',
                      'cuts.inc',
                      'unlops.inc',
+                     'pythiafortran.cc',
+                     'pythiafortran_dummy.cc',
                      'pythia_unlops.f',
                      'driver_mintMC.f',
                      'driver_mintFO.f',

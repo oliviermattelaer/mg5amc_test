@@ -73,6 +73,8 @@
   %(parton_shower)s   = parton_shower
   %(shower_scale_factor)s       = shower_scale_factor ! multiply default shower starting
                                   ! scale by this factor
+  %(run_shower_onthefly)s      = run_shower_onthefly ! run the parton shower without 
+                                  ! writing events to disk (only PY8)
 #***********************************************************************
 # Renormalization and factorization scales                             *
 # (Default functional form for the non-fixed scales is the sum of      *

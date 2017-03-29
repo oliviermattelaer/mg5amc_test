@@ -1223,6 +1223,11 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
 
         if '+' in mode:
             mode = mode.split('+')[0]
+
+        # check if the user wants to run the shower on the fly
+        if not mode in ['LO', 'NLO'] and self.run_card['run_shower_onthefly']:
+            self.run_mcatnlo('dummy_evt_file', options, True) 
+
         self.compile(mode, options) 
         evt_file = self.run(mode, options)
         
@@ -1231,7 +1236,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
                             'relative precision of %s' % self.run_card['req_acc'])
             return
 
-        if not mode in ['LO', 'NLO']:
+        if not mode in ['LO', 'NLO'] and not self.run_card['run_shower_onthefly']:
             assert evt_file == pjoin(self.me_dir,'Events', self.run_name, 'events.lhe'), '%s != %s' %(evt_file, pjoin(self.me_dir,'Events', self.run_name, 'events.lhe.gz'))
             
             if self.run_card['systematics_program'] == 'systematics':
@@ -1242,7 +1247,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
             evt_file = pjoin(self.me_dir,'Events', self.run_name, 'events.lhe')
         
         if not mode in ['LO', 'NLO', 'noshower', 'noshowerLO'] \
-                                                      and not options['parton']:
+                    and not options['parton'] and not self.run_card['run_shower_onthefly']:
             self.run_mcatnlo(evt_file, options)
             self.exec_cmd('madanalysis5_hadron --no_default', postcmd=False, printcmd=False)
 
@@ -1469,7 +1474,22 @@ Please read http://amcatnlo.cern.ch/FxFx_merging.htm for more details.""")
                 time.sleep(10)
 
             event_norm=self.run_card['event_norm']
-            return self.reweight_and_collect_events(options, mode, nevents, event_norm)
+            if self.run_card['run_shower_onthefly']:
+                out=pjoin(self.me_dir,'Events',self.run_name,'MADatNLO')
+                self.combine_plots_HwU(jobs_to_collect,out)
+
+                self.print_summary(options, 2, mode, [])
+                res_files = misc.glob('res*.txt', pjoin(self.me_dir, 'SubProcesses'))
+                for res_file in res_files:
+                    files.mv(res_file,pjoin(self.me_dir, 'Events', self.run_name))
+
+                logger.info('Histograms have been generated and stored in the folder\n%s' \
+                        % (pjoin(self.me_dir, 'Events', self.run_name)))
+
+                self.update_status('Run complete', level='parton', update_results=True)
+                return ''
+            else:
+                return self.reweight_and_collect_events(options, mode, nevents, event_norm)
 
     def create_jobs_to_run(self,options,p_dirs,req_acc,run_mode,\
                            integration_step,mode,fixed_order=True):
@@ -1749,7 +1769,7 @@ RESTART = %(mint_mode)s
         """write the nevts files in the SubProcesses/P*/G*/ directories"""
         for job in jobs:
             with open(pjoin(job['dirname'],'nevts'),'w') as f:
-                f.write('%i\n' % job['nevents'])
+                f.write('%i %f\n' % (job['nevents'], job['wgt_frac']))
 
     def combine_split_order_run(self,jobs_to_run):
         """Combines jobs and grids from split jobs that have been run"""
@@ -3182,83 +3202,94 @@ RESTART = %(mint_mode)s
         return evt_file[:-3]
 
 
-    def run_mcatnlo(self, evt_file, options):
+    def run_mcatnlo(self, evt_file, options, onthefly=False):
         """runs mcatnlo on the generated event file, to produce showered-events
         """
-        logger.info('Preparing MCatNLO run')
-        try:     
-            misc.gunzip(evt_file)
-        except Exception:
-            pass
 
-        self.banner = banner_mod.Banner(evt_file)
-        shower = self.banner.get_detail('run_card', 'parton_shower').upper()
+        # the behaviour is different for runs on the fly (without generation of events)
+        # or for 'usual' runs
+        if onthefly:
+            shower = self.run_card['parton_shower'].upper()
+            if shower != 'PYTHIA8':
+                raise aMCatNLOError('Running the shower on the fly only works with PYHTIA8')
 
-        #check that the number of split event files divides the number of
-        # events, otherwise set it to 1
-        if int(self.banner.get_detail('run_card', 'nevents') / \
-                self.shower_card['nsplit_jobs']) * self.shower_card['nsplit_jobs'] \
-                != self.banner.get_detail('run_card', 'nevents'):
-            logger.warning(\
-                'nsplit_jobs in the shower card is not a divisor of the number of events.\n' + \
-                'Setting it to 1.')
-            self.shower_card['nsplit_jobs'] = 1
+            self.banner_to_mcatnlo(evt_file)
 
-        # don't split jobs if the user asks to shower only a part of the events
-        if self.shower_card['nevents'] > 0 and \
-           self.shower_card['nevents'] < self.banner.get_detail('run_card', 'nevents') and \
-           self.shower_card['nsplit_jobs'] != 1:
-            logger.warning(\
-                'Only a part of the events will be showered.\n' + \
-                'Setting nsplit_jobs in the shower_card to 1.')
-            self.shower_card['nsplit_jobs'] = 1
-
-        self.banner_to_mcatnlo(evt_file)
-
-        # if fastjet has to be linked (in extralibs) then
-        # add lib /include dirs for fastjet if fastjet-config is present on the
-        # system, otherwise add fjcore to the files to combine
-        if 'fastjet' in self.shower_card['extralibs']:
-            #first, check that stdc++ is also linked
-            if not 'stdc++' in self.shower_card['extralibs']:
-                logger.warning('Linking FastJet: adding stdc++ to EXTRALIBS')
-                self.shower_card['extralibs'] += ' stdc++'
-            # then check if options[fastjet] corresponds to a valid fj installation
-            try:
-                #this is for a complete fj installation
-                p = subprocess.Popen([self.options['fastjet'], '--prefix'], \
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, error = p.communicate()
-                #remove the line break from output (last character)
-                output = output[:-1]
-                # add lib/include paths
-                if not pjoin(output, 'lib') in self.shower_card['extrapaths']:
-                    logger.warning('Linking FastJet: updating EXTRAPATHS')
-                    self.shower_card['extrapaths'] += ' ' + pjoin(output, 'lib')
-                if not pjoin(output, 'include') in self.shower_card['includepaths']:
-                    logger.warning('Linking FastJet: updating INCLUDEPATHS')
-                    self.shower_card['includepaths'] += ' ' + pjoin(output, 'include')
-                # to be changed in the fortran wrapper
-                include_line = '#include "fastjet/ClusterSequence.hh"//INCLUDE_FJ' 
-                namespace_line = 'namespace fj = fastjet;//NAMESPACE_FJ'
+        else:
+            logger.info('Preparing MCatNLO run')
+            try:     
+                misc.gunzip(evt_file)
             except Exception:
-                logger.warning('Linking FastJet: using fjcore')
-                # this is for FJcore, so no FJ library has to be linked
-                self.shower_card['extralibs'] = self.shower_card['extralibs'].replace('fastjet', '')
-                if not 'fjcore.o' in self.shower_card['analyse']:
-                    self.shower_card['analyse'] += ' fjcore.o'
-                # to be changed in the fortran wrapper
-                include_line = '#include "fjcore.hh"//INCLUDE_FJ' 
-                namespace_line = 'namespace fj = fjcore;//NAMESPACE_FJ'
-            # change the fortran wrapper with the correct namespaces/include
-            fjwrapper_lines = open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc')).read().split('\n')
-            for line in fjwrapper_lines:
-                if '//INCLUDE_FJ' in line:
-                    fjwrapper_lines[fjwrapper_lines.index(line)] = include_line
-                if '//NAMESPACE_FJ' in line:
-                    fjwrapper_lines[fjwrapper_lines.index(line)] = namespace_line
-            with open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc'), 'w') as fsock:
-                fsock.write('\n'.join(fjwrapper_lines) + '\n')
+                pass
+
+            self.banner = banner_mod.Banner(evt_file)
+            shower = self.banner.get_detail('run_card', 'parton_shower').upper()
+
+            #check that the number of split event files divides the number of
+            # events, otherwise set it to 1
+            if int(self.banner.get_detail('run_card', 'nevents') / \
+                    self.shower_card['nsplit_jobs']) * self.shower_card['nsplit_jobs'] \
+                    != self.banner.get_detail('run_card', 'nevents'):
+                logger.warning(\
+                    'nsplit_jobs in the shower card is not a divisor of the number of events.\n' + \
+                    'Setting it to 1.')
+                self.shower_card['nsplit_jobs'] = 1
+
+            # don't split jobs if the user asks to shower only a part of the events
+            if self.shower_card['nevents'] > 0 and \
+               self.shower_card['nevents'] < self.banner.get_detail('run_card', 'nevents') and \
+               self.shower_card['nsplit_jobs'] != 1:
+                logger.warning(\
+                    'Only a part of the events will be showered.\n' + \
+                    'Setting nsplit_jobs in the shower_card to 1.')
+                self.shower_card['nsplit_jobs'] = 1
+
+            self.banner_to_mcatnlo(evt_file)
+
+            # if fastjet has to be linked (in extralibs) then
+            # add lib /include dirs for fastjet if fastjet-config is present on the
+            # system, otherwise add fjcore to the files to combine
+            if 'fastjet' in self.shower_card['extralibs']:
+                #first, check that stdc++ is also linked
+                if not 'stdc++' in self.shower_card['extralibs']:
+                    logger.warning('Linking FastJet: adding stdc++ to EXTRALIBS')
+                    self.shower_card['extralibs'] += ' stdc++'
+                # then check if options[fastjet] corresponds to a valid fj installation
+                try:
+                    #this is for a complete fj installation
+                    p = subprocess.Popen([self.options['fastjet'], '--prefix'], \
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, error = p.communicate()
+                    #remove the line break from output (last character)
+                    output = output[:-1]
+                    # add lib/include paths
+                    if not pjoin(output, 'lib') in self.shower_card['extrapaths']:
+                        logger.warning('Linking FastJet: updating EXTRAPATHS')
+                        self.shower_card['extrapaths'] += ' ' + pjoin(output, 'lib')
+                    if not pjoin(output, 'include') in self.shower_card['includepaths']:
+                        logger.warning('Linking FastJet: updating INCLUDEPATHS')
+                        self.shower_card['includepaths'] += ' ' + pjoin(output, 'include')
+                    # to be changed in the fortran wrapper
+                    include_line = '#include "fastjet/ClusterSequence.hh"//INCLUDE_FJ' 
+                    namespace_line = 'namespace fj = fastjet;//NAMESPACE_FJ'
+                except Exception:
+                    logger.warning('Linking FastJet: using fjcore')
+                    # this is for FJcore, so no FJ library has to be linked
+                    self.shower_card['extralibs'] = self.shower_card['extralibs'].replace('fastjet', '')
+                    if not 'fjcore.o' in self.shower_card['analyse']:
+                        self.shower_card['analyse'] += ' fjcore.o'
+                    # to be changed in the fortran wrapper
+                    include_line = '#include "fjcore.hh"//INCLUDE_FJ' 
+                    namespace_line = 'namespace fj = fjcore;//NAMESPACE_FJ'
+                # change the fortran wrapper with the correct namespaces/include
+                fjwrapper_lines = open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc')).read().split('\n')
+                for line in fjwrapper_lines:
+                    if '//INCLUDE_FJ' in line:
+                        fjwrapper_lines[fjwrapper_lines.index(line)] = include_line
+                    if '//NAMESPACE_FJ' in line:
+                        fjwrapper_lines[fjwrapper_lines.index(line)] = namespace_line
+                with open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc'), 'w') as fsock:
+                    fsock.write('\n'.join(fjwrapper_lines) + '\n')
 
         extrapaths = self.shower_card['extrapaths'].split()
 
@@ -3329,11 +3360,17 @@ RESTART = %(mint_mode)s
                     close_fds=True)
 
         exe = 'MCATNLO_%s_EXE' % shower
-        if not os.path.exists(pjoin(self.me_dir, 'MCatNLO', exe)) and \
-            not os.path.exists(pjoin(self.me_dir, 'MCatNLO', 'Pythia8.exe')):
+        if (not onthefly and not os.path.exists(pjoin(self.me_dir, 'MCatNLO', exe)) and \
+            not os.path.exists(pjoin(self.me_dir, 'MCatNLO', 'Pythia8.exe'))) or \
+           (onthefly and not os.path.exists(pjoin(self.me_dir, 'MCatNLO', 'libpy8shower.a'))):
             print open(mcatnlo_log).read()
             raise aMCatNLOError('Compilation failed, check %s for details' % mcatnlo_log)
         logger.info('                     ... done')
+
+        # if one is running on the fly, we can just return after copying the library to lib
+        if onthefly:
+            files.mv(pjoin(self.me_dir, 'MCatNLO', 'libpy8shower.a'), pjoin(self.me_dir, 'lib'))
+            return
 
         # create an empty dir where to run
         count = 1
@@ -3811,6 +3848,22 @@ RESTART = %(mint_mode)s
         return init_dict
 
 
+    def get_mcmasses_from_inc_file(self, shower):
+        """returns the dictionary with the MC masses read from the .inc file
+        """
+        mcmass_dict = {}
+        mcfile = open(pjoin(self.me_dir, 'SubProcesses', 'MCmasses_%s.inc' % shower))
+        for line in mcfile:
+            if not line: cycle
+            # content is like   mcmass(1)=0.33d0 
+            match = re.search('\s*mcmass\((\d+)\)=?([0-9]+[.][0-9]*?)d([+-]?\d+)', line)
+            idd, floor, exp = match.groups()
+            mcmass_dict[int(idd)] = float(floor) * math.pow(10, float(exp))
+
+        mcfile.close()
+        return mcmass_dict
+
+        
     def banner_to_mcatnlo(self, evt_file):
         """creates the mcatnlo input script using the values set in the header of the event_file.
         It also checks if the lhapdf library is used"""
@@ -3818,7 +3871,9 @@ RESTART = %(mint_mode)s
         pdlabel = self.banner.get('run_card', 'pdlabel')
         itry = 0
         nevents = self.shower_card['nevents']
-        init_dict = self.get_init_dict(evt_file)
+
+        if int(self.shower_card['pdfcode'])==1:
+            init_dict = self.get_init_dict(evt_file)
 
         if nevents < 0 or \
            nevents > self.banner.get_detail('run_card', 'nevents'):
@@ -3827,10 +3882,13 @@ RESTART = %(mint_mode)s
         nevents = nevents / self.shower_card['nsplit_jobs']
 
         mcmass_dict = {}
-        for line in [l for l in self.banner['montecarlomasses'].split('\n') if l]:
-            pdg = int(line.split()[0])
-            mass = float(line.split()[1])
-            mcmass_dict[pdg] = mass
+        if 'montecarlomasses' in self.banner.keys():
+            for line in [l for l in self.banner['montecarlomasses'].split('\n') if l]:
+                pdg = int(line.split()[0])
+                mass = float(line.split()[1])
+                mcmass_dict[pdg] = mass
+        else:
+            mcmass_dict = self.get_mcmasses_from_inc_file(shower)
 
         content = 'EVPREFIX=%s\n' % pjoin(os.path.split(evt_file)[1])
         content += 'NEVENTS=%d\n' % nevents
@@ -3944,6 +4002,9 @@ RESTART = %(mint_mode)s
         if self.options['hepmc_path'] and self.options['hepmc_path'] != self.options['hwpp_path']:
             content+='HEPMCPATH=%s\n' % self.options['hepmc_path']
         
+        # finally add if the shower should run on the fly
+        content+='ONTHEFLY=%s\n' % self.banner.get_detail('run_card', 'run_shower_onthefly')
+
         output = open(pjoin(self.me_dir, 'MCatNLO', 'banner.dat'), 'w')
         output.write(content)
         output.close()
@@ -4425,6 +4486,9 @@ RESTART = %(mint_mode)s
             # MINTMC MODE
             input_files.append(pjoin(cwd, 'madevent_mintMC'))
 
+            if self.run_card['run_shower_onthefly']:
+                input_files.append(pjoin(self.me_dir, 'MCatNLO', 'Pythia8.cmd'))
+
             if args[2] == '0':
                 current = 'G%s%s' % (args[1],args[0])
             else:
@@ -4497,7 +4561,10 @@ RESTART = %(mint_mode)s
             tests = ['test_ME', 'test_MC']
             # write an analyse_opts with a dummy analysis so that compilation goes through
             with open(pjoin(self.me_dir, 'SubProcesses', 'analyse_opts'),'w') as fsock:
-                fsock.write('FO_ANALYSE=analysis_dummy.o dbook.o open_output_files_dummy.o HwU_dummy.o\n')
+                if self.run_card['run_shower_onthefly']:
+                    fsock.write('FO_ANALYSE=analysis_dummy.o open_output_files_dummy.o\n')
+                else:
+                    fsock.write('FO_ANALYSE=analysis_dummy.o dbook.o open_output_files_dummy.o HwU_dummy.o\n')
 
         #directory where to compile exe
         p_dirs = [d for d in \
@@ -4530,6 +4597,13 @@ RESTART = %(mint_mode)s
             if self.run_card['lpp1'] == 0 == self.run_card['lpp2']:
                 logger.info('Lepton-Lepton collision: Ignoring \'pdlabel\' and \'lhaid\' in the run_card.')
             self.make_opts_var['lhapdf'] = ""
+
+        # read the run_card to find if the shower has to run on the fly
+        if self.run_card['run_shower_onthefly']:
+            self.make_opts_var['shower_onthefly'] = 'True'
+        else:
+            self.make_opts_var['shower_onthefly'] = ''
+
 
         # read the run_card to find if applgrid is used or not
         if self.run_card['iappl'] != 0:

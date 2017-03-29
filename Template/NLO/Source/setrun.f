@@ -61,8 +61,11 @@ c
       integer          iseed
       common /to_seed/ iseed
       integer nevents
+      common /to_nevents_tot/ nevents
       character*7 event_norm
       common /event_normalisation/event_norm
+      logical run_shower_onthefly
+      common /to_run_shower_onthefly/run_shower_onthefly
       integer iappl
       common /for_applgrid/ iappl
 C      

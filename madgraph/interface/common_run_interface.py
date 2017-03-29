@@ -3560,6 +3560,13 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
         else:
             self.make_opts_var['PYTHIA8_PATH']=self.options['pythia8_path']
 
+        if not hasattr(self,'options') or not 'hepmc_path' in self.options or \
+           not self.options['hepmc_path'] or \
+           not os.path.isdir(pjoin(self.options['hepmc_path'],'lib')):
+            self.make_opts_var['HEPMC_PATH']=''
+        else:
+            self.make_opts_var['HEPMC_PATH']=self.options['hepmc_path']
+
         self.make_opts_var['MG5AMC_VERSION'] = misc.get_pkg_info()['version']
 
         return self.update_make_opts_full(make_opts, self.make_opts_var)
