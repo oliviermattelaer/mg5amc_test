@@ -3283,6 +3283,7 @@ class RunCardNLO(RunCard):
         #shower and scale
         self.add_param('parton_shower', 'HERWIG6', fortran_name='shower_mc')        
         self.add_param('shower_scale_factor',1.0)
+        self.add_param('run_shower_onthefly',False)
         self.add_param('fixed_ren_scale', False)
         self.add_param('fixed_fac_scale', False)
         self.add_param('mur_ref_fixed', 91.118)                       
@@ -3339,6 +3340,11 @@ class RunCardNLO(RunCard):
         self.add_param('maxjetflavor', 4, hidden=True)
         self.add_param('iappl', 0)   
         self.add_param('lhe_version', 3, hidden=True, include=False)
+        
+        #internal variable related to FO_analyse_card
+        self.add_param('FO_LHE_weight_ratio',1e-3, hidden=True, system=True)
+        self.add_param('FO_LHE_postprocessing',['grouping','random'], 
+                       hidden=True, system=True, include=False)
     
     def check_validity(self):
         """check the validity of the various input"""
@@ -3522,7 +3528,9 @@ class RunCardNLO(RunCard):
         if proc_characteristic['ninitial'] == 1:
             #remove all cut
             self.remove_all_cut()
-        
+    
+    
+    
 class MadLoopParam(ConfigFile):
     """ a class for storing/dealing with the file MadLoopParam.dat
     contains a parser to read it, facilities to write a new file,...
@@ -3641,8 +3649,8 @@ class MadLoopParam(ConfigFile):
                 name = line[1:].split()[0]
             output.write(line)
         
-        
-        
+    
+            
         
         
         

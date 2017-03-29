@@ -51,6 +51,9 @@ Pythia82: $(FORFILE) $(PYTHIA8LOCATION)/$(LIBDIR)/libpythia8.a
 	  -L$(PYTHIA8LOCATION)/$(LIBDIR) -lpythia8 $(LIBGZIP) \
 	  -lHepMCfio $(LIBGFORTRAN) $(HEPMCINCLIB) $(EXTRAPATHS) $(EXTRALIBS) \
 
+libpy8shower.a: $(FORFILE) 
+	$(call CREATELIB, $@, $^)
+
 
 .PHONY: clean
 clean:

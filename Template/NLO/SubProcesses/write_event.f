@@ -142,7 +142,9 @@ c Scales
      #                         muF2_id_str,QES_id_str
       character*7 event_norm
       common /event_normalisation/event_norm
-
+      !to see if py is run on the fly
+      logical run_shower_onthefly
+      common /to_run_shower_onthefly/run_shower_onthefly
 
 c      open(unit=58,file='res_1',status='old')
 c      read(58,'(a)')string
@@ -161,6 +163,8 @@ c get info on beam and PDFs
          IDWTUP=-4
       endif
       NPRUP=1
+      ! stop here if running pythia on the fly
+      if (run_shower_onthefly) return
 
       write(lunlhe,'(a)')'<LesHouchesEvents version="3.0">'
       write(lunlhe,'(a)')'  <!--'
@@ -224,6 +228,13 @@ c get info on beam and PDFs
      #                 muF22_current,QES2_current
       common/cscales_current_values/muR2_current,muF12_current,
      #                              muF22_current,QES2_current
+      !to see if py is run on the fly
+      logical run_shower_onthefly
+      common /to_run_shower_onthefly/run_shower_onthefly
+      ! the hepeup common block needed to pass event infos to pythia
+      common /hepeup/ nup, idprup, xwgtup, scale, aqedup, aqcdup, idup,
+     #                istup, mothup, icolup, pup, vtimup, spinup
+      !
       logical firsttime
       data firsttime/.true./
 c
@@ -247,7 +258,7 @@ c alpha_s to the one in the param_card.dat (without any running).
       endif
       ievent=66
 c
-      if(AddInfoLHE)then
+      if(AddInfoLHE.and..not.run_shower_onthefly)then
         if(.not.doreweight)then
            write(buff,201)'#aMCatNLO',iSorH_lhe,ifks_lhe(nFKSprocess)
      &          ,jfks_lhe(nFKSprocess),fksfather_lhe(nFKSprocess)
@@ -261,7 +272,7 @@ c
             write(*,*)doreweight,iwgtinfo
             stop
           endif
-          kwgtinfo=iwgtinfo
+          kwgtinfo= iwgtinfo
           write(buff,201)'#aMCatNLO',iSorH_lhe,ifks_lhe(nFKSprocess)
      &         ,jfks_lhe(nFKSprocess),fksfather_lhe(nFKSprocess)
      &         ,ipartner_lhe(nFKSprocess),scale1_lhe(nFKSprocess)
@@ -303,9 +314,13 @@ c********************************************************************
         VTIMUP(i)=0.d0
         SPINUP(i)=dfloat(ic(7,i))
       enddo
-      call write_lhef_event(lunlhe,
+      if (run_shower_onthefly) then
+        call pythia_shower_and_analyse()
+      else
+        call write_lhef_event(lunlhe,
      #    NUP,IDPRUP,XWGTUP,scale,AQEDUP,AQCDUP,
      #    IDUP,ISTUP,MOTHUP,ICOLUP,PUP,VTIMUP,SPINUP,buff)
+      endif
 
  201  format(a9,1x,i1,4(1x,i2),2(1x,d14.8),2x,i2,2(1x,i2),5(1x,d14.8))
       return

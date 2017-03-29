@@ -109,6 +109,13 @@ else
   applgrid_interface=appl_interface_dummy.o
 endif
 
+# Shower on the fly
+ifeq ($(shower_onthefly),)
+pythia8fortran=pythiafortran_dummy.o
+else
+pythia8fortran=pythiafortran.o
+endif
+
 # Madloop
 ifdef madloop
   ifeq (,$(wildcard parton_lum_0.f)) # this is to skip ML for LOonly

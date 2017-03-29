@@ -39,6 +39,7 @@ import inspect
 import urllib
 import random
 
+
 #useful shortcut
 pjoin = os.path.join
 
@@ -59,6 +60,8 @@ import madgraph.loop.loop_diagram_generation as loop_diagram_generation
 import madgraph.loop.loop_base_objects as loop_base_objects
 import madgraph.core.drawing as draw_lib
 import madgraph.core.helas_objects as helas_objects
+
+
 
 import madgraph.iolibs.drawing_eps as draw
 import madgraph.iolibs.export_cpp as export_cpp
@@ -97,6 +100,7 @@ import aloha.create_aloha as create_aloha
 import aloha.aloha_lib as aloha_lib
 
 import mg5decay.decay_objects as decay_objects
+
 
 # Special logger for the Cmd Interface
 logger = logging.getLogger('cmdprint') # -> stdout
@@ -1566,6 +1570,9 @@ This will take effect only in a NEW terminal
                 if '-noclean' not in args and os.path.exists(self._export_dir):
                     args.append('-noclean')
             elif path != 'auto':
+                if path in ['HELAS', 'tests', 'MadSpin', 'madgraph', 'mg5decay', 'vendor']:
+                    if os.getcwd() == MG5DIR:
+                        raise self.InvalidCmd, "This name correspond to a buildin MG5 directory. Please choose another name"
                 self._export_dir = path
             elif path == 'auto':
                 if self.options['pythia8_path']:
@@ -2929,6 +2936,9 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
             self.do_install('update --mode=mg5_end')
         print
 
+        misc.EasterEgg('quit')
+        
+        
         return value
 
     # Add a process to the existing multiprocess definition
@@ -2951,6 +2961,11 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
         if '--diagram_filter' in args:
             diagram_filter = True
             args.remove('--diagram_filter')
+        
+        standalone_only = False
+        if '--standalone' in args:
+            standalone_only = True
+            args.remove('--standalone')            
 
         # Check the validity of the arguments
         self.check_add(args)
@@ -3016,7 +3031,7 @@ This implies that with decay chains:
             # Check that we have the same number of initial states as
             # existing processes
             if self._curr_amps and self._curr_amps[0].get_ninitial() != \
-               myprocdef.get_ninitial():
+               myprocdef.get_ninitial() and not standalone_only:
                 raise self.InvalidCmd("Can not mix processes with different number of initial states.")               
 
             self._curr_proc_defs.append(myprocdef)
@@ -6249,7 +6264,7 @@ os.system('%s  -O -W ignore::DeprecationWarning %s %s --mode={0}' %(sys.executab
 
             # Re-compile CutTools and IREGI
             if os.path.isfile(pjoin(MG5DIR,'vendor','CutTools','includects','libcts.a')):
-                misc.compile(cwd=pjoin(MG5DIR,'vendor','CutTools'))
+                misc.compile(arg=['-j1'],cwd=pjoin(MG5DIR,'vendor','CutTools'),nb_core=1)
             if os.path.isfile(pjoin(MG5DIR,'vendor','IREGI','src','libiregi.a')):
                 misc.compile(cwd=pjoin(MG5DIR,'vendor','IREGI','src'))
 
@@ -6496,7 +6511,7 @@ os.system('%s  -O -W ignore::DeprecationWarning %s %s --mode={0}' %(sys.executab
                     self.options[name] = value
                 if value.lower() == "none" or value=="":
                     self.options[name] = None
-
+        config_file.close()      
         self.options['stdout_level'] = logging.getLogger('madgraph').level
         if not final:
             return self.options # the return is usefull for unittest

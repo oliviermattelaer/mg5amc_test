@@ -261,14 +261,28 @@ FORFILEMAKE="FORFILE="$PY8UTI
 HEPMCMAKE="HEPMCINCLIB="$HEPMCINCLIB
 LGFORTRANMAKE="LIBGFORTRAN=-lgfortran"
 
-if [ $PY8VER == "8.1" ]; then make Pythia8 "$PY8UTIMAKE" "$FORFILEMAKE" "$LGFORTRANMAKE" "$LIBSMAKE" "$LIBSMAKEP" "$INCLMAKE"; fi
-if [ $PY8VER == "8.2" ]; then make Pythia82 "$PY8UTIMAKE" "$FORFILEMAKE" "$LGFORTRANMAKE" "$LIBSMAKE" "$LIBSMAKEP" "$INCLMAKE" "$HEPMCMAKE"; fi
+if [ $ONTHEFLY == "False" ]; then
+  FRAMETYPE=4 # LHE events
+  if [ $PY8VER == "8.1" ]; then make Pythia8 "$PY8UTIMAKE" "$FORFILEMAKE" "$LGFORTRANMAKE" "$LIBSMAKE" "$LIBSMAKEP" "$INCLMAKE"; fi
+  if [ $PY8VER == "8.2" ]; then make Pythia82 "$PY8UTIMAKE" "$FORFILEMAKE" "$LGFORTRANMAKE" "$LIBSMAKE" "$LIBSMAKEP" "$INCLMAKE" "$HEPMCMAKE"; fi
+else
+  FRAMETYPE=5 # LHAup class
+  make libpy8shower.a "$PY8UTIMAKE" "$FORFILEMAKE" "$LIBSMAKE" "$LIBSMAKEP" "$INCLMAKE" "$HEPMCMAKE"
+fi
 
 cd $thisdir
-if [ ! -f $thisdir/Pythia8.exe ]
-then
-  echo "Pythia8 compilation did not succeed, exiting"
-  exit -1
+if [ $ONTHEFLY == "False" ]; then
+  if [ ! -f $thisdir/Pythia8.exe ]
+  then
+    echo "Pythia8 compilation did not succeed, exiting"
+    exit -1
+  fi
+else
+  if [ ! -f $thisdir/libpy8shower.a ]
+  then
+    echo "Pythia8 compilation did not succeed, exiting"
+    exit -1
+  fi
 fi
 
 
@@ -364,7 +378,7 @@ Stat:showErrors = on                  ! Error statistics
 Check:epTolErr = 0.001                ! Momentum-conservation tolerance 
 
 ! 3) Beam-parameter settings.
-Beams:frameType = 4                ! LHE initialization
+Beams:frameType = $FRAMETYPE                ! LHE initialization
 Beams:LHEF = events.lhe            ! Input LHE file
 
 ! 4) Switch on/off the key event-generation steps.

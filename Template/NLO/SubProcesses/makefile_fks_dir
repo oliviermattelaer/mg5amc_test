@@ -24,6 +24,16 @@ LINKLIBS = -L$(LIBDIR) -ldhelas -lgeneric -lmodel -lpdf -lcernlib $(llhapdf)
 LIBS = $(LIBDIR)libdhelas.a $(LIBDIR)libgeneric.a $(LIBDIR)libmodel.a	\
 $(LIBDIR)libpdf.a $(LIBDIR)libcernlib.a
 
+#check if we need to link pythia8 (run on the fly)
+ifdef shower_onthefly
+    CXXFLAGS += -I$(PYTHIA8_PATH)/include
+    LINKLIBS += -L$(LIBDIR) -lpy8shower -L$(PYTHIA8_PATH)/lib -lpythia8
+    ifdef HEPMC_PATH
+        CXXFLAGS += -I$(HEPMC_PATH)/include
+        LINKLIBS += -L$(HEPMC_PATH)/lib -lHepMC -lHepMCfio
+    endif
+endif
+
 # Files for all executables
 FILES= $(patsubst %.f,%.o,$(wildcard parton_lum_*.f)) 			\
 	 $(patsubst %.f,%.o,$(wildcard matrix_*.f)) 			\
@@ -44,15 +54,16 @@ RUN= $(FO_ANALYSE) $(FILES) cuts.o pythia_unlops.o recluster.o 		\
 	fill_MC_mshell.o born_hel.o open_output_files.o			\
 	add_write_info.o BinothLHA.o madfks_plot.o
 
+
 # Files for vegas
 VEGAS= $(RUN) driver_vegas.o vegas2.o handling_lhe_events.o
 
 # Files for vegas
-MINTFO= $(RUN) driver_mintFO.o mint-integrator2.o handling_lhe_events.o
+MINTFO= $(RUN) driver_mintFO.o mint-integrator2.o handling_lhe_events.o 
 
 # Files for mintMC
 MINTMC= $(RUN) mint-integrator2.o driver_mintMC.o write_event.o		\
-	handling_lhe_events.o
+	handling_lhe_events.o $(pythia8fortran)
 
 # Files for Born reweighting
 BORN_REWEIGHT= $(RUN) driver_reweight.o handling_lhe_events.o		\
@@ -124,7 +135,7 @@ madevent_vegas: $(VEGAS) $(libmadloop) makefile $(LIBS)
 madevent_mintMC: $(MINTMC) $(libmadloop) makefile $(LIBS)
 	$(FC) -o madevent_mintMC $(MINTMC) $(NLOLIBS) $(APPLLIBS) $(LINKLIBS) $(FJLIBS) $(FO_EXTRAPATHS) $(FO_EXTRALIBS) $(LDFLAGS)
 	rm handling_lhe_events.o
-	strip madevent_mintMC
+	###strip madevent_mintMC
 
 madevent_mintFO: $(MINTFO) $(libmadloop) makefile $(LIBS)
 	$(FC) -o madevent_mintFO $(MINTFO) $(NLOLIBS) $(APPLLIBS) $(LINKLIBS) $(FJLIBS) $(FO_EXTRAPATHS) $(FO_EXTRALIBS) $(LDFLAGS)

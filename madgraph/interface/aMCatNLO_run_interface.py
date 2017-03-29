@@ -75,7 +75,7 @@ except ImportError:
     import internal.sum_html as sum_html
     import internal.shower_card as shower_card
     import internal.FO_analyse_card as analyse_card 
-    import internal.histograms as histograms
+    import internal.lhe_parser as lhe_parser
 else:
     # import from madgraph directory
     aMCatNLO = False
@@ -90,7 +90,7 @@ else:
     import madgraph.various.misc as misc
     import madgraph.various.shower_card as shower_card
     import madgraph.various.FO_analyse_card as analyse_card
-    import madgraph.various.histograms as histograms
+    import madgraph.various.lhe_parser as lhe_parser
     from madgraph import InvalidCmd, aMCatNLOError, MadGraph5Error,MG5DIR
 
 class aMCatNLOError(Exception):
@@ -1144,10 +1144,24 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
 
 
     ############################################################################
-    def do_treatcards(self, line, amcatnlo=True):
+    def do_treatcards(self, line, amcatnlo=True,mode=''):
         """Advanced commands: this is for creating the correct run_card.inc from the nlo format"""
                 #check if no 'Auto' are present in the file
         self.check_param_card(pjoin(self.me_dir, 'Cards','param_card.dat'))
+        
+        # propagate the FO_card entry FO_LHE_weight_ratio to the run_card.
+        # this variable is system only in the run_card 
+        # can not be done in EditCard since this parameter is not written in the 
+        # run_card directly.
+        if mode in ['LO', 'NLO']: 
+            name = 'fo_lhe_weight_ratio'
+            FO_card = analyse_card.FOAnalyseCard(pjoin(self.me_dir,'Cards', 'FO_analyse_card.dat'))
+            if name in FO_card:
+                self.run_card.set(name, FO_card[name], user=False)
+            name = 'fo_lhe_postprocessing'
+            if name in FO_card:
+                self.run_card.set(name, FO_card[name], user=False)
+                        
         return super(aMCatNLOCmd,self).do_treatcards(line, amcatnlo)
     
     ############################################################################
@@ -1209,6 +1223,11 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
 
         if '+' in mode:
             mode = mode.split('+')[0]
+
+        # check if the user wants to run the shower on the fly
+        if not mode in ['LO', 'NLO'] and self.run_card['run_shower_onthefly']:
+            self.run_mcatnlo('dummy_evt_file', options, True) 
+
         self.compile(mode, options) 
         evt_file = self.run(mode, options)
         
@@ -1217,7 +1236,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
                             'relative precision of %s' % self.run_card['req_acc'])
             return
 
-        if not mode in ['LO', 'NLO']:
+        if not mode in ['LO', 'NLO'] and not self.run_card['run_shower_onthefly']:
             assert evt_file == pjoin(self.me_dir,'Events', self.run_name, 'events.lhe'), '%s != %s' %(evt_file, pjoin(self.me_dir,'Events', self.run_name, 'events.lhe.gz'))
             
             if self.run_card['systematics_program'] == 'systematics':
@@ -1228,7 +1247,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
             evt_file = pjoin(self.me_dir,'Events', self.run_name, 'events.lhe')
         
         if not mode in ['LO', 'NLO', 'noshower', 'noshowerLO'] \
-                                                      and not options['parton']:
+                    and not options['parton'] and not self.run_card['run_shower_onthefly']:
             self.run_mcatnlo(evt_file, options)
             self.exec_cmd('madanalysis5_hadron --no_default', postcmd=False, printcmd=False)
 
@@ -1455,7 +1474,22 @@ Please read http://amcatnlo.cern.ch/FxFx_merging.htm for more details.""")
                 time.sleep(10)
 
             event_norm=self.run_card['event_norm']
-            return self.reweight_and_collect_events(options, mode, nevents, event_norm)
+            if self.run_card['run_shower_onthefly']:
+                out=pjoin(self.me_dir,'Events',self.run_name,'MADatNLO')
+                self.combine_plots_HwU(jobs_to_collect,out)
+
+                self.print_summary(options, 2, mode, [])
+                res_files = misc.glob('res*.txt', pjoin(self.me_dir, 'SubProcesses'))
+                for res_file in res_files:
+                    files.mv(res_file,pjoin(self.me_dir, 'Events', self.run_name))
+
+                logger.info('Histograms have been generated and stored in the folder\n%s' \
+                        % (pjoin(self.me_dir, 'Events', self.run_name)))
+
+                self.update_status('Run complete', level='parton', update_results=True)
+                return ''
+            else:
+                return self.reweight_and_collect_events(options, mode, nevents, event_norm)
 
     def create_jobs_to_run(self,options,p_dirs,req_acc,run_mode,\
                            integration_step,mode,fixed_order=True):
@@ -1743,7 +1777,7 @@ RESTART = %(mint_mode)s
         """write the nevts files in the SubProcesses/P*/G*/ directories"""
         for job in jobs:
             with open(pjoin(job['dirname'],'nevts'),'w') as f:
-                f.write('%i\n' % job['nevents'])
+                f.write('%i %f\n' % (job['nevents'], job['wgt_frac']))
 
     def combine_split_order_run(self,jobs_to_run):
         """Combines jobs and grids from split jobs that have been run"""
@@ -2209,10 +2243,122 @@ RESTART = %(mint_mode)s
                      pjoin(self.me_dir, 'Events', self.run_name))
             logger.info('The results of this run and the ROOT file with the plots' + \
                         ' have been saved in %s' % pjoin(self.me_dir, 'Events', self.run_name))
+        elif self.analyse_card['fo_analysis_format'].lower() == 'lhe':
+            self.combine_FO_lhe(jobs)
+            logger.info('The results of this run and the LHE File (to be used for plotting only)' + \
+                        ' have been saved in %s' % pjoin(self.me_dir, 'Events', self.run_name))            
         else:
             logger.info('The results of this run' + \
                         ' have been saved in %s' % pjoin(self.me_dir, 'Events', self.run_name))
 
+    def combine_FO_lhe(self,jobs):
+        """combine the various lhe file generated in each directory.
+           They are two steps:
+           1) banner 
+           2) reweight each sample by the factor written at the end of each file
+           3) concatenate each of the new files (gzip those).
+        """
+        
+        logger.info('Combining lhe events for plotting analysis')
+        start = time.time()
+        self.run_card['fo_lhe_postprocessing'] = [i.lower() for i in self.run_card['fo_lhe_postprocessing']]
+        output = pjoin(self.me_dir, 'Events', self.run_name, 'events.lhe.gz')
+        if os.path.exists(output):
+            os.remove(output)
+        
+
+        
+        
+        # 1. write the banner
+        text = open(pjoin(jobs[0]['dirname'],'header.txt'),'r').read()
+        i1, i2 = text.find('<initrwgt>'),text.find('</initrwgt>') 
+        self.banner['initrwgt'] = text[10+i1:i2]
+#        
+#        <init>
+#        2212 2212 6.500000e+03 6.500000e+03 0 0 247000 247000 -4 1
+#        8.430000e+02 2.132160e+00 8.430000e+02 1
+#        <generator name='MadGraph5_aMC@NLO' version='2.5.2'>please cite 1405.0301 </generator>
+#        </init>
+
+        cross = sum(j['result'] for j in jobs)
+        error = math.sqrt(sum(j['error'] for j in jobs))
+        self.banner['init'] = "0 0 0e0 0e0 0 0 0 0 -4 1\n  %s %s %s 1" % (cross, error, cross)
+        self.banner.write(output[:-3], close_tag=False)
+        misc.gzip(output[:-3])
+        
+        
+        
+        fsock = lhe_parser.EventFile(output,'a')
+        if 'nogrouping' in self.run_card['fo_lhe_postprocessing']:
+            fsock.eventgroup = False
+        else:
+            fsock.eventgroup = True
+        
+        if 'norandom' in self.run_card['fo_lhe_postprocessing']:
+            for job in jobs:
+                dirname = job['dirname']
+                #read last line
+                lastline = misc.BackRead(pjoin(dirname,'events.lhe')).readline()
+                nb_event, sumwgt, cross = [float(i) for i in lastline.split()]
+                # get normalisation ratio 
+                ratio = cross/sumwgt
+                lhe = lhe_parser.EventFile(pjoin(dirname,'events.lhe'))
+                lhe.eventgroup = True # read the events by eventgroup
+                for eventsgroup in lhe:
+                    neweventsgroup = []
+                    for i,event in enumerate(eventsgroup):
+                        event.rescale_weights(ratio)
+                        if i>0 and 'noidentification' not in self.run_card['fo_lhe_postprocessing'] \
+                                                and event == neweventsgroup[-1]:
+                            neweventsgroup[-1].wgt += event.wgt
+                            for key in event.reweight_data:
+                                neweventsgroup[-1].reweight_data[key] += event.reweight_data[key]
+                        else:
+                            neweventsgroup.append(event)
+                    fsock.write_events(neweventsgroup)
+                lhe.close()
+                os.remove(pjoin(dirname,'events.lhe'))
+        else:
+            lhe = []
+            lenlhe = []     
+            misc.sprint('need to combine %s event file' % len(jobs))
+            globallhe = lhe_parser.MultiEventFile()
+            globallhe.eventgroup = True
+            for job in jobs:
+                dirname = job['dirname']
+                lastline = misc.BackRead(pjoin(dirname,'events.lhe')).readline()
+                nb_event, sumwgt, cross = [float(i) for i in lastline.split()]
+                lastlhe = globallhe.add(pjoin(dirname,'events.lhe'),cross, 0, cross,
+                                        nb_event=int(nb_event), scale=cross/sumwgt)
+            for eventsgroup in globallhe:
+                neweventsgroup = []
+                for i,event in enumerate(eventsgroup):
+                    event.rescale_weights(event.sample_scale)
+                    if i>0 and 'noidentification' not in self.run_card['fo_lhe_postprocessing'] \
+                                            and event == neweventsgroup[-1]:
+                        neweventsgroup[-1].wgt += event.wgt
+                        for key in event.reweight_data:
+                            neweventsgroup[-1].reweight_data[key] += event.reweight_data[key]
+                    else:
+                        neweventsgroup.append(event) 
+                fsock.write_events(neweventsgroup)               
+            globallhe.close()
+            fsock.write('</LesHouchesEvents>\n') 
+            fsock.close()
+            misc.sprint('combining lhe file done in ', time.time()-start)
+            for job in jobs:
+                dirname = job['dirname']
+                os.remove(pjoin(dirname,'events.lhe'))
+                                
+                                           
+                        
+        misc.sprint('combining lhe file done in ', time.time()-start)
+                        
+                        
+                    
+
+            
+            
     def combine_plots_HwU(self,jobs,out,normalisation=None):
         """Sums all the plots in the HwU format."""
         logger.debug('Combining HwU plots.')
@@ -3098,83 +3244,94 @@ RESTART = %(mint_mode)s
         return evt_file[:-3]
 
 
-    def run_mcatnlo(self, evt_file, options):
+    def run_mcatnlo(self, evt_file, options, onthefly=False):
         """runs mcatnlo on the generated event file, to produce showered-events
         """
-        logger.info('Preparing MCatNLO run')
-        try:     
-            misc.gunzip(evt_file)
-        except Exception:
-            pass
 
-        self.banner = banner_mod.Banner(evt_file)
-        shower = self.banner.get_detail('run_card', 'parton_shower').upper()
+        # the behaviour is different for runs on the fly (without generation of events)
+        # or for 'usual' runs
+        if onthefly:
+            shower = self.run_card['parton_shower'].upper()
+            if shower != 'PYTHIA8':
+                raise aMCatNLOError('Running the shower on the fly only works with PYHTIA8')
 
-        #check that the number of split event files divides the number of
-        # events, otherwise set it to 1
-        if int(self.banner.get_detail('run_card', 'nevents') / \
-                self.shower_card['nsplit_jobs']) * self.shower_card['nsplit_jobs'] \
-                != self.banner.get_detail('run_card', 'nevents'):
-            logger.warning(\
-                'nsplit_jobs in the shower card is not a divisor of the number of events.\n' + \
-                'Setting it to 1.')
-            self.shower_card['nsplit_jobs'] = 1
+            self.banner_to_mcatnlo(evt_file)
 
-        # don't split jobs if the user asks to shower only a part of the events
-        if self.shower_card['nevents'] > 0 and \
-           self.shower_card['nevents'] < self.banner.get_detail('run_card', 'nevents') and \
-           self.shower_card['nsplit_jobs'] != 1:
-            logger.warning(\
-                'Only a part of the events will be showered.\n' + \
-                'Setting nsplit_jobs in the shower_card to 1.')
-            self.shower_card['nsplit_jobs'] = 1
-
-        self.banner_to_mcatnlo(evt_file)
-
-        # if fastjet has to be linked (in extralibs) then
-        # add lib /include dirs for fastjet if fastjet-config is present on the
-        # system, otherwise add fjcore to the files to combine
-        if 'fastjet' in self.shower_card['extralibs']:
-            #first, check that stdc++ is also linked
-            if not 'stdc++' in self.shower_card['extralibs']:
-                logger.warning('Linking FastJet: adding stdc++ to EXTRALIBS')
-                self.shower_card['extralibs'] += ' stdc++'
-            # then check if options[fastjet] corresponds to a valid fj installation
-            try:
-                #this is for a complete fj installation
-                p = subprocess.Popen([self.options['fastjet'], '--prefix'], \
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                output, error = p.communicate()
-                #remove the line break from output (last character)
-                output = output[:-1]
-                # add lib/include paths
-                if not pjoin(output, 'lib') in self.shower_card['extrapaths']:
-                    logger.warning('Linking FastJet: updating EXTRAPATHS')
-                    self.shower_card['extrapaths'] += ' ' + pjoin(output, 'lib')
-                if not pjoin(output, 'include') in self.shower_card['includepaths']:
-                    logger.warning('Linking FastJet: updating INCLUDEPATHS')
-                    self.shower_card['includepaths'] += ' ' + pjoin(output, 'include')
-                # to be changed in the fortran wrapper
-                include_line = '#include "fastjet/ClusterSequence.hh"//INCLUDE_FJ' 
-                namespace_line = 'namespace fj = fastjet;//NAMESPACE_FJ'
+        else:
+            logger.info('Preparing MCatNLO run')
+            try:     
+                misc.gunzip(evt_file)
             except Exception:
-                logger.warning('Linking FastJet: using fjcore')
-                # this is for FJcore, so no FJ library has to be linked
-                self.shower_card['extralibs'] = self.shower_card['extralibs'].replace('fastjet', '')
-                if not 'fjcore.o' in self.shower_card['analyse']:
-                    self.shower_card['analyse'] += ' fjcore.o'
-                # to be changed in the fortran wrapper
-                include_line = '#include "fjcore.hh"//INCLUDE_FJ' 
-                namespace_line = 'namespace fj = fjcore;//NAMESPACE_FJ'
-            # change the fortran wrapper with the correct namespaces/include
-            fjwrapper_lines = open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc')).read().split('\n')
-            for line in fjwrapper_lines:
-                if '//INCLUDE_FJ' in line:
-                    fjwrapper_lines[fjwrapper_lines.index(line)] = include_line
-                if '//NAMESPACE_FJ' in line:
-                    fjwrapper_lines[fjwrapper_lines.index(line)] = namespace_line
-            with open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc'), 'w') as fsock:
-                fsock.write('\n'.join(fjwrapper_lines) + '\n')
+                pass
+
+            self.banner = banner_mod.Banner(evt_file)
+            shower = self.banner.get_detail('run_card', 'parton_shower').upper()
+
+            #check that the number of split event files divides the number of
+            # events, otherwise set it to 1
+            if int(self.banner.get_detail('run_card', 'nevents') / \
+                    self.shower_card['nsplit_jobs']) * self.shower_card['nsplit_jobs'] \
+                    != self.banner.get_detail('run_card', 'nevents'):
+                logger.warning(\
+                    'nsplit_jobs in the shower card is not a divisor of the number of events.\n' + \
+                    'Setting it to 1.')
+                self.shower_card['nsplit_jobs'] = 1
+
+            # don't split jobs if the user asks to shower only a part of the events
+            if self.shower_card['nevents'] > 0 and \
+               self.shower_card['nevents'] < self.banner.get_detail('run_card', 'nevents') and \
+               self.shower_card['nsplit_jobs'] != 1:
+                logger.warning(\
+                    'Only a part of the events will be showered.\n' + \
+                    'Setting nsplit_jobs in the shower_card to 1.')
+                self.shower_card['nsplit_jobs'] = 1
+
+            self.banner_to_mcatnlo(evt_file)
+
+            # if fastjet has to be linked (in extralibs) then
+            # add lib /include dirs for fastjet if fastjet-config is present on the
+            # system, otherwise add fjcore to the files to combine
+            if 'fastjet' in self.shower_card['extralibs']:
+                #first, check that stdc++ is also linked
+                if not 'stdc++' in self.shower_card['extralibs']:
+                    logger.warning('Linking FastJet: adding stdc++ to EXTRALIBS')
+                    self.shower_card['extralibs'] += ' stdc++'
+                # then check if options[fastjet] corresponds to a valid fj installation
+                try:
+                    #this is for a complete fj installation
+                    p = subprocess.Popen([self.options['fastjet'], '--prefix'], \
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    output, error = p.communicate()
+                    #remove the line break from output (last character)
+                    output = output[:-1]
+                    # add lib/include paths
+                    if not pjoin(output, 'lib') in self.shower_card['extrapaths']:
+                        logger.warning('Linking FastJet: updating EXTRAPATHS')
+                        self.shower_card['extrapaths'] += ' ' + pjoin(output, 'lib')
+                    if not pjoin(output, 'include') in self.shower_card['includepaths']:
+                        logger.warning('Linking FastJet: updating INCLUDEPATHS')
+                        self.shower_card['includepaths'] += ' ' + pjoin(output, 'include')
+                    # to be changed in the fortran wrapper
+                    include_line = '#include "fastjet/ClusterSequence.hh"//INCLUDE_FJ' 
+                    namespace_line = 'namespace fj = fastjet;//NAMESPACE_FJ'
+                except Exception:
+                    logger.warning('Linking FastJet: using fjcore')
+                    # this is for FJcore, so no FJ library has to be linked
+                    self.shower_card['extralibs'] = self.shower_card['extralibs'].replace('fastjet', '')
+                    if not 'fjcore.o' in self.shower_card['analyse']:
+                        self.shower_card['analyse'] += ' fjcore.o'
+                    # to be changed in the fortran wrapper
+                    include_line = '#include "fjcore.hh"//INCLUDE_FJ' 
+                    namespace_line = 'namespace fj = fjcore;//NAMESPACE_FJ'
+                # change the fortran wrapper with the correct namespaces/include
+                fjwrapper_lines = open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc')).read().split('\n')
+                for line in fjwrapper_lines:
+                    if '//INCLUDE_FJ' in line:
+                        fjwrapper_lines[fjwrapper_lines.index(line)] = include_line
+                    if '//NAMESPACE_FJ' in line:
+                        fjwrapper_lines[fjwrapper_lines.index(line)] = namespace_line
+                with open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc'), 'w') as fsock:
+                    fsock.write('\n'.join(fjwrapper_lines) + '\n')
 
         extrapaths = self.shower_card['extrapaths'].split()
 
@@ -3245,11 +3402,17 @@ RESTART = %(mint_mode)s
                     close_fds=True)
 
         exe = 'MCATNLO_%s_EXE' % shower
-        if not os.path.exists(pjoin(self.me_dir, 'MCatNLO', exe)) and \
-            not os.path.exists(pjoin(self.me_dir, 'MCatNLO', 'Pythia8.exe')):
+        if (not onthefly and not os.path.exists(pjoin(self.me_dir, 'MCatNLO', exe)) and \
+            not os.path.exists(pjoin(self.me_dir, 'MCatNLO', 'Pythia8.exe'))) or \
+           (onthefly and not os.path.exists(pjoin(self.me_dir, 'MCatNLO', 'libpy8shower.a'))):
             print open(mcatnlo_log).read()
             raise aMCatNLOError('Compilation failed, check %s for details' % mcatnlo_log)
         logger.info('                     ... done')
+
+        # if one is running on the fly, we can just return after copying the library to lib
+        if onthefly:
+            files.mv(pjoin(self.me_dir, 'MCatNLO', 'libpy8shower.a'), pjoin(self.me_dir, 'lib'))
+            return
 
         # create an empty dir where to run
         count = 1
@@ -3727,6 +3890,22 @@ RESTART = %(mint_mode)s
         return init_dict
 
 
+    def get_mcmasses_from_inc_file(self, shower):
+        """returns the dictionary with the MC masses read from the .inc file
+        """
+        mcmass_dict = {}
+        mcfile = open(pjoin(self.me_dir, 'SubProcesses', 'MCmasses_%s.inc' % shower))
+        for line in mcfile:
+            if not line: cycle
+            # content is like   mcmass(1)=0.33d0 
+            match = re.search('\s*mcmass\((\d+)\)=?([0-9]+[.][0-9]*?)d([+-]?\d+)', line)
+            idd, floor, exp = match.groups()
+            mcmass_dict[int(idd)] = float(floor) * math.pow(10, float(exp))
+
+        mcfile.close()
+        return mcmass_dict
+
+        
     def banner_to_mcatnlo(self, evt_file):
         """creates the mcatnlo input script using the values set in the header of the event_file.
         It also checks if the lhapdf library is used"""
@@ -3734,7 +3913,9 @@ RESTART = %(mint_mode)s
         pdlabel = self.banner.get('run_card', 'pdlabel')
         itry = 0
         nevents = self.shower_card['nevents']
-        init_dict = self.get_init_dict(evt_file)
+
+        if int(self.shower_card['pdfcode'])==1:
+            init_dict = self.get_init_dict(evt_file)
 
         if nevents < 0 or \
            nevents > self.banner.get_detail('run_card', 'nevents'):
@@ -3743,10 +3924,13 @@ RESTART = %(mint_mode)s
         nevents = nevents / self.shower_card['nsplit_jobs']
 
         mcmass_dict = {}
-        for line in [l for l in self.banner['montecarlomasses'].split('\n') if l]:
-            pdg = int(line.split()[0])
-            mass = float(line.split()[1])
-            mcmass_dict[pdg] = mass
+        if 'montecarlomasses' in self.banner.keys():
+            for line in [l for l in self.banner['montecarlomasses'].split('\n') if l]:
+                pdg = int(line.split()[0])
+                mass = float(line.split()[1])
+                mcmass_dict[pdg] = mass
+        else:
+            mcmass_dict = self.get_mcmasses_from_inc_file(shower)
 
         content = 'EVPREFIX=%s\n' % pjoin(os.path.split(evt_file)[1])
         content += 'NEVENTS=%d\n' % nevents
@@ -3860,6 +4044,9 @@ RESTART = %(mint_mode)s
         if self.options['hepmc_path'] and self.options['hepmc_path'] != self.options['hwpp_path']:
             content+='HEPMCPATH=%s\n' % self.options['hepmc_path']
         
+        # finally add if the shower should run on the fly
+        content+='ONTHEFLY=%s\n' % self.banner.get_detail('run_card', 'run_shower_onthefly')
+
         output = open(pjoin(self.me_dir, 'MCatNLO', 'banner.dat'), 'w')
         output.write(content)
         output.close()
@@ -4341,6 +4528,9 @@ RESTART = %(mint_mode)s
             # MINTMC MODE
             input_files.append(pjoin(cwd, 'madevent_mintMC'))
 
+            if self.run_card['run_shower_onthefly']:
+                input_files.append(pjoin(self.me_dir, 'MCatNLO', 'Pythia8.cmd'))
+
             if args[2] == '0':
                 current = 'G%s%s' % (args[1],args[0])
             else:
@@ -4413,13 +4603,16 @@ RESTART = %(mint_mode)s
             tests = ['test_ME', 'test_MC']
             # write an analyse_opts with a dummy analysis so that compilation goes through
             with open(pjoin(self.me_dir, 'SubProcesses', 'analyse_opts'),'w') as fsock:
-                fsock.write('FO_ANALYSE=analysis_dummy.o dbook.o open_output_files_dummy.o HwU_dummy.o\n')
+                if self.run_card['run_shower_onthefly']:
+                    fsock.write('FO_ANALYSE=analysis_dummy.o open_output_files_dummy.o\n')
+                else:
+                    fsock.write('FO_ANALYSE=analysis_dummy.o dbook.o open_output_files_dummy.o HwU_dummy.o\n')
 
         #directory where to compile exe
         p_dirs = [d for d in \
                 open(pjoin(self.me_dir, 'SubProcesses', 'subproc.mg')).read().split('\n') if d]
         # create param_card.inc and run_card.inc
-        self.do_treatcards('', amcatnlo=True)
+        self.do_treatcards('', amcatnlo=True, mode=mode)
         # if --nocompile option is specified, check here that all exes exists. 
         # If they exists, return
         if all([os.path.exists(pjoin(self.me_dir, 'SubProcesses', p_dir, exe)) \
@@ -4446,6 +4639,13 @@ RESTART = %(mint_mode)s
             if self.run_card['lpp1'] == 0 == self.run_card['lpp2']:
                 logger.info('Lepton-Lepton collision: Ignoring \'pdlabel\' and \'lhaid\' in the run_card.')
             self.make_opts_var['lhapdf'] = ""
+
+        # read the run_card to find if the shower has to run on the fly
+        if self.run_card['run_shower_onthefly']:
+            self.make_opts_var['shower_onthefly'] = 'True'
+        else:
+            self.make_opts_var['shower_onthefly'] = ''
+
 
         # read the run_card to find if applgrid is used or not
         if self.run_card['iappl'] != 0:
@@ -4518,7 +4718,7 @@ RESTART = %(mint_mode)s
             not os.path.exists(os.path.realpath(pjoin(libdir, 'mpmodule.mod'))):
             if  os.path.exists(pjoin(sourcedir,'CutTools')):
                 logger.info('Compiling CutTools (can take a couple of minutes) ...')
-                misc.compile(['CutTools'], cwd = sourcedir)
+                misc.compile(['CutTools','-j1'], cwd = sourcedir, nb_core=1)
                 logger.info('          ...done.')
             else:
                 raise aMCatNLOError('Could not compile CutTools because its'+\
@@ -4540,7 +4740,7 @@ RESTART = %(mint_mode)s
                     logger.info('CutTools was compiled with a different fortran'+\
                                             ' compiler. Re-compiling it now...')
                     misc.compile(['cleanCT'], cwd = sourcedir)
-                    misc.compile(['CutTools'], cwd = sourcedir)
+                    misc.compile(['CutTools','-j1'], cwd = sourcedir, nb_core=1)
                     logger.info('          ...done.')
                 else:
                     raise aMCatNLOError("CutTools installation in %s"\
@@ -4981,7 +5181,6 @@ Please, shower the Les Houches events before using them for physics analyses."""
         if not options['force'] and not self.force:
             self.ask_edit_cards(cards, plot=False, first_cmd=first_cmd)
 
-        
         self.banner = banner_mod.Banner()
 
         # store the cards in the banner

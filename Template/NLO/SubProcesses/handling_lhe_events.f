@@ -120,6 +120,8 @@ c
 c     parameter to allow to include run_card.inc 
       include './run.inc'
       include './cuts.inc'
+      logical run_shower_onthefly
+      common /to_run_shower_onthefly/run_shower_onthefly
       integer lhaid
       character*20 pdlabel
       integer iappl
