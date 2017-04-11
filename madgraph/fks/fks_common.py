@@ -595,6 +595,16 @@ def legs_to_color_link_string(leg1, leg2, pert = 'QCD'): #test written, all case
                     string.product(color_algebra.ColorString(init_list = [
                                color_algebra.f(min_index,iglu,num)], 
                                is_imaginary =True))
+                elif leg.get('color') * icol == 6:
+                    string.product(color_algebra.ColorString([
+                               color_algebra.T6(iglu, num, min_index)]))
+                    string.coeff = string.coeff * (-1)
+                elif leg.get('color') * icol == -6:
+                    string.product(color_algebra.ColorString([
+                               color_algebra.T6(iglu, min_index, num)]))
+                else:
+                    raise FKSProcessError('Color representation not implemented (different legs): %d' % (leg.get('color') * icol))
+
 
         else:
             icol = 1
@@ -615,6 +625,18 @@ def legs_to_color_link_string(leg1, leg2, pert = 'QCD'): #test written, all case
                 string.product(color_algebra.ColorString(init_list = [
                                color_algebra.f(min_index,iglu,num)], 
                                is_imaginary =True))
+            elif leg1.get('color') * icol == 6:
+                string = color_algebra.ColorString([
+                           color_algebra.T6(iglu, num, min_index)])
+                string.product(color_algebra.ColorString([
+                               color_algebra.T6(iglu, min_index, min_index -1)]))
+            elif leg1.get('color') * icol == -6:
+                string = color_algebra.ColorString([
+                           color_algebra.T6(iglu, min_index, num)])
+                string.product(color_algebra.ColorString([
+                               color_algebra.T6(iglu, min_index -1, min_index)]))
+            else:
+                raise FKSProcessError('Color representation not implemented (same leg): %d' % (leg1.get('color') * icol))
             string.coeff = string.coeff * fractions.Fraction(1, 2)
 
     elif pert == 'QED':
