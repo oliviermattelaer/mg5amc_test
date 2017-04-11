@@ -5655,7 +5655,7 @@ c Set color types of i_fks, j_fks and fks_mother.
                write (*,*) 'Error in setfksfactor: (i,j)=(q,g)'
                stop
             endif
-         elseif(i_type.eq.8 .and. abs(j_type).eq.3)then
+         elseif(i_type.eq.8 .and. (abs(j_type).eq.3.or.abs(j_type).eq.6))then
             if (j_fks.le.nincoming) then
                m_type=j_type
             else

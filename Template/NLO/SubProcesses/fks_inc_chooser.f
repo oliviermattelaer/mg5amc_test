@@ -56,7 +56,7 @@ c
                   write (*,*) 'Error in fks_inc_chooser: (i,j)=(q,g)'
                   stop
                endif
-            elseif(i_type.eq.8 .and. abs(j_type).eq.3)then
+            elseif(i_type.eq.8 .and. (abs(j_type).eq.3.or.abs(j_type).eq.6))then
                if (j_fks.le.nincoming) then
                   m_type=j_type
                else
