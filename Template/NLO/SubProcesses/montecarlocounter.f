@@ -350,7 +350,7 @@ c Main routine for MC counterterms
       include "born_nhel.inc"
       include "fks_powers.inc"
       include "madfks_mcatnlo.inc"
-      include "run.inc"
+      include 'run.inc'
       include "../../Source/MODEL/input.inc"
       include 'nFKSconfigs.inc'
       integer fks_j_from_i(nexternal,0:nexternal)
@@ -381,7 +381,6 @@ c Main routine for MC counterterms
      & zHW6,xiHW6,xjacHW6_xiztoxy,zHWPP,xiHWPP,xjacHWPP_xiztoxy,zPY6Q,
      & xiPY6Q,xjacPY6Q_xiztoxy,zPY6PT,xiPY6PT,xjacPY6PT_xiztoxy,zPY8,
      & xiPY8,xjacPY8_xiztoxy,wcc
-
       common/cscaleminmax/xm12,ileg
       double precision veckn_ev,veckbarn_ev,xp0jfks
       common/cgenps_fks/veckn_ev,veckbarn_ev,xp0jfks
@@ -455,10 +454,106 @@ c Particle types (=color) of i_fks, j_fks and fks_mother
       parameter (vtf=1d0/2d0)
       parameter (vca=3d0)
 
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+c Variables related to the new numerical MC counterterm    
+      logical is_new_mc_cnt
+      include "maxparticles.inc"
+c Relevant content of run_config.inc
+c Parameter for string buffer length for systematics variations info
+      integer s_bufflen
+      parameter (s_bufflen=26+3+(max_particles-1)*9+
+     &                     2*(max_particles-1)*15)
+c Parameter for string buffer length for clustering info
+      integer clus_bufflen
+      parameter (clus_bufflen=43)
+c Parameter specifying the maximum number of characters in the lhe record of a single event.
+      integer maxEventLength
+      parameter (maxEventLength=s_bufflen+(clus_bufflen+200)*max_particles)
+c Content of lhe_event_infos.inc
+      integer jpart(7,-nexternal+3:2*nexternal-3)
+      double precision pb(0:4,-nexternal+3:2*nexternal-3)
+      integer isym(nexternal,99),jsym, npart
+      double precision sscale,aaqcd,aaqed
+      character*1000 buff
+      character*(s_bufflen) s_buff(7)
+      integer nclus
+      character*(clus_bufflen) buffclus(nexternal)
+      character*(maxEventLength) event_record
+      logical AlreadySetInBiasModule
+
+      common/to_lhe_event_info/jpart,pb,s_buff,buff,nclus,buffclus,event_record,
+     &  sscale,aaqcd,aaqed,isym,jsym,npart,AlreadySetInBiasModule
+
+      integer ngroup
+      common/to_group/ngroup
+      
+      double precision original_weight, bias_weight
+C
+C local variables
+C
+      integer lpp_to_beam(-3:3)
+      data lpp_to_beam/-11,-2212,-2212,0,2212,2212,11/
+c     
+c local variables defined in the run_card
+c
+c     Bias module arguments
+      double precision BeamA, BeamB
+c     truly local variables
+      integer n_initial
+      double precision OutputCounterterm
+      double precision Pythia8eCM
+      integer Pythia8nParticles
+      double precision Pythia8p(5,npart)
+      integer Pythia8BeamA
+      double precision PythiaBeamEnergyA
+      integer Pythia8BeamB
+      double precision PythiaBeamEnergyB
+      character*(maxEventLength) Pythia8EvtRecord
+      integer Pythia8Helicities(npart)
+      integer Pythia8ColorOne(npart)
+      integer Pythia8ColorTwo(npart)          
+      integer Pythia8ID(npart)
+      integer Pythia8Status(npart)
+      integer Pythia8MotherOne(npart)
+      integer Pythia8MotherTwo(npart)          
+      integer Pythia8SubprocessGroup
+      integer Pythia8MurScale
+      integer Pythia8AlphaQCD
+      integer Pythia8AlphaQED
+C
+C Global variables
+C
+C
+C Mandatory common block to be defined in bias modules
+C
+      double precision stored_bias_weight
+      data stored_bias_weight/1.0d0/          
+      logical impact_xsec, requires_full_event_info
+C     We only want to bias distributions, but not impact the xsec. 
+      data impact_xsec/.True./
+C     Pythia8 will need the full information for the event
+C     (color, resonances, helicities, etc..)
+      data requires_full_event_info/.True./ 
+      common/bias/stored_bias_weight,impact_xsec,
+     &            requires_full_event_info
+c$$$C Read the definition of the bias parameter from the run_card    
+c$$$C
+c$$$          include '../bias.inc'
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
       double precision g_ew,charge,qi2,qj2
       double precision pmass(nexternal)
+
       include "pmass.inc"
 
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+c Analytic (false) or numerical (true) counterterm
+      is_new_mc_cnt = .true.
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 c Initialise
       flagmc   = .false.
       wgt      = 0d0
@@ -483,7 +578,79 @@ c Logical variables to control the IR limits:
 c one can remove any reference to xi_i_fks
       limit = 1-y_ij_fks.lt.tiny .and. xi_i_fks.ge.tiny
       non_limit = xi_i_fks.ge.tiny
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+      if(is_new_mc_cnt)then
+C        Let's initialise the PY8 variables describing the event
+         Pythia8eCM             = sqrt(4d0*ebeam(1)*ebeam(2))
+         Pythia8EvtRecord       = event_record
+         Pythia8SubprocessGroup = ngroup
+         Pythia8MurScale        = sscale
+         Pythia8AlphaQCD        = aaqcd
+         Pythia8AlphaQED        = aaqed
+         Pythia8nParticles      = npart
+         PythiaBeamEnergyA      = ebeam(1) 
+         PythiaBeamEnergyB      = ebeam(2)
+         do i=1,npart
+           Pythia8ID(i)         = jpart(1,i)
+           Pythia8MotherOne(i)  = jpart(2,i)
+           Pythia8MotherTwo(i)  = jpart(3,i)
+           Pythia8ColorOne(i)   = jpart(4,i)
+           Pythia8ColorTwo(i)   = jpart(5,i)           
+           Pythia8Status(i)     = jpart(6,i)
+           Pythia8Helicities(i) = jpart(7,i)           
+           do j=1,4
+             Pythia8p(j,i)=pb(mod(j,4),i)
+           enddo
+           Pythia8p(5,npart)=pb(4,i)
+         enddo
+         Pythia8BeamA = lpp_to_beam(lpp(1))
+         Pythia8BeamB = lpp_to_beam(lpp(2))
+         n_initial = 0
+         do i=1,npart
+           if (Pythia8Status(i).eq.-1) then
+             n_initial = n_initial + 1
+             if (lpp(n_initial).eq.0) then
+               if (n_initial.eq.1) then
+                 Pythia8BeamA = Pythia8ID(i)
+               elseif (n_initial.eq.2) then
+                 Pythia8BeamB = Pythia8ID(i)
+                 exit
+               endif
+             endif
+             if (n_initial.eq.2) then
+               exit
+             endif
+           endif
+         enddo
+C        If this is a 1 > N decay event, then enforce beamIDs to match
+C        those specified in the event record.
+         if (n_initial.eq.1) then
+           Pythia8BeamB = 0
+           do i=1,npart         
+             if (Pythia8Status(i).eq.-1) then
+               Pythia8BeamA = Pythia8ID(i) 
+               exit
+             endif
+           enddo
+         endif
+C        Make sure to enforce the user-choice of beam if specified.
+         if (idnint(BeamA).ne.0) then
+           Pythia8BeamA = idnint(BeamA)
+         endif
+         if (idnint(BeamB).ne.0) then
+           Pythia8BeamB = idnint(BeamB) 
+         endif
+      endif
 
+c$$$      call py8_counterterm(Pythia8eCM,Pythia8BeamA,PythiaBeamEnergyA,
+c$$$     & Pythia8BeamB,PythiaBeamEnergyB,Pythia8EvtRecord,Pythia8p,
+c$$$     & Pythia8nParticles,Pythia8MurScale,Pythia8AlphaQCD,Pythia8AlphaQED,
+c$$$     & Pythia8ID,Pythia8MotherOne,Pythia8MotherTwo,Pythia8ColorOne,
+c$$$     & Pythia8ColorTwo,Pythia8Status,Pythia8Helicities,OutputCounterterm)
+      
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 c Discard if unphysical kinematics
       if(pp(0,1).le.0d0)return
 
@@ -2556,7 +2723,6 @@ c Consistency check
       common/to_abrv/abrv
       double precision p_born(0:3,nexternal-1)
       common/pborn/p_born
-
       call assign_ref_scale(p_born,xi,shat,ref_scale)
       xscalemin=max(shower_scale_factor*frac_low*ref_scale,scaleMClow)
       xscalemax=max(shower_scale_factor*frac_upp*ref_scale,
