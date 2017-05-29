@@ -27,10 +27,10 @@ $(LIBDIR)libpdf.a $(LIBDIR)libcernlib.a
 #check if we need to link pythia8 (run on the fly)
 ifdef shower_onthefly
     CXXFLAGS += -I$(PYTHIA8_PATH)/include
-    LINKLIBS += -L$(LIBDIR) -lpy8shower -L$(PYTHIA8_PATH)/lib -lpythia8
+    LINKLIBSPY = -L$(LIBDIR) -lpy8shower -L$(PYTHIA8_PATH)/lib -lpythia8
     ifdef HEPMC_PATH
         CXXFLAGS += -I$(HEPMC_PATH)/include
-        LINKLIBS += -L$(HEPMC_PATH)/lib -lHepMC -lHepMCfio
+        LINKLIBSPY += $(HEPMC_PATH)/lib/libHepMC.a $(HEPMC_PATH)/lib/libHepMCfio.a
     endif
 endif
 
@@ -133,9 +133,9 @@ madevent_vegas: $(VEGAS) $(libmadloop) makefile $(LIBS)
 	strip madevent_vegas
 
 madevent_mintMC: $(MINTMC) $(libmadloop) makefile $(LIBS)
-	$(FC) -o madevent_mintMC $(MINTMC) $(NLOLIBS) $(APPLLIBS) $(LINKLIBS) $(FJLIBS) $(FO_EXTRAPATHS) $(FO_EXTRALIBS) $(LDFLAGS)
+	$(FC) -o madevent_mintMC $(MINTMC) $(NLOLIBS) $(APPLLIBS) $(LINKLIBS) $(FJLIBS) $(FO_EXTRAPATHS) $(FO_EXTRALIBS) $(LINKLIBSPY) $(LDFLAGS)
 	rm handling_lhe_events.o
-	###strip madevent_mintMC
+	strip madevent_mintMC
 
 madevent_mintFO: $(MINTFO) $(libmadloop) makefile $(LIBS)
 	$(FC) -o madevent_mintFO $(MINTFO) $(NLOLIBS) $(APPLLIBS) $(LINKLIBS) $(FJLIBS) $(FO_EXTRAPATHS) $(FO_EXTRALIBS) $(LDFLAGS)
