@@ -398,7 +398,7 @@ c fill the information for the write_header_init common block
 
          ! init if the shower has to be run on-the-fly
          if (run_shower_onthefly) then
-           py8_input = 'pythia8.cmd'//char(0) ! terminate strings for C 
+           py8_input = 'Pythia8.cmd'//char(0) ! terminate strings for C 
            !                           xsecup xerrup xmaxup        lprup
            call init_pythia(py8_input, inter, uncer, absint/ievents, 66)
          endif
@@ -434,7 +434,7 @@ c fill the information for the write_header_init common block
             endif
 c Randomly pick the contribution that will be written in the event file
             call pick_unweight_contr(iFKS_picked)
-            call update_fks_dir(iFKS_picked,iconfig)
+            call update_fks_dir(iFKS_picked)
             call fill_rwgt_lines
             call finalize_event(x,weight,lunlhe,putonshell)
          enddo
@@ -916,7 +916,7 @@ c For sum=0, determine nFKSprocess so that the soft limit gives a non-zero Born
             call get_born_nFKSprocess(nFKS_in,nFKS_out)
             nFKS_picked_nbody=nFKS_out
          endif
-         call update_fks_dir(nFKS_picked_nbody,iconfig)
+         call update_fks_dir(nFKS_picked_nbody)
          if (ini_fin_fks.eq.0) then
             jac=1d0
          else
@@ -955,7 +955,7 @@ c for different nFKSprocess.
             wgt_me_real=0d0
             wgt_me_born=0d0
             iFKS=proc_map(proc_map(0,1),i)
-            call update_fks_dir(iFKS,iconfig)
+            call update_fks_dir(iFKS)
             jac=1d0/vol1
             probne=1d0
             gfactsf=1.d0
@@ -1303,16 +1303,16 @@ c     include all quarks (except top quark) and the gluon.
       end
 
 
-      subroutine update_fks_dir(nFKS,iconfig)
+      subroutine update_fks_dir(nFKS)
       implicit none
-      integer nFKS,iconfig
+      integer nFKS
       integer              nFKSprocess
       common/c_nFKSprocess/nFKSprocess
       nFKSprocess=nFKS
       call fks_inc_chooser()
       call leshouche_inc_chooser()
       call setcuts
-      call setfksfactor(iconfig,.true.)
+      call setfksfactor(.true.)
       return
       end
 
