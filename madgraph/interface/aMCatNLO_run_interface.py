@@ -4487,6 +4487,9 @@ RESTART = %(mint_mode)s
         if os.path.exists(pjoin(self.me_dir,'OLP_virtuals','gosam.rc')):
             input_files.append(pjoin(self.me_dir, 'Cards', 'param_card.dat'))
 
+        if os.path.exists(pjoin(self.me_dir,'MCatNLO','Pythia8.cmd')):
+            input_files.append(pjoin(self.me_dir,'MCatNLO','Pythia8.cmd'))
+
         if os.path.exists(pjoin(cwd,'nevents.tar')):
             input_files.append(pjoin(cwd,'nevents.tar'))
         
