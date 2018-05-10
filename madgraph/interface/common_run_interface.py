@@ -2028,10 +2028,15 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
                 ##########    END SINGLE CORE HANDLING #############
             else:
                 ##########    START MULTI-CORE HANDLING #############
-                if not isinstance(self.cluster, cluster.MultiCore):
-                    mycluster = cluster.MultiCore(nb_core=self.options['nb_core'])
+                #if not isinstance(self.cluster, cluster.MultiCore):
+                #    mycluster = cluster.MultiCore(nb_core=self.options['nb_core'])
+                #else:
+                mycluster = self.cluster
+                
+                if  isinstance(self.cluster, cluster.MultiCore):
+                    nb_core = self.options['nb_core']
                 else:
-                    mycluster = self.cluster
+                    nb_core = self.options['cluster_size']
                 
                 new_args=list(args)
                 self.check_decay_events(new_args) 
@@ -2045,7 +2050,7 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
                 if 'nevt_job' in self.run_card and self.run_card['nevt_job'] !=-1:
                     nevt_job = self.run_card['nevt_job']
                 else:
-                    nevt_job = max(2500, self.run_card['nevents']/self.options['nb_core'])
+                    nevt_job = max(2500, self.run_card['nevents']/nb_core)
                 logger.info("split the event file in bunch of %s events" % nevt_job)
                 nb_file = lhe_parser.EventFile(new_args[0]).split(nevt_job)
                 starttime = time.time()
