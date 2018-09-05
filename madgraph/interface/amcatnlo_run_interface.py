@@ -4351,11 +4351,10 @@ RESTART = %(mint_mode)s
             # either events were already generated with them, or the
             # user explicitly gives an LHAPDF number in the
             # shower_card).
-            self.link_lhapdf(pjoin(self.me_dir, 'lib'))
+            self.make_opts_var.upate(self.lhapdf_interface.link_lhapdf(pjoin(self.me_dir, 'lib')))
             lhapdfpath = subprocess.Popen([self.options['lhapdf'], '--prefix'], 
                                           stdout = subprocess.PIPE).stdout.read().strip()
             content += 'LHAPDFPATH=%s\n' % lhapdfpath
-            pdfsetsdir = self.get_lhapdf_pdfsetsdir()
             if self.shower_card['pdfcode']==0:
                 lhaid_list = ''
                 content += ''
@@ -4365,7 +4364,9 @@ RESTART = %(mint_mode)s
             else:
                 lhaid_list = [abs(int(self.shower_card['pdfcode']))]
                 content += 'PDFCODE=%s\n' % self.shower_card['pdfcode']
-            self.copy_lhapdf_set(lhaid_list, pdfsetsdir)
+            self.lhapdf_interface.copy_lhapdf_set(lhaid_list, self.me_dir, 
+               self.options["run_mode"], cluster_local_path=self.options["cluster_local_path"])
+        
         elif int(self.shower_card['pdfcode'])==1 or \
             int(self.shower_card['pdfcode'])==-1 and True:
             # Try to use LHAPDF because user wants to use the same PDF
@@ -4377,12 +4378,12 @@ RESTART = %(mint_mode)s
             try:
                 lhapdfpath = subprocess.Popen([self.options['lhapdf'], '--prefix'], 
                                               stdout = subprocess.PIPE).stdout.read().strip()
-                self.link_lhapdf(pjoin(self.me_dir, 'lib'))
+                self.make_opts_var.update(self.lhapdf_interface.link_lhapdf(pjoin(self.me_dir, 'lib')))
                 content += 'LHAPDFPATH=%s\n' % lhapdfpath
-                pdfsetsdir = self.get_lhapdf_pdfsetsdir()
                 lhaid_list = [max([init_dict['pdfsup1'],init_dict['pdfsup2']])]
                 content += 'PDFCODE=%s\n' % max([init_dict['pdfsup1'],init_dict['pdfsup2']])
-                self.copy_lhapdf_set(lhaid_list, pdfsetsdir)
+                self.lhapdf_interface.copy_lhapdf_set(lhaid_list, self.me_dir, 
+                  self.options["run_mode"], cluster_local_path=self.options["cluster_local_path"])
             except Exception:
                 logger.warning('Trying to shower events using the same PDF in the shower as used in the generation'+\
                                    ' of the events using LHAPDF. However, no valid LHAPDF installation found with the'+\
@@ -4984,10 +4985,10 @@ RESTART = %(mint_mode)s
                 (self.banner.get_detail('run_card', 'lpp1') != 0 or \
                  self.banner.get_detail('run_card', 'lpp2') != 0):
 
-            self.link_lhapdf(libdir, [pjoin('SubProcesses', p) for p in p_dirs])
-            pdfsetsdir = self.get_lhapdf_pdfsetsdir()
+            self.make_opts_var.update(self.lhapdf_interface.link_lhapdf(libdir, [pjoin('SubProcesses', p) for p in p_dirs]))
             lhaid_list = self.run_card['lhaid']
-            self.copy_lhapdf_set(lhaid_list, pdfsetsdir)
+            self.lhapdf_interface.copy_lhapdf_set(lhaid_list, self.me_dir, 
+               self.options["run_mode"], cluster_local_path=self.options["cluster_local_path"])
 
         else:
             if self.run_card['lpp1'] == 1 == self.run_card['lpp2']:

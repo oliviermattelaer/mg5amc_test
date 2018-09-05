@@ -106,6 +106,17 @@ class Cluster(object):
             self.temp_dir = opts['cluster_temp_path']
         else:
             self.temp_dir = None
+            
+        # This option allows to specify how the job identifiers must be constructed.
+        # For all native MG5aMC applications, the automatic construction of this identifier
+        # proceeds with the default value 'None' of this 'job_identifier_specifier' option.
+        # But it is useful that Plugins can specify something different by re-defining the
+        # attribute 'cluster_jobs_identifier_specifier' of the run interfaces.
+        if 'job_identifier_specifier' in opts:
+            self.job_identifier_specifier = opts['job_identifier_specifier']
+        else:
+            self.job_identifier_specifier = None
+            
         self.options = {'cluster_status_update': (600, 30)}
         for key,value in opts.items():
             self.options[key] = value
@@ -248,6 +259,8 @@ class Cluster(object):
     def get_jobs_identifier(self, path, second_path=None):
         """get a unique run_name for all the jobs helps to identify the runs 
         in the controller for some cluster."""
+        
+        # TODO @MarcoZaro: handle the case where self.job_identifier_specifier is not set to None.
         
         if second_path:
             path = os.path.realpath(pjoin(path, second_path))

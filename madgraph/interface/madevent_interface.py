@@ -5551,10 +5551,10 @@ tar -czf split_$1.tar.gz split_$1
         # set  lhapdf.
         if self.run_card['pdlabel'] == "lhapdf":
             self.make_opts_var['lhapdf'] = 'True'
-            self.link_lhapdf(pjoin(self.me_dir,'lib'))
-            pdfsetsdir = self.get_lhapdf_pdfsetsdir()
+            self.make_opts_var.update(self.lhapdf_interface.link_lhapdf(pjoin(self.me_dir,'lib')))
             lhaid_list = [int(self.run_card['lhaid'])]
-            self.copy_lhapdf_set(lhaid_list, pdfsetsdir)
+            self.lhapdf_interface.copy_lhapdf_set(lhaid_list, self.me_dir, 
+               self.options["run_mode"], cluster_local_path=self.options["cluster_local_path"])
         if self.run_card['pdlabel'] != "lhapdf":
             self.pdffile = None
             self.make_opts_var['lhapdf'] = ""
@@ -5954,7 +5954,7 @@ tar -czf split_$1.tar.gz split_$1
         else:
             lhaid += [l for l in self.run_card['sys_pdf'].split() if not l.isdigit() or int(l) > 500]
         try:
-            pdfsets_dir = self.get_lhapdf_pdfsetsdir()
+            pdfsets_dir = self.lhapdf_interface.get_lhapdf_pdfsetsdir()
         except Exception, error:
             logger.debug(str(error))
             logger.warning('Systematic computation requires lhapdf to run. Bypass SysCalc')
@@ -5962,7 +5962,7 @@ tar -czf split_$1.tar.gz split_$1
         
         # Copy all the relevant PDF sets
         [self.copy_lhapdf_set([onelha], pdfsets_dir) for onelha in lhaid]
-        
+
         to_syscalc={'sys_scalefact': self.run_card['sys_scalefact'],
                     'sys_alpsfact': self.run_card['sys_alpsfact'],
                     'sys_matchscale': self.run_card['sys_matchscale'],

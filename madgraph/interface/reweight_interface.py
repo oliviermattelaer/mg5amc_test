@@ -1427,7 +1427,7 @@ class ReweightInterface(extended_cmd.Cmd):
             m_opts['lhapdf'] = True
             m_opts['f2pymode'] = True
             m_opts['lhapdfversion'] = 5 # 6 always fail on my computer since 5 is compatible but slower always use 5
-            m_opts['llhapdf'] = self.mother.get_lhapdf_libdir()                       
+            m_opts['llhapdf'] = self.mother.lhapdf_interface.get_lhapdf_libdir(force_version=m_opts['lhapdfversion'])
         else:
             raise Exception, "NLO reweighting requires LHAPDF to work correctly"
 
@@ -1437,7 +1437,7 @@ class ReweightInterface(extended_cmd.Cmd):
 
 
         # Download LHAPDF SET
-        common_run_interface.CommonRunCmd.install_lhapdf_pdfset_static(\
+        common_run_interface.LHAPDFInterface.install_lhapdf_pdfset_static(\
             mgcmd.options['lhapdf'], None, self.banner.run_card.get_lhapdf_id())
         
         # now store the id information             
@@ -1640,7 +1640,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 m_opts['lhapdf'] = True
                 m_opts['f2pymode'] = True
                 m_opts['lhapdfversion'] = 5 # 6 always fail on my computer since 5 is compatible but slower always use 5
-                m_opts['llhapdf'] = self.mother.get_lhapdf_libdir()                        
+                m_opts['llhapdf'] = self.mother.lhapdf_interface.get_lhapdf_libdir(force_version=m_opts['lhapdfversion'])                  
             else:
                 raise Exception, "NLO_tree reweighting requires LHAPDF to work correctly"
  
@@ -1649,7 +1649,7 @@ class ReweightInterface(extended_cmd.Cmd):
             logger.info('Done %.4g' % (time.time()-start))
 
             # Download LHAPDF SET
-            common_run_interface.CommonRunCmd.install_lhapdf_pdfset_static(\
+            common_run_interface.LHAPDFInterface.install_lhapdf_pdfset_static(\
                 mgcmd.options['lhapdf'], None, self.banner.run_card.get_lhapdf_id())
             
             #compile the module to combine the weight
