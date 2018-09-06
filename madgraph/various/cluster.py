@@ -260,24 +260,32 @@ class Cluster(object):
         """get a unique run_name for all the jobs helps to identify the runs 
         in the controller for some cluster."""
         
-        # TODO @MarcoZaro: handle the case where self.job_identifier_specifier is not set to None.
-        
         if second_path:
             path = os.path.realpath(pjoin(path, second_path))
         elif not os.path.exists(path):
             return path # job already done
-        
-        if 'SubProcesses' in path:
-            target = path.rsplit('/SubProcesses',1)[0]
-        elif 'MCatNLO' in path:
-            target = path.rsplit('/MCatNLO',1)[0]
-        elif 'PY8_parallelization' in path:
-            target = path.rsplit('/PY8_parallelization',1)[0]
-        elif second_path:
-            target=path
-            logger.warning("cluster.get_job_identifier runs unexpectedly. This should be fine but report this message if you have problem.")
+
+        if self.job_identifier_specifier:
+            separator = '/' + self.job_identifier_specifier
+            if separator not in path:
+                logger.warning("job_identifier_specifier is not contained in the running path.\n" + \
+                               ("specifier: %s\n" % separator) + \
+                               ("path: %s\n" % path) + \
+                               "This should be fine but report this message if you have problem.")
+            target = path.rsplit(separator,1)[0]
+
         else:
-            target = path
+            if 'SubProcesses' in path:
+                target = path.rsplit('/SubProcesses',1)[0]
+            elif 'MCatNLO' in path:
+                target = path.rsplit('/MCatNLO',1)[0]
+            elif 'PY8_parallelization' in path:
+                target = path.rsplit('/PY8_parallelization',1)[0]
+            elif second_path:
+                target=path
+                logger.warning("cluster.get_job_identifier runs unexpectedly. This should be fine but report this message if you have problem.")
+            else:
+                target = path
             
         if target.endswith('/'):
             target = target[:-1]   
@@ -286,6 +294,7 @@ class Cluster(object):
         if not target[0].isalpha():
             target = 'a' + target[1:]
 
+        print 'JOBID', target
         return target
 
 
