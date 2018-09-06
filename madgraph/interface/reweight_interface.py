@@ -1427,7 +1427,7 @@ class ReweightInterface(extended_cmd.Cmd):
             m_opts['lhapdf'] = True
             m_opts['f2pymode'] = True
             m_opts['lhapdfversion'] = 5 # 6 always fail on my computer since 5 is compatible but slower always use 5
-            m_opts['llhapdf'] = self.mother.lhapdf_interface.get_lhapdf_libdir(force_version=m_opts['lhapdfversion'])
+            m_opts['llhapdf'] = self.mother.lhapdf_interface.get_lhapdf_linklibs(force_version=m_opts['lhapdfversion'])
         else:
             raise Exception, "NLO reweighting requires LHAPDF to work correctly"
 
@@ -1640,7 +1640,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 m_opts['lhapdf'] = True
                 m_opts['f2pymode'] = True
                 m_opts['lhapdfversion'] = 5 # 6 always fail on my computer since 5 is compatible but slower always use 5
-                m_opts['llhapdf'] = self.mother.lhapdf_interface.get_lhapdf_libdir(force_version=m_opts['lhapdfversion'])                  
+                m_opts['llhapdf'] = self.mother.lhapdf_interface.get_lhapdf_linklibs(force_version=m_opts['lhapdfversion'])                  
             else:
                 raise Exception, "NLO_tree reweighting requires LHAPDF to work correctly"
  
