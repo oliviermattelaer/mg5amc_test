@@ -595,8 +595,6 @@ class LHAPDFInterface(object):
         libdir = subprocess.Popen([self.lhapdf_path, '--libs'],
                      stdout = subprocess.PIPE).stdout.read().strip()
 
-        else:
-            raise MadGraph5Error('Incorrect lhapdf version supplied in function get_Lhapdf_libdir: %s'%lhapdf_version)
         return libdir
 
     def copy_lhapdf_set(self, lhaid_list, me_dir, run_mode, cluster_local_path=None):
