@@ -3549,7 +3549,10 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
             # Forward the specification of how the job identifier should be constructed
             # The value of this attribute is None by default for native MG5aMC applications,
             # but it is useful that it can be redefined by plugins.
-            cluster_options['job_identifier_specifier'] = self.cluster_jobs_identifier_specifier
+            if hasattr(self, 'cluster_jobs_identifier_specifier'):
+                cluster_options['jobs_identifier_specifier'] = self.cluster_jobs_identifier_specifier
+            else:
+                cluster_options['jobs_identifier_specifier'] = None
             if cluster_name in cluster.from_name:
                 self.cluster = cluster.from_name[cluster_name](**cluster_options)
             else:

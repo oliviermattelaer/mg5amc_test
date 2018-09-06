@@ -109,13 +109,13 @@ class Cluster(object):
             
         # This option allows to specify how the job identifiers must be constructed.
         # For all native MG5aMC applications, the automatic construction of this identifier
-        # proceeds with the default value 'None' of this 'job_identifier_specifier' option.
+        # proceeds with the default value 'None' of this 'jobs_identifier_specifier' option.
         # But it is useful that Plugins can specify something different by re-defining the
         # attribute 'cluster_jobs_identifier_specifier' of the run interfaces.
-        if 'job_identifier_specifier' in opts:
-            self.job_identifier_specifier = opts['job_identifier_specifier']
+        if 'jobs_identifier_specifier' in opts:
+            self.jobs_identifier_specifier = opts['jobs_identifier_specifier']
         else:
-            self.job_identifier_specifier = None
+            self.jobs_identifier_specifier = None
             
         self.options = {'cluster_status_update': (600, 30)}
         for key,value in opts.items():
@@ -265,13 +265,8 @@ class Cluster(object):
         elif not os.path.exists(path):
             return path # job already done
 
-        if self.job_identifier_specifier:
-            separator = '/' + self.job_identifier_specifier
-            if separator not in path:
-                logger.warning("job_identifier_specifier is not contained in the running path.\n" + \
-                               ("specifier: %s\n" % separator) + \
-                               ("path: %s\n" % path) + \
-                               "This should be fine but report this message if you have problem.")
+        if self.jobs_identifier_specifier and self.jobs_identifier_specifier in path:
+            separator = '/' + self.jobs_identifier_specifier
             target = path.rsplit(separator,1)[0]
 
         else:
@@ -294,7 +289,6 @@ class Cluster(object):
         if not target[0].isalpha():
             target = 'a' + target[1:]
 
-        print 'JOBID', target
         return target
 
 
