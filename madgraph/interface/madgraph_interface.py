@@ -340,6 +340,9 @@ class HelpToCmd(cmd.HelpCmd):
         logger.info("")
         logger.info("   import banner PATH  [--no_launch]:",'$MG:BOLD')
         logger.info("      Rerun the exact same run define in the valid banner.")
+        logger.info("")
+        logger.info("   import process PATH", '$MG:BOLD')
+        logger.info("      generate the list of processes defined in the file")
 
     def help_install(self):
         logger.info("syntax: install " + "|".join(self._install_opts),'$MG:color:BLUE')
@@ -1211,9 +1214,12 @@ This will take effect only in a NEW terminal
         if not( 0 <= int(options.cluster) <= 2):
             return self.InvalidCmd, 'cluster mode should be between 0 and 2'
 
+        misc.sprint(args)
         if not args:
             if self._done_export:
+                misc.sprint(self._done_export)
                 mode = self.find_output_type(self._done_export[0])
+                misc.sprint(mode)
                 if (self._done_export[1] == 'plugin' and mode in self._export_formats):
                     args.append(mode)
                     args.append(self._done_export[0])
@@ -2780,7 +2786,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
     _switch_opts = ['mg5','aMC@NLO','ML5']
     _check_opts = ['full', 'timing', 'stability', 'profile', 'permutation',
                    'gauge','lorentz', 'brs', 'cms']
-    _import_formats = ['model_v4', 'model', 'proc_v4', 'command', 'banner']
+    _import_formats = ['model_v4', 'model', 'proc_v4', 'command', 'banner', 'process']
     _install_opts = ['Delphes', 'MadAnalysis4', 'ExRootAnalysis',
                      'update', 'Golem95', 'PJFry', 'QCDLoop', 'maddm', 'maddump',
                      'looptools']
@@ -5266,7 +5272,23 @@ This implies that with decay chains:
                 self.check_for_export_dir(args[1])
                 # Execute the card
                 self.import_command_file(args[1])
-
+        elif args[0] == 'process':
+            if not os.path.isfile(args[1]):
+                raise self.InvalidCmd("Path %s is not a valid pathname" % args[1])
+            else:   
+                first = False         
+                for line in open(args[1]):
+                    line = line.split('#')[0].strip()
+                    if not line:
+                        continue
+                    if first:
+                        self.exec_cmd('generate %s' % line, precmd=True)
+                        first = False
+                    else:
+                        self.exec_cmd('add process %s' % line, precmd=True)
+                        
+                        
+                        
         elif args[0] == 'banner':
             type = madevent_interface.MadEventCmd.detect_card_type(args[1])
             if type != 'banner':
@@ -6834,7 +6856,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
         self.check_launch(args, options)
         options = options.__dict__
         # args is now MODE PATH
-
+        misc.sprint(args[0])
         if args[0].startswith('standalone'):
             if os.path.isfile(os.path.join(os.getcwd(),args[1],'Cards',\
               'MadLoopParams.dat')) and not os.path.isfile(os.path.join(\

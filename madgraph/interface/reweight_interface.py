@@ -66,7 +66,7 @@ class ReweightInterface(extended_cmd.Cmd):
     
     prompt = 'Reweight>'
     debug_output = 'Reweight_debug'
-    rwgt_dir_possibility = ['rw_me','rw_me_second','rw_mevirt','rw_mevirt_second']
+    #rwgt_dir_possibility = ['rw_me','rw_me_second','rw_mevirt','rw_mevirt_second']
     
     @misc.mute_logger()
     def __init__(self, event_path=None, allow_madspin=False, mother=None, *completekey, **stdin):
@@ -95,6 +95,7 @@ class ReweightInterface(extended_cmd.Cmd):
         self.f2pylib = {}
         self.second_model = None
         self.second_process = None
+        self.nb_library = 1
         self.dedicated_path = {}
         self.soft_threshold = None
         self.systematics = False # allow to run systematics in ouput2.0 mode
@@ -359,6 +360,7 @@ class ReweightInterface(extended_cmd.Cmd):
             if self.has_standalone_dir:
                 self.terminate_fortran_executables()
                 self.has_standalone_dir = False
+
             if args[-1] == "--add":
                 self.second_process.append(" ".join(args[1:-1]))
             else:
@@ -504,7 +506,7 @@ class ReweightInterface(extended_cmd.Cmd):
             path_me = self.me_dir 
             
         if self.second_model or self.second_process or self.dedicated_path:
-            rw_dir = pjoin(path_me, 'rw_me_second')
+            rw_dir = pjoin(path_me, 'rw_me_%s' % self.nb_library)
         else:
             rw_dir = pjoin(path_me, 'rw_me')
                 
@@ -564,7 +566,7 @@ class ReweightInterface(extended_cmd.Cmd):
             if self.output_type == "default":
                 for name in weight:
                     if 'orig' in name:
-                        continue             
+                        continue   
                     event.reweight_data['%s%s' % (tag_name,name)] = weight[name]
                     #write this event with weight
                 output.write(str(event))
@@ -581,7 +583,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     output[(tag_name,name)].write(str(new_evt))
 
         # check normalisation of the events:
-        if 'event_norm' in self.run_card:
+        if self.run_card and 'event_norm' in self.run_card:
             if self.run_card['event_norm'] in ['average','bias']:
                 for key, value in cross.items():
                     cross[key] = value / (event_nb+1)
@@ -630,7 +632,9 @@ class ReweightInterface(extended_cmd.Cmd):
             import madgraph.interface.madevent_interface as ME_interface
 
         self.lhe_input.close()
-        if not self.mother:
+        if self.output_path:
+            target = self.output_path
+        elif not self.mother:
             name, ext = self.lhe_input.name.rsplit('.',1)
             target = '%s_out.%s' % (name, ext)            
         elif self.output_type != "default" :
@@ -692,7 +696,7 @@ class ReweightInterface(extended_cmd.Cmd):
             path_me = self.me_dir 
             
         if self.second_model or self.second_process or self.dedicated_path:
-            rw_dir = pjoin(path_me, 'rw_me_second')
+            rw_dir = pjoin(path_me, 'rw_me_%s' % self.nb_library)
         else:
             rw_dir = pjoin(path_me, 'rw_me')
         
@@ -711,6 +715,9 @@ class ReweightInterface(extended_cmd.Cmd):
                 files.ln(ff.name, starting_dir=pjoin(path_me, 'rw_mevirt', 'Cards'))
             cmd = common_run_interface.CommonRunCmd.ask_edit_card_static(cards=['param_card.dat'],
                                    ask=self.ask, pwd=rw_dir, first_cmd=self.stored_line)
+            #misc.sprint(cmd.param_card.get_value('frblock', (30,)))
+            #cmd.param_card.write(pjoin(rw_dir, 'Cards', 'param_card.dat'))
+            
             self.stored_line = None
         
         # check for potential scan in the new card 
@@ -747,7 +754,6 @@ class ReweightInterface(extended_cmd.Cmd):
         if 'initrwgt' in self.banner and self.output_type == 'default': 
             if 'name=\'mg_reweighting\'' in self.banner['initrwgt']:
                 blockpat = re.compile(r'''<weightgroup name=\'mg_reweighting\'\s*weight_name_strategy=\'includeIdInWeightName\'>(?P<text>.*?)</weightgroup>''', re.I+re.M+re.S)
-                misc.sprint(blockpat, self.banner['initrwgt'])
                 before, content, after = blockpat.split(self.banner['initrwgt'])
                 header_rwgt_other = before + after
                 pattern = re.compile('<weight id=\'(?:rwgt_(?P<id>\d+)|(?P<id2>[_\w]+))(?P<rwgttype>\s*|_\w+)\'>(?P<info>.*?)</weight>', re.S+re.I+re.M)
@@ -845,8 +851,11 @@ class ReweightInterface(extended_cmd.Cmd):
         self.banner['initrwgt'] = self.banner['initrwgt'].replace('\n\n', '\n')
 
         logger.info('starts to compute weight for events with the following modification to the param_card:')
-        logger.info(card_diff.replace('\n','\nKEEP:'))
-        self.run_card = banner.Banner(self.banner).charge_card('run_card')
+        #logger.info(card_diff.replace('\n','\nKEEP:'))
+        try:
+            self.run_card = banner.Banner(self.banner).charge_card('run_card')
+        except Exception:
+            self.run_card = None
 
         if self.options['rwgt_name']:
             tag_name = self.options['rwgt_name']
@@ -857,7 +866,7 @@ class ReweightInterface(extended_cmd.Cmd):
         for (path,tag), module in self.f2pylib.items():
             with misc.chdir(pjoin(os.path.dirname(rw_dir), path)):
                 with misc.stdchannel_redirected(sys.stdout, os.devnull):
-                    if 'second' in path or tag == 3:
+                    if 'rw_me_' in path or tag == 3:
                         module.initialise(pjoin(rw_dir, 'Cards', 'param_card.dat'))
                     else:
                         module.initialise(pjoin(path_me, 'rw_me', 'Cards', 'param_card_orig.dat'))
@@ -984,6 +993,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 nhel = 0
             misc.sprint(nhel, Pdir, hel_dict)                        
             raise Exception, "Invalid matrix element for original computation (weight=0)"
+
 
         return {'orig': orig_wgt, '': w_new/w_orig*orig_wgt*jac}
      
@@ -1154,14 +1164,20 @@ class ReweightInterface(extended_cmd.Cmd):
         if (not self.second_model and not self.second_process and not self.dedicated_path) or hypp_id==0:
             orig_order, Pdir, hel_dict = self.id_to_path[tag]
         else:
-            orig_order, Pdir, hel_dict = self.id_to_path_second[tag] 
+            if tag in self.id_to_path_second:
+                orig_order, Pdir, hel_dict = self.id_to_path_second[tag]
+            else:
+                return 0.0 
             
         base = os.path.basename(os.path.dirname(Pdir))
-        if '_second' in base:
-            moduletag = (base, 2)
-        else:
+        if base == 'rw_me':
             moduletag = (base, 2+hypp_id)
+        else:
+            moduletag = (base, 2)
+    
+            
         
+    
         module = self.f2pylib[moduletag]
 
         p = event.get_momenta(orig_order)
@@ -1171,7 +1187,7 @@ class ReweightInterface(extended_cmd.Cmd):
         if self.helicity_reweighting and 9 not in hel_order:
             nhel = hel_dict[tuple(hel_order)]                
         else:
-            nhel = -1
+            nhel = -2
             
         # For 2>N pass in the center of mass frame
         #   - required for helicity by helicity re-weighitng
@@ -1187,10 +1203,29 @@ class ReweightInterface(extended_cmd.Cmd):
         p = self.invert_momenta(p)
         pdg = list(orig_order[0])+list(orig_order[1])
 
+
+#         sa_text = """
+# import allmatrix2py
+# allmatrix2py.initialise(\"%(path)s\")
+# pdg = %(pdg)s
+# p = %(p)s
+# aqcd  = %(as)s
+# scale2 = %(scale2)s
+# nhel = %(nhel)s
+# allmatrix2py.smatrixhel(pdg,p, aqcd, scale2, nhel)
+# """% {'path': pjoin(os.path.dirname(module.__file__),'..', 'Cards', 'param_card.dat'),
+#    'pdg': str(pdg),
+#    'p': str(p),
+#    'as':event.aqcd,
+#    'scale2':scale2,
+#    'nhel':nhel}
+#         misc.sprint(sa_text)
+
+        
         with misc.chdir(Pdir):
             with misc.stdchannel_redirected(sys.stdout, os.devnull):
                 me_value = module.smatrixhel(pdg,p, event.aqcd, scale2, nhel)
-                                
+               
         # for loop we have also the stability status code
         if isinstance(me_value, tuple):
             me_value, code = me_value
@@ -1198,7 +1233,7 @@ class ReweightInterface(extended_cmd.Cmd):
             hundred_value = (code % 1000) //100
             if hundred_value in [4]:
                 me_value = 0.
-            
+
         return me_value
     
     def terminate_fortran_executables(self, new_card_only=False):
@@ -1499,7 +1534,13 @@ class ReweightInterface(extended_cmd.Cmd):
             #self.id_to_path = {}
             #data['id2path'] = self.id_to_path
         else:
-            data['paths'] = ['rw_me_second', 'rw_mevirt_second']
+            for key in self.f2pylib.keys():
+                if 'rw_me_%s' % self.nb_library in key[0]:
+                    del self.f2pylib[key]
+                
+            
+            self.nb_library += 1
+            data['paths'] = ['rw_me_%s' % self.nb_library, 'rw_mevirt_%s' % self.nb_library]
             # model
             if self.second_model:
                 data['mg_names'] = True
@@ -1531,14 +1572,19 @@ class ReweightInterface(extended_cmd.Cmd):
         else:
             path_me = self.rwgt_dir
         data['path'] = path_me
-        try:
-            shutil.rmtree(pjoin(path_me,data['paths'][0]))
-        except Exception: 
-            pass
-        try:
-            shutil.rmtree(pjoin(path_me, data['paths'][1]))
-        except Exception: 
-            pass
+        for i in range(2):
+            pdir = pjoin(path_me,data['paths'][i])
+            if os.path.exists(pdir):
+                try:
+                    shutil.rmtree(pjoin(path_me,data['paths'][0]))
+                except Exception, error:
+                    misc.sprint(error) 
+                    pass                
+                
+                
+                    
+        
+
 
         # 1. prepare the interface----------------------------------------------
         mgcmd = self.mg5cmd
@@ -1686,12 +1732,16 @@ class ReweightInterface(extended_cmd.Cmd):
             path_me = self.me_dir
         else:
             path_me = self.rwgt_dir
-        for onedir in self.rwgt_dir_possibility:
+            
+        rwgt_dir_possibility =   ['rw_me','rw_me_%s' % self.nb_library,'rw_mevirt','rw_mevirt_%s' % self.nb_library]
+        for onedir in rwgt_dir_possibility:
             if not os.path.isdir(pjoin(path_me,onedir)):
                 continue
             pdir = pjoin(path_me, onedir, 'SubProcesses')
             if self.mother:
                 nb_core = self.mother.options['nb_core'] if self.mother.options['run_mode'] !=0 else 1
+            elif hasattr(self, 'nb_core'):
+                nb_core = self.nb_core
             else:
                 nb_core = 1
             os.environ['MENUM'] = '2'
@@ -1710,7 +1760,8 @@ class ReweightInterface(extended_cmd.Cmd):
         
         self.id_to_path = {}
         self.id_to_path_second = {}
-        for onedir in self.rwgt_dir_possibility:
+        rwgt_dir_possibility =   ['rw_me','rw_me_%s' % self.nb_library,'rw_mevirt','rw_mevirt_%s' % self.nb_library]
+        for onedir in rwgt_dir_possibility:
             if not os.path.exists(pjoin(path_me,onedir)):
                 continue 
             pdir = pjoin(path_me, onedir, 'SubProcesses')
@@ -1719,14 +1770,18 @@ class ReweightInterface(extended_cmd.Cmd):
                     mod_name = '%s.SubProcesses.allmatrix%spy' % (onedir, tag)
                     #mymod = __import__('%s.SubProcesses.allmatrix%spy' % (onedir, tag), globals(), locals(), [],-1)
                     if mod_name in sys.modules.keys():
+                        if 'rw_me_' in mod_name:
+                            raise Exception
                         del sys.modules[mod_name]
                         tmp_mod_name = mod_name
                         while '.' in tmp_mod_name:
                             tmp_mod_name = tmp_mod_name.rsplit('.',1)[0]
                             del sys.modules[tmp_mod_name]
-                        mymod = __import__(mod_name, globals(), locals(), [],-1)  
+                        mymod = __import__(mod_name, globals(), locals(), [],-1) 
+                        reload(mymod) 
                     else:
                         mymod = __import__(mod_name, globals(), locals(), [],-1)    
+                            
                     
                     S = mymod.SubProcesses
                     mymod = getattr(S, 'allmatrix%spy' % tag)
@@ -1739,8 +1794,10 @@ class ReweightInterface(extended_cmd.Cmd):
                     break
 
             data = self.id_to_path
-            if '_second' in onedir:
+            if onedir != "rw_me":
                 data = self.id_to_path_second
+
+            
 
             # get all the information
             all_pdgs = mymod.get_pdg_order()

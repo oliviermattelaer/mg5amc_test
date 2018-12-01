@@ -1652,7 +1652,6 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         # filepath can be overwritten during the run (leading to weird results)
         # Note also that we need a generator and not a list.
         for line in self.inputfile:
-            
             #remove pointless spaces and \n
             line = line.replace('\n', '').strip()
             # execute the line

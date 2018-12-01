@@ -5172,7 +5172,6 @@ class AskforEditCard(cmd.OneLinePathCompletion):
     def do_set(self, line):
         """ edit the value of one parameter in the card"""
         
-        
         args = self.split_arg(line)
         
         

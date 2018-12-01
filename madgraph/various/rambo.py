@@ -1,6 +1,7 @@
 from __future__ import division
 import math
 import random
+import madgraph.various.misc as misc
 
 class FortranList(list):
     
@@ -91,6 +92,12 @@ def RAMBO(N,ET,XM):
     V= FortranList(N)
     IWARN = [0,0]
 # Check input object
+    if isinstance(XM, list) and not isinstance(XM, FortranList):
+        tmp = FortranList(1, N)
+        for i,val in enumerate(XM):
+            tmp[i+1] = val
+        XM = tmp
+
     assert isinstance(XM, FortranList)
     assert XM.min == 1
     assert XM.max == N+1 
