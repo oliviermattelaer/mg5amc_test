@@ -1224,7 +1224,7 @@ class ReweightInterface(extended_cmd.Cmd):
         
         with misc.chdir(Pdir):
             with misc.stdchannel_redirected(sys.stdout, os.devnull):
-                me_value = module.smatrixhel(pdg,p, event.aqcd, scale2, nhel)
+                me_value = module.smatrixhel(pdg, event.ievent, p, event.aqcd, scale2, nhel)
                
         # for loop we have also the stability status code
         if isinstance(me_value, tuple):
@@ -1326,6 +1326,7 @@ class ReweightInterface(extended_cmd.Cmd):
         try:
             mgcmd.exec_cmd(commandline, precmd=True, errorhandling=False)
         except diagram_generation.NoDiagramException:
+            misc.sprint(commandline)
             commandline=''
             for proc in data['processes']:
                 if '[' not in proc:
@@ -1339,10 +1340,12 @@ class ReweightInterface(extended_cmd.Cmd):
                     nlo_order = nlo_order.replace('noborn', 'virt')
                 commandline += "add process %s [%s] %s;" % (base,nlo_order,post)
             commandline = commandline.replace('add process', 'generate',1)
-            logger.info("RETRY with %s", commandline)
-            mgcmd.exec_cmd(commandline, precmd=True)
-            has_nlo = False
+            if commandline:
+                logger.info("RETRY with %s", commandline)
+                mgcmd.exec_cmd(commandline, precmd=True)
+                has_nlo = False
         except Exception, error:
+            misc.sprint(type(error))
             raise
         
         commandline = 'output standalone_rw %s --prefix=int' % pjoin(path_me,data['paths'][0])
@@ -1801,7 +1804,9 @@ class ReweightInterface(extended_cmd.Cmd):
 
             # get all the information
             all_pdgs = mymod.get_pdg_order()
-            all_pdgs = [[pdg for pdg in pdgs if pdg!=0] for pdgs in  mymod.get_pdg_order()]
+            allids, all_pids = mymod.get_pdg_order()
+            all_pdgs = [[pdg for pdg in pdgs if pdg!=0] for pdgs in  allids]
+            #all_pids = [pid for (pdgs, pid) in  allids]
             all_prefix = [''.join(j).strip().lower() for j in mymod.get_prefix()]
             prefix_set = set(all_prefix)
 
@@ -1824,7 +1829,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     misc.sprint(os.path.exists(pjoin(path_me,onedir,'SubProcesses','MadLoop5_resources', '%sHelConfigs.dat' % prefix.upper())))
                     continue
 
-            for i,pdg in enumerate(all_pdgs):
+            for i,(pdg,pid) in enumerate(zip(all_pdgs,all_pids)):
                 if self.is_decay:
                     incoming = [pdg[0]]
                     outgoing = pdg[1:]

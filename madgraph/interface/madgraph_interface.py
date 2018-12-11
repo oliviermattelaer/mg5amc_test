@@ -6852,6 +6852,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
 
         args = self.split_arg(line)
         # check argument validity and normalise argument
+        print _launch_parser.print_help()
         (options, args) = _launch_parser.parse_args(args)
         self.check_launch(args, options)
         options = options.__dict__
