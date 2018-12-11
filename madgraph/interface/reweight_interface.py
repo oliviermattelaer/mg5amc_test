@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 ################################################################################
 #
 # Copyright (c) 2009 The MadGraph5_aMC@NLO Development team and Contributors
@@ -26,8 +27,11 @@ import time
 import subprocess
 from subprocess import Popen, PIPE, STDOUT
 
-
 pjoin = os.path.join
+if "__main__" == __name__:
+    local_path = os.path.dirname(os.path.realpath( __file__ ))
+    root_path = pjoin(local_path, '..','..')
+    sys.path.insert(0, root_path)
 
 import madgraph.interface.extended_cmd as extended_cmd
 import madgraph.interface.madgraph_interface as mg_interface
@@ -1961,10 +1965,111 @@ class ReweightInterface(extended_cmd.Cmd):
                     
         
         
-        
+if "__main__" == __name__:
+    # Check if optimize mode is (and should be) activated
+    import optparse
+    # Write out nice usage message if called with -h or --help
+    usage = "usage: %prog [options] [FILE] "
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option("-l", "--logging", default='INFO',
+                  help="logging level (DEBUG|INFO|WARNING|ERROR|CRITICAL) [%default]")
+    parser.add_option("-f", "--file", default='',
+                    help="Use script file FILE")
+    parser.add_option("-d", "--mgme_dir", default='', dest = 'mgme_dir',
+                  help="Use MG_ME directory MGME_DIR")
+    parser.add_option("","--debug", action="store_true", default=False, dest='debug', \
+                 help='force to launch debug mode')
+    (options, args) = parser.parse_args()
+    if len(args) == 0:
+        args = ''
+
+    if __debug__ and not options.debug and \
+    (not os.path.exists(os.path.join(root_path, 'bin','create_release.py'))):
+        subprocess.call([sys.executable] + ['-O'] + sys.argv)
+        sys.exit()
 
 
+    import logging
+    import logging.config
+    import madgraph.interface.coloring_logging
 
+    try:
+        import readline
+    except ImportError:
+        try:
+            import pyreadline as readline
+        except:
+            print "For tab completion and history, install module readline."
+    else:
+        import rlcompleter
 
+        if 'r261:67515' in sys.version and  'GCC 4.2.1 (Apple Inc. build 5646)' in sys.version:
+            readline.parse_and_bind("bind ^I rl_complete")
+            readline.__doc__ = 'libedit'
 
-        
+        elif hasattr(readline, '__doc__'):
+            if 'libedit' not in readline.__doc__:
+                readline.parse_and_bind("tab: complete")
+            else:
+                readline.parse_and_bind("bind ^I rl_complete")
+        else:
+            readline.__doc__ = 'GNU'
+            readline.parse_and_bind("tab: complete")
+
+    # charge history file
+    try:
+        history_file = os.path.join(os.environ['HOME'], '.mg5', 'rwgthistory')
+        readline.read_history_file(history_file)
+    except:
+        pass
+
+    try:
+        import psyco
+        psyco.full()
+    except:
+        pass
+
+    try:
+        if __debug__ and options.logging == 'INFO':
+            options.logging = 'DEBUG'
+        logging.config.fileConfig(os.path.join(root_path, 'madgraph', 'interface', '.mg5_logging.conf'))
+        logging.root.setLevel(eval('logging.' + options.logging))
+        logging.getLogger('madgraph').setLevel(eval('logging.' + options.logging))
+        logging.getLogger('madevent').setLevel(eval('logging.' + options.logging))
+    except:
+        pass
+
+    # Call the cmd interface main loop
+    try:
+        if options.file or args:
+            # They are an input file
+            if args:
+                input_file = os.path.realpath(args[0])
+            else:
+                input_file = os.path.realpath(options.file)
+            print "using input+file", input_file
+            cmd_line = ReweightInterface()
+            cmd_line.use_rawinput = False
+            cmd_line.haspiping = False
+            cmd_line.import_command_file(input_file)
+            cmd_line.run_cmd('quit')
+        else:
+            # Interactive mode
+            try:
+                cmd_line = ReweightInterface()
+                cmd_line.use_rawinput = True
+                cmd_line.cmdloop()
+            except:
+                pass
+        try:
+            cmd_line.exec_cmd('quit all', printcmd=False)
+            readline.set_history_length(100)
+            if not os.path.exists(os.path.join(os.environ['HOME'], '.mg5')):
+                os.mkdir(os.path.join(os.environ['HOME'], '.mg5'))
+            readline.write_history_file(history_file)
+        except Exception, error:
+            pass
+    except KeyboardInterrupt:
+        print 'writting history and quit on KeyboardInterrupt'
+        pass
+
