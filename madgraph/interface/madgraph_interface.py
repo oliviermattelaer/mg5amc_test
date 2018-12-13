@@ -3008,8 +3008,13 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
         standalone_only = False
         if '--standalone' in args:
             standalone_only = True
-            args.remove('--standalone')            
-
+            args.remove('--standalone')   
+            
+        allow_no_diagram = False         
+        if '--no_warning=nodiagram' in args:
+            allow_no_diagram = True
+            args.remove('--no_warning=nodiagram')
+            
         # Check the validity of the arguments
         self.check_add(args)
 
@@ -3098,13 +3103,18 @@ This implies that with decay chains:
                            self.options['ignore_six_quark_processes'] if \
                            "ignore_six_quark_processes" in self.options \
                            else []
-
-            myproc = diagram_generation.MultiProcess(myprocdef,
+            try:
+                myproc = diagram_generation.MultiProcess(myprocdef,
                                      collect_mirror_procs = collect_mirror_procs,
                                      ignore_six_quark_processes = ignore_six_quark_processes,
                                      optimize=optimize, diagram_filter=diagram_filter)
-
-
+            except diagram_generation.NoDiagramException:
+                if not allow_no_diagram:
+                    raise
+                else:
+                    logger.warning('no diagram generated. No error raised due to flag')
+                    return 
+                
             for amp in myproc.get('amplitudes'):
                 if amp not in self._curr_amps:
                     self._curr_amps.append(amp)
