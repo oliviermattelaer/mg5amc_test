@@ -2918,6 +2918,9 @@ RESTART = %(mint_mode)s
 
     def setup_cluster_or_multicore(self):
         """setup the number of cores for multicore, and the cluster-type for cluster runs"""
+        if hasattr(self, 'cluster'):
+            return
+
         if self.cluster_mode == 1:
             cluster_name = self.options['cluster_type']
             try:

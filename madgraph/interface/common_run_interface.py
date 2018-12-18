@@ -1009,7 +1009,8 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
         # This is passed to the Cluster instances and irrelevant for native madgraph applications
         # for which the job identifier is automatically adjusted. But it is useful for plugins
         # so that they can modify this behaviour.
-        self.cluster_jobs_identifier_specifier = None
+        if not hasattr(self, 'cluster_jobs_identifier_specifier'):
+            self.cluster_jobs_identifier_specifier = None
         
     def make_make_all_html_results(self, folder_names = [], jobs=[]):
         return sum_html.make_all_html_results(self, folder_names, jobs)
