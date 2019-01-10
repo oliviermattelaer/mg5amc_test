@@ -6646,6 +6646,7 @@ class AskforEditCard(cmd.OneLinePathCompletion):
 
         if card_name == 'unknown':
             logger.warning('Fail to determine the type of the file. Not copied')
+            return
         if card_name != 'banner':
             logger.info('copy %s as %s' % (pathname, card_name))
             files.cp(path, self.paths[card_name.rsplit('_',1)[0]])
