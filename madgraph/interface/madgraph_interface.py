@@ -5286,7 +5286,7 @@ This implies that with decay chains:
             if not os.path.isfile(args[1]):
                 raise self.InvalidCmd("Path %s is not a valid pathname" % args[1])
             else:   
-                first = False         
+                first = True         
                 for line in open(args[1]):
                     line = line.split('#')[0].strip()
                     if not line:

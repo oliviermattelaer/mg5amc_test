@@ -272,6 +272,10 @@ class Switcher(object):
 
     def do_import(self, *args, **opts):
         self.cmd.do_import(self, *args, **opts)
+        line = args[0]
+        import_mode = args[0].split()[0]
+        if import_mode in self._import_formats and not import_mode.startswith('model'):
+            return
         if self._curr_model:
             if isinstance(self._curr_model, loop_base_objects.LoopModel) and \
                self._curr_model['perturbation_couplings']!=[] and \
@@ -609,6 +613,7 @@ class MasterCmd(Switcher, LoopCmd.LoopInterface, amcatnloCmd.aMCatNLOInterface, 
                             %','.join(interface_quick_name.keys()))
         
     def change_principal_cmd(self, name):
+
 
         old_cmd=self.current_interface
         if name in self.interface_names.keys():
