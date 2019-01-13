@@ -470,6 +470,17 @@ class ReweightInterface(extended_cmd.Cmd):
 
         model_line = self.banner.get('proc_card', 'full_model_line')
 
+        if not self.mother and not hasattr(self, 'output'):
+            name, ext = self.lhe_input.name.rsplit('.',1)
+            target = '%s_out.%s' % (name, ext)
+            
+            if os.path.exists(target) and os.path.getmtime(target) > os.path.getmtime(self.lhe_input.name):
+                nb_launch = len([1 for l in self.history if l.strip().startswith('launch')])
+                if nb_launch > 1:
+                    files.mv(target, self.lhe_input.name)
+                    self.exec_cmd('import %s' % self.lhe_input.name)
+
+
         if not self.has_standalone_dir:                           
             if self.rwgt_dir and os.path.exists(pjoin(self.rwgt_dir,'rw_me','rwgt.pkl')):
                 self.load_from_pickle()
@@ -636,7 +647,7 @@ class ReweightInterface(extended_cmd.Cmd):
             import madgraph.interface.madevent_interface as ME_interface
 
         self.lhe_input.close()
-        if self.output_path:
+        if hasattr(self, 'output_path'):
             target = self.output_path
         elif not self.mother:
             name, ext = self.lhe_input.name.rsplit('.',1)
@@ -645,7 +656,7 @@ class ReweightInterface(extended_cmd.Cmd):
             target = pjoin(self.mother.me_dir, 'Events', run_name, 'events.lhe')
         else:
             target = self.lhe_input.name
-        
+            
         if self.output_type == "default":
             files.mv(output.name, target)
             logger.info('Event %s have now the additional weight' % self.lhe_input.name)
