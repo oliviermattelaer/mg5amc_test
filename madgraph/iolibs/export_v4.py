@@ -5701,8 +5701,14 @@ class UFO_model_to_mg4(object):
         else:
             load_card = ''
             lha_read_filename='lha_read.f'
-        cp( MG5DIR + '/models/template_files/fortran/' + lha_read_filename, \
-                                       os.path.join(self.dir_path,'lha_read.f'))
+        
+        nb_para= len(self.params_dep + self.params_indep + self.params_ext)
+        template = pjoin(MG5DIR, 'models', 'template_files', 'fortran', lha_read_filename)
+        open(os.path.join(self.dir_path,'lha_read.f'),'w').write(
+            open(template).read() % {'maxpara':nb_para}) 
+        
+        #cp( MG5DIR + '/models/template_files/fortran/' + lha_read_filename, \
+        #                               os.path.join(self.dir_path,'lha_read.f'))
         
         file=file%{'includes':'\n      '.join(includes),
                    'load_card':load_card}
