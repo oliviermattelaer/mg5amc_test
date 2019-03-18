@@ -93,7 +93,7 @@ c others: same as 1 (for now)
       integer kdim,kint,kpoint,nit,ncalls,iret,nintcurr,nintcurr_virt
      $     ,ifirst,nit_included,kpoint_iter,non_zero_point(nintegrals)
      $     ,ntotcalls(nintegrals),nint_used,nint_used_virt,min_it,np
-     &     ,k_ord_virt,ithree,isix
+     &     ,k_ord_virt,ithree,isix,pass_cuts_point
       integer              n_ord_virt
       common /c_n_ord_virt/n_ord_virt
       real * 8 ran3
@@ -324,6 +324,7 @@ c Reset the accumulated results for grid updating
       do i=1,nintegrals
          non_zero_point(i)=0
       enddo
+      pass_cuts_point=0
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c Loop over PS points
  2    kpoint_iter=kpoint_iter+1
@@ -459,6 +460,7 @@ c included.
          do i=1,nintegrals
             if (f(i).ne.0d0) non_zero_point(i)=non_zero_point(i)+1
          enddo
+         if (pass_cuts_check) pass_cuts_point=pass_cuts_point+1
 c Add the PS point to the result of this iteration
          do i=1,nintegrals
             vtot(i,ichan)=vtot(i,ichan)+f(i)
@@ -473,20 +475,31 @@ c Special for the computation of the 'computed virtual'
          if (i.eq.4 .and. non_zero_point(i).ne.0 )
      &        ntotcalls(i) = non_zero_point(i)
       enddo
-      if (ntotcalls(1).gt.max_points .and. non_zero_point(1).lt.25 .and.
+      if (ntotcalls(1).gt.max_points .and. pass_cuts_point.lt.25 .and.
      &     double_events) then
+C Not enough points passed the cuts: give an error message
+         write (*,*) 'ERROR: NOT ENOUGH POINTS PASS THE CUTS. ' /
+     &        / 'RESULTS CANNOT BE TRUSTED. ' /
+     &        / 'LOOSEN THE GENERATION CUTS, OR ADAPT SET_TAU_MIN()' /
+     &        / ' IN SETCUTS.F ACCORDINGLY.'
+         stop 1
+      endif
+      if (ntotcalls(1).gt.max_points .and. non_zero_point(1).lt.25 .and.
+     &     double_events .and.
+     &     ( (nit.eq.1 .and. ichan.eq.nchans) .or. nit.gt.1 )  ) then
 C zero cross-section: warn the user in the log, but print everything
 C and save files/grids as any other run
          write (*,*) 'ERROR: INTEGRAL APPEARS TO BE ZERO.'
          write (*,*) 'TRIED',ntotcalls(1),'PS POINTS AND ONLY '
      &        ,non_zero_point(1),' GAVE A NON-ZERO INTEGRAND.'
          call close_run_zero_res(ncalls0, nitmax, ndim)
-         stop 
+         stop 1
       endif
 c Goto beginning of loop over PS points until enough points have found
 c that pass cuts.
-      if (non_zero_point(1).lt.int(0.99*ncalls)
-     &                        .and. double_events) goto 2
+      if ((((non_zero_point(1).lt.int(0.99*ncalls).and. nit.gt.1) .or.
+     &     (non_zero_point(1).lt.int(0.99*ncalls*ichan).and. nit.eq.1))
+     &    .and. double_events ) .and. ntotcalls(1).lt.max_points) goto 2
 c This is the loop over all the channels for the very first iteration.
       if (imode.eq.0 .and. nit.eq.1 .and. double_events) then
          do kchan=nchans,1,-1
@@ -502,8 +515,9 @@ c This is the loop over all the channels for the very first iteration.
                ans_chan(kchan+1)=1d0
                do i=1,nintegrals
                   ntotcalls(i)=0
-                  non_zero_point(i)=0
+c                  non_zero_point(i)=0 ! don't set this to zero
                enddo
+               pass_cuts_point=0
                kpoint_iter=0
                goto 2
             endif
@@ -829,7 +843,7 @@ c Double the number of intervals in the grids if not yet reach the maximum
          do kchan=1,nchans
             do kdim=1,ndim
                call double_grid(xgrid(0,kdim,kchan),nhits(1,kdim,kchan)
-     $              ,nint_used)
+     $              ,xacc(0,kdim,kchan),nint_used)
             enddo
          enddo
          nint_used=2*nint_used
@@ -854,17 +868,24 @@ c Do next iteration
      $     ,e10.4)
       end
 
-      subroutine double_grid(xgrid,nhits,ninter)
+      subroutine double_grid(xgrid,nhits,xacc,ninter)
       implicit none
       include "mint.inc"
       integer  ninter,nhits(nintervals)
-      real * 8 xgrid(0:nintervals)
+      real * 8 xgrid(0:nintervals),xacc(0:nintervals)
       integer i
       do i=ninter,1,-1
          xgrid(i*2)=xgrid(i)
          xgrid(i*2-1)=(xgrid(i)+xgrid(i-1))/2d0
          nhits(i*2)=nhits(i)/2
          nhits(i*2-1)=nhits(i)-nhits(i*2)
+         if (nhits(i).ne.0) then
+            xacc(i*2)=xacc(i)*nhits(i*2)/dble(nhits(i))
+            xacc(i*2-1)=xacc(i)*nhits(i*2-1)/dble(nhits(i))
+         else
+            xacc(i*2)=0d0
+            xacc(i*2-1)=0d0
+         endif
       enddo
       return
       end

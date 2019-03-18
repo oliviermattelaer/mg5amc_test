@@ -399,13 +399,14 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
         
         text=''
         for i,e in enumerate(initial_states):
-            if len(e) ==1:
-                e.append(0)
             text=text+str(i+1)+' '+str(len(e))
             for t in e:
+                if len(t) ==1:
+                    t.append(0)
                 text=text+'   '
                 try:
                     for p in t:
+                        if p == None : p = 0
                         text=text+' '+str(p)
                 except TypeError:
                         text=text+' '+str(t)
@@ -2801,11 +2802,17 @@ Parameters              %(params)s\n\
                 if col != 1:
                     fks_j = cpos+1
             # if no colored leg exist, look for a charged leg
-            for cpos, chg in enumerate(charges[:-1]):
-                if chg != 0.:
-                    fks_j = cpos+1
+            if fks_j == 0:
+                for cpos, chg in enumerate(charges[:-1]):
+                    if chg != 0.:
+                        fks_j = cpos+1
             # no coloured or charged particle found. Pick the final particle in the (Born) process
             if fks_j==0: fks_j=len(colors)-1    
+
+            # this is special for 2->1 processes: j must be picked initial
+            # keep in mind that colors include the fake extra particle
+            if len(colors) == 4:
+                fks_j = 2
 
             replace_dict['fks_i_values'] = str(fks_i)
             replace_dict['fks_j_values'] = str(fks_j)
@@ -3098,7 +3105,7 @@ Parameters              %(params)s\n\
         for iconf, configs in enumerate(s_and_t_channels):
             for vertex in configs[0] + configs[1][:-1]:
                 leg = vertex.get('legs')[-1]
-                if leg.get('id') == 21 and 21 not in particle_dict:
+                if leg.get('id') not in particle_dict:
                     # Fake propagator used in multiparticle vertices
                     mass = 'zero'
                     width = 'zero'

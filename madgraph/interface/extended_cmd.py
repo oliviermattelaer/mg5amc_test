@@ -1324,11 +1324,12 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
             except Exception:
                 pass
             
-
-        if hasattr(self, 'options') and 'crash_on_error' in self.options and \
-                                                self.options['crash_on_error']:
-            logger.info('stop computation due to crash_on_error=True')
-            sys.exit(str(error))
+        if hasattr(self, 'options') and 'crash_on_error' in self.options:
+            if self.options['crash_on_error'] is True:
+                logger.info('stop computation due to crash_on_error=True')
+                sys.exit(str(error))
+            elif self.options['crash_on_error'] == 'never':
+                return False
             
         #stop the execution if on a non interactive mode
         if self.use_rawinput == False or self.inputfile:
@@ -1348,6 +1349,7 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
     def nice_user_error(self, error, line):
         if self.child:
             return self.child.nice_user_error(error, line)
+
         # Make sure that we are at the initial position
         os.chdir(self.__initpos)
         if not self.history or line == self.history[-1]:
@@ -1359,10 +1361,13 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
                                                 str(error).replace('\n','\n\t'))
         logger_stderr.error(error_text)
         
-        if hasattr(self, 'options') and 'crash_on_error' in self.options and \
-                                                self.options['crash_on_error']:
-            logger.info('stop computation due to crash_on_error=True')
-            sys.exit(str(error))
+        if hasattr(self, 'options') and 'crash_on_error' in self.options:
+            if self.options['crash_on_error'] is True:
+                logger.info('stop computation due to crash_on_error=True')
+                sys.exit(str(error))
+            elif self.options['crash_on_error'] == 'never':
+                self.history.pop()
+                return False
 
         #stop the execution if on a non interactive mode
         if self.use_rawinput == False or self.inputfile:
@@ -1381,6 +1386,7 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
     def nice_config_error(self, error, line):
         if self.child:
             return self.child.nice_user_error(error, line)
+
         # Make sure that we are at the initial position                                 
         os.chdir(self.__initpos)
         if not self.history or line == self.history[-1]:
@@ -1402,10 +1408,17 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
             self.do_display('options', debug_file)
         except Exception, error:
             debug_file.write('Fail to write options with error %s' % error)
-        if hasattr(self, 'options') and 'crash_on_error' in self.options and \
-                                                self.options['crash_on_error']:
-            logger.info('stop computation due to crash_on_error=True')
-            sys.exit(str(error))
+            
+        if hasattr(self, 'options') and 'crash_on_error' in self.options:
+            if self.options['crash_on_error'] is True:
+                logger.info('stop computation due to crash_on_error=True')
+                sys.exit(str(error))
+            elif self.options['crash_on_error'] == 'never':
+                if self.history:
+                    self.history.pop()
+                return False
+            
+
         
         #stop the execution if on a non interactive mode
         if self.use_rawinput == False or self.inputfile:
@@ -1491,9 +1504,9 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
                 self.nice_config_error(error, line)
             logger.error(self.keyboard_stop_msg)
 
-        
         if stop:
             self.do_quit('all')
+        return stop
         
 
 
@@ -1503,7 +1516,7 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         try:
             return self.onecmd_orig(line, **opt)
         except BaseException, error: 
-            self.error_handling(error, line)
+            return self.error_handling(error, line)
             
     
     def stop_on_keyboard_stop(self):
@@ -1525,7 +1538,9 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
             current_interface = self
         if precmd:
             line = current_interface.precmd(line)
-        if errorhandling:
+        if errorhandling or \
+            (hasattr(self, 'options') and 'crash_on_error' in self.options and 
+             self.options['crash_on_error']=='never'):
             stop = current_interface.onecmd(line, **opt)
         else:
             stop = Cmd.onecmd_orig(current_interface, line, **opt)
@@ -1623,6 +1638,7 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         if self.history:
             self.history.pop()
         
+
         #avoid that command of other file interfere with this one.
         previous_store_line = self.get_stored_line()
         
@@ -1639,6 +1655,7 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         # filepath can be overwritten during the run (leading to weird results)
         # Note also that we need a generator and not a list.
         for line in self.inputfile:
+            
             #remove pointless spaces and \n
             line = line.replace('\n', '').strip()
             # execute the line
@@ -2626,6 +2643,13 @@ class ControlSwitch(SmartQuestion):
 
     def postcmd(self, stop, line):
         
+        # for diamond class arch where both branch defines the postcmd
+        # set it up to be in coop mode
+        try:
+            out = super(ControlSwitch,self).postcmd(stop, line)
+        except AttributeError:
+            pass
+        
         line = line.strip()
         if ';' in line:
             line= [l for l in line.split(';') if l][-1] 
@@ -2683,6 +2707,7 @@ class ControlSwitch(SmartQuestion):
         
     def check_consistency(self, key, value):
         """check the consistency of the new flag with the old ones"""
+        
         
         if key in self.last_changed:
             self.last_changed.remove(key)
@@ -3075,7 +3100,6 @@ class ControlSwitch(SmartQuestion):
                           lpotential_switch+9,
                           max(2*lpotential_switch+3,lswitch)-lpotential_switch+len_switch, ladd_info-5)
         
-        
         return upper, lower, f1, f2
                 
     def create_question(self, help_text=True):
@@ -3122,12 +3146,13 @@ class ControlSwitch(SmartQuestion):
         upper_line, lower_line, f1, f2 = self.question_formatting(nb_col, max_len_description, max_len_switch, 
                                          max_len_name, max_len_add_info, 
                                          max_len_potential_switch, max_nb_key)
+        f3 = 0 #formatting for hidden line
         
         text = \
         ["The following switches determine which programs are run:",
          upper_line
         ]                     
-        
+
 
         
         for i,(key, descrip) in enumerate(self.to_control):
@@ -3144,10 +3169,12 @@ class ControlSwitch(SmartQuestion):
                            'strike_switch': u'\u0336'.join(' %s ' %self.switch[key].upper()) + u'\u0336',
                            }
             
+            hidden_line = False
             if __debug__ and key in self.hide_line:
-                data_to_format['descrip'] = '\x1b[34m%s\x1b[0m' % data_to_format['descrip']
-                data_to_format['add_info'] = '\x1b[34m%s\x1b[0m' % data_to_format['add_info']
-                data_to_format['name'] = '\x1b[34m%s\x1b[0m' % data_to_format['name']
+                data_to_format['descrip'] = '\x1b[32m%s\x1b[0m' % data_to_format['descrip']
+                data_to_format['add_info'] = '\x1b[32m%s\x1b[0m' % data_to_format['add_info']
+                data_to_format['name'] = '\x1b[32m%s\x1b[0m' % data_to_format['name']
+                hidden_line=True
                 
             if key in self.inconsistent_keys:
                 # redefine the formatting here, due to the need to know the conflict size
@@ -3158,7 +3185,18 @@ class ControlSwitch(SmartQuestion):
                 
                 data_to_format['conflict_switch_nc'] = self.inconsistent_keys[key]
                 data_to_format['conflict_switch'] = self.color_for_value(key,self.inconsistent_keys[key], consistency=False)
+                
+                if hidden_line: 
+                    f2 = re.sub('%(\((?:name|descrip|add_info)\)-?)(\d+)s', 
+                                lambda x: '%%%s%ds' % (x.group(1),int(x.group(2))+9),
+                                 f2)
                 text.append(f2 % data_to_format)
+            elif hidden_line:
+                if not f3:
+                    f3 = re.sub('%(\((?:name|descrip|add_info)\)-?)(\d+)s', 
+                                lambda x: '%%%s%ds' % (x.group(1),int(x.group(2))+9),
+                                 f1)
+                text.append(f3 % data_to_format)
             else:
                 text.append(f1 % data_to_format)
 

@@ -384,7 +384,7 @@ class Systematics(object):
                     misc.gzip(to_check) 
                 else:
                     import shutil
-                    shutil.move(self.output.name, self.output_path)
+                    shutil.move(to_check, self.output_path)
         
         return all_cross
         
@@ -832,7 +832,6 @@ class Systematics(object):
             loinfo['pdf_q2'] = loinfo['pdf_q2'] [:-1] + [mur]
             
         
-        
         # MUR part
         if self.b1 == 0 == self.b2:
             if loinfo['n_qcd'] != 0:
@@ -885,6 +884,7 @@ class Systematics(object):
             for onewgt in cevent.wgts:
                 if not __debug__ and (dyn== -1 and Dmur==1 and Dmuf==1 and pdf==self.orig_pdf):
                     wgt += onewgt.ref_wgt 
+                    continue
                 
                 if dyn == -1:
                     mur2 = onewgt.scales2[1]
