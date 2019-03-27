@@ -24,6 +24,7 @@ maxprint     = 2      # N evts to print in the log
 maxerrs      = 0.1    # max fraction of errors
 rnd_seed     = 0      # 1st random seed (0 = default)
 rnd_seed2    = 0      # 2nd random seed (0 = default) !ONLY FOR HWERIG6!
+fifoPipe     = F      # write to hepmc.fifo pipe !ONLY FOR PYTHIA8!
 #***********************************************************************
 # PDFs and non-perturbative modelling                                  *
 #***********************************************************************
