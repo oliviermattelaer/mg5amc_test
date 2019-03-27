@@ -3878,6 +3878,13 @@ RESTART = %(mint_mode)s
         else:
             arg_list = [[shower, out_id, self.run_name]]
 
+###
+###
+        if fifoFlag:
+            print test
+            self.update_status('Run complete', level='shower', update_results=True)
+            return
+            
         self.run_all({rundir: 'shower.sh'}, arg_list, 'shower')
         self.njobs = 1
         self.wait_for_complete('shower')
