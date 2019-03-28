@@ -2117,7 +2117,7 @@ c folds).
       integer ifold_counter,i,ifold_picked
       double precision showerscale
       logical improved_scale_choice
-      parameter (improved_scale_choice=.false.)
+      parameter (improved_scale_choice=.true.)
       if (icontr.eq.0) return
       if (.not. improved_scale_choice) then
          call update_shower_scale_Sevents_v1(ifold_counter,showerscale
