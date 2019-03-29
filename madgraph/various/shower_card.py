@@ -33,10 +33,10 @@ class ShowerCard(dict):
     logical_vars = ['ue_enabled', 'hadronize', 'b_stable', 'pi_stable', 'wp_stable', 
                     'wm_stable', 'z_stable', 'h_stable', 'tap_stable', 'tam_stable', 
                     'mup_stable', 'mum_stable', 'is_4lep', 'is_bbar', 'combine_td']
-    string_vars = ['extralibs', 'extrapaths', 'includepaths', 'analyse']
+    string_vars = ['extralibs', 'extrapaths', 'includepaths', 'analyse','fifopath']
     for i in range(1,100):
         string_vars.append('dm_'+str(i))
-    int_vars = ['nsplit_jobs', 'maxprint', 'nevents', 'pdfcode', 'rnd_seed', 'rnd_seed2', 'njmax']
+    int_vars = ['nsplit_jobs', 'maxprint', 'nevents', 'pdfcode', 'rnd_seed', 'rnd_seed2', 'njmax', 'fifo_pipe']
     float_vars = ['maxerrs', 'lambda_5', 'b_mass', 'qcut']
 
     # names_dict has the following structure:
