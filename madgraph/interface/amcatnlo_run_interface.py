@@ -3878,16 +3878,126 @@ RESTART = %(mint_mode)s
         else:
             arg_list = [[shower, out_id, self.run_name]]
 
-###
-###
-        if fifoFlag:
-            print test
-            self.update_status('Run complete', level='shower', update_results=True)
-            return
-            
-        self.run_all({rundir: 'shower.sh'}, arg_list, 'shower')
-        self.njobs = 1
-        self.wait_for_complete('shower')
+
+
+        # fifoPipe:
+        if shower == 'PYTHIA8' and self.shower_card['fifo_pipe'] != 0:
+            hepmcFifo = ''
+            # open fifo pipe
+            if self.shower_card['fifo_pipe'] == -1:
+                if self.shower_card['fifopath']:
+                    hepmcFifo = self.shower_card['fifopath']
+                    # do not crash if unwittingly forget the default path name for Pythia8.hep
+                    # otherwise, direct PY8 output in $rundir to hepmcFifo via PY8.hep
+                    if hepmcFifo == 'Pythia8.hep':
+                        hepmcFifo = pjoin(rundir,hepmcFifo)
+                    else:
+                        os.symlink(hepmcFifo,pjoin(rundir,'Pythia8.hep'))
+                    # does fifo_pipe already exists?
+                    try:
+                        os.mkfifo(hepmcFifo)
+                    except OSError, IOError:
+                        logger.info('fifo_pipe already exists; will not overwrite')
+                else:
+                    hepmcFifo = pjoin(rundir,'Pythia8.hep') 
+                    try:
+                        os.mkfifo(hepmcFifo)
+                    except OSError, IOError:
+                        logger.info('fifo_pipe already exists; will not overwrite')
+
+                logger.info('Steering PY8 to open fifo pipe at %s' % hepmcFifo)
+                logger.info('WARNING: Starting PY8; will not progress/finish unless fifo is read or stopped by user.')
+                with misc.TMP_variable(self, 'cluster', cluster.onecore):
+                    # needed to avoid rewriting file names by shower.sh
+                    fifo_list = arg_list[0]
+                    fifo_list[0] = fifo_list[0]+'fifo'
+                    self.run_exe('shower.sh',fifo_list,'shower', rundir)
+                    self.wait_for_complete('shower')
+                    self.update_status('Run complete', level='shower', update_results=True)
+                    return
+
+            # default to MA5 fifo pipe if not an open fifo pine
+            else:
+                hepmcFifo = pjoin(rundir,'Pythia8.hep')
+                logger.info('Default fifo steering of PY8 to fifo pipe for MA5 pipe at %s' % hepmcFifo)  
+                os.mkfifo(hepmcFifo)
+                os.symlink(hepmcFifo,pjoin(rundir,'Pythia8.hepmc.fifo'))
+
+                if not self.options['madanalysis5_path'] :
+                    logger.info('Please install/link to madanalysis5; madanalysis5_path = %s ; exiting.' % self.options['madanalysis5_path'])
+                    self.update_status('Run complete', level='shower', update_results=True)
+                    return
+
+                # link/copy ma5 objects to py8 directory
+                os.symlink(pjoin(self.options['madanalysis5_path'], 'bin', 'ma5'), pjoin(rundir, 'ma5')) 
+                ma5Card= 'madanalysis5_hadron_card.dat'
+                try:
+                    shutil.copy2(pjoin(self.me_dir,'Cards',ma5Card),rundir)
+                except:
+                    logger.info('%s does not exist; trying default.' % ma5Card)
+                    ma5CardTmp = 'madanalysis5_hadron_card_default.dat'
+                    try:
+                        shutil.copy2(pjoin(self.me_dir,'Cards',ma5CardTmp),pjoin(self.me_dir,'Cards',ma5Card))
+                        shutil.copy2(pjoin(self.me_dir,'Cards',ma5Card),rundir)
+                    except:
+                        logger.info('%s does not exist either; building one.' % ma5CardTmp)
+                        tmpMA5 = '# Usage: $ ./bin/ma5 -Rfs'+ma5Card+'\n\n'+\
+                            '# Set fastjet algo\n'+\
+                            'set main.fastsim.package   = fastjet\n'+\
+                            'set main.fastsim.algorithm = antikt\n'+\
+                            'set main.fastsim.radius    =  1.0\n'+\
+                            'set main.fastsim.ptmin     =  5.0\n'+\
+                            '#set main.fastsim.exclusive_id = false\n\n'+\
+                            '# set bjet ID\n'+\
+                            'set main.fastsim.bjet_id.efficiency  = 1.0\n'+\
+                            'set main.fastsim.bjet_id.matching_dr = 1.0\n'+\
+                            'set main.fastsim.bjet_id.misid_ljet  = 0.0\n'+\
+                            'set main.fastsim.bjet_id.misid_cjet  = 0.0\n\n'+\
+                            '# set tau ID\n'+\
+                            'set main.fastsim.tau_id.efficiency = 1.0\n'+\
+                            'set main.fastsim.tau_id.misid_ljet = 0.0\n\n'+\
+                            '# import data sets\n'+\
+                            'import Pythia8.hepmc.fifo\n\n'+\
+                            '# output\n'+\
+                            'set main.outputfile = "'+self.run_card['run_tag']+'.lhe"\n'+\
+                            'submit '+self.run_card['run_tag'].capitalize()+'\n'
+                        ma5Run = open(pjoin(self.me_dir,'Cards',ma5CardTmp),"a")
+                        ma5Run.write(tmpMA5)
+                        ma5Run.close()
+                        shutil.copy2(pjoin(self.me_dir,'Cards',ma5CardTmp),pjoin(self.me_dir,'Cards',ma5Card))
+                        shutil.copy2(pjoin(self.me_dir,'Cards',ma5Card),rundir)
+
+                # start py8 and run in background
+                logger.info('Starting PY8')                
+                with misc.TMP_variable(self, 'cluster', cluster.onecore):
+                    # needed to avoid rewriting file names by shower.sh
+                    fifo_list = arg_list[0]
+                    fifo_list[0] = fifo_list[0]+'fifo'
+                    self.run_exe('shower.sh',fifo_list,'shower', rundir)
+                    # PY8 needs lead time to fill pipe;
+                    # will crash if MA5 accesses too soon.
+                    # In future, check fifo_pipe status
+                    time.sleep(5)
+
+                    # start ma5 and finish showering process only when ma5 is done
+                    os.chdir(rundir)
+                    ma5CMD = ''
+                    if self.shower_card['fifo_pipe'] == 2:
+                        ma5CMD = './ma5 -fs '+ma5Card+' > ma5_'+self.run_card['run_tag']+'.log' 
+                        logger.info('Starting MA5 in only ANALYSIS mode with %s' % ma5CMD)
+                    else:
+                        ma5CMD = './ma5 -Rfs '+ma5Card+' > ma5_'+self.run_card['run_tag']+'.log'
+                        logger.info('Starting MA5 RECO mode with %s' % ma5CMD)
+                    os.system(ma5CMD)
+                    os.chdir(self.me_dir)
+                    self.update_status('Run complete', level='shower', update_results=True)
+                    return
+
+        # no PY8 fifo pipe
+        else:
+            self.run_all({rundir: 'shower.sh'}, arg_list, 'shower')
+            self.njobs = 1
+            self.wait_for_complete('shower')
 
         # now collect the results
         message = ''
@@ -4685,6 +4795,7 @@ RESTART = %(mint_mode)s
         
         self.wait_for_complete(run_type)
 
+    
 
 
     def check_event_files(self,jobs):
