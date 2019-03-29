@@ -35,7 +35,7 @@ fi
 if [ "$SHOWER" == "HERWIG6" ] || [ "$SHOWER" == "PYTHIA6Q" ] || [ "$SHOWER" == "PYTHIA6PT" ] || [ "$SHOWER" == "HERWIGPP" ] ; then
     ./MCATNLO_$SHOWER\_EXE < MCATNLO_$SHOWER\_input > mcatnlo_run.log 2>&1
 
-elif [ "$SHOWER" == "PYTHIA8" ] ; then
+elif [ "$SHOWER" == "PYTHIA8" ] || [ "$SHOWER" == "PYTHIA8fifo" ] ; then
     if [ -f config.sh ] ; then source config.sh ; fi
     ./Pythia8.exe Pythia8.cmd > mcatnlo_run.log 2>&1
 fi
