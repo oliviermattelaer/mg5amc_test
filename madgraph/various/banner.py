@@ -689,13 +689,20 @@ def recover_banner(results_object, level, run=None, tag=None):
         try:    
             _tag = results_object[run].tags[-1] 
         except Exception,error:
-            return Banner()      
+            if os.path.exists( pjoin(results_object.path,'Events','%s_banner.txt' % (run))):
+                tag = None
+            else:
+                return Banner()      
     else:
         _tag = tag
-                                          
-    path = results_object.path
-    banner_path = pjoin(path,'Events',run,'%s_%s_banner.txt' % (run, tag))
     
+    if tag:        
+        path = results_object.path
+        banner_path = pjoin(path,'Events',run,'%s_%s_banner.txt' % (run, tag))
+    else:
+        banner_path = pjoin(results_object.path,'Events','%s_banner.txt' % (run))
+    
+        
     if not os.path.exists(banner_path):
         if level != "parton" and tag != _tag:
             return recover_banner(results_object, level, _run, results_object[_run].tags[0])
@@ -715,6 +722,7 @@ def recover_banner(results_object, level, run=None, tag=None):
 
         # security if the banner was remove (or program canceled before created it)
         return Banner()  
+    
     banner = Banner(banner_path)
     
     
@@ -2747,8 +2755,26 @@ class RunCardLO(RunCard):
 #
 """, 
     template_off= '# Syscalc is deprecated but to see the associate options type\'update syscalc\''),
-    ]
-    
+
+#    ECUT block (hidden it by default but for e+ e- collider)             
+        runblock(name='ecut', fields=('ej','eb','ea','el','ejmax','ebmax','eamax','elmax','e_min_pdg','e_max_pdg'),
+              template_on=\
+"""#*********************************************************************
+# Minimum and maximum E's (in the center of mass frame)              *
+#*********************************************************************
+  %(ej)s  = ej     ! minimum E for the jets
+  %(eb)s  = eb     ! minimum E for the b
+  %(ea)s  = ea     ! minimum E for the photons
+  %(el)s  = el     ! minimum E for the charged leptons
+  %(ejmax)s   = ejmax ! maximum E for the jets
+ %(ebmax)s   = ebmax ! maximum E for the b
+ %(eamax)s   = eamax ! maximum E for the photons
+ %(elmax)s   = elmax ! maximum E for the charged leptons
+ %(e_min_pdg)s = e_min_pdg ! E cut for other particles (use pdg code). Applied on particle and anti-particle
+ %(e_max_pdg)s = e_max_pdg ! E cut for other particles (syntax e.g. {6: 100, 25: 50})
+""", 
+    template_off= '#\n# For display option for energy cut in the partonic center of mass frame type \'update ecut\'\n#'),
+    ]    
     
     
     def default_setup(self):
@@ -2759,7 +2785,7 @@ class RunCardLO(RunCard):
         self.add_param("time_of_flight", -1.0, include=False)
         self.add_param("nevents", 10000)        
         self.add_param("iseed", 0)
-        self.add_param("python_seed", -1, include=False, hidden=True, comment="controlling python seed [handling in particular the final unweighting].\n -1 means use default from random module.\n -2 means set to same value as iseed")
+        self.add_param("python_seed", -2, include=False, hidden=True, comment="controlling python seed [handling in particular the final unweighting].\n -1 means use default from random module.\n -2 means set to same value as iseed")
         self.add_param("lpp1", 1, fortran_name="lpp(1)", allowed=[-1,1,0,2,3,9, -2,-3],
                         comment='first beam energy distribution:\n 0: fixed energy\n 1: PDF from proton\n -1: PDF from anti-proton\n 2:photon from proton, 3:photon from electron, 9: PLUGIN MODE')
         self.add_param("lpp2", 1, fortran_name="lpp(2)", allowed=[-1,1,0,2,3,9],
@@ -2810,6 +2836,7 @@ class RunCardLO(RunCard):
         self.add_param("asrwgtflavor", 5,                                       comment = 'highest quark flavor for a_s reweighting in MLM')
         self.add_param("clusinfo", True)
         self.add_param("lhe_version", 3.0)
+        self.add_param("boost_event", "False", hidden=True, include=False,      comment="allow to boost the full event. The boost put at rest the sume of 4-momenta of the particle selected by the filter defined here. example going to the higgs rest frame: lambda p: p.pid==25")
         self.add_param("event_norm", "average", allowed=['sum','average', 'unity'],
                         include=False, sys_default='sum')
         #cut
@@ -2831,14 +2858,14 @@ class RunCardLO(RunCard):
         self.add_param("ptlmax", -1.0, cut=True)
         self.add_param("missetmax", -1.0, cut=True)
         # E cut
-        self.add_param("ej", 0.0, cut=True)
-        self.add_param("eb", 0.0, cut=True)
-        self.add_param("ea", 0.0, cut=True)
-        self.add_param("el", 0.0, cut=True)
-        self.add_param("ejmax", -1.0, cut=True)
-        self.add_param("ebmax", -1.0, cut=True)
-        self.add_param("eamax", -1.0, cut=True)
-        self.add_param("elmax", -1.0, cut=True)
+        self.add_param("ej", 0.0, cut=True, hidden=True)
+        self.add_param("eb", 0.0, cut=True, hidden=True)
+        self.add_param("ea", 0.0, cut=True, hidden=True)
+        self.add_param("el", 0.0, cut=True, hidden=True)
+        self.add_param("ejmax", -1.0, cut=True, hidden=True)
+        self.add_param("ebmax", -1.0, cut=True, hidden=True)
+        self.add_param("eamax", -1.0, cut=True, hidden=True)
+        self.add_param("elmax", -1.0, cut=True, hidden=True)
         # Eta cut
         self.add_param("etaj", 5.0, cut=True)
         self.add_param("etab", -1.0, cut=True)
@@ -2961,8 +2988,8 @@ class RunCardLO(RunCard):
         # Special syntax are related to those. (can not be edit directly)
         self.add_param('pt_min_pdg',{'__type__':0.}, include=False)
         self.add_param('pt_max_pdg',{'__type__':0.}, include=False)
-        self.add_param('E_min_pdg',{'__type__':0.}, include=False)
-        self.add_param('E_max_pdg',{'__type__':0.}, include=False)
+        self.add_param('E_min_pdg',{'__type__':0.}, include=False, hidden=True)
+        self.add_param('E_max_pdg',{'__type__':0.}, include=False, hidden=True)
         self.add_param('eta_min_pdg',{'__type__':0.}, include=False)
         self.add_param('eta_max_pdg',{'__type__':0.}, include=False)
         self.add_param('mxx_min_pdg',{'__type__':0.}, include=False)
@@ -2978,6 +3005,7 @@ class RunCardLO(RunCard):
         self.add_param('mxxmin4pdg',[-1.], system=True)
         self.add_param('mxxpart_antipart', [False], system=True)
                      
+        
              
     def check_validity(self):
         """ """
@@ -3158,10 +3186,13 @@ class RunCardLO(RunCard):
                 self['ebeam1'] = 500
                 self['ebeam2'] = 500
                 self['use_syst'] = False
+                self.display_block.append('beam_pol')
+                self.display_block.append('ecut')
             else:
                 self['lpp1'] = 0
                 self['lpp2'] = 0    
-                self['use_syst'] = False            
+                self['use_syst'] = False   
+                self.display_block.append('beam_pol')         
                 
         # Check if need matching
         min_particle = 99
