@@ -2101,6 +2101,19 @@ CF2PY INTENT(IN) :: PATH
       RETURN
       END
 
+    subroutine get_nincoming(pdgs, procid, npdg, N)
+    IMPLICIT NONE
+CF2PY integer, intent(in), dimension(npdg) :: pdgs
+CF2PY integer, intent(in):: procid
+CF2PY integer, intent(in) :: npdg
+CF2PY INTEGER, intent(out) :: N
+  integer pdgs(*)
+  integer npdg, procid
+    INTEGER N
+    %(nincoming)s
+    return
+    end
+
     subroutine get_pdg_order(PDG, PID)
   IMPLICIT NONE
 CF2PY INTEGER, intent(out) :: PDG(%(nb_me)i,%(maxpart)i)  
@@ -2136,12 +2149,10 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
         info = []
         for (key, pid), (prefix, tag) in self.prefix_info.items():
             info.append('#PY %s : %s # %s %s' % (tag, key, prefix, pid))
-            misc.sprint(tag, key, prefix, pid)
-        misc.sprint(allids)
 
         text = []
+        text_incomming = []
         for n_ext in range(min_nexternal, max_nexternal+1):
-            misc.sprint(n_ext)
             current_id = [ids[0] for ids in allids if len(ids[0])==n_ext]
             current_pid = [ids[1] for ids in allids if len(ids[0])==n_ext]
             misc.sprint(current_id)
@@ -2150,21 +2161,29 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
             if min_nexternal != max_nexternal:
                 if n_ext == min_nexternal:
                     text.append('       if (npdg.eq.%i)then' % n_ext)
+                    text_incomming.append('       if (npdg.eq.%i)then' % n_ext)
                 else:
                     text.append('       else if (npdg.eq.%i)then' % n_ext)
+                    text_incomming.append('       else if (npdg.eq.%i)then' % n_ext)
             for ii,pdgs in enumerate(current_id):
                 pid = current_pid[ii] 
                 #misc.sprint([(i,pdg) for i,pdg in pdgs])
                 condition = '.and.'.join(['%i.eq.pdgs(%i)' %(pdg, i+1) for i, pdg in enumerate(pdgs)])
                 if ii==0:
                     text.append( ' if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition, pid, i))
+                    text_incomming.append( ' if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition, pid, i))
                 else:
                     text.append( ' else if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition,pid,i))
+                    text_incomming.append( ' else if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition,pid,i))
                 text.append(' call %ssmatrixhel(p, nhel, ans)' % self.prefix_info[(pdgs,pid)][0])
+                text_incomming.append('     N=%i' % len(tag[0]))
+                     
             text.append(' endif')
+            text_incomming.append(' endif')
         #close the function
         if min_nexternal != max_nexternal:
             text.append('endif')
+            text_incomming.append(' endif')
 
         misc.sprint(allids)
         formatting = {'python_information':'\n'.join(info), 
@@ -2174,7 +2193,8 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
                           'pdgs': ','.join(str(pdg[i]) if i<len(pdg) else '0' 
                                              for i in range(max_nexternal) for (pdg,pid) in allids),
                           'prefix':'\',\''.join(allprefix),
-                          'pids': ','.join(str(pid) for (pdg,pid) in allids)
+                          'pids': ','.join(str(pid) for (pdg,pid) in allids),
+                          'nincoming':'\n'.join(text_incomming)
                           }
         formatting['lenprefix'] = len(formatting['prefix'])
         text = template % formatting
