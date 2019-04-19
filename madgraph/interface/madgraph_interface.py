@@ -4748,9 +4748,10 @@ This implies that with decay chains:
             split_orders=list(set(perturbation_couplings_list+squared_orders.keys()))
             try:
                 split_orders.sort(key=lambda elem: 0 if elem=='WEIGHTED' else
-                                       self._curr_model['order_hierarchy']
+                                       self._curr_model.get('order_hierarchy')
                                        [elem if not elem.endswith('.sqrt') else elem[:-5]])
             except KeyError:
+                misc.sprint(self._curr_model['order_hierarchy'], self._curr_model.get('modelpath'))
                 raise self.InvalidCmd, "The loaded model does not defined a "+\
                     " coupling order hierarchy for these couplings: %s"%\
                       str([so for so in split_orders if so!='WEIGHTED' and so not 
@@ -5249,6 +5250,7 @@ This implies that with decay chains:
                         complex_mass_scheme=self.options['complex_mass_scheme'])
                 if os.path.sep in args[1] and "import" in self.history[-1]:
                     self.history[-1] = 'import model %s' % self._curr_model.get('modelpath+restriction')
+                #self._curr_model.get('order_hierarchy')
 
                 if self.options['gauge']=='unitary':
                     if not force and isinstance(self._curr_model,\

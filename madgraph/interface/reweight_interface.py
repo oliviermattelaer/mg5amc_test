@@ -76,7 +76,6 @@ class ReweightInterface(extended_cmd.Cmd):
     def __init__(self, event_path=None, allow_madspin=False, mother=None, *completekey, **stdin):
         """initialize the interface with potentially an event_path"""
         
-        
         self.me_dir = os.getcwd()
         if not event_path:
             cmd_logger.info('************************************************************')
@@ -159,6 +158,7 @@ class ReweightInterface(extended_cmd.Cmd):
         if not self.lhe_input.banner:
             value = self.ask("What is the path to banner", 0, [0], "please enter a path", timeout=0)
             self.lhe_input.banner = open(value).read()
+
         self.banner = self.lhe_input.get_banner()
         
         #get original cross-section/error
@@ -469,7 +469,6 @@ class ReweightInterface(extended_cmd.Cmd):
             self.options['rwgt_name'] = opts['rwgt_name']
 
         model_line = self.banner.get('proc_card', 'full_model_line')
-
         if not self.mother and not hasattr(self, 'output'):
             name, ext = self.lhe_input.name.rsplit('.',1)
             target = '%s_out.%s' % (name, ext)
@@ -730,8 +729,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 files.ln(ff.name, starting_dir=pjoin(path_me, 'rw_mevirt', 'Cards'))
             cmd = common_run_interface.CommonRunCmd.ask_edit_card_static(cards=['param_card.dat'],
                                    ask=self.ask, pwd=rw_dir, first_cmd=self.stored_line)
-            #misc.sprint(cmd.param_card.get_value('frblock', (30,)))
-            #cmd.param_card.write(pjoin(rw_dir, 'Cards', 'param_card.dat'))
+
             
             self.stored_line = None
         
@@ -771,9 +769,8 @@ class ReweightInterface(extended_cmd.Cmd):
                 blockpat = re.compile(r'''<weightgroup name=\'mg_reweighting\'\s*weight_name_strategy=\'includeIdInWeightName\'>(?P<text>.*?)</weightgroup>''', re.I+re.M+re.S)
                 before, content, after = blockpat.split(self.banner['initrwgt'])
                 header_rwgt_other = before + after
-                pattern = re.compile('<weight id=\'(?:rwgt_(?P<id>\d+)|(?P<id2>[_\w]+))(?P<rwgttype>\s*|_\w+)\'>(?P<info>.*?)</weight>', re.S+re.I+re.M)
+                pattern = re.compile('<weight id=\'(?:rwgt_(?P<id>\d+)|(?P<id2>[_\w\-]+))(?P<rwgttype>\s*|_\w+)\'>(?P<info>.*?)</weight>', re.S+re.I+re.M)
                 mg_rwgt_info = pattern.findall(content)
-                
                 maxid = 0
                 for k,(i, fulltag, nlotype, diff) in enumerate(mg_rwgt_info):
                     if i:
@@ -816,12 +813,19 @@ class ReweightInterface(extended_cmd.Cmd):
         else:
             tag = str(rewgtid)
         
+        version = misc.get_pkg_info()['version']
+        model_version = self.mg5cmd._curr_model['model_info']['version'] 
+        
+        str_version = "<weight_generator>MG5aMC_v%s</weight_generator>\n<weight_model_version>%s</weight_model_version>" %\
+            (version, model_version)
+        
         if not self.second_model and not self.dedicated_path:
             old_param = check_param_card.ParamCard(s_orig.splitlines())
             new_param =  self.new_param_card
             card_diff = old_param.create_diff(new_param)
             if card_diff == '' and not self.second_process:
                     logger.warning(' REWEIGHTING: original card and new card are identical.')
+            card_diff = "%s\n<weight_slha>%s</weight_slha>" % (str_version,card_diff)
             try:
                 if old_param['sminputs'].get(3)- new_param['sminputs'].get(3) > 1e-3 * new_param['sminputs'].get(3):
                     logger.warning("We found different value of alpha_s. Note that the value of alpha_s used is the one associate with the event and not the one from the cards.")
@@ -845,8 +849,8 @@ class ReweightInterface(extended_cmd.Cmd):
             if self.dedicated_path:
                 for k,v in self.dedicated_path.items():
                     str_info += "\n change %s %s" % (k,v)
-            card_diff = str_info
-            str_info += '\n' + s_new
+            card_diff = '<weight_slha>\n%s\n</weight_slha>' % str_info
+            str_info += '\n%s\n<weight_slha>\n%s</weight_slha>\n' % (str_version,s_new)
             for name in type_rwgt:
                 mg_rwgt_info.append((tag, name, str_info))
         # re-create the banner.
@@ -1341,7 +1345,6 @@ class ReweightInterface(extended_cmd.Cmd):
         try:
             mgcmd.exec_cmd(commandline, precmd=True, errorhandling=False)
         except diagram_generation.NoDiagramException:
-            misc.sprint(commandline)
             commandline=''
             for proc in data['processes']:
                 if '[' not in proc:
@@ -1360,6 +1363,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 mgcmd.exec_cmd(commandline, precmd=True)
                 has_nlo = False
         except Exception, error:
+            misc.sprint(mgcmd._curr_model.get('modelpath'))
             misc.sprint(type(error))
             raise
         

@@ -2155,7 +2155,6 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
         for n_ext in range(min_nexternal, max_nexternal+1):
             current_id = [ids[0] for ids in allids if len(ids[0])==n_ext]
             current_pid = [ids[1] for ids in allids if len(ids[0])==n_ext]
-            misc.sprint(current_id)
             if not current_id:
                 continue
             if min_nexternal != max_nexternal:
@@ -2185,7 +2184,6 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
             text.append('endif')
             text_incomming.append(' endif')
 
-        misc.sprint(allids)
         formatting = {'python_information':'\n'.join(info), 
                           'smatrixhel': '\n'.join(text),
                           'maxpart': max_nexternal,
