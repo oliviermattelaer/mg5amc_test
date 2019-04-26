@@ -837,6 +837,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     mg_rwgt_info.append((tag, name, card_diff))
             else:
                 str_proc = "\n change process  ".join([""]+self.second_process)
+                str_proc = "\n<weight_card>\n%s\n</weight_card>\n"
                 for name in type_rwgt:
                     mg_rwgt_info.append((tag, name, str_proc + '\n'+ card_diff))
         else:
@@ -850,7 +851,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 for k,v in self.dedicated_path.items():
                     str_info += "\n change %s %s" % (k,v)
             card_diff = '<weight_slha>\n%s\n</weight_slha>' % str_info
-            str_info += '\n%s\n<weight_slha>\n%s</weight_slha>\n' % (str_version,s_new)
+            str_info = '\n<weight_card>\n%s\n</weight_card>\n%s\n<weight_slha>\n%s</weight_slha>\n' % (str_info,str_version,s_new)
             for name in type_rwgt:
                 mg_rwgt_info.append((tag, name, str_info))
         # re-create the banner.
