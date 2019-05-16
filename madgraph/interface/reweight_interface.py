@@ -1229,24 +1229,6 @@ class ReweightInterface(extended_cmd.Cmd):
         pdg = list(orig_order[0])+list(orig_order[1])
 
 
-#         sa_text = """
-# import allmatrix2py
-# allmatrix2py.initialise(\"%(path)s\")
-# pdg = %(pdg)s
-# p = %(p)s
-# aqcd  = %(as)s
-# scale2 = %(scale2)s
-# nhel = %(nhel)s
-# allmatrix2py.smatrixhel(pdg,p, aqcd, scale2, nhel)
-# """% {'path': pjoin(os.path.dirname(module.__file__),'..', 'Cards', 'param_card.dat'),
-#    'pdg': str(pdg),
-#    'p': str(p),
-#    'as':event.aqcd,
-#    'scale2':scale2,
-#    'nhel':nhel}
-#         misc.sprint(sa_text)
-
-        
         with misc.chdir(Pdir):
             with misc.stdchannel_redirected(sys.stdout, os.devnull):
                 me_value = module.smatrixhel(pdg, event.ievent, p, event.aqcd, scale2, nhel)

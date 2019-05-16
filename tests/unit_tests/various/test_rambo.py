@@ -34,8 +34,6 @@ class test_rambo(unittest.TestCase):
         # not enough energy
         self.assertRaises(rambo.RAMBOError, rambo.RAMBO, 2,150,self.m2)
         
-        # not valid mass
-        self.assertRaises(AssertionError, rambo.RAMBO, 2,1500,[1,2])
         
         # not valid mass
         self.assertRaises(AssertionError, rambo.RAMBO, 2,1500,self.m1)
@@ -57,6 +55,13 @@ class test_rambo(unittest.TestCase):
         for i in range(1,3):
             self.assertAlmostEqual(self.m2[i]**2, P[(4,i)]**2 - P[(1,i)]**2 - P[(2,i)]**2 - P[(3,i)]**2)
         
+        mass = [100,20]
+        P, wgt = rambo.RAMBO(2,500, [100,20])
+        for i in range(1,3):
+            m = mass[i-1]
+            self.assertAlmostEqual(m**2, P[(4,i)]**2 - P[(1,i)]**2 - P[(2,i)]**2 - P[(3,i)]**2)
+
+
 
 class test_wavefunctions(unittest.TestCase):
     """ check that the wavefunctions TXXXX, IXXXXX, ... are correctly define"""

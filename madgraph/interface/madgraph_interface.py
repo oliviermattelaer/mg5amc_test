@@ -1214,12 +1214,9 @@ This will take effect only in a NEW terminal
         if not( 0 <= int(options.cluster) <= 2):
             return self.InvalidCmd, 'cluster mode should be between 0 and 2'
 
-        misc.sprint(args)
         if not args:
             if self._done_export:
-                misc.sprint(self._done_export)
                 mode = self.find_output_type(self._done_export[0])
-                misc.sprint(mode)
                 if (self._done_export[1] == 'plugin' and mode in self._export_formats):
                     args.append(mode)
                     args.append(self._done_export[0])
@@ -5490,8 +5487,6 @@ This implies that with decay chains:
                                         (line.split()[0],why))
                 if self.history[-1] == 'define %s' % line.strip():
                     self.history.pop(-1)
-                else:
-                    misc.sprint([self.history[-1], 'define %s' % line.strip()])
 
         scheme = "old"
         for qcd_container in ['p', 'j']:
@@ -6045,7 +6040,7 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
                 else:
                     othersource = 'uiuc'
                 # try with the mirror
-                misc.sprint('try other mirror', othersource, ' '.join(args))
+                logger.debug('try other mirror', othersource, ' '.join(args))
                 return self.do_install('%s --source=%s' % (' '.join(args), othersource), 
                                        paths, additional_options) 
             else:
@@ -6889,12 +6884,10 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
 
         args = self.split_arg(line)
         # check argument validity and normalise argument
-        print _launch_parser.print_help()
         (options, args) = _launch_parser.parse_args(args)
         self.check_launch(args, options)
         options = options.__dict__
         # args is now MODE PATH
-        misc.sprint(args[0])
         if args[0].startswith('standalone'):
             if os.path.isfile(os.path.join(os.getcwd(),args[1],'Cards',\
               'MadLoopParams.dat')) and not os.path.isfile(os.path.join(\
