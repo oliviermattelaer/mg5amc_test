@@ -2085,7 +2085,7 @@ CF2PY double precision, intent(in) :: SCALE2
   PI = 3.141592653589793D0
   G = 2* DSQRT(ALPHAS*PI)
   CALL UPDATE_AS_PARAM()
-  if (scale2.ne.0d0) stop 1
+ 1  if (scale2.ne.0d0) stop 1
 
 %(smatrixhel)s
 
@@ -2176,7 +2176,9 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
                     text_incomming.append( ' else if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition,pid,i))
                 text.append(' call %ssmatrixhel(p, nhel, ans)' % self.prefix_info[(pdgs,pid)][0])
                 text_incomming.append('     N=%i' % len(tag[0]))
-                     
+            text.append( ' else if(procid.gt.0) then !')
+            text.append( ' procid = -1' )
+            text.append( ' goto 1' )
             text.append(' endif')
             text_incomming.append(' endif')
         #close the function

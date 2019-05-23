@@ -816,8 +816,10 @@ class ReweightInterface(extended_cmd.Cmd):
             tag = str(rewgtid)
         
         version = misc.get_pkg_info()['version']
-        model_version = self.mg5cmd._curr_model['model_info']['version'] 
-        
+        try:
+            model_version = self.mg5cmd._curr_model['model_info']['version'] 
+        except TypeError:
+            model_version = '0.0.0'
         str_version = "<weight_generator>MG5aMC_v%s</weight_generator>\n<weight_model_version>%s</weight_model_version>" %\
             (version, model_version)
         
@@ -1228,10 +1230,13 @@ class ReweightInterface(extended_cmd.Cmd):
         p = self.invert_momenta(p)
         pdg = list(orig_order[0])+list(orig_order[1])
 
-
         with misc.chdir(Pdir):
             with misc.stdchannel_redirected(sys.stdout, os.devnull):
-                me_value = module.smatrixhel(pdg, event.ievent, p, event.aqcd, scale2, nhel)
+                if hasattr(event, 'ievent'):
+                    ievent = event.ievent
+                else:
+                    ievent = -1
+                me_value = module.smatrixhel(pdg, ievent, p, event.aqcd, scale2, nhel)
                
         # for loop we have also the stability status code
         if isinstance(me_value, tuple):
@@ -1781,8 +1786,8 @@ class ReweightInterface(extended_cmd.Cmd):
                     mod_name = '%s.SubProcesses.allmatrix%spy' % (onedir, tag)
                     #mymod = __import__('%s.SubProcesses.allmatrix%spy' % (onedir, tag), globals(), locals(), [],-1)
                     if mod_name in sys.modules.keys():
-                        if 'rw_me_' in mod_name:
-                            raise Exception
+#                        if 'rw_me_' in mod_name:
+#                            raise Exception
                         del sys.modules[mod_name]
                         tmp_mod_name = mod_name
                         while '.' in tmp_mod_name:
@@ -1805,7 +1810,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     break
 
             data = self.id_to_path
-            if onedir != "rw_me":
+            if onedir not in ["rw_me",  "rw_mevirt"]:
                 data = self.id_to_path_second
 
             
@@ -1850,7 +1855,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     outgoing.sort()
                 tag = (tuple(incoming), tuple(outgoing))
                 if 'virt' in onedir:
-                    tag = (tag, 'V')
+                    tag = (tag, 'V')  
                 prefix = all_prefix[i]
                 hel = hel_dict[prefix]
                 if tag in data:

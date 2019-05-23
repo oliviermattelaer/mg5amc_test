@@ -5247,7 +5247,7 @@ This implies that with decay chains:
                         complex_mass_scheme=self.options['complex_mass_scheme'])
                 if os.path.sep in args[1] and "import" in self.history[-1]:
                     self.history[-1] = 'import model %s' % self._curr_model.get('modelpath+restriction')
-                #self._curr_model.get('order_hierarchy')
+
 
                 if self.options['gauge']=='unitary':
                     if not force and isinstance(self._curr_model,\

@@ -207,7 +207,7 @@ class TestMECmdRWGT(unittest.TestCase):
         ff.write(cmd_lines)
         ff.close()
         
-        with misc.stdchannel_redirected(sys.stdout, os.devnull):
+        if 1:#with misc.stdchannel_redirected(sys.stdout, os.devnull):
             me_cmd.run_cmd('reweight run_01 --from_cards')
         
         lhe = lhe_parser.EventFile(pjoin(self.run_dir,'Events','run_01', 'events.lhe.gz'))
@@ -281,7 +281,7 @@ class TestMECmdRWGT(unittest.TestCase):
         ff.write(cmd_lines)
         ff.close()
         
-        with misc.stdchannel_redirected(sys.stdout, os.devnull):
+        if 1 :#with misc.stdchannel_redirected(sys.stdout, os.devnull):
             me_cmd.run_cmd('reweight run_01 --from_cards')
         
         lhe = lhe_parser.EventFile(pjoin(self.run_dir,'Events','run_01', 'events.lhe.gz'))
@@ -312,7 +312,8 @@ class TestMECmdRWGT(unittest.TestCase):
         ff.write(cmd_lines)
         ff.close()
         
-        with misc.stdchannel_redirected(sys.stdout, os.devnull):
+        #with misc.stdchannel_redirected(sys.stdout, os.devnull):
+        if 1:
             me_cmd.run_cmd('reweight run_01 --from_cards')
             
 
