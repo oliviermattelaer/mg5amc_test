@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 ################################################################################
 #
 # Copyright (c) 2009 The MadGraph5_aMC@NLO Development team and Contributors
@@ -26,8 +27,11 @@ import time
 import subprocess
 from subprocess import Popen, PIPE, STDOUT
 
-
 pjoin = os.path.join
+if "__main__" == __name__:
+    local_path = os.path.dirname(os.path.realpath( __file__ ))
+    root_path = pjoin(local_path, '..','..')
+    sys.path.insert(0, root_path)
 
 import madgraph.interface.extended_cmd as extended_cmd
 import madgraph.interface.madgraph_interface as mg_interface
@@ -66,12 +70,11 @@ class ReweightInterface(extended_cmd.Cmd):
     
     prompt = 'Reweight>'
     debug_output = 'Reweight_debug'
-    rwgt_dir_possibility = ['rw_me','rw_me_second','rw_mevirt','rw_mevirt_second']
+    #rwgt_dir_possibility = ['rw_me','rw_me_second','rw_mevirt','rw_mevirt_second']
     
     @misc.mute_logger()
     def __init__(self, event_path=None, allow_madspin=False, mother=None, *completekey, **stdin):
         """initialize the interface with potentially an event_path"""
-        
         
         self.me_dir = os.getcwd()
         if not event_path:
@@ -95,6 +98,7 @@ class ReweightInterface(extended_cmd.Cmd):
         self.f2pylib = {}
         self.second_model = None
         self.second_process = None
+        self.nb_library = 1
         self.dedicated_path = {}
         self.soft_threshold = None
         self.systematics = False # allow to run systematics in ouput2.0 mode
@@ -154,6 +158,7 @@ class ReweightInterface(extended_cmd.Cmd):
         if not self.lhe_input.banner:
             value = self.ask("What is the path to banner", 0, [0], "please enter a path", timeout=0)
             self.lhe_input.banner = open(value).read()
+
         self.banner = self.lhe_input.get_banner()
         
         #get original cross-section/error
@@ -361,6 +366,7 @@ class ReweightInterface(extended_cmd.Cmd):
             if self.has_standalone_dir:
                 self.terminate_fortran_executables()
                 self.has_standalone_dir = False
+
             if args[-1] == "--add":
                 self.second_process.append(" ".join(args[1:-1]))
             else:
@@ -465,6 +471,16 @@ class ReweightInterface(extended_cmd.Cmd):
             self.options['rwgt_name'] = opts['rwgt_name']
 
         model_line = self.banner.get('proc_card', 'full_model_line')
+        if not self.mother and not hasattr(self, 'output'):
+            name, ext = self.lhe_input.name.rsplit('.',1)
+            target = '%s_out.%s' % (name, ext)
+            
+            if os.path.exists(target) and os.path.getmtime(target) > os.path.getmtime(self.lhe_input.name):
+                nb_launch = len([1 for l in self.history if l.strip().startswith('launch')])
+                if nb_launch > 1:
+                    files.mv(target, self.lhe_input.name)
+                    self.exec_cmd('import %s' % self.lhe_input.name)
+
 
         if not self.has_standalone_dir:                           
             if self.rwgt_dir and os.path.exists(pjoin(self.rwgt_dir,'rw_me','rwgt.pkl')):
@@ -506,7 +522,7 @@ class ReweightInterface(extended_cmd.Cmd):
             path_me = self.me_dir 
             
         if self.second_model or self.second_process or self.dedicated_path:
-            rw_dir = pjoin(path_me, 'rw_me_second')
+            rw_dir = pjoin(path_me, 'rw_me_%s' % self.nb_library)
         else:
             rw_dir = pjoin(path_me, 'rw_me')
                 
@@ -566,7 +582,7 @@ class ReweightInterface(extended_cmd.Cmd):
             if self.output_type == "default":
                 for name in weight:
                     if 'orig' in name:
-                        continue             
+                        continue   
                     event.reweight_data['%s%s' % (tag_name,name)] = weight[name]
                     #write this event with weight
                 output.write(str(event))
@@ -583,7 +599,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     output[(tag_name,name)].write(str(new_evt))
 
         # check normalisation of the events:
-        if 'event_norm' in self.run_card:
+        if self.run_card and 'event_norm' in self.run_card:
             if self.run_card['event_norm'] in ['average','bias']:
                 for key, value in cross.items():
                     cross[key] = value / (event_nb+1)
@@ -632,14 +648,16 @@ class ReweightInterface(extended_cmd.Cmd):
             import madgraph.interface.madevent_interface as ME_interface
 
         self.lhe_input.close()
-        if not self.mother:
+        if hasattr(self, 'output_path'):
+            target = self.output_path
+        elif not self.mother:
             name, ext = self.lhe_input.name.rsplit('.',1)
             target = '%s_out.%s' % (name, ext)            
         elif self.output_type != "default" :
             target = pjoin(self.mother.me_dir, 'Events', run_name, 'events.lhe')
         else:
             target = self.lhe_input.name
-        
+            
         if self.output_type == "default":
             files.mv(output.name, target)
             logger.info('Event %s have now the additional weight' % self.lhe_input.name)
@@ -694,7 +712,7 @@ class ReweightInterface(extended_cmd.Cmd):
             path_me = self.me_dir 
             
         if self.second_model or self.second_process or self.dedicated_path:
-            rw_dir = pjoin(path_me, 'rw_me_second')
+            rw_dir = pjoin(path_me, 'rw_me_%s' % self.nb_library)
         else:
             rw_dir = pjoin(path_me, 'rw_me')
         
@@ -713,6 +731,8 @@ class ReweightInterface(extended_cmd.Cmd):
                 files.ln(ff.name, starting_dir=pjoin(path_me, 'rw_mevirt', 'Cards'))
             cmd = common_run_interface.CommonRunCmd.ask_edit_card_static(cards=['param_card.dat'],
                                    ask=self.ask, pwd=rw_dir, first_cmd=self.stored_line)
+
+            
             self.stored_line = None
         
         # check for potential scan in the new card 
@@ -751,9 +771,8 @@ class ReweightInterface(extended_cmd.Cmd):
                 blockpat = re.compile(r'''<weightgroup name=\'mg_reweighting\'\s*weight_name_strategy=\'includeIdInWeightName\'>(?P<text>.*?)</weightgroup>''', re.I+re.M+re.S)
                 before, content, after = blockpat.split(self.banner['initrwgt'])
                 header_rwgt_other = before + after
-                pattern = re.compile('<weight id=\'(?:rwgt_(?P<id>\d+)|(?P<id2>[_\w]+))(?P<rwgttype>\s*|_\w+)\'>(?P<info>.*?)</weight>', re.S+re.I+re.M)
+                pattern = re.compile('<weight id=\'(?:rwgt_(?P<id>\d+)|(?P<id2>[_\w\-]+))(?P<rwgttype>\s*|_\w+)\'>(?P<info>.*?)</weight>', re.S+re.I+re.M)
                 mg_rwgt_info = pattern.findall(content)
-                
                 maxid = 0
                 for k,(i, fulltag, nlotype, diff) in enumerate(mg_rwgt_info):
                     if i:
@@ -796,12 +815,21 @@ class ReweightInterface(extended_cmd.Cmd):
         else:
             tag = str(rewgtid)
         
+        version = misc.get_pkg_info()['version']
+        try:
+            model_version = self.mg5cmd._curr_model['model_info']['version'] 
+        except TypeError:
+            model_version = '0.0.0'
+        str_version = "<weight_generator>MG5aMC_v%s</weight_generator>\n<weight_model_version>%s</weight_model_version>" %\
+            (version, model_version)
+        
         if not self.second_model and not self.dedicated_path:
             old_param = check_param_card.ParamCard(s_orig.splitlines())
             new_param =  self.new_param_card
             card_diff = old_param.create_diff(new_param)
             if card_diff == '' and not self.second_process:
                     logger.warning(' REWEIGHTING: original card and new card are identical.')
+            card_diff = "%s\n<weight_slha>%s</weight_slha>" % (str_version,card_diff)
             try:
                 if old_param['sminputs'].get(3)- new_param['sminputs'].get(3) > 1e-3 * new_param['sminputs'].get(3):
                     logger.warning("We found different value of alpha_s. Note that the value of alpha_s used is the one associate with the event and not the one from the cards.")
@@ -813,6 +841,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     mg_rwgt_info.append((tag, name, card_diff))
             else:
                 str_proc = "\n change process  ".join([""]+self.second_process)
+                str_proc = "\n<weight_card>\n%s\n</weight_card>\n"
                 for name in type_rwgt:
                     mg_rwgt_info.append((tag, name, str_proc + '\n'+ card_diff))
         else:
@@ -825,8 +854,8 @@ class ReweightInterface(extended_cmd.Cmd):
             if self.dedicated_path:
                 for k,v in self.dedicated_path.items():
                     str_info += "\n change %s %s" % (k,v)
-            card_diff = str_info
-            str_info += '\n' + s_new
+            card_diff = '<weight_slha>\n%s\n</weight_slha>' % str_info
+            str_info = '\n<weight_card>\n%s\n</weight_card>\n%s\n<weight_slha>\n%s</weight_slha>\n' % (str_info,str_version,s_new)
             for name in type_rwgt:
                 mg_rwgt_info.append((tag, name, str_info))
         # re-create the banner.
@@ -846,8 +875,11 @@ class ReweightInterface(extended_cmd.Cmd):
         self.banner['initrwgt'] = self.banner['initrwgt'].replace('\n\n', '\n')
 
         logger.info('starts to compute weight for events with the following modification to the param_card:')
-        logger.info(card_diff.replace('\n','\nKEEP:'))
-        self.run_card = banner.Banner(self.banner).charge_card('run_card')
+        #logger.info(card_diff.replace('\n','\nKEEP:'))
+        try:
+            self.run_card = banner.Banner(self.banner).charge_card('run_card')
+        except Exception:
+            self.run_card = None
 
         if self.options['rwgt_name']:
             tag_name = self.options['rwgt_name']
@@ -858,7 +890,7 @@ class ReweightInterface(extended_cmd.Cmd):
         for (path,tag), module in self.f2pylib.items():
             with misc.chdir(pjoin(os.path.dirname(rw_dir), path)):
                 with misc.stdchannel_redirected(sys.stdout, os.devnull):
-                    if 'second' in path or tag == 3:
+                    if 'rw_me_' in path or tag == 3:
                         module.initialise(pjoin(rw_dir, 'Cards', 'param_card.dat'))
                     else:
                         module.initialise(pjoin(path_me, 'rw_me', 'Cards', 'param_card_orig.dat'))
@@ -985,6 +1017,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 nhel = 0
             misc.sprint(nhel, Pdir, hel_dict)                        
             raise Exception, "Invalid matrix element for original computation (weight=0)"
+
 
         return {'orig': orig_wgt, '': w_new/w_orig*orig_wgt*jac}
      
@@ -1158,14 +1191,20 @@ class ReweightInterface(extended_cmd.Cmd):
         if (not self.second_model and not self.second_process and not self.dedicated_path) or hypp_id==0:
             orig_order, Pdir, hel_dict = self.id_to_path[tag]
         else:
-            orig_order, Pdir, hel_dict = self.id_to_path_second[tag] 
+            if tag in self.id_to_path_second:
+                orig_order, Pdir, hel_dict = self.id_to_path_second[tag]
+            else:
+                return 0.0 
             
         base = os.path.basename(os.path.dirname(Pdir))
-        if '_second' in base:
-            moduletag = (base, 2)
-        else:
+        if base == 'rw_me':
             moduletag = (base, 2+hypp_id)
+        else:
+            moduletag = (base, 2)
+    
+            
         
+    
         module = self.f2pylib[moduletag]
 
         p = event.get_momenta(orig_order)
@@ -1175,7 +1214,7 @@ class ReweightInterface(extended_cmd.Cmd):
         if self.helicity_reweighting and 9 not in hel_order:
             nhel = hel_dict[tuple(hel_order)]                
         else:
-            nhel = -1
+            nhel = -2
             
         # For 2>N pass in the center of mass frame
         #   - required for helicity by helicity re-weighitng
@@ -1193,8 +1232,12 @@ class ReweightInterface(extended_cmd.Cmd):
 
         with misc.chdir(Pdir):
             with misc.stdchannel_redirected(sys.stdout, os.devnull):
-                me_value = module.smatrixhel(pdg,p, event.aqcd, scale2, nhel)
-                                
+                if hasattr(event, 'ievent'):
+                    ievent = event.ievent
+                else:
+                    ievent = -1
+                me_value = module.smatrixhel(pdg, ievent, p, event.aqcd, scale2, nhel)
+               
         # for loop we have also the stability status code
         if isinstance(me_value, tuple):
             me_value, code = me_value
@@ -1202,7 +1245,7 @@ class ReweightInterface(extended_cmd.Cmd):
             hundred_value = (code % 1000) //100
             if hundred_value in [4]:
                 me_value = 0.
-            
+
         return me_value
     
     def terminate_fortran_executables(self, new_card_only=False):
@@ -1308,10 +1351,13 @@ class ReweightInterface(extended_cmd.Cmd):
                     nlo_order = nlo_order.replace('noborn', 'virt')
                 commandline += "add process %s [%s] %s;" % (base,nlo_order,post)
             commandline = commandline.replace('add process', 'generate',1)
-            logger.info("RETRY with %s", commandline)
-            mgcmd.exec_cmd(commandline, precmd=True)
-            has_nlo = False
+            if commandline:
+                logger.info("RETRY with %s", commandline)
+                mgcmd.exec_cmd(commandline, precmd=True)
+                has_nlo = False
         except Exception, error:
+            misc.sprint(mgcmd._curr_model.get('modelpath'))
+            misc.sprint(type(error))
             raise
         
         commandline = 'output standalone_rw %s --prefix=int' % pjoin(path_me,data['paths'][0])
@@ -1504,7 +1550,13 @@ class ReweightInterface(extended_cmd.Cmd):
             #self.id_to_path = {}
             #data['id2path'] = self.id_to_path
         else:
-            data['paths'] = ['rw_me_second', 'rw_mevirt_second']
+            for key in self.f2pylib.keys():
+                if 'rw_me_%s' % self.nb_library in key[0]:
+                    del self.f2pylib[key]
+                
+            
+            self.nb_library += 1
+            data['paths'] = ['rw_me_%s' % self.nb_library, 'rw_mevirt_%s' % self.nb_library]
             # model
             if self.second_model:
                 data['mg_names'] = True
@@ -1536,14 +1588,19 @@ class ReweightInterface(extended_cmd.Cmd):
         else:
             path_me = self.rwgt_dir
         data['path'] = path_me
-        try:
-            shutil.rmtree(pjoin(path_me,data['paths'][0]))
-        except Exception: 
-            pass
-        try:
-            shutil.rmtree(pjoin(path_me, data['paths'][1]))
-        except Exception: 
-            pass
+        for i in range(2):
+            pdir = pjoin(path_me,data['paths'][i])
+            if os.path.exists(pdir):
+                try:
+                    shutil.rmtree(pjoin(path_me,data['paths'][0]))
+                except Exception, error:
+                    misc.sprint(error) 
+                    pass                
+                
+                
+                    
+        
+
 
         # 1. prepare the interface----------------------------------------------
         mgcmd = self.mg5cmd
@@ -1691,12 +1748,16 @@ class ReweightInterface(extended_cmd.Cmd):
             path_me = self.me_dir
         else:
             path_me = self.rwgt_dir
-        for onedir in self.rwgt_dir_possibility:
+            
+        rwgt_dir_possibility =   ['rw_me','rw_me_%s' % self.nb_library,'rw_mevirt','rw_mevirt_%s' % self.nb_library]
+        for onedir in rwgt_dir_possibility:
             if not os.path.isdir(pjoin(path_me,onedir)):
                 continue
             pdir = pjoin(path_me, onedir, 'SubProcesses')
             if self.mother:
                 nb_core = self.mother.options['nb_core'] if self.mother.options['run_mode'] !=0 else 1
+            elif hasattr(self, 'nb_core'):
+                nb_core = self.nb_core
             else:
                 nb_core = 1
             os.environ['MENUM'] = '2'
@@ -1715,7 +1776,8 @@ class ReweightInterface(extended_cmd.Cmd):
         
         self.id_to_path = {}
         self.id_to_path_second = {}
-        for onedir in self.rwgt_dir_possibility:
+        rwgt_dir_possibility =   ['rw_me','rw_me_%s' % self.nb_library,'rw_mevirt','rw_mevirt_%s' % self.nb_library]
+        for onedir in rwgt_dir_possibility:
             if not os.path.exists(pjoin(path_me,onedir)):
                 continue 
             pdir = pjoin(path_me, onedir, 'SubProcesses')
@@ -1724,14 +1786,18 @@ class ReweightInterface(extended_cmd.Cmd):
                     mod_name = '%s.SubProcesses.allmatrix%spy' % (onedir, tag)
                     #mymod = __import__('%s.SubProcesses.allmatrix%spy' % (onedir, tag), globals(), locals(), [],-1)
                     if mod_name in sys.modules.keys():
+#                        if 'rw_me_' in mod_name:
+#                            raise Exception
                         del sys.modules[mod_name]
                         tmp_mod_name = mod_name
                         while '.' in tmp_mod_name:
                             tmp_mod_name = tmp_mod_name.rsplit('.',1)[0]
                             del sys.modules[tmp_mod_name]
-                        mymod = __import__(mod_name, globals(), locals(), [],-1)  
+                        mymod = __import__(mod_name, globals(), locals(), [],-1) 
+                        reload(mymod) 
                     else:
                         mymod = __import__(mod_name, globals(), locals(), [],-1)    
+                            
                     
                     S = mymod.SubProcesses
                     mymod = getattr(S, 'allmatrix%spy' % tag)
@@ -1744,12 +1810,16 @@ class ReweightInterface(extended_cmd.Cmd):
                     break
 
             data = self.id_to_path
-            if '_second' in onedir:
+            if onedir not in ["rw_me",  "rw_mevirt"]:
                 data = self.id_to_path_second
+
+            
 
             # get all the information
             all_pdgs = mymod.get_pdg_order()
-            all_pdgs = [[pdg for pdg in pdgs if pdg!=0] for pdgs in  mymod.get_pdg_order()]
+            allids, all_pids = mymod.get_pdg_order()
+            all_pdgs = [[pdg for pdg in pdgs if pdg!=0] for pdgs in  allids]
+            #all_pids = [pid for (pdgs, pid) in  allids]
             all_prefix = [''.join(j).strip().lower() for j in mymod.get_prefix()]
             prefix_set = set(all_prefix)
 
@@ -1772,7 +1842,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     misc.sprint(os.path.exists(pjoin(path_me,onedir,'SubProcesses','MadLoop5_resources', '%sHelConfigs.dat' % prefix.upper())))
                     continue
 
-            for i,pdg in enumerate(all_pdgs):
+            for i,(pdg,pid) in enumerate(zip(all_pdgs,all_pids)):
                 if self.is_decay:
                     incoming = [pdg[0]]
                     outgoing = pdg[1:]
@@ -1785,7 +1855,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     outgoing.sort()
                 tag = (tuple(incoming), tuple(outgoing))
                 if 'virt' in onedir:
-                    tag = (tag, 'V')
+                    tag = (tag, 'V')  
                 prefix = all_prefix[i]
                 hel = hel_dict[prefix]
                 if tag in data:
@@ -1907,10 +1977,111 @@ class ReweightInterface(extended_cmd.Cmd):
                     
         
         
-        
+if "__main__" == __name__:
+    # Check if optimize mode is (and should be) activated
+    import optparse
+    # Write out nice usage message if called with -h or --help
+    usage = "usage: %prog [options] [FILE] "
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option("-l", "--logging", default='INFO',
+                  help="logging level (DEBUG|INFO|WARNING|ERROR|CRITICAL) [%default]")
+    parser.add_option("-f", "--file", default='',
+                    help="Use script file FILE")
+    parser.add_option("-d", "--mgme_dir", default='', dest = 'mgme_dir',
+                  help="Use MG_ME directory MGME_DIR")
+    parser.add_option("","--debug", action="store_true", default=False, dest='debug', \
+                 help='force to launch debug mode')
+    (options, args) = parser.parse_args()
+    if len(args) == 0:
+        args = ''
+
+    if __debug__ and not options.debug and \
+    (not os.path.exists(os.path.join(root_path, 'bin','create_release.py'))):
+        subprocess.call([sys.executable] + ['-O'] + sys.argv)
+        sys.exit()
 
 
+    import logging
+    import logging.config
+    import madgraph.interface.coloring_logging
 
+    try:
+        import readline
+    except ImportError:
+        try:
+            import pyreadline as readline
+        except:
+            print "For tab completion and history, install module readline."
+    else:
+        import rlcompleter
 
+        if 'r261:67515' in sys.version and  'GCC 4.2.1 (Apple Inc. build 5646)' in sys.version:
+            readline.parse_and_bind("bind ^I rl_complete")
+            readline.__doc__ = 'libedit'
 
-        
+        elif hasattr(readline, '__doc__'):
+            if 'libedit' not in readline.__doc__:
+                readline.parse_and_bind("tab: complete")
+            else:
+                readline.parse_and_bind("bind ^I rl_complete")
+        else:
+            readline.__doc__ = 'GNU'
+            readline.parse_and_bind("tab: complete")
+
+    # charge history file
+    try:
+        history_file = os.path.join(os.environ['HOME'], '.mg5', 'rwgthistory')
+        readline.read_history_file(history_file)
+    except:
+        pass
+
+    try:
+        import psyco
+        psyco.full()
+    except:
+        pass
+
+    try:
+        if __debug__ and options.logging == 'INFO':
+            options.logging = 'DEBUG'
+        logging.config.fileConfig(os.path.join(root_path, 'madgraph', 'interface', '.mg5_logging.conf'))
+        logging.root.setLevel(eval('logging.' + options.logging))
+        logging.getLogger('madgraph').setLevel(eval('logging.' + options.logging))
+        logging.getLogger('madevent').setLevel(eval('logging.' + options.logging))
+    except:
+        pass
+
+    # Call the cmd interface main loop
+    try:
+        if options.file or args:
+            # They are an input file
+            if args:
+                input_file = os.path.realpath(args[0])
+            else:
+                input_file = os.path.realpath(options.file)
+            print "using input+file", input_file
+            cmd_line = ReweightInterface()
+            cmd_line.use_rawinput = False
+            cmd_line.haspiping = False
+            cmd_line.import_command_file(input_file)
+            cmd_line.run_cmd('quit')
+        else:
+            # Interactive mode
+            try:
+                cmd_line = ReweightInterface()
+                cmd_line.use_rawinput = True
+                cmd_line.cmdloop()
+            except:
+                pass
+        try:
+            cmd_line.exec_cmd('quit all', printcmd=False)
+            readline.set_history_length(100)
+            if not os.path.exists(os.path.join(os.environ['HOME'], '.mg5')):
+                os.mkdir(os.path.join(os.environ['HOME'], '.mg5'))
+            readline.write_history_file(history_file)
+        except Exception, error:
+            pass
+    except KeyboardInterrupt:
+        print 'writting history and quit on KeyboardInterrupt'
+        pass
+

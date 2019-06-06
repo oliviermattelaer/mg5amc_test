@@ -642,6 +642,10 @@ if(MAX_SPIN_EXTERNAL_PARTICLE.gt.3.AND.USERHEL.NE.-1) THEN
    CALL %(proc_prefix)sSET_N_EVALS(N_DP_EVAL,N_QP_EVAL)
 ENDIF
 
+IF(USERHEL.eq.-2) THEN
+		  NTRY = 0
+ENDIF
+
 IF(NTRY.EQ.0) THEN
   HELDOUBLECHECKED=(.NOT.DoubleCheckHelicityFilter).OR.(HelicityFilterLevel.eq.0)
 OPEN(1, FILE=LoopFilterFN, err=100, status='OLD',           action='READ')
@@ -659,7 +663,7 @@ OPEN(1, FILE=LoopFilterFN, err=100, status='OLD',           action='READ')
 101  CONTINUE
 CLOSE(1)
 
-IF (HelicityFilterLevel.eq.0) then
+IF (HelicityFilterLevel.eq.0.or.userhel.eq.-2) then
   FOUNDHELFILTER=.TRUE.
   DO J=1,NCOMB
 	GOODHEL(J)=1
@@ -816,7 +820,7 @@ IF(CHECKPHASE.OR.(.NOT.HELDOUBLECHECKED)) THEN
   HELPICKED=1
   CTMODE=CTMODEINIT
 ELSE
-  IF (USERHEL.ne.-1) then
+  IF (USERHEL.gt.0) then
     IF(GOODHEL(USERHEL).eq.-HELOFFSET) THEN
 	  DO I=0,NSQUAREDSO
         ANS(1,I)=0.0d0
@@ -826,7 +830,7 @@ ELSE
       goto 9999
     ENDIF
   ENDIF
-  HELPICKED=USERHEL
+  HELPICKED=MAX(USERHEL,-1)
   IF (CTMODERUN.NE.-1) THEN
     CTMODE=CTMODERUN
   ELSE
@@ -891,7 +895,7 @@ GOTO 308
 C MadLoop jumps to this label during stability checks when it recomputes the same PS point with a different CTMode
 300 CONTINUE
 C Of course the trick of reusing coefficients when reducing at the amplitude level only works when computing one helicity at a time
-if (USERHEL.ne.-1) THEN
+if (USERHEL.gt.-1) THEN
   SKIP_LOOPNUM_COEFS_CONSTRUCTION = .TRUE.
 ENDIF
 308 CONTINUE
@@ -1147,7 +1151,7 @@ ENDIF
 
 ## if(ComputeColorFlows){
 C We should compute the color flow either if it contributes to the final result (i.e. not used just for the filtering), or if the computation is only done from the color flows
-IF (((.NOT.DIRECT_ME_COMPUTATION).AND.ME_COMPUTATION_FROM_JAMP).OR.((H.EQ.USERHEL.OR.USERHEL.EQ.-1).and.(POLARIZATIONS(0,0).eq.-1.or.%(proc_prefix)sIS_HEL_SELECTED(H)))) THEN
+IF (((.NOT.DIRECT_ME_COMPUTATION).AND.ME_COMPUTATION_FROM_JAMP).OR.((H.EQ.USERHEL.OR.USERHEL.LE.-1).and.(POLARIZATIONS(0,0).eq.-1.or.%(proc_prefix)sIS_HEL_SELECTED(H)))) THEN
 C The cumulative quantities must only be computed if that helicity contributes according to user request (second argument of the subroutine below).
   CALL %(proc_prefix)sCOMPUTE_COLOR_FLOWS(HEL_MULT)
   IF(ME_COMPUTATION_FROM_JAMP) THEN
@@ -1172,7 +1176,7 @@ C   The quantity LOOPRES defined below is not physical, but it's ok since it is 
         ENDDO
       ENDIF
 C   The if statement below is not strictly necessary but makes it clear when it is executed.
-    ELSEIF(H.EQ.USERHEL.OR.USERHEL.EQ.-1) THEN
+    ELSEIF(H.EQ.USERHEL.OR.USERHEL.LE.-1) THEN
 C     Make sure that that no polarization constraint filters out this helicity
       IF (POLARIZATIONS(0,0).eq.-1.or.%(proc_prefix)sIS_HEL_SELECTED(H)) THEN
 C       If both computational method is used, then we must just update RES_FROM_JAMP
@@ -1183,7 +1187,7 @@ C       If both computational method is used, then we must just update RES_FROM_
         ENDDO
       ENDIF
     ENDIF
-	IF (H.EQ.USERHEL.OR.USERHEL.EQ.-1) THEN
+	IF (H.EQ.USERHEL.OR.USERHEL.LE.-1) THEN
 C     Make sure that that no polarization constraint filters out this helicity
       IF (POLARIZATIONS(0,0).eq.-1.or.%(proc_prefix)sIS_HEL_SELECTED(H)) THEN
 	    CALL %(proc_prefix)sCOMPUTE_COLOR_FLOWS_DERIVED_QUANTITIES(HEL_MULT)
@@ -1315,7 +1319,7 @@ ENDDO
 1226 CONTINUE
 
 IF (CHECKPHASE.OR.(.NOT.HELDOUBLECHECKED)) THEN
-  IF((USERHEL.EQ.-1).OR.(USERHEL.EQ.HELPICKED)) THEN
+  IF((USERHEL.LE.-1).OR.(USERHEL.EQ.HELPICKED)) THEN
 C   Make sure that that no polarization constraint filters out this helicity
     IF (POLARIZATIONS(0,0).eq.-1.or.%(proc_prefix)sIS_HEL_SELECTED(HELPICKED)) THEN
 C     TO KEEP TRACK OF THE FINAL ANSWER TO BE RETURNED DURING CHECK PHASE
@@ -1527,7 +1531,7 @@ DO K=1,3
 ## }
   DO I=0,NSQUAREDSO
     ANS(K,I)=ANS(K,I)/DBLE(IDEN)
-    IF (USERHEL.NE.-1) THEN
+    IF (USERHEL.GT.-1) THEN
       ANS(K,I)=ANS(K,I)*HELAVGFACTOR
 	ELSE
 	  DO J=1,NINITIAL
@@ -1560,7 +1564,7 @@ C We should finish by the summed orders
     DO K=0,3
 ## }
       RES_FROM_JAMP(K,I)=RES_FROM_JAMP(K,I)/DBLE(IDEN)
-      IF (USERHEL.NE.-1) THEN
+      IF (USERHEL.GT.-1) THEN
         RES_FROM_JAMP(K,I)=RES_FROM_JAMP(K,I)*HELAVGFACTOR
 	  ELSE
 	    DO L=1,NINITIAL

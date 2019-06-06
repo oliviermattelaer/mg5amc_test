@@ -1043,6 +1043,8 @@ class Model(PhysicsObject):
         self['expansion_order'] = None
         self['version_tag'] = None # position of the directory (for security)
         self['gauge'] = [0, 1]
+        import collections
+        self['model_info'] = collections.defaultdict(str)
         self['case_sensitive'] = True
         # attribute which might be define if needed
         #self['name2pdg'] = {'name': pdg}
@@ -1184,7 +1186,7 @@ class Model(PhysicsObject):
 
         if (name == 'order_hierarchy') and not self[name]:
             if self['interactions']:
-                self['order_hierarchy'] = self.get_order_hierarchy()    
+                self['order_hierarchy'] = self.get_order_hierarchy()  
 
         if (name == 'expansion_order') and self[name] == None:
             if self['interactions']:

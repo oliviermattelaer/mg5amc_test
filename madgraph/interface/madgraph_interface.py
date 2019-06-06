@@ -339,6 +339,9 @@ class HelpToCmd(cmd.HelpCmd):
         logger.info("")
         logger.info("   import banner PATH  [--no_launch]:",'$MG:BOLD')
         logger.info("      Rerun the exact same run define in the valid banner.")
+        logger.info("")
+        logger.info("   import process PATH", '$MG:BOLD')
+        logger.info("      generate the list of processes defined in the file")
 
     def help_install(self):
         logger.info("syntax: install " + "|".join(self._install_opts),'$MG:color:BLUE')
@@ -2786,7 +2789,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
     _switch_opts = ['mg5','aMC@NLO','ML5']
     _check_opts = ['full', 'timing', 'stability', 'profile', 'permutation',
                    'gauge','lorentz', 'brs', 'cms']
-    _import_formats = ['model_v4', 'model', 'proc_v4', 'command', 'banner']
+    _import_formats = ['model_v4', 'model', 'proc_v4', 'command', 'banner', 'process']
     _install_opts = ['Delphes', 'MadAnalysis4', 'ExRootAnalysis',
                      'update', 'Golem95', 'PJFry', 'QCDLoop', 'maddm', 'maddump',
                      'looptools']
@@ -3008,8 +3011,13 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
         standalone_only = False
         if '--standalone' in args:
             standalone_only = True
-            args.remove('--standalone')            
-
+            args.remove('--standalone')   
+            
+        allow_no_diagram = False         
+        if '--no_warning=nodiagram' in args:
+            allow_no_diagram = True
+            args.remove('--no_warning=nodiagram')
+            
         # Check the validity of the arguments
         self.check_add(args)
 
@@ -3106,13 +3114,18 @@ This implies that with decay chains:
                            self.options['ignore_six_quark_processes'] if \
                            "ignore_six_quark_processes" in self.options \
                            else []
-
-            myproc = diagram_generation.MultiProcess(myprocdef,
+            try:
+                myproc = diagram_generation.MultiProcess(myprocdef,
                                      collect_mirror_procs = collect_mirror_procs,
                                      ignore_six_quark_processes = ignore_six_quark_processes,
                                      optimize=optimize, diagram_filter=diagram_filter)
-
-
+            except diagram_generation.NoDiagramException:
+                if not allow_no_diagram:
+                    raise
+                else:
+                    logger.warning('no diagram generated. No error raised due to flag')
+                    return 
+                
             for amp in myproc.get('amplitudes'):
                 if amp not in self._curr_amps:
                     self._curr_amps.append(amp)
@@ -4732,9 +4745,10 @@ This implies that with decay chains:
             split_orders=list(set(perturbation_couplings_list+squared_orders.keys()))
             try:
                 split_orders.sort(key=lambda elem: 0 if elem=='WEIGHTED' else
-                                       self._curr_model['order_hierarchy']
+                                       self._curr_model.get('order_hierarchy')
                                        [elem if not elem.endswith('.sqrt') else elem[:-5]])
             except KeyError:
+                misc.sprint(self._curr_model['order_hierarchy'], self._curr_model.get('modelpath'))
                 raise self.InvalidCmd, "The loaded model does not defined a "+\
                     " coupling order hierarchy for these couplings: %s"%\
                       str([so for so in split_orders if so!='WEIGHTED' and so not 
@@ -5234,6 +5248,7 @@ This implies that with decay chains:
                 if os.path.sep in args[1] and "import" in self.history[-1]:
                     self.history[-1] = 'import model %s' % self._curr_model.get('modelpath+restriction')
 
+
                 if self.options['gauge']=='unitary':
                     if not force and isinstance(self._curr_model,\
                                               loop_base_objects.LoopModel) and \
@@ -5285,7 +5300,23 @@ This implies that with decay chains:
                 self.check_for_export_dir(args[1])
                 # Execute the card
                 self.import_command_file(args[1])
-
+        elif args[0] == 'process':
+            if not os.path.isfile(args[1]):
+                raise self.InvalidCmd("Path %s is not a valid pathname" % args[1])
+            else:   
+                first = True         
+                for line in open(args[1]):
+                    line = line.split('#')[0].strip()
+                    if not line:
+                        continue
+                    if first:
+                        self.exec_cmd('generate %s' % line, precmd=True)
+                        first = False
+                    else:
+                        self.exec_cmd('add process %s' % line, precmd=True)
+                        
+                        
+                        
         elif args[0] == 'banner':
             type = madevent_interface.MadEventCmd.detect_card_type(args[1])
             if type != 'banner':
@@ -5456,8 +5487,6 @@ This implies that with decay chains:
                                         (line.split()[0],why))
                 if self.history[-1] == 'define %s' % line.strip():
                     self.history.pop(-1)
-                else:
-                    misc.sprint([self.history[-1], 'define %s' % line.strip()])
 
         scheme = "old"
         for qcd_container in ['p', 'j']:
@@ -6011,7 +6040,7 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
                 else:
                     othersource = 'uiuc'
                 # try with the mirror
-                misc.sprint('try other mirror', othersource, ' '.join(args))
+                logger.debug('try other mirror', othersource, ' '.join(args))
                 return self.do_install('%s --source=%s' % (' '.join(args), othersource), 
                                        paths, additional_options) 
             else:
@@ -6859,7 +6888,6 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
         self.check_launch(args, options)
         options = options.__dict__
         # args is now MODE PATH
-
         if args[0].startswith('standalone'):
             if os.path.isfile(os.path.join(os.getcwd(),args[1],'Cards',\
               'MadLoopParams.dat')) and not os.path.isfile(os.path.join(\

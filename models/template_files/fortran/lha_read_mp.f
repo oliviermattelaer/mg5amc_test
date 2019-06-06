@@ -199,7 +199,7 @@ c +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       implicit none
 
       integer maxpara
-      parameter (maxpara=1000)
+      parameter (maxpara=%(maxpara)i)
       character*20 param(maxpara),value(maxpara),val,par
       character*20 blockname
       integer npara
@@ -300,7 +300,7 @@ c
 c     parameters
 c
       integer maxpara
-      parameter (maxpara=1000)
+      parameter (maxpara=%(maxpara)i)
 c
 c     arguments
 c
@@ -356,7 +356,7 @@ c
 c     parameters
 c
       integer maxpara
-      parameter (maxpara=1000)
+      parameter (maxpara=%(maxpara)i)
 c
 c     arguments
 c

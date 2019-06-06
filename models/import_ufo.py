@@ -585,7 +585,7 @@ class UFOMG5Converter(object):
             else:
                 pass
         else:
-            self.model.set('order_hierarchy', hierarchy)            
+            self.model.set('order_hierarchy', hierarchy)     
         
         # Also set expansion_order, i.e., maximum coupling order per process
         expansion_order={}
@@ -602,10 +602,18 @@ class UFOMG5Converter(object):
                 pass
         else:
             self.model.set('expansion_order', expansion_order)
-            self.model.set('expansion_order', expansion_order)            
+
             
         #clean memory
         del self.checked_lor
+
+        for name in dir(self.ufomodel):
+            if name.startswith('__') and name.endswith('__'):
+                value = getattr(self.ufomodel, name)
+                if not isinstance(value, (str, int)):
+                    continue
+                self.model['model_info'][name[2:-2]] = value
+
 
         return self.model
     

@@ -2066,17 +2066,18 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
         
         template = """
 %(python_information)s
-  subroutine smatrixhel(pdgs, npdg, p, ALPHAS, SCALE2, nhel, ANS)
+  subroutine smatrixhel(pdgs, procid, npdg, p, ALPHAS, SCALE2, nhel, ANS)
   IMPLICIT NONE
 
 CF2PY double precision, intent(in), dimension(0:3,npdg) :: p
 CF2PY integer, intent(in), dimension(npdg) :: pdgs
+CF2PY integer, intent(in):: procid
 CF2PY integer, intent(in) :: npdg
 CF2PY double precision, intent(out) :: ANS
 CF2PY double precision, intent(in) :: ALPHAS
 CF2PY double precision, intent(in) :: SCALE2
   integer pdgs(*)
-  integer npdg, nhel
+  integer npdg, nhel, procid
   double precision p(*)
   double precision ANS, ALPHAS, PI,SCALE2
   include 'coupl.inc'
@@ -2084,7 +2085,7 @@ CF2PY double precision, intent(in) :: SCALE2
   PI = 3.141592653589793D0
   G = 2* DSQRT(ALPHAS*PI)
   CALL UPDATE_AS_PARAM()
-  if (scale2.ne.0d0) stop 1
+ 1  if (scale2.ne.0d0) stop 1
 
 %(smatrixhel)s
 
@@ -2100,12 +2101,31 @@ CF2PY INTENT(IN) :: PATH
       RETURN
       END
 
-    subroutine get_pdg_order(PDG)
+    subroutine get_nincoming(pdgs, procid, npdg, N)
+    IMPLICIT NONE
+CF2PY integer, intent(in), dimension(npdg) :: pdgs
+CF2PY integer, intent(in):: procid
+CF2PY integer, intent(in) :: npdg
+CF2PY INTEGER, intent(out) :: N
+  integer pdgs(*)
+  integer npdg, procid
+    INTEGER N
+    %(nincoming)s
+    return
+    end
+
+    subroutine get_pdg_order(PDG, PID)
   IMPLICIT NONE
 CF2PY INTEGER, intent(out) :: PDG(%(nb_me)i,%(maxpart)i)  
-  INTEGER PDG(%(nb_me)i,%(maxpart)i), PDGS(%(nb_me)i,%(maxpart)i)
+CF2PY INTEGER, intent(out) :: PID(%(nb_me)i)
+  
+    INTEGER PDG(%(nb_me)i,%(maxpart)i), PDGS(%(nb_me)i,%(maxpart)i)
+    INTEGER PID(%(nb_me)i),PIDs(%(nb_me)i)
   DATA PDGS/ %(pdgs)s /
+  DATA PIDS/ %(pids)s /
+  
   PDG = PDGS
+  PID = PIDS
   RETURN
   END 
 
@@ -2123,43 +2143,58 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
          
         allids = self.prefix_info.keys()
         allprefix = [self.prefix_info[key][0] for key in allids]
-        min_nexternal = min([len(ids) for ids in allids])
-        max_nexternal = max([len(ids) for ids in allids])
+        min_nexternal = min([len(ids[0]) for ids in allids])
+        max_nexternal = max([len(ids[0]) for ids in allids])
 
         info = []
-        for key, (prefix, tag) in self.prefix_info.items():
-            info.append('#PY %s : %s # %s' % (tag, key, prefix))
-            
+        for (key, pid), (prefix, tag) in self.prefix_info.items():
+            info.append('#PY %s : %s # %s %s' % (tag, key, prefix, pid))
 
         text = []
+        text_incomming = []
         for n_ext in range(min_nexternal, max_nexternal+1):
-            current = [ids for ids in allids if len(ids)==n_ext]
-            if not current:
+            current_id = [ids[0] for ids in allids if len(ids[0])==n_ext]
+            current_pid = [ids[1] for ids in allids if len(ids[0])==n_ext]
+            if not current_id:
                 continue
             if min_nexternal != max_nexternal:
                 if n_ext == min_nexternal:
                     text.append('       if (npdg.eq.%i)then' % n_ext)
+                    text_incomming.append('       if (npdg.eq.%i)then' % n_ext)
                 else:
                     text.append('       else if (npdg.eq.%i)then' % n_ext)
-            for ii,pdgs in enumerate(current):
+                    text_incomming.append('       else if (npdg.eq.%i)then' % n_ext)
+            for ii,pdgs in enumerate(current_id):
+                pid = current_pid[ii] 
+                #misc.sprint([(i,pdg) for i,pdg in pdgs])
                 condition = '.and.'.join(['%i.eq.pdgs(%i)' %(pdg, i+1) for i, pdg in enumerate(pdgs)])
                 if ii==0:
-                    text.append( ' if(%s) then ! %i' % (condition, i))
+                    text.append( ' if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition, pid, i))
+                    text_incomming.append( ' if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition, pid, i))
                 else:
-                    text.append( ' else if(%s) then ! %i' % (condition,i))
-                text.append(' call %ssmatrixhel(p, nhel, ans)' % self.prefix_info[pdgs][0])
+                    text.append( ' else if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition,pid,i))
+                    text_incomming.append( ' else if(%s.and.(procid.le.0.or.procid.eq.%d)) then ! %i' % (condition,pid,i))
+                text.append(' call %ssmatrixhel(p, nhel, ans)' % self.prefix_info[(pdgs,pid)][0])
+                text_incomming.append('     N=%i' % len(tag[0]))
+            text.append( ' else if(procid.gt.0) then !')
+            text.append( ' procid = -1' )
+            text.append( ' goto 1' )
             text.append(' endif')
+            text_incomming.append(' endif')
         #close the function
         if min_nexternal != max_nexternal:
             text.append('endif')
+            text_incomming.append(' endif')
 
         formatting = {'python_information':'\n'.join(info), 
                           'smatrixhel': '\n'.join(text),
                           'maxpart': max_nexternal,
                           'nb_me': len(allids),
                           'pdgs': ','.join(str(pdg[i]) if i<len(pdg) else '0' 
-                                             for i in range(max_nexternal) for pdg in allids),
-                          'prefix':'\',\''.join(allprefix)
+                                             for i in range(max_nexternal) for (pdg,pid) in allids),
+                          'prefix':'\',\''.join(allprefix),
+                          'pids': ','.join(str(pid) for (pdg,pid) in allids),
+                          'nincoming':'\n'.join(text_incomming)
                           }
         formatting['lenprefix'] = len(formatting['prefix'])
         text = template % formatting
@@ -2257,7 +2292,7 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
                 raise Exception, '--prefix options supports only \'int\' and \'proc\''
             for proc in matrix_element.get('processes'):
                 ids = [l.get('id') for l in proc.get('legs_with_decays')]
-                self.prefix_info[tuple(ids)] = [proc_prefix, proc.get_tag()] 
+                self.prefix_info[(tuple(ids), proc.get('id'))] = [proc_prefix, proc.get_tag()] 
                 
         calls = self.write_matrix_element_v4(
             writers.FortranWriter(filename),
@@ -2508,6 +2543,7 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
                 matrix_template = "matrix_standalone_matchbox_splitOrders_v4.inc"
             else:
                 matrix_template = "matrix_standalone_splitOrders_v4.inc"
+
 
         replace_dict['template_file'] = pjoin(_file_path, 'iolibs', 'template_files', matrix_template)
         replace_dict['template_file2'] = pjoin(_file_path, \
@@ -5688,8 +5724,14 @@ class UFO_model_to_mg4(object):
         else:
             load_card = ''
             lha_read_filename='lha_read.f'
-        cp( MG5DIR + '/models/template_files/fortran/' + lha_read_filename, \
-                                       os.path.join(self.dir_path,'lha_read.f'))
+        
+        nb_para= len(self.params_dep + self.params_indep + self.params_ext)
+        template = pjoin(MG5DIR, 'models', 'template_files', 'fortran', lha_read_filename)
+        open(os.path.join(self.dir_path,'lha_read.f'),'w').write(
+            open(template).read() % {'maxpara':nb_para}) 
+        
+        #cp( MG5DIR + '/models/template_files/fortran/' + lha_read_filename, \
+        #                               os.path.join(self.dir_path,'lha_read.f'))
         
         file=file%{'includes':'\n      '.join(includes),
                    'load_card':load_card}

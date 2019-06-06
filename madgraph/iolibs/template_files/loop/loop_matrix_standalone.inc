@@ -448,7 +448,7 @@ ENDIF
 C Make sure that lorentz rotation tests are not used if there is external loop wavefunction of spin 2 and that one specific helicity is asked
 NROTATIONS_DP_BU = NROTATIONS_DP
 NROTATIONS_QP_BU = NROTATIONS_QP
-if(MAX_SPIN_EXTERNAL_PARTICLE.gt.3.AND.USERHEL.NE.-1) THEN
+if(MAX_SPIN_EXTERNAL_PARTICLE.gt.3.AND.USERHEL.GT.-1) THEN
    if(.NOT.WARNED_LORENTZ_STAB_TEST_OFF) THEN
      WRITE(*,*) '##WARNING: Evaluation of a specific helicity was asked for this PS point, and there is a spin-2 (or higher) particle in the external states.'
 	 WRITE(*,*) '##WARNING: As a result, MadLoop disabled the Lorentz rotation test for this phase-space point only.'
@@ -481,7 +481,7 @@ OPEN(1, FILE=LoopFilterFN, err=100, status='OLD',           action='READ')
   ENDDO
 101  CONTINUE
 CLOSE(1)
-IF (HelicityFilterLevel.eq.0) then
+IF (HelicityFilterLevel.eq.0.or.userhel.eq.-2) then
   FOUNDHELFILTER=.TRUE.
   DO J=1,NCOMB
 	GOODHEL(J)=.TRUE.
@@ -576,7 +576,7 @@ IF(CHECKPHASE.OR.(.NOT.HELDOUBLECHECKED)) THEN
   HELPICKED=1
   CTMODE=CTMODEINIT
 ELSE
-  IF (USERHEL.ne.-1) THEN
+  IF (USERHEL.gt.0) THEN
     IF(.NOT.GOODHEL(USERHEL)) THEN
       ANS(1)=0.0d0
       ANS(2)=0.0d0
@@ -584,7 +584,7 @@ ELSE
       goto 9999
     ENDIF
   ENDIF
-  HELPICKED=USERHEL      
+  HELPICKED=MAX(USERHEL,-1)      
   IF (CTMODERUN.GT.-1) THEN
     CTMODE=CTMODERUN
   ELSE
@@ -694,7 +694,7 @@ ENDIF
 IF (CHECKPHASE.OR.(.NOT.HELDOUBLECHECKED)) THEN
 C  Update of NEXTREF, will be used for loop induced only.
   NEXTREF = NEXTREF + ANS(1) + ANS(2) + ANS(3)
-  IF((USERHEL.EQ.-1).OR.(USERHEL.EQ.HELPICKED)) THEN
+  IF((USERHEL.LE.-1).OR.(USERHEL.EQ.HELPICKED)) THEN
   BUFFR(1)=BUFFR(1)+ANS(1)
   BUFFR(2)=BUFFR(2)+ANS(2)
   BUFFR(3)=BUFFR(3)+ANS(3)
@@ -785,7 +785,7 @@ ENDIF
 
 DO K=1,3
   ANS(K)=ANS(K)/DBLE(IDEN)
-  IF (USERHEL.NE.-1) THEN
+  IF (USERHEL.GT.-1) THEN
     ANS(K)=ANS(K)*HELAVGFACTOR
   ELSE
 	DO J=1,NINITIAL

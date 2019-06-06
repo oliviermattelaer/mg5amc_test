@@ -636,6 +636,10 @@ C      helicity is asked
         CALL SET_N_EVALS(N_DP_EVAL,N_QP_EVAL)
       ENDIF
 
+      IF(USERHEL.EQ.-2) THEN
+        NTRY = 0
+      ENDIF
+
       IF(NTRY.EQ.0) THEN
         HELDOUBLECHECKED=(.NOT.DOUBLECHECKHELICITYFILTER)
      $   .OR.(HELICITYFILTERLEVEL.EQ.0)
@@ -655,7 +659,7 @@ C      helicity is asked
  101    CONTINUE
         CLOSE(1)
 
-        IF (HELICITYFILTERLEVEL.EQ.0) THEN
+        IF (HELICITYFILTERLEVEL.EQ.0.OR.USERHEL.EQ.-2) THEN
           FOUNDHELFILTER=.TRUE.
           DO J=1,NCOMB
             GOODHEL(J)=1
@@ -796,7 +800,7 @@ C        trust the evaluation for checks.
         HELPICKED=1
         CTMODE=CTMODEINIT
       ELSE
-        IF (USERHEL.NE.-1) THEN
+        IF (USERHEL.GT.0) THEN
           IF(GOODHEL(USERHEL).EQ.-HELOFFSET) THEN
             DO I=0,NSQUAREDSO
               ANS(1,I)=0.0D0
@@ -806,7 +810,7 @@ C        trust the evaluation for checks.
             GOTO 9999
           ENDIF
         ENDIF
-        HELPICKED=USERHEL
+        HELPICKED=MAX(USERHEL,-1)
         IF (CTMODERUN.NE.-1) THEN
           CTMODE=CTMODERUN
         ELSE
@@ -1069,7 +1073,7 @@ C     Make sure that no NaN is present in the result
  1226 CONTINUE
 
       IF (CHECKPHASE.OR.(.NOT.HELDOUBLECHECKED)) THEN
-        IF((USERHEL.EQ.-1).OR.(USERHEL.EQ.HELPICKED)) THEN
+        IF((USERHEL.LE.-1).OR.(USERHEL.EQ.HELPICKED)) THEN
 C         Make sure that that no polarization constraint filters out
 C          this helicity
           IF (POLARIZATIONS(0,0).EQ.-1.OR.IS_HEL_SELECTED(HELPICKED))
@@ -1287,7 +1291,7 @@ C         ENDDO
       DO K=1,3
         DO I=0,NSQUAREDSO
           ANS(K,I)=ANS(K,I)/DBLE(IDEN)
-          IF (USERHEL.NE.-1) THEN
+          IF (USERHEL.GT.-1) THEN
             ANS(K,I)=ANS(K,I)*HELAVGFACTOR
           ELSE
             DO J=1,NINITIAL

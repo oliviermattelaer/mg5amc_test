@@ -384,9 +384,12 @@ class Banner(dict):
             header = open(pjoin(MG5DIR,'Template', 'LO', 'Source', 'banner_header.txt')).read()
             
         if not self.lhe_version:
-            self.lhe_version = self.get('run_card', 'lhe_version', default=1.0)
-            if float(self.lhe_version) < 3:
-                self.lhe_version = 1.0
+            if 'mgruncard' in self:
+                self.lhe_version = self.get('run_card', 'lhe_version', default=1.0)
+                if float(self.lhe_version) < 3:
+                    self.lhe_version = 1.0
+            else:
+                self.lhe_version = 3.0
         
         ff.write(header % { 'version':float(self.lhe_version)})
 
