@@ -1120,6 +1120,9 @@ class AskRunNLO(cmd.ControlSwitch):
         if hasattr(self, 'allowed_shower'):
             return self.allowed_shower
         
+        if not misc.which('bc'):
+            return ['OFF']
+        
         if self.proc_characteristics['ninitial'] == 1:
             self.allowed_shower = ['OFF']
             return ['OFF']
@@ -1166,6 +1169,10 @@ class AskRunNLO(cmd.ControlSwitch):
             self.switch['shower'] = 'OFF'
             return
         
+        if not misc.which('bc'):
+            logger.warning('bc command not available. Forbids to run the shower. please install it if you want to run the shower. (sudo apt-get install bc)')
+            self.switch['shower'] = 'OFF'
+            return
          
         if os.path.exists(pjoin(self.me_dir, 'Cards', 'shower_card.dat')):
             self.switch['shower'] = self.run_card['parton_shower']  
@@ -5390,11 +5397,11 @@ RESTART = %(mint_mode)s
     read http://amcatnlo.cern.ch/FxFx_merging.htm for more details.""")
                 if self.run_card['parton_shower'].upper() == 'PYTHIA6Q':
                     raise self.InvalidCmd("""FxFx merging does not work with Q-squared ordered showers.""")
-                elif self.run_card['parton_shower'].upper() != 'HERWIG6' and self.run_card['parton_shower'].upper() != 'PYTHIA8':
+                elif self.run_card['parton_shower'].upper() != 'HERWIG6' and self.run_card['parton_shower'].upper() != 'PYTHIA8' and self.run_card['parton_shower'].upper() != 'HERWIGPP':
                     question="FxFx merging not tested for %s shower. Do you want to continue?\n"  % self.run_card['parton_shower'] + \
                         "Type \'n\' to stop or \'y\' to continue"
                     answers = ['n','y']
-                    answer = self.ask(question, 'n', answers, alias=alias)
+                    answer = self.ask(question, 'n', answers)
                     if answer == 'n':
                         error = '''Stop opertation'''
                         self.ask_run_configuration(mode, options)

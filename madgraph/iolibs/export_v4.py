@@ -176,7 +176,6 @@ class ProcessExporterFortran(VirtualExporter):
         
         #place holder to pass information to the run_interface
         self.proc_characteristic = banner_mod.ProcCharacteristic()
-        
         # call mother class
         super(ProcessExporterFortran,self).__init__(dir_path, opt)
         
@@ -2300,16 +2299,17 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
                            len(matrix_element.get_all_amplitudes()))
 
         # Generate diagrams
-        filename = pjoin(dirpath, "matrix.ps")
-        plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
-                                             get('diagrams'),
-                                          filename,
-                                          model=matrix_element.get('processes')[0].\
-                                             get('model'),
-                                          amplitude=True)
-        logger.info("Generating Feynman diagrams for " + \
-                     matrix_element.get('processes')[0].nice_string())
-        plot.draw()
+        if not 'noeps' in self.opt['output_options'] or self.opt['output_options']['noeps'] != 'True':
+            filename = pjoin(dirpath, "matrix.ps")
+            plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
+                                                 get('diagrams'),
+                                              filename,
+                                              model=matrix_element.get('processes')[0].\
+                                                 get('model'),
+                                              amplitude=True)
+            logger.info("Generating Feynman diagrams for " + \
+                         matrix_element.get('processes')[0].nice_string())
+            plot.draw()
 
         linkfiles = ['check_sa.f', 'coupl.inc']
 
@@ -3046,16 +3046,17 @@ class ProcessExporterFortranMW(ProcessExporterFortran):
                            )
 
         # Generate diagrams
-        filename = pjoin(dirpath, "matrix.ps")
-        plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
-                                             get('diagrams'),
-                                          filename,
-                                          model=matrix_element.get('processes')[0].\
-                                             get('model'),
-                                          amplitude='')
-        logger.info("Generating Feynman diagrams for " + \
-                     matrix_element.get('processes')[0].nice_string())
-        plot.draw()
+        if not 'noeps' in self.opt['output_options'] or self.opt['output_options']['noeps'] != 'True':
+            filename = pjoin(dirpath, "matrix.ps")
+            plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
+                                                 get('diagrams'),
+                                              filename,
+                                              model=matrix_element.get('processes')[0].\
+                                                 get('model'),
+                                              amplitude='')
+            logger.info("Generating Feynman diagrams for " + \
+                         matrix_element.get('processes')[0].nice_string())
+            plot.draw()
 
         #import genps.inc and maxconfigs.inc into Subprocesses
         ln(self.dir_path + '/Source/genps.inc', self.dir_path + '/SubProcesses', log=False)
@@ -3739,16 +3740,17 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         self.write_symfact_file(open(filename, 'w'), symmetry)
 
         # Generate diagrams
-        filename = pjoin(Ppath, "matrix.ps")
-        plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
-                                             get('diagrams'),
-                                          filename,
-                                          model=matrix_element.get('processes')[0].\
-                                             get('model'),
-                                          amplitude=True)
-        logger.info("Generating Feynman diagrams for " + \
-                     matrix_element.get('processes')[0].nice_string())
-        plot.draw()
+        if not 'noeps' in self.opt['output_options'] or self.opt['output_options']['noeps'] != 'True':
+            filename = pjoin(Ppath, "matrix.ps")
+            plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
+                                                 get('diagrams'),
+                                              filename,
+                                              model=matrix_element.get('processes')[0].\
+                                                 get('model'),
+                                              amplitude=True)
+            logger.info("Generating Feynman diagrams for " + \
+                         matrix_element.get('processes')[0].nice_string())
+            plot.draw()
 
         self.link_files_in_SubProcess(Ppath)
 
@@ -3838,7 +3840,12 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         # indicate that the output type is not grouped
         if  not isinstance(self, ProcessExporterFortranMEGroup):
             self.proc_characteristic['grouped_matrix'] = False
+        
         self.proc_characteristic['complex_mass_scheme'] = mg5options['complex_mass_scheme']
+
+        # set limitation linked to the model
+    
+        
         # indicate the PDG of all initial particle
         try:
             pdgs1 = [p.get_initial_pdg(1) for me in matrix_elements for m in me.get('matrix_elements') for p in m.get('processes') if p.get_initial_pdg(1)]
@@ -3968,6 +3975,22 @@ class ProcessExporterFortranME(ProcessExporterFortran):
                 "writer not FortranWriter")
             # Set lowercase/uppercase Fortran code
             writers.FortranWriter.downcase = False
+
+        # check if MLM/.../ is supported for this matrix-element and update associate flag
+        if self.model and 'MLM' in self.model["limitations"]:
+            if 'MLM' not in self.proc_characteristic["limitations"]:
+                used_couplings = matrix_element.get_used_couplings(output="set") 
+                for vertex in self.model.get('interactions'):
+                    particles = [p for p in vertex.get('particles')]
+                    if 21 in [p.get('pdg_code') for p in particles]:
+                        colors = [par.get('color') for par in particles]
+                        if 1 in colors:
+                            continue
+                        elif 'QCD' not in vertex.get('orders'):
+                            for bad_coup in vertex.get('couplings').values():
+                                if bad_coup in used_couplings:
+                                    self.proc_characteristic["limitations"].append('MLM')
+                                    break
 
         # The proc prefix is not used for MadEvent output so it can safely be set
         # to an empty string.
@@ -4101,7 +4124,7 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         replace_dict['ampsplitorders']='\n'.join(amp_so)
         replace_dict['sqsplitorders']='\n'.join(sqamp_so)
         
-        
+
         # Extract JAMP lines
         # If no split_orders then artificiall add one entry called 'ALL_ORDERS'
         jamp_lines = self.get_JAMP_lines_split_order(\
@@ -5001,17 +5024,18 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
             maxamps = max(maxamps, len(matrix_element.get('diagrams')))
 
             # Draw diagrams
-            filename = "matrix%d.ps" % (ime+1)
-            plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
-                                                                    get('diagrams'),
-                                              filename,
-                                              model = \
-                                                matrix_element.get('processes')[0].\
-                                                                       get('model'),
-                                              amplitude=True)
-            logger.info("Generating Feynman diagrams for " + \
-                         matrix_element.get('processes')[0].nice_string())
-            plot.draw()
+            if not 'noeps' in self.opt['output_options'] or self.opt['output_options']['noeps'] != 'True':
+                filename = "matrix%d.ps" % (ime+1)
+                plot = draw.MultiEpsDiagramDrawer(matrix_element.get('base_amplitude').\
+                                                                        get('diagrams'),
+                                                  filename,
+                                                  model = \
+                                                    matrix_element.get('processes')[0].\
+                                                                           get('model'),
+                                                  amplitude=True)
+                logger.info("Generating Feynman diagrams for " + \
+                             matrix_element.get('processes')[0].nice_string())
+                plot.draw()
 
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
@@ -5117,6 +5141,16 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
 
         filename = 'symfact_orig.dat'
         self.write_symfact_file(open(filename, 'w'), symmetry)
+        
+        # check consistency
+        for i, sym_fact in enumerate(symmetry):
+            if sym_fact > 0:
+                continue
+            if nqcd_list[i] != nqcd_list[abs(sym_fact)-1]:
+                misc.sprint(i, sym_fact, nqcd_list[i], nqcd_list[abs(sym_fact)])
+                raise Exception, "identical diagram with different QCD powwer" 
+                                      
+        
 
         filename = 'symperms.inc'
         self.write_symperms_file(writers.FortranWriter(filename),

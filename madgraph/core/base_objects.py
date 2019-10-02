@@ -1044,6 +1044,8 @@ class Model(PhysicsObject):
         self['version_tag'] = None # position of the directory (for security)
         self['gauge'] = [0, 1]
         self['case_sensitive'] = True
+        self['allow_pickle'] = True
+        self['limitations'] = [] # MLM means that the model can sometimes have issue with MLM/default scale. 
         # attribute which might be define if needed
         #self['name2pdg'] = {'name': pdg}
         
@@ -3650,11 +3652,11 @@ class ProcessDefinition(Process):
         # Extract hierarchy and particles corresponding to the
         # different hierarchy levels from the model
         particles, hierarchy = model.get_particles_hierarchy()
-
         # Find legs corresponding to the different orders
         # making sure we look at lowest hierarchy first for each leg
         max_order_now = []
         new_legs =  copy.copy(self.get('legs'))
+        import madgraph.core.base_objects as base_objects
         for parts, value in zip(particles, hierarchy):
             ileg = 0
             while ileg < len(new_legs):
