@@ -88,3 +88,6 @@ c
       double precision mxxmin4pdg(0:25) 
       logical mxxpart_antipart(1:25) 
       common/TO_PDG_SPECIFIC_CUT/pdg_cut, ptmin4pdg,ptmax4pdg, mxxmin4pdg, mxxpart_antipart
+
+      integer frame_id
+      common/to_frame_me/frame_id

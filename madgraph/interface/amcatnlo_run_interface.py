@@ -5236,6 +5236,9 @@ RESTART = %(mint_mode)s
         content = open(log).read()
         if 'FAILED' in content:
             logger.info('Output of the failing test:\n'+content[:-1],'$MG:BOLD')
+#            if __debug__:
+#                misc.sprint("FAIL TEST BUT CONTINUE:")
+#            else:
             raise aMCatNLOError('Some tests failed, run cannot continue.\n' + \
                 'Please check that widths of final state particles (e.g. top) have been' + \
                 ' set to 0 in the param_card.dat.')

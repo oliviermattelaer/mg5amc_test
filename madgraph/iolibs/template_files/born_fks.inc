@@ -25,7 +25,6 @@ C ARGUMENTS
 C  
       REAL*8 P1(0:3,NEXTERNAL-1)
       COMPLEX*16 ANS(2)
-
 C  
 C LOCAL VARIABLES 
 C  
@@ -37,6 +36,7 @@ C
       INTEGER NHEL(NEXTERNAL-1,NCOMB)
       real*8 T_SAVE(NCOMB,2)
       real*8 T_SUM(2)
+      REAL*8 PLOCAL(0:3,NEXTERNAL-1)
 %(helicity_lines)s
 %(den_factor_lines)s
 %(ij_lines)s
@@ -62,9 +62,18 @@ C
       double precision       wgt_ME_born,wgt_ME_real
       common /c_wgt_ME_tree/ wgt_ME_born,wgt_ME_real
       logical cond_ij
+      integer frame_id
+      common /to_frame_me/ frame_id
 C ----------
 C BEGIN CODE
 C ----------
+
+      if (frame_id.eq.1) then
+         plocal = p1
+      else	 
+         call boost_to_frameB(p1, frame_id, plocal)
+      endif 
+
       iden=iden_values(nfksprocess)
       glu_ij = ij_values(nfksprocess)
       NTRY(nFKSprocess)=NTRY(nFKSprocess)+1
@@ -87,7 +96,7 @@ C ----------
       ENDDO
       if (calculatedBorn) then
          do j=1,nexternal-1
-            if (savemom(j,1).ne.p1(0,j) .or. savemom(j,2).ne.p1(3,j)) then
+            if (savemom(j,1).ne.plocal(0,j) .or. savemom(j,2).ne.plocal(3,j)) then
                calculatedBorn=.false.
                write (*,*) "momenta not the same in Born"
 	       stop
@@ -96,8 +105,8 @@ C ----------
       endif
       if (.not.calculatedBorn) then
          do j=1,nexternal-1
-            savemom(j,1)=p1(0,j)
-            savemom(j,2)=p1(3,j)
+            savemom(j,1)=plocal(0,j)
+            savemom(j,2)=plocal(3,j)
          enddo
          do j=1,max_bhel
             do jj=1,ngraphs
@@ -117,7 +126,7 @@ C ----------
         !if (nhel(glu_ij,ihel).EQ.NHEL(GLU_IJ,1).or.skip(nfksprocess).eq.0) then
         if (cond_ij) then
           IF ((GOODHEL(IHEL,nFKSprocess) .OR. GOODHEL(IHEL+SKIP(nFKSprocess),nFKSprocess) .OR. NTRY(nFKSprocess) .LT. 2) ) THEN
-	    ANS(1) = ANS(1) + BORN(P1,NHEL(1,IHEL),IHEL,BORNTILDE,borns) 
+	    ANS(1) = ANS(1) + BORN(PLOCAL,NHEL(1,IHEL),IHEL,BORNTILDE,borns) 
 	   ANS(2)=ANS(2)+ BORNTILDE 
             T_SAVE(IHEL,1) = borns(1)
 	    T_SAVE(IHEL,2) = borns(2)
@@ -299,5 +308,5 @@ C ----------
       PARAMETER (THEL=NCOMB*%(nconfs)d)
       LOGICAL GOODHEL(NCOMB,%(nconfs)d)
       common /c_goodhel/goodhel
-      DATA GOODHEL/THEL*.FALSE./
+      DATA GOODHEL/THEL*.TRUE./
       end

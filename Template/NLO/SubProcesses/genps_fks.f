@@ -2410,3 +2410,117 @@ c     S=A/(B-x) transformation:
       return
       end
 
+C     -----------------------------------------
+C     Subroutine to return momenta in a dedicated frame
+C     frame_id is the tag of the particle to put at rest
+C     frame_id follow the convention of cluster.f (sum 2**(N-1))
+C     -----------------------------------------
+
+      subroutine boost_to_frameR(P1, frame_id, P2)
+
+      implicit none
+
+      include 'nexternal.inc'
+
+      DOUBLE PRECISION P1(0:3,NEXTERNAL)
+      DOUBLE PRECISION P2(0:3,NEXTERNAL)
+      DOUBLE PRECISION PBOOSTB(0:3), PBOOSTR(0:3)
+      common/last_polarization_boost/PBOOSTB, PBOOSTR
+      integer frame_id
+
+      integer ids(nexternal)
+      integer i,j
+
+      do i=1,nexternal
+         ids(i)=0
+         if (btest(frame_id,i)) then
+            ids(i)=1
+         endif
+c         write(*,*) 'cluster.f: uncompressed code ',i,' is ',ids(i)
+      enddo
+
+
+c     uncompress
+      do i=0,3
+         pboostR(i) = 0d0
+      enddo
+      do j=0,3
+         do i=1,nexternal
+            p2(j,i) = 0d0
+         enddo
+      enddo
+c     find the boost momenta --sum of particles--
+      do i=1,nexternal
+       if (ids(i).eq.1)then
+            do j=0,3
+                   PboostR(j) = PboostR(j) + P1(j,i)
+            enddo
+         endif
+      enddo
+      do j=1,3
+          PboostR(j) = -1 * PboostR(j)
+      enddo
+      do i=1, nexternal
+         call boostx(p1(0,i), pboostR, p2(0,i))
+         do j =1,3
+            if (dabs(p2(j,i)).lt.1e-13*p2(0,i))then
+               p2(j,i) = 0d0
+            endif
+         enddo
+      enddo
+      return
+      end
+
+C     -----------------------------------------
+C     Subroutine to return momenta in a dedicated frame
+C     frame_id is the tag of the particle to put at rest
+C     frame_id follow the convention of cluster.f (sum 2**(N-1))
+C     -----------------------------------------
+
+      subroutine boost_to_frameB(P1, frame_id, P2)
+
+      implicit none
+
+      include 'nexternal.inc'
+
+      DOUBLE PRECISION P1(0:3,NEXTERNAL-1)
+      DOUBLE PRECISION P2(0:3,NEXTERNAL-1)
+      DOUBLE PRECISION PBOOSTB(0:3), PBOOSTR(0:3)
+      common/last_polarization_boost/PBOOSTB, PBOOSTR
+      integer frame_id
+
+      integer ids(nexternal-1)
+      integer i,j
+
+c     uncompress
+c      write(*,*) "frameid", frame_id
+      do i=1,nexternal-1
+         ids(i)=0
+         if (btest(frame_id,i)) then
+            ids(i)=1
+         endif
+c        write(*,*) 'cluster.f: uncompressed code ',i,' is ',ids(i)
+      enddo
+      pboostB(:) = 0d0
+      p2(:,:) = 0d0
+c     find the boost momenta --sum of particles--
+      do i=1,nexternal-1
+       if (ids(i).eq.1)then
+            do j=0,3
+                   PboostB(j) = PboostB(j) + P1(j,i)
+            enddo
+         endif
+      enddo
+      do j=1,3
+          PboostB(j) = -1 * PboostB(j)
+      enddo
+      do i=1, nexternal-1
+         call boostx(p1(0,i), pboostB, p2(0,i))
+         do j =1,3
+            if (dabs(p2(j,i)).lt.1e-13*p2(0,i))then
+               p2(j,i) = 0d0
+            endif
+         enddo
+      enddo
+      return
+      end

@@ -706,36 +706,3 @@ c
 
 
 
-      DOUBLE PRECISION  FUNCTION phi(p)
-c************************************************************************
-c     MODIF 16/11/06 : this subroutine defines phi angle
-c                      phi is defined from 0 to 2 pi
-c************************************************************************
-      IMPLICIT NONE
-c
-c     Arguments
-c
-      double precision  p(0:3)
-c
-c     Parameter
-c
-
-      double precision pi,zero
-      parameter (pi=3.141592654d0,zero=0d0)
-c-----
-c  Begin Code
-c-----
-c 
-      if(p(1).gt.zero) then
-      phi=datan(p(2)/p(1))
-      else if(p(1).lt.zero) then
-      phi=datan(p(2)/p(1))+pi
-      else if(p(2).GE.zero) then !remind that p(1)=0
-      phi=pi/2d0
-      else if(p(2).lt.zero) then !remind that p(1)=0
-      phi=-pi/2d0
-      endif
-      if(phi.lt.zero) phi=phi+2*pi
-      return
-      end
-

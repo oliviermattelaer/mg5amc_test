@@ -2875,6 +2875,7 @@ C
 C ARGUMENTS 
 C  
       %(real_dp_format)s P(0:3,NEXTERNAL)
+      %(real_dp_format)s PLOCAL(0:3,NEXTERNAL)
       %(real_dp_format)s ANS(0:3,0:NSQUAREDSO)
 	  %(real_dp_format)s PREC_ASKED,PREC_FOUND(0:NSQUAREDSO)
 	  INTEGER RET_CODE	  
@@ -2895,14 +2896,22 @@ C
 	  LOGICAL BYPASS_CHECK, ALWAYS_TEST_STABILITY
 	  COMMON/%(proc_prefix)sBYPASS_CHECK/BYPASS_CHECK, ALWAYS_TEST_STABILITY
 
+          integer frame_id
+          common /to_frame_me/ frame_id
 C ----------
 C BEGIN CODE
 C ----------
+	 if (frame_id.eq.1) then
+	     plocal = P
+         else
+             call boost_to_frameB(p, frame_id, plocal)
+         endif
+
       USER_STAB_PREC = PREC_ASKED
-      CALL %(proc_prefix)sSLOOPMATRIX(P,ANS)
+      CALL %(proc_prefix)sSLOOPMATRIX(PLOCAL,ANS)
 	  IF(ALWAYS_TEST_STABILITY.AND.(H.eq.1.OR.ACCURACY(0).lt.0.0d0)) THEN
 	    BYPASS_CHECK = .TRUE.	  
-        CALL %(proc_prefix)sSLOOPMATRIX(P,ANS)
+        CALL %(proc_prefix)sSLOOPMATRIX(PLOCAL,ANS)
 		BYPASS_CHECK = .FALSE.
 C     Make sure we correctly return an initialization-type T code
 		IF (T.eq.2) T=4

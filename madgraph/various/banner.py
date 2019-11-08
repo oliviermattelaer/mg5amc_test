@@ -2867,7 +2867,7 @@ class RunCardLO(RunCard):
         self.add_param("clusinfo", True)
         self.add_param("lhe_version", 3.0)
         self.add_param("boost_event", "False", hidden=True, include=False,      comment="allow to boost the full event. The boost put at rest the sume of 4-momenta of the particle selected by the filter defined here. example going to the higgs rest frame: lambda p: p.pid==25")
-        self.add_param("me_frame", [1,2], hidden=True, include=False, comment="choose lorentz frame where to evaluate matrix-element [for non lorentz invariant matrix-element/polarization]:\n  - 0: partonic center of mass\n - 1: Multi boson frame\n - 2 : (multi) scalar frame\n - 3 : user custom")
+        self.add_param("me_frame", [1,2], hidden=True, include=False, comment="choose lorentz frame where to evaluate matrix-element [for non lorentz invariant matrix-element/polarization]: id(s) of the particles where the sum of their momenta will be at rest")
         self.add_param('frame_id', 6,  system=True)
         self.add_param("event_norm", "average", allowed=['sum','average', 'unity'],
                         include=False, sys_default='sum')
@@ -3764,6 +3764,20 @@ class MadAnalysis5Card(dict):
 class RunCardNLO(RunCard):
     """A class object for the run_card for a (aMC@)NLO pocess"""
     
+    blocks = [
+#    Frame for polarization
+    runblock(name='frame', fields=('me_frame'),
+              template_on=\
+"""#*********************************************************************
+# Frame where to evaluate the matrix-element (not the cut!) for polarization   
+#*********************************************************************
+  %(me_frame)s  = me_frame     ! list of particles to sum-up to define the rest-frame
+                               ! in which to evaluate the matrix-element
+                               ! [1,2] means the partonic center of mass 
+""", 
+    template_off= ''),
+    ]    
+    
     def default_setup(self):
         """define the default value"""
         
@@ -3859,6 +3873,9 @@ class RunCardNLO(RunCard):
         self.add_param('ptmax4pdg',[-1.], hidden=True, system=True)
         self.add_param('mxxmin4pdg',[0.], hidden=True, system=True)
         self.add_param('mxxpart_antipart', [False], hidden=True, system=True)
+        
+        self.add_param("me_frame", [0,], hidden=True, include=False, comment="choose lorentz frame where to evaluate matrix-element [for non lorentz invariant matrix-element/polarization]. id of the particle for which the sum of the momenta ")
+        self.add_param('frame_id', 6,  system=True)
         
     def check_validity(self):
         """check the validity of the various input"""
@@ -4001,6 +4018,10 @@ class RunCardNLO(RunCard):
 
     def update_system_parameter_for_include(self):
         
+        
+        # polarization
+        self['frame_id'] = sum(2**(n) for n in self['me_frame'])
+        
         # set the pdg_for_cut fortran parameter
         pdg_to_cut = set(self['pt_min_pdg'].keys() +self['pt_max_pdg'].keys()+
                          self['mxx_min_pdg'].keys()+ self['mxx_only_part_antipart'].keys())
@@ -4095,6 +4116,27 @@ class RunCardNLO(RunCard):
             #remove all cut
             self.remove_all_cut()
     
+        # if polarization is used, set the choice of the frame in the run_card
+        # But only if polarization is used for massive particles
+
+        for proc in proc_def:
+            for l in proc.get('legs'):
+                if l.get('polarization'):
+                    model = proc.get('model')
+                    particle = model.get_particle(l.get('id'))
+                    if particle.get('mass').lower() != 'zero':
+                        self.display_block.append('frame') 
+                        me_frame = []
+                        for i,l2 in enumerate(proc.get('legs')):
+                            particle = model.get_particle(l2.get('id'))
+                            if i>1 and particle.get('mass').lower() != 'zero':
+                                me_frame.append(i+1)                          
+                        self["me_frame"] = me_frame
+                        break
+            else:
+                continue
+            break
+
     
     
 class MadLoopParam(ConfigFile):

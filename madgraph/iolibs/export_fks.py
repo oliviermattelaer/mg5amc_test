@@ -1403,15 +1403,25 @@ end
 """subroutine smatrix_real(p, wgt)
 implicit none
 include 'nexternal.inc'
+integer frame_id
+common /to_frame_me/frame_id
 double precision p(0:3, nexternal)
+double precision plocal(0:3, nexternal)
 double precision wgt
 integer nfksprocess
 common/c_nfksprocess/nfksprocess
+
+ if (frame_id.eq.1) then
+   plocal = p
+ else
+     call boost_to_frameR(p, frame_id, plocal)
+ endif    
+
 """
         for n, info in enumerate(matrix_element.get_fks_info_list()):
             file += \
 """if (nfksprocess.eq.%(n)d) then
-call smatrix_%(n_me)d(p, wgt)
+call smatrix_%(n_me)d(plocal, wgt)
 else""" % {'n': n + 1, 'n_me' : info['n_me']}
 
         if matrix_element.real_processes:

@@ -31,7 +31,7 @@ C
       INTEGER NHEL(NEXTERNAL,NCOMB)
 %(helicity_lines)s
       LOGICAL GOODHEL(NCOMB)
-      DATA GOODHEL/NCOMB*.FALSE./
+      DATA GOODHEL/NCOMB*.TRUE./
       INTEGER NTRY
       DATA NTRY/0/
 %(den_factor_line)s

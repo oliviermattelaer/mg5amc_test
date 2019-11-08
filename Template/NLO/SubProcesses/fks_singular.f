@@ -3083,6 +3083,9 @@ c Particle types (=color) of i_fks, j_fks and fks_mother
       parameter (ximag=(0.d0,1.d0))
       double precision iden_comp
       common /c_iden_comp/iden_comp
+
+      DOUBLE PRECISION PBOOST(0:3)
+      common/last_polarization_boost/PBOOST
 C  
       if(p_born(0,1).le.0.d0)then
 c Unphysical kinematics: set matrix elements equal to zero
@@ -3106,8 +3109,10 @@ c Insert <ij>/[ij] which is not included by sborn()
             azifact=xij_aor
          else
             do i=0,3
-               pi(i)=p_i_fks_ev(i)
-               pj(i)=p(i,j_fks)
+               call boostx(p_i_fks_ev, pboost, pi)
+               call boostx(p(0,j_fks), pboost, pj)
+c               pi(i)=p_i_fks_ev(i)
+c               pj(i)=p(i,j_fks)
             enddo
             CALL IXXXSO(pi ,ZERO ,+1,+1,W1)        
             CALL OXXXSO(pj ,ZERO ,-1,+1,W2)        
@@ -3142,6 +3147,7 @@ c Insert the extra factor due to Madgraph convention for polarization vectors
       implicit none
       include "nexternal.inc"
       double precision p(0:3,nexternal),wgt
+      double precision pr_boost(0:3,nexternal)
       double precision xi_i_fks,y_ij_fks
 C  
       double precision p_born(0:3,nexternal-1)
@@ -3170,7 +3176,7 @@ c Particle types (=color) of i_fks, j_fks and fks_mother
 
       double precision p_born_rot(0:3,nexternal-1)
 
-      integer i
+      integer i, imother_fks
       double precision t,z,ap,Q,cphi_mother,sphi_mother,pi(0:3),pj(0:3)
       double complex wgt1(2),W1(6),W2(6),W3(6),W4(6),Wij_angle,Wij_recta
       double complex azifact
@@ -3182,7 +3188,12 @@ c Particle types (=color) of i_fks, j_fks and fks_mother
       parameter (ximag=(0.d0,1.d0))
       double precision iden_comp
       common /c_iden_comp/iden_comp
-C  
+c
+      integer frame_id
+      common/to_frame_me/frame_id
+      DOUBLE PRECISION PBOOSTB(0:3), PBOOSTR(0:3)
+      common/last_polarization_boost/PBOOSTB, PBOOSTR
+
       if(p_born(0,1).le.0.d0)then
 c Unphysical kinematics: set matrix elements equal to zero
          write (*,*) "No born momenta in sborncol_isr"
@@ -3196,19 +3207,27 @@ c Thus, an extra factor z (implicit in the flux of the reduced Born
 c in FKS) has to be inserted here
       t = z*shat/4d0
       call sborn(p_born,wgt1)
+      if (frame_id.ne.1)then
+         call boost_to_frameR(p, frame_id,pr_boost)
+      else
+         pr_boost(:,:) = p(:,:)
+      endif
       call AP_reduced(m_type,i_type,t,z,ap)
       if (abs(m_type).eq.3) then
          Q=0d0
          wgt1(2)=0d0
       else
 c Insert <ij>/[ij] which is not included by sborn()
-         if (1d0-y_ij_fks.lt.vtiny)then
+         if (1d0-y_ij_fks.lt.vtiny.and.frame_id.eq.1)then
             azifact=xij_aor
          else
-            do i=0,3
-               pi(i)=p_i_fks_ev(i)
-               pj(i)=p(i,j_fks)
-            enddo
+            if (frame_id.eq.1) then
+               pi(:) = p_i_fks_ev(:)
+               pj(:) = p(:,j_fks)
+            else
+               call boostx(p_i_fks_ev, pboostr, pi)
+               pj(:) = pr_boost(:,j_fks)
+            endif
             CALL IXXXSO(pi ,ZERO ,+1,+1,W1)        
             CALL OXXXSO(pj ,ZERO ,-1,+1,W2)        
             CALL IXXXSO(pi ,ZERO ,-1,+1,W3)        
@@ -3222,10 +3241,17 @@ c Insert <ij>/[ij] which is not included by sborn()
             azifact=Wij_angle/Wij_recta
          endif
 c Insert the extra factor due to Madgraph convention for polarization vectors
-         cphi_mother=1.d0
-         sphi_mother=0.d0
+         if (frame_id.ne.1)then
+            imother_fks=min(i_fks,j_fks)
+            call boostx(p_born(0,imother_fks), pboostb, pi)
+            call getaziangles(pi,
+     &                     cphi_mother,sphi_mother)
+         else
+            cphi_mother=1.d0
+            sphi_mother=0.d0
+         endif
          wgt1(2) = -(cphi_mother+ximag*sphi_mother)**2 *
-     #             wgt1(2) * dconjg(azifact)
+     &             wgt1(2) * dconjg(azifact)
          call Qterms_reduced_spacelike(m_type, i_type, t, z, Q)
       endif
       wgt=dble(wgt1(1)*ap+wgt1(2)*Q)*iden_comp

@@ -26,12 +26,15 @@ C
 C  
 C LOCAL VARIABLES 
 C  
+      REAL*8 PLOCAL(0:3,NEXTERNAL-1)
       INTEGER IHEL,IDEN,j
       REAL*8 B_SF_%(iborn)3.3d
 %(den_factor_lines)s
 C  
 C GLOBAL VARIABLES
 C  
+      integer frame_id
+      common /to_frame_me/ frame_id
       LOGICAL GOODHEL(NCOMB,%(nconfs)d)
       common /c_goodhel/ goodhel
       double precision savemom(nexternal-1,2)
@@ -43,10 +46,16 @@ C
 C ----------
 C BEGIN CODE
 C ----------
+      if (frame_id.eq.1) then
+         plocal(:,:) = p1(:,:)
+      else
+         call boost_to_frameB(p1, frame_id, plocal)
+      endif
+
       iden=iden_values(nfksprocess)
       if (calculatedBorn) then
          do j=1,nexternal-1
-            if (savemom(j,1).ne.p1(0,j) .or. savemom(j,2).ne.p1(3,j)) then
+            if (savemom(j,1).ne.plocal(0,j) .or. savemom(j,2).ne.plocal(3,j)) then
                calculatedBorn=.false.
                write(*,*) 'Error in sb_sf: momenta not the same in the born'
                stop
@@ -59,7 +68,7 @@ C ----------
       ANS = 0D0
       DO IHEL=1,NCOMB
          IF (GOODHEL(IHEL,nFKSprocess)) THEN
-           ANS=ANS+B_SF_%(iborn)3.3d(P1,IHEL)
+           ANS=ANS+B_SF_%(iborn)3.3d(Plocal,IHEL)
          ENDIF
       ENDDO
       ANS=ANS/DBLE(IDEN)
