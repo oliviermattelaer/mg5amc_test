@@ -3147,7 +3147,7 @@ c Insert the extra factor due to Madgraph convention for polarization vectors
       implicit none
       include "nexternal.inc"
       double precision p(0:3,nexternal),wgt
-      double precision pr_boost(0:3,nexternal)
+      double precision pr_boost(0:3,nexternal), ptemp(0:3)
       double precision xi_i_fks,y_ij_fks
 C  
       double precision p_born(0:3,nexternal-1)
@@ -3180,7 +3180,8 @@ c Particle types (=color) of i_fks, j_fks and fks_mother
       double precision t,z,ap,Q,cphi_mother,sphi_mother,pi(0:3),pj(0:3)
       double complex wgt1(2),W1(6),W2(6),W3(6),W4(6),Wij_angle,Wij_recta
       double complex azifact
-
+      double precision cphi_i_fks,sphi_i_fks
+      
       double precision zero,vtiny
       parameter (zero=0d0)
       parameter (vtiny=1d-8)
@@ -3193,6 +3194,8 @@ c
       common/to_frame_me/frame_id
       DOUBLE PRECISION PBOOSTB(0:3), PBOOSTR(0:3)
       common/last_polarization_boost/PBOOSTB, PBOOSTR
+      integer idir
+      double precision phi_mother,phi_i_fks
 
       if(p_born(0,1).le.0.d0)then
 c Unphysical kinematics: set matrix elements equal to zero
@@ -3207,11 +3210,11 @@ c Thus, an extra factor z (implicit in the flux of the reduced Born
 c in FKS) has to be inserted here
       t = z*shat/4d0
       call sborn(p_born,wgt1)
-      if (frame_id.ne.1)then
+c      if (frame_id.ne.1)then
          call boost_to_frameR(p, frame_id,pr_boost)
-      else
-         pr_boost(:,:) = p(:,:)
-      endif
+c      else
+c         pr_boost(:,:) = p(:,:)
+c      endif
       call AP_reduced(m_type,i_type,t,z,ap)
       if (abs(m_type).eq.3) then
          Q=0d0
@@ -3220,13 +3223,38 @@ c in FKS) has to be inserted here
 c Insert <ij>/[ij] which is not included by sborn()
          if (1d0-y_ij_fks.lt.vtiny.and.frame_id.eq.1)then
             azifact=xij_aor
+c         else if ((1d0-y_ij_fks.lt.vtiny))then
+c            do i=0,3
+c               ptemp(i) = p(i,i_fks) + p(i, j_fks)
+c            enddo
+c            call boostx(ptemp, pboostr, pj)
+c            call boostx(p(0,i_fks), pboostr, pi)
+c            call getaziangles(pi,
+c     &                     cphi_i_fks,sphi_i_fks)
+c            call getaziangles(pj,
+c     &                     cphi_mother,sphi_mother)
+c            azifact = -exp( 2*ximag*(cphi_mother+cphi_i_fks))
+         elseif(1d0-y_ij_fks.lt.vtiny)then
+            idir=0
+            if(j_fks.eq.1)then
+               idir=1
+            elseif(j_fks.eq.2)then
+               idir=-1
+            endif
+            imother_fks=min(i_fks,j_fks)
+            call boostx(p_born(0,imother_fks), pboostb, pj)
+            call boostx(p_i_fks_ev, pboostr, pi)
+            phi_mother=atan2(pj(2),pj(1))
+            phi_i_fks=atan2(pi(2),pi(1))
+            azifact = -exp( 2*ximag*idir*(phi_mother+phi_i_fks))
          else
             if (frame_id.eq.1) then
                pi(:) = p_i_fks_ev(:)
                pj(:) = p(:,j_fks)
             else
-               call boostx(p_i_fks_ev, pboostr, pi)
-               pj(:) = pr_boost(:,j_fks)
+               call boostx(p_i_fks_ev, pboostb, pi)
+               call boostx(p(0,j_fks), pboostr, pj) 
+c              pj(:) = pr_boost(:,j_fks)
             endif
             CALL IXXXSO(pi ,ZERO ,+1,+1,W1)        
             CALL OXXXSO(pj ,ZERO ,-1,+1,W2)        
@@ -4097,6 +4125,8 @@ c the results are written onto fort.77; set iwrite=0 to prevent the writing
       real*8 xsecvc(15),xseclvc,wgt(15),wgtl,lxp(0:3,21),xp(15,0:3,21)
       real*8 ckc(15),rckc(15),rat
       integer iflag,imax,iev,nexternal,i_fks,j_fks,iret,ithrs,istop,
+      integer frame_id
+      common/to_frame_me/frame_id
      # iwrite,i,k,l,imin,icount
       parameter (ithrs=3)
       parameter (istop=0)
@@ -4116,7 +4146,11 @@ c
       if(iflag.eq.0)then
         rat=4.d0
       elseif(iflag.eq.1)then
-        rat=2.d0
+         if (frame_id.eq.1) then
+            rat=2.0
+         else ! allow less accurate convergence in presence of boost
+            rat=1.d0
+         endif
       else
         write(6,*)'Error in checkres: iflag=',iflag
         write(6,*)' Must be 0 for soft, 1 for collinear'
