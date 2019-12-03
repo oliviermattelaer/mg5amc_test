@@ -1189,7 +1189,14 @@ class ReweightInterface(extended_cmd.Cmd):
         # For 2>N pass in the center of mass frame
         #   - required for helicity by helicity re-weighitng
         #   - Speed-up loop computation 
-        if (hypp_id == 0 and self.banner.run_card['frame_id'] !=6):
+        if (hypp_id == 1 and self.boost_event):
+            if self.boost_event is not True:
+                import copy
+                new_event = copy.deepcopy(event)
+                new_event.boost(self.boost_event)
+                p = new_event.get_momenta(orig_order)
+        elif (hypp_id == 0 and self.banner.run_card['frame_id'] !=6) or \
+             (hypp_id == 1 and self.banner.run_card['frame_id'] !=6)
             import copy
             new_event = copy.deepcopy(event)
             pboost = FourMomenta()
@@ -1202,13 +1209,7 @@ class ReweightInterface(extended_cmd.Cmd):
                     if to_inc[nb_ext]:
                         pboost += p                    
             new_event.boost(pboost)
-            p = new_event.get_momenta(orig_order)
-        elif (hypp_id == 1 and self.boost_event):
-            if self.boost_event is not True:
-                import copy
-                new_event = copy.deepcopy(event)
-                new_event.boost(self.boost_event)
-                p = new_event.get_momenta(orig_order)        
+            p = new_event.get_momenta(orig_order)               
         elif (hasattr(event[1], 'status') and event[1].status == -1) or \
            (event[1].px == event[1].py == 0.):
             pboost = lhe_parser.FourMomentum(p[0]) + lhe_parser.FourMomentum(p[1])
