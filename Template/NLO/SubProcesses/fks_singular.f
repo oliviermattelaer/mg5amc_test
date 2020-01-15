@@ -4125,9 +4125,9 @@ c the results are written onto fort.77; set iwrite=0 to prevent the writing
       real*8 xsecvc(15),xseclvc,wgt(15),wgtl,lxp(0:3,21),xp(15,0:3,21)
       real*8 ckc(15),rckc(15),rat
       integer iflag,imax,iev,nexternal,i_fks,j_fks,iret,ithrs,istop,
+     # iwrite,i,k,l,imin,icount
       integer frame_id
       common/to_frame_me/frame_id
-     # iwrite,i,k,l,imin,icount
       parameter (ithrs=3)
       parameter (istop=0)
       parameter (iwrite=1)
