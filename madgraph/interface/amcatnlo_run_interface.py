@@ -1303,7 +1303,15 @@ class AskRunNLO(cmd.ControlSwitch):
         else:
             self.allowed_reweight = [ 'OFF', 'ON', 'NLO', 'NLO_TREE','LO']
             return self.allowed_reweight     
-    
+
+    def check_value_reweight(self, value):
+
+        if value in self.get_allowed('reweight'):
+            return True
+        elif value.upper() == 'TRUE_LO':
+            return 'TRUE_LO'
+            
+        
     def set_default_reweight(self):
         """initialise the switch for reweight"""
         
@@ -1325,7 +1333,10 @@ class AskRunNLO(cmd.ControlSwitch):
                     "set store_rwgt_info T"]
         elif value == 'NLO_TREE':
             return ["edit reweight_card --replace_line='change mode' --before_line='launch' change mode NLO_tree",
-                    "set store_rwgt_info T"]            
+                    "set store_rwgt_info T"]
+        elif value == 'TRUE_LO':
+            return ["edit reweight_card --replace_line='change mode' --before_line='launch' change mode True_LO",
+                    "set store_rwgt_info T"]
         return []
             
 #

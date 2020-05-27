@@ -106,7 +106,7 @@ class ReweightInterface(extended_cmd.Cmd):
         self.seed = None
         self.output_type = "default"
         self.helicity_reweighting = True
-        self.rwgt_mode = '' # can be LO, NLO, NLO_tree, '' is default 
+        self.rwgt_mode = '' # can be LO, NLO, NLO_tree, True_LO, '' is default 
         self.has_nlo = False
         self.rwgt_dir = None
         self.exitted = False # Flag to know if do_quit was already called.
@@ -456,7 +456,9 @@ class ReweightInterface(extended_cmd.Cmd):
         elif self.rwgt_mode == 'LO+NLO':
             return ['_lo', '_nlo']
         elif self.rwgt_mode == 'NLO_tree':
-            return ['_tree']        
+            return ['_tree']
+        elif self.rwgt_mode == 'True_LO':
+            return ['_Tlo']
         elif not self.rwgt_mode and self.has_nlo :
             return ['_nlo']
         else:
@@ -1021,6 +1023,7 @@ class ReweightInterface(extended_cmd.Cmd):
         bjx = []
         wgt_tree = [] # reweight for loop-improved type
         wgt_virt  = [] #reweight b+v together
+        wgt_tlo = [] # reweight at LO accuracy
         base_wgt = []
         gs=[]
         qcdpower = []
@@ -1033,6 +1036,7 @@ class ReweightInterface(extended_cmd.Cmd):
             all_ctype = [w.type for w in cevent.wgts]
             if '_nlo' in type_nlo and any(c in all_ctype for c in [2,14,15]):
                 need_V =True
+                    
             
             w_orig = self.calculate_matrix_element(cevent, 0)
             w_new =  self.calculate_matrix_element(cevent, 1)
@@ -1075,6 +1079,12 @@ class ReweightInterface(extended_cmd.Cmd):
                                c_wgt.pwgt[2] * ratio_T]
                     wgt_tree.append(new_wgt)
                     
+                if '_Tlo' in type_nlo: #return real LO accuracy weight
+                    if c_wgt.type == 2:
+                        new_wgt = list(c_wgt.pwgt[:3])
+                    else:
+                        new_wgt = [0, 0, 0]
+                    wgt_tlo.append(new_wgt)
                 base_wgt.append(c_wgt.pwgt[:3])
         
         
@@ -1114,6 +1124,11 @@ class ReweightInterface(extended_cmd.Cmd):
             w_new =  self.calculate_matrix_element(event, 1)            
             final_weight['_lo'] = w_new/w_orig*event.wgt
             
+        if '_Tlo' in type_nlo:
+            out, partial = self.combine_wgt_local(scales2, pdg, bjx, wgt_tlo, gs, qcdpower, self.pdf)
+            avg = [1] * len(partial)
+            final_weight['_Tlo'] = out/orig_wgt*event.wgt
+                
             
         if self.output_type != 'default' and len(type_nlo)==1 and '_lo' not in type_nlo:
             to_write = [partial[i]/ref_wgts[i]*partial_check[i]
@@ -1124,10 +1139,14 @@ class ReweightInterface(extended_cmd.Cmd):
                         c_wgt.ref_wgt = to_write.pop(0)
                         if '_tree' in type_nlo:
                             c_wgt.pwgt = wgt_tree.pop(0)
+                        elif '_Tlo' in type_nlo:
+                            c_wgt.pwgt = wgt_tlo.pop(0)
                         else:
                             c_wgt.pwgt = wgt_virt.pop(0)
             assert not to_write
             assert not wgt_tree
+            assert not wgt_tlo
+            assert not wgt_virt
         return final_weight 
 
 
@@ -1640,7 +1659,7 @@ class ReweightInterface(extended_cmd.Cmd):
         # 5. create the virtual for NLO reweighting  ---------------------------
         if second and 'virtual_path' in self.dedicated_path:
             files.ln(self.dedicated_path['virtual_path'], path_me, name=data['paths'][1])
-        elif has_nlo and 'NLO' in self.rwgt_mode:
+        elif has_nlo and 'NLO' in self.rwgt_mode and self.rwgt_mode != 'NLO_tree':
             self.create_standalone_virt_directory(data, second)
             
             if False:#not second:
@@ -1666,22 +1685,23 @@ class ReweightInterface(extended_cmd.Cmd):
                 except:
                     misc.compile(['OLP_static'], cwd=pjoin(path_me, data['paths'][1],'SubProcesses'),
                              nb_core=1)
-        elif has_nlo and not second and self.rwgt_mode == ['NLO_tree']:
+        elif has_nlo and not second and self.rwgt_mode in ['NLO_tree','True_LO']:
             # We do not have any virtual reweighting to do but we still have to
             #combine the weights.
             #Idea:create a fake directory.
-            start = time.time()
-            commandline='import model loop_sm;generate g g > e+ ve [virt=QCD]'
-            # deactivate golem since it creates troubles
-            old_options = dict(mgcmd.options)
-            mgcmd.options['golem'] = None             
-            commandline = commandline.replace('add process', 'generate',1)
-            logger.info(commandline)
-            mgcmd.exec_cmd(commandline, precmd=True)
-            commandline = 'output standalone_rw %s --prefix=int -f' % pjoin(path_me, data['paths'][1])
-            mgcmd.exec_cmd(commandline, precmd=True)    
-            #put back golem to original value
-            mgcmd.options['golem'] = old_options['golem']
+            if False:
+                start = time.time()
+                commandline='import model loop_sm;generate g g > e+ ve [virt=QCD]'
+                # deactivate golem since it creates troubles
+                old_options = dict(mgcmd.options)
+                mgcmd.options['golem'] = None             
+                commandline = commandline.replace('add process', 'generate',1)
+                logger.info(commandline)
+                mgcmd.exec_cmd(commandline, precmd=True)
+                commandline = 'output standalone_rw %s --prefix=int -f' % pjoin(path_me, data['paths'][1])
+                mgcmd.exec_cmd(commandline, precmd=True)    
+                #put back golem to original value
+                mgcmd.options['golem'] = old_options['golem']
             # update make_opts
             if not mgcmd.options['lhapdf']:
                 raise Exception, "NLO_tree reweighting requires LHAPDF to work correctly"
