@@ -40,13 +40,13 @@ FILES= $(patsubst %.f,%.o,$(wildcard parton_lum_*.f)) $(patsubst	\
 # Files needed for mintFO & mintMC
 RUN= $(FO_ANALYSE) $(FILES) cuts.o pythia_unlops.o recluster.o 		\
 	fill_MC_mshell.o born_hel.o open_output_files.o			\
-	add_write_info.o madfks_plot.o
+	add_write_info.o madfks_plot.o handling_lhe_events.o
 
 # Files for mintFO
-MINTFO= $(RUN) driver_mintFO.o handling_lhe_events.o BinothLHA.o
+MINTFO= $(RUN) driver_mintFO.o BinothLHA.o
 
 # Files for mintMC
-MINTMC= $(RUN) driver_mintMC.o handling_lhe_events.o write_event.o BinothLHA.o
+MINTMC= $(RUN) driver_mintMC.o write_event.o BinothLHA.o
 
 # Files for check_poles
 POLES= $(RUN) check_poles.o BinothLHA.o
@@ -88,15 +88,18 @@ RWGFILES=reweight_xsec_events.o handling_lhe_events.o			\
 gensym: $(SYM)
 	$(FC) $(LDFLAGS) -o gensym $(SYM) $(APPLLIBS) $(LINKLIBS) $(FJLIBS)
 	rm fks_singular.o
+	rm handling_lhe_events.o
 	strip gensym
 
 test_soft_col_limits: $(TEST)
 	$(FC) $(LDFLAGS) -o test_soft_col_limits $(TEST) $(APPLLIBS) $(LINKLIBS) $(FJLIBS)
 	rm test_soft_col_limits.o
+	rm handling_lhe_events.o
 	strip test_soft_col_limits
 
 check_poles: $(POLES) $(libmadloop)
 	$(FC) -o check_poles $(POLES) $(NLOLIBS) $(APPLLIBS) $(LINKLIBS) $(FJLIBS) $(LDFLAGS)
+	rm handling_lhe_events.o
 	strip check_poles
 
 madevent_mintMC: $(MINTMC) $(libmadloop) makefile $(LIBS)

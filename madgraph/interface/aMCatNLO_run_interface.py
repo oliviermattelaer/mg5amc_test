@@ -2849,6 +2849,8 @@ RESTART = %(mint_mode)s
         text = open(pjoin(jobs[0]['dirname'],'header.txt'),'r').read()
         i1, i2 = text.find('<initrwgt>'),text.find('</initrwgt>') 
         self.banner['initrwgt'] = text[10+i1:i2]
+
+        self.banner['mg5proccard'] = open(pjoin(self.me_dir, 'Cards', 'proc_card_mg5.dat')).read()
 #        
 #        <init>
 #        2212 2212 6.500000e+03 6.500000e+03 0 0 247000 247000 -4 1

@@ -24,6 +24,7 @@ import shutil
 import sys
 import time
 import glob
+import copy
 
 
 pjoin = os.path.join
@@ -1470,10 +1471,10 @@ class MadSpinInterface(extended_cmd.Cmd):
             while 1:
                 nb_try +=1
                 decays = self.get_decay_from_file(production, evt_decayfile, nb_event-curr_event)
-                full_evt, wgt = self.get_onshell_evt_and_wgt(production, decays)
+                full_evt, wgt = self.get_onshell_evt_and_wgt(production, copy.deepcopy(decays))
                 if random.random()*maxwgt < wgt:
                     if self.options['fixed_order']:
-                        full_evt = [full_evt] + [evt.add_decays(decays) for evt in counterevt]
+                        full_evt = [full_evt] + [evt.add_decays(copy.deepcopy(decays)) for evt in counterevt]
                     break
             self.efficiency = curr_event/nb_try
             if self.options['fixed_order']:
