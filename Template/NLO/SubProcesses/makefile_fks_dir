@@ -38,7 +38,7 @@ FILES= $(patsubst %.f,%.o,$(wildcard parton_lum_*.f)) $(patsubst	\
 	$(applgrid_interface) weight_lines.o mint_module.o polfit.o
 
 # Files needed for mintFO & mintMC
-RUN= $(FO_ANALYSE) $(FILES) cuts.o pythia_unlops.o recluster.o 		\
+RUN= $(FILES) $(FO_ANALYSE) cuts.o pythia_unlops.o recluster.o 		\
 	fill_MC_mshell.o born_hel.o open_output_files.o			\
 	add_write_info.o madfks_plot.o handling_lhe_events.o
 
