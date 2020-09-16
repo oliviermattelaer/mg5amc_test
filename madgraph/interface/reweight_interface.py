@@ -219,12 +219,11 @@ class ReweightInterface(extended_cmd.Cmd):
         
         # split the line definition with the part before and after the NLO tag
         process, order, final = re.split('\[\s*(.*)\s*\]', proc)
+        
         if process.strip().startswith(('generate', 'add process')):
             process = process.replace('generate', '')
             process = process.replace('add process','')
         
-        # add the part without any additional jet.
-        commandline="add process %s %s --no_warning=duplicate;" % (process, final)
         if not order:
             #NO NLO tag => nothing to do actually return input
             return proc
@@ -237,10 +236,11 @@ class ReweightInterface(extended_cmd.Cmd):
                 # get the type NLO QCD/QED/...
                 order = order.split('=',1)[1].strip()
 
+
             # define the list of particles that are needed for the radiation
             pert = fks_common.find_pert_particles_interactions(model,
                                            pert_order = order)['soft_particles']
-            commandline += "define pert_%s = %s;" % (order.replace(' ',''), ' '.join(map(str,pert)) )
+            commandline = "define pert_%s = %s;" % (order.replace(' ',''), ' '.join(map(str,pert))+' 21' )
             
             # check if we have to increase by one the born order
             
@@ -250,18 +250,35 @@ class ReweightInterface(extended_cmd.Cmd):
                 for r in result:
                     if '%s=' % order in r:
                         ior=re.split('=',r)
-                        r='QCD=%i' % (int(ior[1])+1)
+                        r='%s=%i' % (order,int(ior[1])+1)
                     elif '%s<=' % order in r:
                         ior=re.split('=',r)
-                        r='QCD<=%i' % (int(ior[1])+1)
+                        r='%s<=%i' % (order,int(ior[1])+1)
+                    process=process+r+' '
+            elif '%s^2=' % order in process or '%s^2<=' % order in process:
+                result=re.split(' ',process)
+                process=''
+                for r in result:
+                    if '%s^2=' % order in r:
+                        ior=re.split('=',r)
+                        r='%s^2=%i' % (order,int(ior[1])+2)
+                    elif '%s<=' % order in r:
+                        ior=re.split('=',r)
+                        r='%s^2<=%i' % (order,int(ior[1])+2)
                     process=process+r+' '
             #handle special tag $ | / @
-            result = re.split('([/$@]|\w+(?:^2)?(?:=|<=|>)+\w+)', process, 1)                    
+            result = re.split('([/$@]|\w+(?:\^2)?(?:=|<=|>)+\w+)', process, 1)                    
+
+            # add the part without any additional jet.
+            commandline+="add process %s %s --no_warning=duplicate;" % (process, final)
+
             if len(result) ==3:
                 process, split, rest = result
                 commandline+="add process %s pert_%s %s%s %s --no_warning=duplicate;" % (process, order.replace(' ','') ,split, rest, final)
             else:
                 commandline +='add process %s pert_%s %s --no_warning=duplicate;' % (process,order.replace(' ',''), final)
+
+            return commandline
         elif order.startswith(('noborn=')):
             # pass in sqrvirt=
             return "add process %s [%s] %s;" % (process, order.replace('noborn=', 'sqrvirt='), final)
@@ -274,7 +291,6 @@ class ReweightInterface(extended_cmd.Cmd):
                 return "add process %s [%s] %s ;" % (process, order,final)
             else:
                 return "add process %s %s ;" % (process, final)
-        return commandline
 
 
     def check_events(self):

@@ -1270,8 +1270,26 @@ class Event(list):
                 part = Particle(line, event=self)
                 if part.E != 0 or part.status==-1:
                     self.append(part)
-                elif self.nexternal:
+#                elif self.nexternal:
+#                    self.nexternal-=1
+
+                elif part.status==1:
                     self.nexternal-=1
+                    if part.pid != 21 and part.pid != 22:
+                        # particle with zero momentum is not a gluon or a photon.
+                        # Need to change the PDG code of another particle to match the removed one:
+                        for particle in self:
+#                            print('not append part',part.pid,particle.pid,particle.status,part.status)
+                            if particle.status*particle.pid + part.status*part.pid == 0:
+
+#                                print('particle to update')
+#                                print(particle.status,particle.pid,part.status,part.pid)
+                                
+                                if abs(part.pid) < 10:
+                                    particle.pid = 21  # make it a gluon
+                                else:
+                                    particle.pid = 22  # make it a photon
+
             else:
                 if '</event>' in line:
                     line = line.replace('</event>','',1)
