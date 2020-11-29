@@ -20,6 +20,28 @@
 
   //--------------------------------------------------------------------------
 
+ __device__
+  inline const fptype* pIdp4Ievt( const fptype* momenta1d, // input: momenta as AOSOA[npagM][npar][4][neppM]
+                                     const unsigned short int parid,
+                                     const int ievt )
+  {
+    using mgOnGpu::npar;
+
+    fptype p[4] = {0,0,0,0};
+    
+    for (unsigned short int c = 0; c < npar; c++){
+         unsigned short int k = parid >> c;
+	 if (k & 1){
+	    for (int i =0; i<4; i++){
+	    	p[i] += pIparIp4Ievt( momenta1d, k, i, ievt );
+	    	}  
+	 }	    
+    }
+    return p;
+    }
+
+
+
 __device__ void ixxxxx(const fptype* allmomenta, const fptype& fmass, const int& nhel, const int& nsf,
                        cxtype fi[6],
 #ifndef __CUDACC__

@@ -1882,16 +1882,16 @@ class ALOHAWriterForGPU(ALOHAWriterForCPP):
     type2def['pointer_vertex'] = '*' # using complex<double> * vertex)
     type2def['pointer_coup'] = ''
     
-    def get_header_txt(self, name=None, couplings=None, mode=''):
-        """Define the Header of the fortran file. This include
-            - function tag
-            - definition of variable
-        """
-        text = StringIO()
-        #if not 'is_h' in mode:
-        #    text.write('__device__=__forceinclude__\n')
-        text.write(ALOHAWriterForCPP.get_header_txt(self, name, couplings, mode))
-        return text.getvalue()
+#     def get_header_txt(self, name=None, couplings=None, mode=''):
+#         """Define the Header of the fortran file. This include
+#             - function tag
+#             - definition of variable
+#         """
+#         text = StringIO()
+#         #if not 'is_h' in mode:
+#         #    text.write('__device__=__forceinclude__\n')
+#         text.write(ALOHAWriterForCPP.get_header_txt(self, name, couplings, mode))
+#         return text.getvalue()
         
     def get_h_text(self,couplings=None):
         """Return the full contents of the .h file"""
@@ -1989,7 +1989,7 @@ class ALOHAWriterForGPU(ALOHAWriterForCPP):
         return text % data
     
     
-    def get_header_txt(self, name=None, couplings=None,mode=''):
+    def get_header_txt(self, name=None, couplings=None, mode=''):
         """Define the Header of the fortran file. This include
             - function tag
             - definition of variable
@@ -2032,9 +2032,16 @@ class ALOHAWriterForGPU(ALOHAWriterForCPP):
                      'id': self.outgoing}
             self.declaration.add(('list_complex', output))
         
-        out.write('%(prefix)s void %(name)s(const %(args)s, %(output)s)' % \
+        misc.sprint(args)
+        new_args = []
+        for a in args:
+            new_args.append(a)
+            if a.startswith('cxtype') and a.endswith('[]'):
+                new_args.append('unsigned short pid%s' % a[-3])
+        misc.sprint(new_args)
+        out.write('%(prefix)s void %(name)s(const fptype * allmomenta, const %(args)s,\n#ifndef __CUDACC__\n const int ievt,\n#endif\n%(output)s)' % \
                   {'prefix': self.prefix,
-                      'output':output, 'name': name, 'args': ', const '.join(args)})
+                      'output':output, 'name': name, 'args': ', const '.join(new_args)})
         if 'is_h' in mode:
             out.write(';\n')
         else:

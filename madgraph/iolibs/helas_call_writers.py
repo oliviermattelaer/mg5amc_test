@@ -1804,7 +1804,6 @@ class GPUFOHelasCallWriter(CPPUFOHelasCallWriter):
                                  wf.get('me_id')-1,
                                  wf.get('number_external')-1)
             elif argument.is_boson():
-                misc.sprint(call)
                 misc.sprint( (wf.get('mass'),
                                  wf.get('number_external')-1,
                                  # For boson, need initial/final here
@@ -1907,18 +1906,20 @@ class GPUFOHelasCallWriter(CPPUFOHelasCallWriter):
                 
             # Creating line formatting:
             if isinstance(argument, helas_objects.HelasWavefunction):
-                call = '%(routine_name)s(%(wf)s%(coup)s%(mass)s%(out)s);'
+                call = '%(routine_name)s(allmomenta,%(wf)s%(coup)s%(mass)s\n#ifndef __CUDACC__\n ievt,\n#endif\n%(out)s);'
             else:
-                call = '%(routine_name)s(%(wf)s%(coup)s%(mass)s%(out)s); printf(" %(out)s %%%%f %%%%f\\n", %(out2)s.real(), %(out2)s.imag());'
-                call = '%(routine_name)s(%(wf)s%(coup)s%(mass)s%(out)s);'
+                call = '%(routine_name)s(allmomenta,%(wf)s%(coup)s%(mass)s\n#ifndef __CUDACC__\n ievt,\n#endif\n%(out)s);'
             # compute wf
             arg = {'routine_name': aloha_writers.combine_name(\
                                             '%s' % l[0], l[1:], outgoing, flag,True),
-                   'wf': ("w[%%(%d)d]," * len(argument.get('mothers'))) % \
-                                      tuple(range(len(argument.get('mothers')))),
+                   'wf': ("w[%%(%d)d],%%(%d_id)d," * len(argument.get('mothers'))) % \
+                                      tuple([i for i in range(len(argument.get('mothers'))) for j in [0,1]]),
                     'coup': ("pars->%%(coup%d)s," * len(argument.get('coupling'))) % \
-                                     tuple(range(len(argument.get('coupling'))))           
+                                     tuple(range(len(argument.get('coupling')))),    
+                   'wf_id': ("%%(%d_id)d," * len(argument.get('mothers'))) % \
+                                      tuple(range(len(argument.get('mothers')))),                                            
                    } 
+            
             if isinstance(argument, helas_objects.HelasWavefunction):
                 arg['out'] = 'w[%(out)d]'
                 if aloha.complex_mass:
