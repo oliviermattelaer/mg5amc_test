@@ -2003,7 +2003,7 @@ class ALOHAWriterForGPU(ALOHAWriterForCPP):
 
         if not hasattr(self, 'one_momenta_def'):
             self.one_momenta_def = True
-            strfile.write("#ifdef __CUDACC__\n    const int ievt = blockDim.x * blockIdx.x + threadIdx.x;  \m=n#endif\n")
+            strfile.write("#ifdef __CUDACC__\n    const int ievt = blockDim.x * blockIdx.x + threadIdx.x;  \n#endif\n")
 
             
         type = self.particles[i-1]
