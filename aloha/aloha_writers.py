@@ -180,6 +180,7 @@ class WriteALOHA:
         
         
         
+        
     
     def get_foot_txt(self):
         """Prototype for language specific footer"""
@@ -1338,7 +1339,7 @@ class ALOHAWriterForCPP(WriteALOHA):
     realoperator = '.real()'
     imagoperator = '.imag()'
     ci_definition = 'static std::complex<double> cI = std::complex<double>(0.,1.);\n'
-    
+    write_sum_momenta = True
     
     def change_number_format(self, number):
         """Formating the number"""
@@ -1555,10 +1556,11 @@ class ALOHAWriterForCPP(WriteALOHA):
                 size_p = 4
             else:
                 size_p = 2
-            
-            for i in range(size_p):
-                dict_energy = {'i':i}
-                out.write('    %s%s[%s] = %s;\n' % (type,self.outgoing, i, 
+
+            if self.write_sum_momenta:
+                for i in range(size_p):
+                    dict_energy = {'i':i}
+                    out.write('    %s%s[%s] = %s;\n' % (type,self.outgoing, i, 
                                              ''.join(p) % dict_energy))
             if self.declaration.is_used('P%s' % self.outgoing):
                 self.get_one_momenta_def(self.outgoing, out)
@@ -1881,7 +1883,14 @@ class ALOHAWriterForGPU(ALOHAWriterForCPP):
     type2def['complex'] = 'cxtype '
     type2def['pointer_vertex'] = '*' # using complex<double> * vertex)
     type2def['pointer_coup'] = ''
+    write_sum_momenta = False
+
     
+    def __init__(self, *args, **opts):
+
+        super(ALOHAWriterForGPU,self).__init__(*args, **opts)
+        self.momentum_size = 0
+        
 #     def get_header_txt(self, name=None, couplings=None, mode=''):
 #         """Define the Header of the fortran file. This include
 #             - function tag
@@ -1987,6 +1996,35 @@ class ALOHAWriterForGPU(ALOHAWriterForCPP):
         else:
             text = '%(factors)s'
         return text % data
+
+    
+    def get_one_momenta_def(self, i, strfile):
+        
+        type = self.particles[i-1]
+        
+        if aloha.loop_mode:
+            raise Exception
+        else:
+            template = 'pIdp4Ievt(allmomenta, %(id)s ,ievt, P%(i)d);\n'
+            #template ='P%(i)d[%(j)d] = %(sign)s%(type)s%(i)d[%(nb2)d]%(operator)s;\n'
+
+        strfile.write(template % {'i': i, 
+                                  'id': self.get_P_id(i),
+                                  'sign': self.get_P_sign(i)})
+        if self.get_P_sign(i) == "-":
+            for j in range(4):
+                strfile.write("P%(i)d[%(j)d] = -P%(i)d[%(j)d];\n" 
+                                  % {'i': i, 'j':j})
+    
+    def get_P_id(self, i):
+        """ """ 
+        misc.sprint(self.outgoing, dir(self), self.__dict__)
+        if i == self.outgoing:
+            return " + ".join(["pid%d" %j for j in range(1,1+len(self.particles)) if j!= i])
+        else:
+            return "pid%d" %i
+        raise Exception             
+                
     
     
     def get_header_txt(self, name=None, couplings=None, mode=''):
