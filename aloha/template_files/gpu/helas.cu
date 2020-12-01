@@ -22,19 +22,23 @@
   //--------------------------------------------------------------------------
 
  __device__
-  inline const fptype* pIdp4Ievt( const fptype* momenta1d, // input: momenta as AOSOA[npagM][npar][4][neppM]
+  inline void pIdp4Ievt( const fptype* momenta1d, // input: momenta as AOSOA[npagM][npar][4][neppM]
                                      const unsigned short int parid,
-                                     const int ievt )
+                                     const int ievt,
+				     fptype p[])
   {
     using mgOnGpu::npar;
 
-    fptype p[4] = {0,0,0,0};
+    p[0] = 0;
+    p[1] = 0;
+    p[2] = 0;
+    p[3] = 0;
     
     for (unsigned short int c = 0; c < npar; c++){
          unsigned short int k = parid >> c;
 	 if (k & 1){
 	    for (int i =0; i<4; i++){
-	    	p[i] += pIparIp4Ievt( momenta1d, k, i, ievt );
+	    	p[i] += pIparIp4Ievt( momenta1d, c, i, ievt );
 	    	}  
 	 }	    
     }
