@@ -1997,9 +1997,15 @@ class ALOHAWriterForGPU(ALOHAWriterForCPP):
             text = '%(factors)s'
         return text % data
 
-    
+
+
     def get_one_momenta_def(self, i, strfile):
-        
+
+        if not hasattr(self, 'one_momenta_def'):
+            self.one_momenta_def = True
+            strfile.write("#ifdef __CUDACC__\n    const int ievt = blockDim.x * blockIdx.x + threadIdx.x;  \m=n#endif\n")
+
+            
         type = self.particles[i-1]
         
         if aloha.loop_mode:
