@@ -900,8 +900,19 @@ class AllMatrixElement(dict):
         for key in keys:
             self[key] = topologies
 
-    def get_br(self, proc):
-        # get the branching ratio associated to a process
+    def get_br(self, proc, input_mode=2):
+        """ get the branching ratio associated to a process
+            input_mode =1 means use the param_card information for the BR
+            input_mode=2 use the self.options.splitting_br information (if define otherwise use param_card)
+        """
+        # card to use 
+        if input_mode == 1:
+            param_card =  self.banner.param_card
+        elif input_mode ==2:
+            if self.options.splitting_br:
+                param_card =  self.options.splitting_br
+            else:
+                param_card =  self.banner.param_card
        
         br = 1
         ids = collections.defaultdict(list) #check for identical decay
@@ -909,20 +920,20 @@ class AllMatrixElement(dict):
             init, final = decay.get_initial_final_ids()
             lhaid = tuple([len(final)] + [x for x in final])
             ids[init[0]].append(decay)
-            if init[0] in self.banner.param_card['decay'].decay_table:
-                br *= self.banner.param_card['decay'].decay_table[init[0]].get(lhaid).value
-                br *= self.get_br(decay)
-            elif -init[0] in self.banner.param_card['decay'].decay_table:
+            if init[0] in param_card['decay'].decay_table:
+                br *= param_card['decay'].decay_table[init[0]].get(lhaid).value
+                br *= self.get_br(decay, input_mode)
+            elif -init[0] in param_card['decay'].decay_table:
                 init = -init[0]
                 lhaid=[x if self.model.get_particle(x)['self_antipart'] else -x
                        for x in final]
                 lhaid.sort()
                 lhaid = tuple([len(final)] + lhaid)
-                br *= self.banner.param_card['decay'].decay_table[init].get(lhaid).value
-                br *= self.get_br(decay)
+                br *= param_card['decay'].decay_table[init].get(lhaid).value
+                br *= self.get_br(decay, input_mode)
             elif init[0] not in self.decay_ids and -init[0] not in self.decay_ids:
                 logger.warning("No Branching ratio applied for %s. Please check if this is expected" % init[0])
-                br *= self.get_br(decay)
+                br *= self.get_br(decay, input_mode)
             else:
                 raise MadGraph5Error("No valid decay for %s. No 2 body decay for that particle. (three body are not supported by MadSpin)" % init[0])
 
@@ -1016,6 +1027,8 @@ class AllMatrixElement(dict):
                'base_order':[l.get('id') for l in me.get_legs_with_decays()] ,
                'decay_struct':self.get_full_process_structure(proc_list),
                'decay_tag': tuple(decay_tags)}
+        if self.options['unweighted_br']:
+            out['real_br'] = len(finals) * self.get_br(proc, input_mode=1)
 
         # adding it to the current object
         self[tag]['decays'].append(out)
@@ -2325,10 +2338,12 @@ class decay_all_events(object):
                             100 * report['%s_f' % (decay['decay_tag'],)] / report[ decay['decay_tag']] ,\
                             decay['decay_tag'])  
                     raise MadSpinError(error)
-                    
-             
-            decayed_event.change_wgt(factor= self.branching_ratio) 
-            #decayed_event.wgt = decayed_event.wgt * self.branching_ratio
+            
+            if 'real_br' in decay:
+                decayed_event.change_wgt(factor= self.branching_ratio*decay['real_br']/decay['br'])
+            else: 
+                decayed_event.change_wgt(factor= self.branching_ratio) 
+            
                     
             self.outputfile.write(decayed_event.string_event())
                 #print "number of trials: "+str(trial_nb)

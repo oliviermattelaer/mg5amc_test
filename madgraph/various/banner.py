@@ -1063,7 +1063,7 @@ class ConfigFile(dict):
         
         if value is None:
             value = self[name]
-
+            
         if hasattr(self, 'post_set_%s' % name):
             return getattr(self, 'post_set_%s' % name)(value, change_userdefine, raiseerror)
     

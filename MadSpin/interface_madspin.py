@@ -81,7 +81,9 @@ class MadSpinOptions(banner.ConfigFile):
         self.add_param('input_format', 'auto', allowed=['auto','lhe', 'hepmc', 'lhe_no_banner'])
         self.add_param('frame_id', 6)
         self.add_param('global_order_coupling', '')
-        
+        self.add_param('unweighted_br','')
+        self.splitting_br = None
+
     ############################################################################
     ##  Special post-processing of the options                                ## 
     ############################################################################
@@ -121,6 +123,15 @@ class MadSpinOptions(banner.ConfigFile):
             logger.warning('Fix order madspin fails to have the correct scale information. This can bias the results!')
             logger.warning('Not all functionalities of MadSpin handle this mode correctly (only onshell mode so far).')
 
+    ############################################################################
+    def post_set_unweighted_br(self, value, changeuserdefine, raiseerror):
+        """special handling for unweighted_BR 
+        -> load the card in memory """
+
+        if value:
+            self.splitting_br = check_param_card.ParamCard(value)
+        else:
+            self.splitting_br = None
 
 class MadSpinInterface(extended_cmd.Cmd):
     """Basic interface for madspin"""
@@ -479,7 +490,6 @@ class MadSpinInterface(extended_cmd.Cmd):
         self.check_set(args)
 
         self.options[args[0]] = ' '.join(args[1:])
-        
 
     def complete_set(self,  text, line, begidx, endidx):
         
