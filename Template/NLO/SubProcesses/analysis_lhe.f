@@ -15,6 +15,7 @@ c event (event with lower weights will be un-weighted)
       nwgts=nwgt
       sum_of_wgts=0d0
       nevents=0
+      passed_unwgt=.false.
       inquire(41,OPENED=lopen) ! in case run is reset due to 2 bad iterations...
       if (lopen) close(41)
       open(41,file= 'events.lhe',status='UNKNOWN')
@@ -104,13 +105,11 @@ c --- region)
       if (.not. allocated(wwgts)) then
          allocate(wwgts(nwgts))
       endif
-      passed_unwgt=.true.
       twgt=abs(cross_section)*FO_LHE_weight_ratio !/npoints
       if(abs(wgts(1)).lt.abs(twgt) .and. xi_i_fks_ev.gt.1d-3 .and.
      $     1d0-y_ij_fks_ev.gt.1d-2)then
          R = ran2()*abs(twgt)
          if (R.gt.abs(wgts(1)))then
-            passed_unwgt=.false.
             return
          else
             do i=2,nwgts
@@ -119,6 +118,7 @@ c --- region)
             wwgts(1) = sign(twgt,wgts(1))
          endif
       else
+         passed_unwgt=.true.
          do i=1,nwgts
             wwgts(i)=wgts(i)
          enddo
@@ -218,6 +218,7 @@ c This we can use for the event grouping!
          write (41,'(a)') '</eventgroup>'
          write (41,'(a)') '<eventgroup>'
       endif
+      passed_unwgt=.false.
       end
 
 c Dummy routines
