@@ -636,7 +636,6 @@ class DiagramGenerationTest(unittest.TestCase):
 
         self.myamplitude.generate_diagrams()
         self.assertEqual(len(self.myamplitude.get('diagrams')), 3)
-        print(type(self.myamplitude))
         self.assertEqual(self.myamplitude.get('process').get('orders'),
                          {'QCD': 2, 'QED': 0, 'WEIGHTED': 2})
 

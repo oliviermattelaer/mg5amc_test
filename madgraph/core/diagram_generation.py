@@ -431,7 +431,6 @@ class Amplitude(base_objects.PhysicsObject):
             # Have not yet generated diagrams for this process
             if self['process']:
                 self.generate_diagrams()
-        misc.sprint(self.keys(), name)
         return super(Amplitude, self).get(name)
 #        return Amplitude.__bases__[0].get(self, name)  #return the mother routine
 
@@ -536,6 +535,7 @@ class Amplitude(base_objects.PhysicsObject):
                   
 
         res = base_objects.DiagramList()
+        self['diagrams'] = res
         # First check that the number of fermions is even
         if len(filter(lambda leg: model.get('particle_dict')[\
                         leg.get('id')].is_fermion(), legs)) % 2 == 1:
