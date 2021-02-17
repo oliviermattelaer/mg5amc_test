@@ -656,7 +656,7 @@ class FortranHelasCallWriter(HelasCallWriter):
                 call_function = lambda wf: call % \
                                 (wf.get('number_external'),
                                  # For boson, need initial/final here
-                                 (-1) ** (wf.get('state') == 1),
+                                 (-1) ** (wf.get('state') == 'initial'),
                                  wf.get('number_external'),
                                  wf.get('me_id'))
             elif argument.is_boson():
@@ -665,7 +665,7 @@ class FortranHelasCallWriter(HelasCallWriter):
                                  wf.get('mass'),
                                  wf.get('number_external'),
                                  # For boson, need initial/final here
-                                 (-1) ** (wf.get('state') == 1),
+                                 (-1) ** (wf.get('state') == 'initial'),
                                  wf.get('number_external'),
                                  wf.get('me_id'))
             else:
@@ -1609,7 +1609,7 @@ class CPPUFOHelasCallWriter(UFOHelasCallWriter):
                 call_function = lambda wf: call % \
                                 (wf.get('number_external')-1,
                                  # For boson, need initial/final here
-                                 (-1) ** (wf.get('state') == 1),
+                                 (-1) ** (wf.get('state') == 'initial'),
                                  wf.get('me_id')-1)
             elif argument.is_boson():
                 call_function = lambda wf: call % \
@@ -1617,7 +1617,7 @@ class CPPUFOHelasCallWriter(UFOHelasCallWriter):
                                  wf.get('number_external')-1,
                                  wf.get('number_external')-1,
                                  # For boson, need initial/final here
-                                 (-1) ** (wf.get('state') == 1),
+                                 (-1) ** (wf.get('state') == 'initial'),
                                  wf.get('me_id')-1)
             else:
                 call_function = lambda wf: call % \
@@ -1765,7 +1765,7 @@ class PythonUFOHelasCallWriter(UFOHelasCallWriter):
                                 (wf.get('me_id')-1,
                                  wf.get('number_external')-1,
                                  # For boson, need initial/final here
-                                 (-1)**(wf.get('state') == 1))
+                                 (-1)**(wf.get('state') == 'initial'))
             elif argument.is_boson():
                 if not gauge_check or argument.get('mass') != 'ZERO':
                     call_function = lambda wf: call % \
@@ -1774,14 +1774,14 @@ class PythonUFOHelasCallWriter(UFOHelasCallWriter):
                                  wf.get('mass'),
                                  wf.get('number_external')-1,
                                  # For boson, need initial/final here
-                                 (-1)**(wf.get('state') == 1))
+                                 (-1)**(wf.get('state') == 'initial'))
                 else:
                     call_function = lambda wf: call % \
                                 (wf.get('me_id')-1,
                                  wf.get('number_external')-1,
                                  'ZERO',
                                  # For boson, need initial/final here
-                                 (-1)**(wf.get('state') == 1))
+                                 (-1)**(wf.get('state') == 'initial'))
             else:
                 call_function = lambda wf: call % \
                                 (wf.get('me_id')-1,
