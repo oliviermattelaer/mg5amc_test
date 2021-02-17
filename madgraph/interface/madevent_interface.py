@@ -475,7 +475,7 @@ class CheckValidForCmd(object):
         
         if len(args) == 0:
             self.help_banner_run()
-            raise self.InvalidCmd('banner_run reauires at least one argument.')
+            raise self.InvalidCmd('banner_run requires at least one argument.')
         
         tag = [a[6:] for a in args if a.startswith('--tag=')]
         
@@ -911,8 +911,8 @@ class CheckValidForCmd(object):
                 model.change_mass_to_complex_scheme()
    
             
-        if not hasattr(model.get('particles')[0], 'partial_widths'):
-            raise self.InvalidCmd, 'The UFO model does not include partial widths information. Impossible to compute widths automatically'
+#        if not hasattr(model.get('particles')[0], 'partial_widths'):
+#            raise self.InvalidCmd, 'The UFO model does not include partial widths information. Impossible to compute widths automatically'
             
         # check if the name are passed to default MG5
         if '-modelname' in open(pjoin(self.me_dir,'Cards','proc_card_mg5.dat')).read():
@@ -1400,6 +1400,8 @@ class CompleteForCmd(CheckValidForCmd):
         
        except Exception, error:
            print error
+
+
     def complete_history(self, text, line, begidx, endidx):
         "Complete the history command"
 
@@ -1761,7 +1763,8 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         self.web = True
         self.results.def_web_mode(True)
         self.force = True
-
+        if os.environ['MADGRAPH_BASE']:
+            self.options['mg5_path'] = pjoin(os.environ['MADGRAPH_BASE'],'MG5')
 
     ############################################################################            
     def check_output_type(self, path):
@@ -1779,7 +1782,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
             loop over the different config file if config_file not define """
         
         super(MadEventCmd,self).set_configuration(amcatnlo=amcatnlo, 
-                                                            final=True, **opt)
+                                                            final=final, **opt)
         if not final:
             return self.options # the return is usefull for unittest
 
@@ -1799,7 +1802,8 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
                         logger.info("No valid pythia-pgs path found")
                         continue
                 elif key == "delphes_path":
-                    if not os.path.exists(pjoin(path, 'Delphes')):
+                    if not os.path.exists(pjoin(path, 'Delphes')) and not\
+                                     os.path.exists(pjoin(path, 'DelphesSTDHEP')):
                         logger.info("No valid Delphes path found")
                         continue
                 elif key == "madanalysis_path":
@@ -1888,7 +1892,8 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
                      
         # Remove previous cards
         for name in ['delphes_trigger.dat', 'delphes_card.dat',
-                     'pgs_card.dat', 'pythia_card.dat']:
+                     'pgs_card.dat', 'pythia_card.dat', 'madspin_card.dat',
+                     'reweight_card.dat']:
             try:
                 os.remove(pjoin(self.me_dir, 'Cards', name))
             except Exception:
@@ -2013,16 +2018,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
                 to_define = to_keep
             self.write_configuration(filepath, basefile, basedir, to_define)
   
-    ############################################################################
-    def do_import(self, line):
-        """Advanced commands: Import command files"""
-
-        args = self.split_arg(line)
-        # Check argument's validity
-        self.check_import(args)
-        
-        # Execute the card
-        self.import_command_file(args[1])  
+ 
 
     ############################################################################ 
     def do_print_results(self, line):
@@ -2158,6 +2154,9 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
             else:
                 logger.info("     Matched Cross-section :   %.4g +- %.4g pb" % (data['cross_pythia'], data['error_pythia']))            
             logger.info("     Nb of events after Matching :  %s" % data['nb_event_pythia'])
+            if self.run_card['use_syst'] in self.true:
+                logger.info("     Be carefull that matched information are here NOT for the central value. Refer to SysCalc output for it")
+            
         logger.info(" " )
 
     def print_results_in_file(self, data, path, mode='w'):
@@ -2309,7 +2308,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         while not param_card[-1] or param_card[-1].startswith('#'):
             param_card.pop(-1)
 
-        # Append calculated and read decays to the param_card                                   
+        # Append calculated and read decays to the param_card   
         param_card.append("#\n#*************************")
         param_card.append("#      Decay widths      *")
         param_card.append("#*************************")
@@ -2330,7 +2329,9 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
                                        ))
         decay_table = open(output, 'w')
         decay_table.write("\n".join(param_card) + "\n")
+        decay_table.close()
         logger.info("Results written to %s" %  output)
+
 
     ############################################################################
     def do_multi_run(self, line):
@@ -2404,14 +2405,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         
         #check if no 'Auto' are present in the file
         self.check_param_card(pjoin(self.me_dir, 'Cards','param_card.dat'))
-        
-        
-        if mode in ['run', 'all']:
-            if not hasattr(self, 'run_card'):
-                run_card = banner_mod.RunCard(opt['run_card'])
-            else:
-                run_card = self.run_card
-            run_card.write_include_file(pjoin(opt['output_dir'],'run_card.inc'))
+    
         
         if mode in ['param', 'all']:
             model = self.find_model_name()
@@ -2446,6 +2440,20 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
                 devnull.close()
                 default = pjoin(self.me_dir,'bin','internal','ufomodel','param_card.dat')
             param_card.write_inc_file(outfile, ident_card, default)
+      
+      
+        if mode in ['run', 'all']:
+            if not hasattr(self, 'run_card'):
+                run_card = banner_mod.RunCard(opt['run_card'])
+            else:
+                run_card = self.run_card
+            if self.ninitial == 1:
+                run_card['lpp1'] =  0
+                run_card['lpp2'] =  0
+                run_card['ebeam1'] = 0
+                run_card['ebeam2'] = 0
+                
+            run_card.write_include_file(pjoin(opt['output_dir'],'run_card.inc'))
          
     ############################################################################      
     def do_survey(self, line):
@@ -2690,6 +2698,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
             nb_event = pat.search(output).groups()[0]
         except AttributeError:
             time.sleep(10)
+            output = misc.mult_try_open(pjoin(self.me_dir,'SubProcesses','combine.log')).read()
             try:
                 nb_event = pat.search(output).groups()[0]
             except AttributeError:
@@ -3472,7 +3481,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
                              default = 'y', choices=['y','n'])
                 else:
                     ans = 'y'
-                if ans:
+                if ans == 'y':
                     self.cluster.remove()
                 raise
             except KeyboardInterrupt, error:
@@ -3725,6 +3734,11 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         
         fsock = open(pjoin(self.me_dir, 'SubProcesses','randinit'),'w')
         fsock.writelines('r=%s\n' % self.random)
+
+    def do_quit(self, *args, **opts):
+        
+        common_run.CommonRunCmd.do_quit(self, *args, **opts)
+        return CmdExtended.do_quit(self, *args, **opts)
         
     ############################################################################
     def treat_ckkw_matching(self):

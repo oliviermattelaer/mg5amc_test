@@ -658,7 +658,7 @@ class IOExportPythonTest(unittest.TestCase):
 
         subprocess_group = group_subprocs.SubProcessGroup.\
                            group_amplitudes(group_subprocs.SubProcessGroup,
-                                            amplitudes)[0]
+                                            amplitudes, "madevent")[0]
 
         # Test amp2 lines
         helas_writer = helas_call_writers.PythonUFOHelasCallWriter(mymodel)
