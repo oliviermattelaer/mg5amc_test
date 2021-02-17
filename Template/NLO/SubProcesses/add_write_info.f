@@ -9,7 +9,7 @@ c intermediate resonances. It also boosts the events to the lab frame
       include "coloramps.inc"
       include "reweight0.inc"
       include "nFKSconfigs.inc"
-      include "leshouche_info.inc"
+      include "leshouche_decl.inc"
       include "run.inc"
 
 c Arguments
@@ -31,8 +31,8 @@ c Local
       data firsttime2/.true./
 
 c The process chosen to write
-      integer i_process
-      common/c_addwrite/i_process
+      integer i_process_addwrite
+      common/c_addwrite/i_process_addwrite
       
 c Random numbers
       double precision ran2
@@ -205,7 +205,7 @@ c Set the shower scale
 c This is an (n+1)-body process (see update_unwgt_table in
 c driver_mintMC.f). For S events it corresponds to the underlying Born
 c process chosen
-      ip=i_process
+      ip=i_process_addwrite
       if (ip.lt.1 .or. ip.gt.maxproc_used) then
          write (*,*)'ERROR #12 in add_write_info,'/
      &        /' not a well-defined process',ip,Hevents
@@ -228,7 +228,7 @@ c
       enddo
 c Assume helicity summed
       do i=1,nexternal
-         jpart(7,i)=0
+         jpart(7,i)=9
       enddo
       if (firsttime2 .and. isum_hel.ne.0) then
          write (*,*) 'WARNING: for writing the events, no helicity '//
@@ -799,46 +799,6 @@ c                  whichever is closer to mass shell
       enddo
       end
 
-      subroutine get_ID_H(IDUP_tmp)
-      implicit none
-      include "genps.inc"
-      include 'nexternal.inc'
-      integer maxflow
-      parameter (maxflow=999)
-      integer idup(nexternal,maxproc),mothup(2,nexternal,maxproc),
-     &     icolup(2,nexternal,maxflow)
-c      include 'leshouche.inc'
-      common /c_leshouche_inc/idup,mothup,icolup
-      integer IDUP_tmp(nexternal),i
-c
-      do i=1,nexternal
-         IDUP_tmp(i)=IDUP(i,1)
-      enddo
-c
-      return
-      end
-
-      subroutine get_ID_S(IDUP_tmp)
-      implicit none
-      include "genps.inc"
-      include 'nexternal.inc'
-      integer    maxflow
-      parameter (maxflow=999)
-      integer idup(nexternal,maxproc)
-      integer mothup(2,nexternal,maxproc)
-      integer icolup(2,nexternal,maxflow)
-      include 'born_leshouche.inc'
-      integer IDUP_tmp(nexternal),i
-c
-      do i=1,nexternal-1
-         IDUP_tmp(i)=IDUP(i,1)
-      enddo
-      IDUP_tmp(nexternal)=0
-c
-      return
-      end
-
-
       subroutine fill_icolor_H(iflow,jpart)
       implicit none
       include "nexternal.inc"
@@ -1069,7 +1029,7 @@ c Masses to be given to genps_fks.f
       common/to_mass/  emass
 
 c Monte Carlo masses: use PDG conventions
-      double precision mcmass(-5:21)
+      double precision mcmass(-16:21)
       common/cmcmass/mcmass
 
 c Masses used by write_events_lhe
@@ -1096,6 +1056,8 @@ c
       xmj=-1.d0
       xm1=-1.d0
       xm2=-1.d0
+c WARNING: what follows will need to be reconsidered the case of 
+c QED corrections, for what is relevant to i_fks and j_fks
       do i=1,nexternal
         if(i.eq.i_fks)then
           if(pmass(i).ne.0.d0)then
@@ -1186,12 +1148,13 @@ c one_tree assumes massless incoming QCD particles
         else
           idpart=jpart(1,i)
           if( idpart.eq.21 .or.
-     #        (abs(idpart).ge.1.and.abs(idpart).le.5) )then
+     #        (abs(idpart).ge.1.and.abs(idpart).le.5) .or.
+     #        (abs(idpart).ge.11.and.abs(idpart).le.16) )then
             if(pmass(i).eq.0.d0)then
               tmpmass=mcmass(idpart)
             else
-c If MadFKS has a non-zero mass for a "light" quark, one probably wants
-c to use that in the shower phase as well (ie bottom or charm production).
+c If MadFKS has a non-zero mass for a "light" quark or lepton, one probably 
+c wants to use that in the shower phase as well (ie bottom or charm production).
 c One may use equivalently a condition on maxjetflavor
               tmpmass=pmass(i)
             endif

@@ -3,6 +3,8 @@
 LIBDIR= ../lib/
 BINDIR= ../bin/
 PDFDIR= ./PDF/
+PWD = $(shell pwd)
+CUTTOOLSDIR= $(PWD)/CutTools/
 
 include make_opts
 
@@ -42,6 +44,16 @@ $(LIBDIR)libcernlib.$(libext): CERNLIB
 $(LIBDIR)libmodel.$(libext): MODEL
 	cd MODEL; make	 
 
+CutTools: $(LIBDIR)libcts.a
+
+$(LIBDIR)libcts.a: $(CUTTOOLSDIR)
+	cd $(CUTTOOLSDIR); make
+	ln -sf ../Source/CutTools/includects/libcts.a $(LIBDIR)libcts.a
+	ln -sf ../Source/CutTools/includects/mpmodule.mod $(LIBDIR)mpmodule.mod
+
+cleanCT:
+	cd CUTTOOLS; make clean; cd ..
+
 # Binaries
 
 $(BINDIR)sum_html: sum_html.o 
@@ -68,7 +80,7 @@ setrun.o: setrun.f nexternal.inc leshouche.inc
 
 clean:
 	$(RM) *.o $(LIBRARIES)
-	cd PDF; make clean; cd ..
+	if [ -d PDF ]; then cd PDF; make clean; cd ..; fi
+	if [ -d CERNLIB ]; then cd CERNLIB; make clean; cd ..; fi
 	cd DHELAS; make clean; cd ..
-	cd CERNLIB; make clean; cd ..
 	cd MODEL; make clean; cd ..

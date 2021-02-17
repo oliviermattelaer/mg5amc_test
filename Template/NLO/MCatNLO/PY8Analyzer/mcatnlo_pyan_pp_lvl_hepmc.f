@@ -21,7 +21,7 @@ C----------------------------------------------------------------------
       include 'reweight0.inc'
       integer j,kk,l,i,nnn
       character*5 cc(2)
-      data cc/'     ','     '/
+      data cc/'     ','Born '/
       integer nwgt,max_weight,nwgt_analysis
       common/cnwgt/nwgt
       common/c_analysis/nwgt_analysis
@@ -64,8 +64,8 @@ C----------------------------------------------------------------------
 C     USER''S ROUTINE FOR TERMINAL CALCULATIONS, HISTOGRAM OUTPUT, ETC
 C----------------------------------------------------------------------
       INCLUDE 'HEPMC.INC'
-      REAL*8 XNORM
-      INTEGER I,J,KK,IEVTTOT,l,nwgt_analysis
+      REAL*8 XNORM,IEVTTOT
+      INTEGER I,J,KK,l,nwgt_analysis
       integer NPL
       parameter(NPL=15000)
       common/c_analysis/nwgt_analysis

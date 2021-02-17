@@ -41,6 +41,7 @@ class UFOExpressionParser(object):
     """A base class for parsers for algebraic expressions coming from UFO."""
 
     parsed_string = ""
+    logical_equiv = {}
 
     def __init__(self, **kw):
         """Initialize the lex and yacc"""
@@ -59,9 +60,9 @@ class UFOExpressionParser(object):
 
     # List of tokens and literals
     tokens = (
-        'POWER', 'CSC', 'SEC', 'ACSC', 'ASEC',
-        'SQRT', 'CONJ', 'RE', 'IM', 'PI', 'COMPLEX', 'FUNCTION',
-        'VARIABLE', 'NUMBER','COND','REGLOG'
+        'LOGICAL','LOGICALCOMB','POWER', 'CSC', 'SEC', 'ACSC', 'ASEC',
+        'SQRT', 'CONJ', 'RE', 'RE2', 'IM', 'PI', 'COMPLEX', 'FUNCTION', 'IF','ELSE',
+        'VARIABLE', 'NUMBER','COND','REGLOG', 'ARG'
         )
     literals = "=+-*/(),"
 
@@ -85,6 +86,20 @@ class UFOExpressionParser(object):
     def t_COND(self, t):
         r'(?<!\w)cond(?=\()'
         return t
+    def t_ARG(self,t):
+        r'(?<!\w)arg(?=\()'
+    def t_IF(self, t):
+        r'(?<!\w)if\s'
+        return t
+    def t_ELSE(self, t):
+        r'(?<!\w)else\s'
+        return t
+    def t_LOGICAL(self, t):
+        r'==|!=|<=|>=|<|>'
+        return t
+    def t_LOGICALCOMB(self, t):
+        r'(?<!\w)and(?=[\s\(])|(?<!\w)or(?=[\s\(])'
+        return t
     def t_SQRT(self, t):
         r'cmath\.sqrt'
         return t
@@ -100,6 +115,10 @@ class UFOExpressionParser(object):
     def t_RE(self, t):
         r'(?<!\w)re(?=\()'
         return t
+    def t_RE2(self, t):
+        r'\.real|\.imag'
+        return t
+    
     def t_COMPLEX(self, t):
         r'(?<!\w)complex(?=\()'
         return t
@@ -109,8 +128,8 @@ class UFOExpressionParser(object):
     def t_VARIABLE(self, t):
         r'[a-zA-Z_][0-9a-zA-Z_]*'
         return t
-    
-    t_NUMBER = r'([0-9]+\.[0-9]*|\.[0-9]+|[0-9]+)([eE][+-]{0,1}[0-9]+){0,1}'
+
+    t_NUMBER = r'([0-9]+\.[0-9]*|\.[0-9]+|[0-9]+)([eE][+-]{0,1}[0-9]+){0,1}j{0,1}'
     t_POWER  = r'\*\*'
 
     t_ignore = " \t"
@@ -130,16 +149,20 @@ class UFOExpressionParser(object):
         self.lexer = lex.lex(module=self, **kwargs)
 
     # Definitions for the PLY yacc parser
-
     # Parsing rules
     precedence = (
+        ('right', 'LOGICALCOMB'),
+        ('right', 'LOGICAL'),
+        ('right','IF'),
+        ('right','ELSE'),
         ('left','='),
         ('left','+','-'),
         ('left','*','/'),
+        ('left', 'RE2'),
         ('right','UMINUS'),
         ('left','POWER'),
-        ('right','COND'),
         ('right','REGLOG'),
+        ('right','ARG'),
         ('right','CSC'),
         ('right','SEC'),
         ('right','ACSC'),
@@ -149,7 +172,8 @@ class UFOExpressionParser(object):
         ('right','RE'),
         ('right','IM'),
         ('right','FUNCTION'),
-        ('right','COMPLEX')
+        ('right','COMPLEX'),
+        ('right','COND'),
         )
 
     # Dictionary of parser expressions
@@ -165,12 +189,30 @@ class UFOExpressionParser(object):
                       | expression '/' expression'''
         p[0] = p[1] + p[2] + p[3]
 
+    def p_expression_logical(self, p):
+        '''boolexpression : expression LOGICAL expression'''
+        if p[2] not in self.logical_equiv:
+            p[0] = p[1] + p[2] + p[3]
+        else:
+            p[0] = p[1] + self.logical_equiv[p[2]] + p[3]        
+
+    def p_expression_logicalcomb(self, p):
+        '''boolexpression : boolexpression LOGICALCOMB boolexpression'''
+        if p[2] not in self.logical_equiv:
+            p[0] = p[1] + p[2] + p[3]
+        else:
+            p[0] = p[1] + self.logical_equiv[p[2]] + p[3]
+
     def p_expression_uminus(self, p):
         "expression : '-' expression %prec UMINUS"
         p[0] = '-' + p[2]
 
     def p_group_parentheses(self, p):
         "group : '(' expression ')'"
+        p[0] = '(' + p[2] +')'
+
+    def p_group_parentheses_boolexpr(self, p):
+        "boolexpression : '(' boolexpression ')'"
         p[0] = '(' + p[2] +')'
 
     def p_expression_group(self, p):
@@ -195,7 +237,7 @@ class UFOExpressionParser(object):
 
     def p_error(self, p):
         if p:
-            raise ModelError("Syntax error at '%s' in '%s'" % (p.value, self.f))
+            raise ModelError("Syntax error at '%s' (%s)." %(p.value,p))
         else:
             logger.error("Syntax error at EOF")
         self.parsed_string = "Error"
@@ -206,10 +248,22 @@ class UFOExpressionParserFortran(UFOExpressionParser):
 
     # The following parser expressions need to be defined for each
     # output language/framework
+    
+    logical_equiv = {'==':'.EQ.',
+                     '>=':'.GE.',
+                     '<=':'.LE.',
+                     '!=':'.NE.',
+                     '>':'.GT.',
+                     '<':'.LT.',
+                     'or':'.OR.',
+                     'and':'.AND.'}
 
     def p_expression_number(self, p):
         "expression : NUMBER"
-        p[0] = ('%e' % float(p[1])).replace('e', 'd')
+        if p[1].endswith('j'):
+            p[0] = ('DCOMPLX(0d0, %e)' % float(p[1][:-1])).replace('e', 'd')
+        else:
+            p[0] = ('%e' % float(p[1])).replace('e', 'd')
 
     def p_expression_variable(self, p):
         "expression : VARIABLE"
@@ -228,6 +282,15 @@ class UFOExpressionParserFortran(UFOExpressionParser):
         except Exception:
             p[0] = p[1] + "**" + p[3]
 
+    def p_expression_if(self,p):
+        "expression :   expression IF boolexpression ELSE expression "
+        p[0] = 'CONDIF(%s,DCMPLX(%s),DCMPLX(%s))' % (p[3], p[1], p[5])
+            
+    def p_expression_ifimplicit(self,p):
+        "expression :   expression IF expression ELSE expression "
+        p[0] = 'CONDIF(DCMPLX(%s).NE.(0d0,0d0),DCMPLX(%s),DCMPLX(%s))'\
+                                                             %(p[3], p[1], p[5])
+
     def p_expression_cond(self, p):
         "expression :  COND '(' expression ',' expression ',' expression ')'"
         p[0] = 'COND(DCMPLX('+p[3]+'),DCMPLX('+p[5]+'),DCMPLX('+p[7]+'))'
@@ -243,6 +306,7 @@ class UFOExpressionParserFortran(UFOExpressionParser):
                       | ASEC group
                       | RE group
                       | IM group
+		              | ARG group
                       | SQRT group
                       | CONJ group
                       | REGLOG group'''
@@ -252,9 +316,25 @@ class UFOExpressionParserFortran(UFOExpressionParser):
         elif p[1] == 'asec': p[0] = 'acos(1./' + p[2] + ')'
         elif p[1] == 're': p[0] = 'dble' + p[2]
         elif p[1] == 'im': p[0] = 'dimag' + p[2]
+        elif p[1] == 'arg': p[0] = 'arg(DCMPLX'+p[2]+')'
         elif p[1] == 'cmath.sqrt' or p[1] == 'sqrt': p[0] = 'sqrt' + p[2]
-        elif p[1] == 'complexconjugate': p[0] = 'conjg' + p[2]
+        elif p[1] == 'complexconjugate': p[0] = 'conjg(DCMPLX' + p[2]+')'
         elif p[1] == 'reglog': p[0] = 'reglog(DCMPLX' + p[2] +')'
+
+
+    def p_expression_real(self, p):
+        ''' expression : expression RE2 '''
+        
+        if p[2] == '.real':
+            if p[1].startswith('('):
+                p[0] = 'dble' +p[1]
+            else:
+                p[0] = 'dble(%s)' % p[1]
+        elif p[2] == '.imag':
+            if p[1].startswith('('):
+                p[0] = 'dimag' +p[1]
+            else:
+                p[0] = 'dimag(%s)' % p[1]            
 
     def p_expression_pi(self, p):
         '''expression : PI'''
@@ -271,7 +351,11 @@ class UFOExpressionParserMPFortran(UFOExpressionParserFortran):
 
     def p_expression_number(self, p):
         "expression : NUMBER"
-        p[0] = '%e_16' % float(p[1])
+        
+        if p[1].endswith('j'):
+            p[0] = 'CMPLX(0.000000e+00_16, %e_16 ,KIND=16)' % float(p[1][:-1])
+        else:
+            p[0] = '%e_16' % float(p[1])
 
     def p_expression_variable(self, p):
         "expression : VARIABLE"
@@ -291,6 +375,15 @@ class UFOExpressionParserMPFortran(UFOExpressionParserFortran):
         except Exception:
             p[0] = p[1] + "**" + p[3]
 
+    def p_expression_if(self,p):
+        "expression :   expression IF boolexpression ELSE expression "
+        p[0] = 'MP_CONDIF(%s,CMPLX(%s,KIND=16),CMPLX(%s,KIND=16))' % (p[3], p[1], p[5])
+            
+    def p_expression_ifimplicit(self,p):
+        "expression :   expression IF expression ELSE expression "
+        p[0] = 'MP_CONDIF(CMPLX(%s,KIND=16).NE.(0.0e0_16,0.0e0_16),CMPLX(%s,KIND=16),CMPLX(%s,KIND=16))'\
+                                                             %(p[3], p[1], p[5])
+
     def p_expression_cond(self, p):
         "expression :  COND '(' expression ',' expression ',' expression ')'"
         p[0] = 'MP_COND(CMPLX('+p[3]+',KIND=16),CMPLX('+p[5]+\
@@ -303,6 +396,7 @@ class UFOExpressionParserMPFortran(UFOExpressionParserFortran):
                       | ASEC group
                       | RE group
                       | IM group
+	                  | ARG group
                       | SQRT group
                       | CONJ group
                       | REGLOG group'''
@@ -312,9 +406,25 @@ class UFOExpressionParserMPFortran(UFOExpressionParserFortran):
         elif p[1] == 'asec': p[0] = 'acos(1e0_16/' + p[2] + ')'
         elif p[1] == 're': p[0] = 'real' + p[2]
         elif p[1] == 'im': p[0] = 'imag' + p[2]
+        elif p[1] == 'arg': p[0] = 'mp_arg(CMPLX(' + p[2] + ',KIND=16))'
         elif p[1] == 'cmath.sqrt' or p[1] == 'sqrt': p[0] = 'sqrt' + p[2]
-        elif p[1] == 'complexconjugate': p[0] = 'conjg' + p[2]
+        elif p[1] == 'complexconjugate': p[0] = 'conjg(CMPLX(' + p[2] + ',KIND=16))'
         elif p[1] == 'reglog': p[0] = 'mp_reglog(CMPLX(' + p[2] +',KIND=16))'
+
+    def p_expression_real(self, p):
+        ''' expression : expression RE2 '''
+        
+        if p[2] == '.real':
+            if p[1].startswith('('):
+                p[0] = 'real' +p[1]
+            else:
+                p[0] = 'real(%s)' % p[1]
+        elif p[2] == '.imag':
+            if p[1].startswith('('):
+                p[0] = 'imag' +p[1]
+            else:
+                p[0] = 'imag(%s)' % p[1]  
+
 
     def p_expression_pi(self, p):
         '''expression : PI'''
@@ -324,11 +434,27 @@ class UFOExpressionParserCPP(UFOExpressionParser):
     """A parser for UFO algebraic expressions, outputting
     C++-style code."""
 
+    logical_equiv = {'==':'==',
+                     '>=':'>=',
+                     '<=':'<=',
+                     '!=':'!=',
+                     '>':'>',
+                     '<':'<',
+                     'or':'||',
+                     'and':'&&'}
+
     # The following parser expressions need to be defined for each
     # output language/framework
 
     def p_expression_number(self, p):
         'expression : NUMBER'
+        
+        if p[1].endswith('j'):
+            p[0] = 'std::complex<double>(0., %e)'  % float(p[1][:-1]) 
+        else:
+            p[0] = ('%e' % float(p[1])).replace('e', 'd')
+        
+        
         p[0] = p[1]
         # Check number is an integer, if so add "."
         if float(p[1]) == int(float(p[1])) and float(p[1]) < 1000:
@@ -337,6 +463,14 @@ class UFOExpressionParserCPP(UFOExpressionParser):
     def p_expression_variable(self, p):
         'expression : VARIABLE'
         p[0] = p[1]
+
+    def p_expression_if(self,p):
+        "expression :   expression IF boolexpression ELSE expression "
+        p[0] = '(%s ? %s : %s)' % (p[3], p[1], p[5])
+            
+    def p_expression_ifimplicit(self,p):
+        "expression :   expression IF expression ELSE expression "
+        p[0] = '(%s ? %s : %s)' % (p[3], p[1], p[5])
 
     def p_expression_cond(self, p):
         "expression :  COND '(' expression ',' expression ',' expression ')'"
@@ -355,7 +489,7 @@ class UFOExpressionParserCPP(UFOExpressionParser):
     def p_expression_complex(self, p):
         "expression : COMPLEX '(' expression ',' expression ')'"
         p[0] = 'std::complex<double>(' + p[3] + ',' + p[5] + ')'
-
+    
     def p_expression_func(self, p):
         '''expression : CSC group
                       | SEC group
@@ -363,6 +497,7 @@ class UFOExpressionParserCPP(UFOExpressionParser):
                       | ASEC group
                       | RE group
                       | IM group
+		              | ARG group
                       | SQRT group
                       | CONJ group
                       | REGLOG group '''
@@ -372,10 +507,26 @@ class UFOExpressionParserCPP(UFOExpressionParser):
         elif p[1] == 'asec': p[0] = 'acos(1./' + p[2] + ')'
         elif p[1] == 're': p[0] = 'real' + p[2]
         elif p[1] == 'im': p[0] = 'imag' + p[2]
+        elif p[1] == 'arg':p[0] = 'arg' + p[2]
         elif p[1] == 'cmath.sqrt' or p[1] == 'sqrt': p[0] = 'sqrt' + p[2]
         elif p[1] == 'complexconjugate': p[0] = 'conj' + p[2]
         elif p[1] == 'reglog': p[0] = 'reglog' + p[2]
 
+    def p_expression_real(self, p):
+        ''' expression : expression RE2 '''
+        
+        if p[2] == '.real':
+            if p[1].startswith('('):
+                p[0] = 'real' +p[1]
+            else:
+                p[0] = 'real(%s)' % p[1]
+        elif p[2] == '.imag':
+            if p[1].startswith('('):
+                p[0] = 'imag' +p[1]
+            else:
+                p[0] = 'imag(%s)' % p[1]    
+
+    
     def p_expression_pi(self, p):
         '''expression : PI'''
         p[0] = 'M_PI'

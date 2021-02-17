@@ -377,8 +377,7 @@ class MadWeightCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunC
                 raise self.InvalidCmd('Please specify a valid LHCO File')
             
             if input_file.endswith('.gz'):
-                fsock = open(evt_file, 'w') 
-                subprocess.call(['gunzip', '-c', input_file], stdout=fsock)
+                misc.gunzip(input_file, keep=True, stdout=evt_file)
             else:
                 files.cp(input_file, evt_file)
             
@@ -499,7 +498,7 @@ class MadWeightCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunC
         else:
             # ensure that this is running with NO central disk !!!
             if not self.options['cluster_temp_path'] and not self.options['cluster_type'] == 'condor':
-                raise self.ConfigurationError, 'MadWeight requires temp_cluste_path options to be define'
+                raise self.ConfigurationError, 'MadWeight requires temp_cluster_path options to be define'
             self.cluster.submit2(exe, args, cwd, input_files=input_files, output_files=output_file)
 
 
@@ -657,7 +656,7 @@ class MadWeightCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunC
                     except KeyError:
                         continue
                     error = math.sqrt(error)
-                    fsock.write('%s %s %s %s %s \n' % (event, card, tf_set, value, error))
+                    fsock.write('%s %s %s %s %s \n' % (event.replace('@', ' '), card, tf_set, value, error))
     
         # write the likelihood file:
         fsock = open(pjoin(self.me_dir, 'Events', name, 'un-normalized_likelihood.out'), 'w')
@@ -711,6 +710,9 @@ class MadWeightCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunC
                  'transfer_card.dat', 'input.lhco']
         if not self.force:
             self.ask_edit_cards(cards, mode='fixed', plot=False)
+        else:
+            self.configured = 0
+            self.configure()
         with misc.chdir(self.me_dir): 
             if not os.path.exists(pjoin(self.me_dir, self.MWparam['mw_run']['inputfile'])):
                 raise self.InvalidCmd('Please specify a valid LHCO File')

@@ -65,15 +65,15 @@ class MadSpinInterface(extended_cmd.Cmd):
         self.decay = madspin.decay_misc()
         self.model = None
         
-        self.options = {'max_weight': -1, 'BW_effect': 1, 
+        self.options = {'max_weight': -1, 
                         'curr_dir': os.path.realpath(os.getcwd()),
                         'Nevents_for_max_weigth': 0,
                         'max_weight_ps_point': 400,
                         'BW_cut':-1,
-                        'zeromass_for_max_weight':5,
                         'nb_sigma':0,
                         'ms_dir':None,
-                        'max_running_process':100}
+                        'max_running_process':100,
+                        'onlyhelicity': False}
         
 
         
@@ -117,7 +117,7 @@ class MadSpinInterface(extended_cmd.Cmd):
                 raise self.InvalidCmd('No such file or directory : %s' % inputfile)
         
         if inputfile.endswith('.gz'):
-            misc.call(['gunzip', inputfile])
+            misc.gunzip(inputfile)
             inputfile = inputfile[:-3]
 
         # Read the banner of the inputfile
@@ -286,7 +286,6 @@ class MadSpinInterface(extended_cmd.Cmd):
         if not self.list_branches.has_key(init_part):
             self.list_branches[init_part] = []
         self.list_branches[init_part].append(decay_process)
-        print decay_process
         del decay_process, init_part    
         
     
@@ -335,6 +334,8 @@ class MadSpinInterface(extended_cmd.Cmd):
             self.seed = int(args[1])
         elif args[0] == 'BW_cut':
             self.options[args[0]] = float(args[1])
+        elif args[0] == 'onlyhelicity':
+            self.options['onlyhelicity'] = True
         else:
             self.options[args[0]] = int(args[1])
     
@@ -398,7 +399,7 @@ class MadSpinInterface(extended_cmd.Cmd):
     def check_launch(self, args):
         """check the validity of the launch command"""
         
-        if not self.list_branches:
+        if not self.list_branches and not self.options['onlyhelicity']:
             raise self.InvalidCmd("Nothing to decay ... Please specify some decay")
         if not self.events_file:
             raise self.InvalidCmd("No events files defined.")
@@ -431,9 +432,9 @@ class MadSpinInterface(extended_cmd.Cmd):
             pid = self.mg5cmd._curr_model.get('name2pdg')[part]
             if pid in self.final_state:
                 break
-        else:
-            logger.info("Nothing to decay ...")
-            return
+#        else:
+#            logger.info("Nothing to decay ...")
+#            return
         
 
         model_line = self.banner.get('proc_card', 'full_model_line')
@@ -467,10 +468,10 @@ class MadSpinInterface(extended_cmd.Cmd):
             self.events_file.close()
         except:
             pass
-        misc.call(['gzip -f %s' % evt_path], shell=True)
+        misc.gzip(evt_path)
         decayed_evt_file=evt_path.replace('.lhe', '_decayed.lhe')
-        shutil.move(pjoin(self.options['curr_dir'],'decayed_events.lhe'), decayed_evt_file)
-        misc.call(['gzip -f %s' % decayed_evt_file], shell=True)
+        misc.gzip(pjoin(self.options['curr_dir'],'decayed_events.lhe'),
+                  stdout=decayed_evt_file)
         if not self.mother:
             logger.info("Decayed events have been written in %s.gz" % decayed_evt_file)
 
@@ -504,11 +505,18 @@ class MadSpinInterface(extended_cmd.Cmd):
         generate_all = save_load_object.load_from_file(pjoin(self.options['ms_dir'], 'madspin.pkl'))
         # Re-create information which are not save in the pickle.
         generate_all.evtfile = self.events_file
-        generate_all.curr_event = madspin.Event(self.events_file) 
+        generate_all.curr_event = madspin.Event(self.events_file, self.banner ) 
         generate_all.mgcmd = self.mg5cmd
         generate_all.mscmd = self 
         generate_all.pid2width = lambda pid: generate_all.banner.get('param_card', 'decay', abs(pid)).value
         generate_all.pid2mass = lambda pid: generate_all.banner.get('param_card', 'mass', abs(pid)).value
+        if generate_all.path_me != self.options['ms_dir']:
+            for decay in generate_all.all_ME.values():
+                decay['path'] = decay['path'].replace(generate_all.path_me, self.options['ms_dir'])
+                for decay2 in decay['decays']:
+                    decay2['path'] = decay2['path'].replace(generate_all.path_me, self.options['ms_dir'])
+            generate_all.path_me = self.options['ms_dir'] # directory can have been move
+            generate_all.ms_dir = generate_all.path_me
         
         if not hasattr(self.banner, 'param_card'):
             self.banner.charge_card('slha')
@@ -524,6 +532,9 @@ class MadSpinInterface(extended_cmd.Cmd):
                 new block:
                 %s""" \
                 % (self.options['ms_dir'], name, orig_block, block)
+
+        #replace init information
+        generate_all.banner['init'] = self.banner['init']
         
         # NOW we have all the information available for RUNNING
         
@@ -541,10 +552,10 @@ class MadSpinInterface(extended_cmd.Cmd):
             self.events_file.close()
         except:
             pass
-        misc.call(['gzip -f %s' % evt_path], shell=True)
+        misc.gzip(evt_path)
         decayed_evt_file=evt_path.replace('.lhe', '_decayed.lhe')
-        shutil.move(pjoin(self.options['curr_dir'],'decayed_events.lhe'), decayed_evt_file)
-        misc.call(['gzip -f %s' % decayed_evt_file], shell=True)
+        misc.gzip(pjoin(self.options['curr_dir'],'decayed_events.lhe'),
+                  stdout=decayed_evt_file)
         if not self.mother:
             logger.info("Decayed events have been written in %s.gz" % decayed_evt_file)    
     
@@ -566,10 +577,6 @@ class MadSpinInterface(extended_cmd.Cmd):
 
         # Import model
         base_model = import_ufo.import_model(name, decay=True)
-        if not hasattr(base_model.get('particles')[0], 'partial_widths'):
-            msg = 'The UFO model does not include partial widths information.\n'
-            msg += 'Impossible to use analytical formula, will use MG5/MadEvent (slower).'
-            logger.warning(msg)
 
         if use_mg_default:
             base_model.pass_particles_name_in_mg_default()

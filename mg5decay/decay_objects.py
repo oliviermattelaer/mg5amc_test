@@ -942,12 +942,32 @@ class DecayParticle(base_objects.Particle):
                     vlist_a = inter_part.get_vertexlist(vlevel, True)
                     vlist_b = inter_part.get_vertexlist(vlevel, False)
 
-
+                    minv_max = eval(self['mass']) - \
+                                    sum([eval(model.get_particle(abs(l['id']))['mass'])
+                                         for l in sub_c.get_final_legs() if l!=leg])
+                    
+                    allow_qcd=True # if two colored particle are lower than the pion. 
+                                   # those computation are meaningless.
+                    if 0 < minv_max.real < 0.100:
+                        logger.warning("WARNING: Mass gap lower than pion mass for decay of %s "
+                                                             % self['pdg_code'])
+                        logger.warning("decay into colored particle will be remove.")
+                        allow_qcd=False
+                        if model.get_particle(abs(leg['id']))['color'] != 1:
+                            continue
+                        
+                        
                     # Find appropriate vertex
                     for vert in (vlist_a + vlist_b):
                         # Connect sub_channel to the vertex
                         # the connect_channel_vertex will
                         # inherit the 'has_idpart' from sub_c
+
+                        if not allow_qcd:
+                            nb_colored = sum([1 for l in vert['legs'] if \
+                                     model.get_particle(abs(l['id']))['color'] != 1])
+                            if nb_colored >=1:
+                                continue
 
                         temp_c = self.connect_channel_vertex(sub_c, index, 
                                                              vert, model)
@@ -1197,8 +1217,11 @@ class DecayParticle(base_objects.Particle):
         for amp in list(self.get_amplitudes(clevel)):
             approx_width = amp.get('apx_decaywidth')
             if min_br:
-                br = approx_width / total_width
-                if br < min_br:
+                if approx_width or total_width:
+                    br = approx_width / total_width
+                else:
+                    br = 0
+                if br.real < min_br:
                     self.decay_amplitudes[clevel].remove(amp)
                 
         self.get_amplitudes(clevel).sort(amplitudecmp_width)
@@ -1695,8 +1718,7 @@ class DecayModel(model_reader.ModelReader):
                 # IMPORTANT
                 # Particle legs must be in front of anti-particle legs
                 # for the sake of HELAS output
-                temp_legs_new.sort(key= lambda leg: leg['id'],
-                                   reverse=True)
+                temp_legs_new.sort(key=lambda leg: leg['id'],reverse=True)
 
                 temp_legs_new.append(inileg)
                 temp_vertex = base_objects.Vertex({'id': inter.get('id'),
@@ -1972,8 +1994,7 @@ class DecayModel(model_reader.ModelReader):
                 "The argument %s should be numerical type." %str(q)
 
         # Declare global value. amZ0 is the alpha_s at Z pole
-        global aS, MT, MB, MZ, amZ0
-
+        global aS, amZ0, mdl_amZ0
         # Define all functions used
         for func in self['functions']:
             exec("def %s(%s):\n   return %s" % (func.name,
@@ -1988,12 +2009,30 @@ class DecayModel(model_reader.ModelReader):
 
         # Setup parameters
         # MZ, MB are already read in from param_card
-        MZ_ref = MZ.real
-        if MB == 0:
+    
+    
+        # get Z mass
+        Z = self.get_particle(23)
+        if not Z:
+            MZ_ref = 91.118
+        else:
+            MZ_ref = self['parameter_dict'][Z['mass']].real
+        
+        B = self.get_particle(5)
+        if not B:
             MB_ref = 4.7
         else:
-            MB_ref = MB
-        MC_ref = 1.42
+            MB_ref = self['parameter_dict'][B['mass']].real
+            if not MB_ref:
+                MB_ref = 4.7
+                
+        C = self.get_particle(4)
+        if not C:
+            MC_ref = 1.42
+        else:
+            MC_ref = self['parameter_dict'][C['mass']].real
+            if not MC_ref:
+                MC_ref = 1.42
 
         # Calculate alpha_s at the scale q
         if q < MB_ref:
@@ -2110,13 +2149,13 @@ class DecayModel(model_reader.ModelReader):
             if not eval(param.name) and eval(param.name) != 0:
                 logger.warning("%s has no expression: %s" % (param.name,
                                                              param.expr))
-            """try:
-                logger.info("Recalculated parameter %s = %f" % \
-                            (param.name, eval(param.name)))
-            except TypeError:
-                logger.info("Recalculated parameter %s = (%f, %f)" % \
-                            (param.name,\
-                             eval(param.name).real, eval(param.name).imag))"""
+#             try:
+#                 logger.info("Recalculated parameter %s = %f" % \
+#                             (param.name, eval(param.name)))
+#             except TypeError:
+#                 logger.info("Recalculated parameter %s = (%f, %f)" % \
+#                             (param.name,\
+#                              eval(param.name).real, eval(param.name).imag))
         
         # Extract couplings from couplings that depend on fewer 
         # number of external parameters.
@@ -5991,7 +6030,7 @@ def channelcmp_final(x, y):
 
 def amplitudecmp_width(x, y):
     """ Sort the amplitudes by their width."""
-    mycmp = cmp(x['apx_decaywidth'], y['apx_decaywidth'])
+    mycmp = cmp(x['apx_decaywidth'].real, y['apx_decaywidth'].real)
 
     return -mycmp
 

@@ -26,6 +26,7 @@ import sys
 import optparse
 import time
 import shutil
+import gzip as ziplib
 
 try:
     # Use in MadGraph
@@ -129,11 +130,29 @@ def get_time_info():
     return time_info
 
 #===============================================================================
+# Find the subdirectory which includes the files ending with a given extension 
+#===============================================================================
+def find_includes_path(start_path, extension):
+    """Browse the subdirectories of the path 'start_path' and returns the first
+    one found which contains at least one file ending with the string extension
+    given in argument."""
+    
+    subdirs=[pjoin(start_path,dir) for dir in os.listdir(start_path)]
+    for subdir in subdirs:
+        if os.path.isfile(subdir):
+            if os.path.basename(subdir).endswith(extension):
+                return start_path
+        elif os.path.isdir(subdir):
+            return find_includes_path(subdir, extension)
+    return None
+
+#===============================================================================
 # find a executable
 #===============================================================================
 def which(program):
     def is_exe(fpath):
-        return os.path.exists(fpath) and os.access(fpath, os.X_OK)
+        return os.path.exists(fpath) and os.access(\
+                                               os.path.realpath(fpath), os.X_OK)
 
     if not program:
         return None
@@ -147,6 +166,30 @@ def which(program):
             exe_file = os.path.join(path, program)
             if is_exe(exe_file):
                 return exe_file
+    return None
+
+#===============================================================================
+# find a library
+#===============================================================================
+def which_lib(lib):
+    def is_lib(fpath):
+        return os.path.exists(fpath) and os.access(fpath, os.R_OK)
+
+    if not lib:
+        return None
+
+    fpath, fname = os.path.split(lib)
+    if fpath:
+        if is_lib(lib):
+            return lib
+    else:
+        locations = sum([os.environ[env_path].split(os.pathsep) for env_path in
+           ["DYLD_LIBRARY_PATH","LD_LIBRARY_PATH","LIBRARY_PATH","PATH"] 
+                                                  if env_path in os.environ],[])
+        for path in locations:
+            lib_file = os.path.join(path, lib)
+            if is_lib(lib_file):
+                return lib_file
     return None
 
 #===============================================================================
@@ -265,7 +308,6 @@ def compile(arg=[], cwd=None, mode='fortran', job_specs = True, nb_core=1 ,**opt
         error_text += 'Please try to fix this compilations issue and retry.\n'
         error_text += 'Help might be found at https://answers.launchpad.net/madgraph5.\n'
         error_text += 'If you think that this is a bug, you can report this at https://bugs.launchpad.net/madgraph5'
-
         raise MadGraph5Error, error_text
     return p.returncode
 
@@ -282,24 +324,33 @@ def get_gfortran_version(compiler='gfortran'):
     except Exception:
         return '0'
 
-def mod_compilator(directory, new='gfortran', current=None):
+def mod_compilator(directory, new='gfortran', current=None, compiler_type='gfortran'):
     #define global regular expression
     if type(directory)!=list:
         directory=[directory]
 
     #search file
     file_to_change=find_makefile_in_dir(directory)
+    if compiler_type == 'gfortran':
+        comp_re = re.compile('^(\s*)FC\s*=\s*(.+)\s*$')
+        var = 'FC'
+    elif compiler_type == 'cpp':
+        comp_re = re.compile('^(\s*)CXX\s*=\s*(.+)\s*$')
+        var = 'CXX'
+    else:
+        MadGraph5Error, 'Unknown compiler type: %s' % compiler_type
+
+    mod = False
     for name in file_to_change:
-        text = open(name,'r').read()
-        if new == 'g77' and current is None:
-            current = 'gfortran'
-        elif new == 'gfortran' and current is None:
-            current = 'g77'
-        else:
-            current = 'g77|gfortran'
-        pattern = re.compile(current)
-        text= pattern.sub(new, text)
-        open(name,'w').write(text)
+        lines = open(name,'r').read().split('\n')
+        for iline, line in enumerate(lines):
+            result = comp_re.match(line)
+            if result:
+                if new != result.group(2):
+                    mod = True
+                lines[iline] = result.group(1) + var + "=" + new
+        if mod:
+            open(name,'w').write('\n'.join(lines))
 
 #===============================================================================
 # mute_logger (designed to work as with statement)
@@ -391,12 +442,18 @@ class MuteLogger(object):
             #    h.setLevel(cls.logger_saved_info[logname][2][i])
 
 
-def detect_current_compiler(path):
+def detect_current_compiler(path, compiler_type='fortran'):
     """find the current compiler for the current directory"""
     
 #    comp = re.compile("^\s*FC\s*=\s*(\w+)\s*")
 #   The regular expression below allows for compiler definition with absolute path
-    comp = re.compile("^\s*FC\s*=\s*([\w\/\\.\-]+)\s*")
+    if compiler_type == 'fortran':
+        comp = re.compile("^\s*FC\s*=\s*([\w\/\\.\-]+)\s*")
+    elif compiler_type == 'cpp':
+        comp = re.compile("^\s*CXX\s*=\s*([\w\/\\.\-]+)\s*")
+    else:
+        MadGraph5Error, 'Unknown compiler type: %s' % compiler_type
+
     for line in open(path):
         if comp.search(line):
             compiler = comp.search(line).groups()[0]
@@ -441,6 +498,15 @@ def rm_file_extension( ext, dirname, names):
     [os.remove(os.path.join(dirname, name)) for name in names if name.endswith(ext)]
 
 
+
+def multiple_replacer(*key_values):
+    replace_dict = dict(key_values)
+    replacement_function = lambda match: replace_dict[match.group(0)]
+    pattern = re.compile("|".join([re.escape(k) for k, v in key_values]), re.M)
+    return lambda string: pattern.sub(replacement_function, string)
+
+def multiple_replace(string, *key_values):
+    return multiple_replacer(*key_values)(string)
 
 # Control
 def check_system_error(value=1):
@@ -614,16 +680,80 @@ class TMP_directory(object):
     """
 
     def __init__(self, suffix='', prefix='tmp', dir=None):
+        self.nb_try_remove = 0
         import tempfile   
         self.path = tempfile.mkdtemp(suffix, prefix, dir)
 
-
+    
     def __exit__(self, ctype, value, traceback ):
-        shutil.rmtree(self.path)
+        try:
+            shutil.rmtree(self.path)
+        except OSError:
+            self.nb_try_remove += 1
+            if self.nb_try_remove < 3:
+                time.sleep(10)
+                self.__exit__(ctype, value, traceback)
+            else:
+                logger.warning("Directory %s not completely cleaned. This directory can be removed manually" % self.path)
         
     def __enter__(self):
         return self.path
+#
+# GUNZIP/GZIP
+#
+def gunzip(path, keep=False, stdout=None):
+    """ a standard replacement for os.system('gunzip -f %s.gz ' % event_path)"""
 
+    if not path.endswith(".gz"):
+        if os.path.exists("%s.gz" % path):
+            path = "%s.gz" % path
+        else:
+            raise Exception, "%(path)s does not finish by .gz and the file %(path)s.gz does not exists" %\
+                              {"path": path}         
+
+    
+    #for large file (>1G) it is faster and safer to use a separate thread
+    if os.path.getsize(path) > 1e8:
+        if stdout:
+            os.system('gunzip -c %s > %s' % (path, stdout))
+        else:
+            os.system('gunzip  %s' % path) 
+        return 0
+    
+    if not stdout:
+        stdout = path[:-3]        
+    open(stdout,'w').write(ziplib.open(path, "r").read())
+    if not keep:
+        os.remove(path)
+    return 0
+
+def gzip(path, stdout=None, error=True, forceexternal=False):
+    """ a standard replacement for os.system('gzip %s ' % path)"""
+ 
+    #for large file (>1G) it is faster and safer to use a separate thread
+    if os.path.getsize(path) > 1e9 or forceexternal:
+        call(['gzip', '-f', path])
+        if stdout:
+            if not stdout.endswith(".gz"):
+                stdout = "%s.gz" % stdout
+            shutil.move('%s.gz' % path, stdout)
+        return
+    
+    if not stdout:
+        stdout = "%s.gz" % path
+    elif not stdout.endswith(".gz"):
+        stdout = "%s.gz" % stdout
+
+    try:
+        ziplib.open(stdout,"w").write(open(path).read())
+    except OverflowError:
+        gzip(path, stdout, error=error, forceexternal=True)
+    except Exception:
+        if error:
+            raise
+    else:
+        os.remove(path)
+    
 #
 # Global function to open supported file types
 #
@@ -660,7 +790,7 @@ class open_file(object):
     @classmethod
     def configure(cls, configuration=None):
         """ configure the way to open the file """
-        
+         
         cls.configured = True
         
         # start like this is a configuration for mac
