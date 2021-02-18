@@ -61,6 +61,9 @@ pjoin = os.path.join
 _file_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0] + '/'
 logger = logging.getLogger('madgraph.export_v4')
 
+default_compiler= {'fortran': 'gfortran',
+                       'f2py': 'f2py'}
+
 #===============================================================================
 # ProcessExporterFortran
 #===============================================================================
@@ -69,7 +72,8 @@ class ProcessExporterFortran(object):
     Fortran (v4) format."""
 
     default_opt = {'clean': False, 'complex_mass':False,
-                        'export_format':'madevent', 'mp': False
+                        'export_format':'madevent', 'mp': False,
+                        'v5_model': True
                         }
 
     def __init__(self, mgme_dir = "", dir_path = "", opt=None):
@@ -279,7 +283,7 @@ class ProcessExporterFortran(object):
     # Create jpeg diagrams, html pages,proc_card_mg5.dat and madevent.tar.gz
     #===========================================================================
     def finalize_v4_directory(self, matrix_elements, history = "", makejpg = False, 
-                              online = False, compiler='g77'):
+                              online = False, compiler=default_compiler):
         """Function to finalize v4 directory, for inheritance.
         """
         
@@ -784,7 +788,7 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         else:
             cp(MG5DIR + '/aloha/template_files/aloha_functions.f', write_dir+'/aloha_functions.f')
         create_aloha.write_aloha_file_inc(write_dir, '.f', '.o')
-	
+
         # Make final link in the Process
         self.make_model_symbolic_link()
     
@@ -1167,19 +1171,12 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
                               ['%s=%i'%order for order in zip(split_order_names,
                                                                 amp_order[0])]))
             if self.opt['export_format'] in ['madloop_matchbox']:
-                 res_list.extend(self.get_JAMP_lines(col_amps_order,
+                res_list.extend(self.get_JAMP_lines(col_amps_order,
                                    JAMP_format="JAMP(%s,{0})".format(str(i+1)),
                                    JAMP_formatLC="LNJAMP(%s,{0})".format(str(i+1))))
             else:
-                 res_list.extend(self.get_JAMP_lines(col_amps_order,
+                res_list.extend(self.get_JAMP_lines(col_amps_order,
                                    JAMP_format="JAMP(%s,{0})".format(str(i+1))))         
-	    
-	    
-	    
-	    
-	    
-	    
-
 
         return res_list
 
@@ -1590,26 +1587,52 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         """Set compiler based on what's available on the system"""
                 
         # Check for compiler
-        if default_compiler and misc.which(default_compiler):
-            compiler = default_compiler
+        if default_compiler['fortran'] and misc.which(default_compiler['fortran']):
+            f77_compiler = default_compiler['fortran']
         elif misc.which('gfortran'):
-            compiler = 'gfortran'
+            f77_compiler = 'gfortran'
         elif misc.which('g77'):
-            compiler = 'g77'
+            f77_compiler = 'g77'
         elif misc.which('f77'):
-            compiler = 'f77'
-        elif default_compiler:
+            f77_compiler = 'f77'
+        elif default_compiler['fortran']:
             logger.warning('No Fortran Compiler detected! Please install one')
-            compiler = default_compiler # maybe misc fail so try with it
+            f77_compiler = default_compiler['fortran'] # maybe misc fail so try with it
         else:
             raise MadGraph5Error, 'No Fortran Compiler detected! Please install one'
-        logger.info('Use Fortran compiler ' + compiler)
-        self.replace_make_opt_f_compiler(compiler)
+        logger.info('Use Fortran compiler ' + f77_compiler)
+        
+        
+        # Check for compiler. 1. set default.
+        if default_compiler['f2py']:
+            f2py_compiler = default_compiler['f2py']
+        else:
+            f2py_compiler = ''
+        # Try to find the correct one.
+        if default_compiler['f2py'] and misc.which(default_compiler['f2py']):
+            f2py_compiler = default_compiler
+        elif misc.which('f2py'):
+            f2py_compiler = 'f2py'
+        elif sys.version_info[1] == 6:
+            if misc.which('f2py-2.6'):
+                f2py_compiler = 'f2py-2.6'
+            elif misc.which('f2py2.6'):
+                f2py_compiler = 'f2py2.6'
+        elif sys.version_info[1] == 7:
+            if misc.which('f2py-2.7'):
+                f2py_compiler = 'f2py-2.7'
+            elif misc.which('f2py2.7'):
+                f2py_compiler = 'f2py2.7'            
+        
+        to_replace = {'fortran': f77_compiler, 'f2py': f2py_compiler}
+        
+        
+        self.replace_make_opt_f_compiler(to_replace)
         # Replace also for Template but not for cluster
         if not os.environ.has_key('MADGRAPH_DATA') and ReadWrite:
-            self.replace_make_opt_f_compiler(compiler, pjoin(MG5DIR, 'Template', 'LO'))
+            self.replace_make_opt_f_compiler(to_replace, pjoin(MG5DIR, 'Template', 'LO'))
         
-        return compiler
+        return f77_compiler
 
     # an alias for backward compatibility
     set_compiler = set_fortran_compiler
@@ -1622,7 +1645,14 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         if default_compiler and misc.which(default_compiler):
             compiler = default_compiler
         elif misc.which('g++'):
-            compiler = 'g++'
+            #check if clang version
+            p = misc.Popen(['g++', '--version'], stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE) 
+            out, _ = p.communicate()
+            if 'clang' in out and  misc.which('clang'):
+                compiler = 'clang'
+            else:
+                compiler = 'g++'
         elif misc.which('c++'):
             compiler = 'c++'
         elif misc.which('clang'):
@@ -1641,24 +1671,38 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         return compiler
 
 
-    def replace_make_opt_f_compiler(self, compiler, root_dir = ""):
+    def replace_make_opt_f_compiler(self, compilers, root_dir = ""):
         """Set FC=compiler in Source/make_opts"""
 
+        assert isinstance(compilers, dict)
+        
         mod = False #avoid to rewrite the file if not needed
         if not root_dir:
             root_dir = self.dir_path
-	
+            
+        compiler= compilers['fortran']
+        f2py_compiler = compilers['f2py']
+        if not f2py_compiler:
+            f2py_compiler = 'f2py'
+    
         make_opts = pjoin(root_dir, 'Source', 'make_opts')
         lines = open(make_opts).read().split('\n')
-        FC_re = re.compile('^(\s*)FC\s*=\s*(.+)\s*$')
+        FC_re = re.compile('^(\s*)(FC|F2PY)\s*=\s*(.+)\s*$')
         for iline, line in enumerate(lines):
+
             FC_result = FC_re.match(line)
             if FC_result:
-                if compiler != FC_result.group(2):
-                    mod = True
-                lines[iline] = FC_result.group(1) + "FC=" + compiler
+                if 'FC' == FC_result.group(2):
+                    if compiler != FC_result.group(3):
+                        mod = True
+                    lines[iline] = FC_result.group(1) + "FC=" + compiler
+                elif 'F2PY' ==  FC_result.group(2):
+                    if f2py_compiler != FC_result.group(3):
+                        mod = True
+                    lines[iline] = FC_result.group(1) + "F2PY=" + f2py_compiler                    
         if not mod:
             return
+        
         try:
             outfile = open(make_opts, 'w')
         except IOError:
@@ -1765,9 +1809,6 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
             open(pjoin(self.dir_path, 'MGMEVersion.txt'), 'w').write( \
                 "5." + MG5_version['version'])
         
-        # Add file in bin directory
-        #shutil.copy(pjoin(temp_dir, 'bin', 'change_compiler.py'), 
-        #            pjoin(self.dir_path, 'bin'))
         
         # Add file in SubProcesses
         shutil.copy(pjoin(self.mgme_dir, 'madgraph', 'iolibs', 'template_files', 'makefile_sa_f_sp'), 
@@ -1777,9 +1818,6 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
         
         if self.format == 'standalone':
             shutil.copy(pjoin(self.mgme_dir, 'madgraph', 'iolibs', 'template_files', 'check_sa.f'), 
-                    pjoin(self.dir_path, 'SubProcesses', 'check_sa.f'))
-        elif self.format == 'standalone_rw':
-            shutil.copy(pjoin(self.mgme_dir, 'madgraph', 'iolibs', 'template_files', 'driver_reweight.f'), 
                     pjoin(self.dir_path, 'SubProcesses', 'check_sa.f'))
                         
         # Add file in Source
@@ -1797,8 +1835,16 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
 
         super(ProcessExporterFortranSA,self).export_model_files(model_path)
         # Add the routine update_as_param in v4 model 
-        # This is a function created in the UFO 
-        
+        # This is a function created in the UFO  
+        text="""
+        subroutine update_as_param()
+          call setpara('param_card.dat',.false.)
+          return
+        end
+        """
+        ff = open(os.path.join(self.dir_path, 'Source', 'MODEL', 'couplings.f'),'a')
+        ff.write(text)
+        ff.close()        
         
         text = open(pjoin(self.dir_path,'SubProcesses','check_sa.f')).read()
         text = text.replace('call setpara(\'param_card.dat\')', 'call setpara(\'param_card.dat\', .true.)')
@@ -1828,7 +1874,7 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
     # Create proc_card_mg5.dat for Standalone directory
     #===========================================================================
     def finalize_v4_directory(self, matrix_elements, history, makejpg = False,
-                              online = False, compiler='gfortran'):
+                              online = False, compiler=default_compiler):
         """Finalize Standalone MG4 directory by generation proc_card_mg5.dat"""
 
         self.compiler_choice(compiler)
@@ -1840,6 +1886,9 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
             history.write(output_file)
         
         ProcessExporterFortran.finalize_v4_directory(self, matrix_elements, history, makejpg, online, compiler)
+        open(pjoin(self.dir_path,'__init__.py'),'w')
+        open(pjoin(self.dir_path,'SubProcesses','__init__.py'),'w')
+
 
     def compiler_choice(self, compiler):
         """ Different daughter classes might want different compilers.
@@ -2123,7 +2172,7 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
             matrix_template = 'matrix_standalone_msP_v4.inc'
         elif self.opt['export_format']=='standalone_msF':
             matrix_template = 'matrix_standalone_msF_v4.inc'
-	elif self.opt['export_format']=='matchbox':
+        elif self.opt['export_format']=='matchbox':
             replace_dict["proc_prefix"] = 'MG5_%i_' % matrix_element.get('processes')[0].get('id')
             replace_dict["color_information"] = self.get_color_string_lines(matrix_element)
 
@@ -2133,9 +2182,9 @@ class ProcessExporterFortranSA(ProcessExporterFortran):
                   " available for individual ME evaluation of given coupl. orders."+\
                   " Only the total ME will be computed.", self.opt['export_format'])
             elif  self.opt['export_format'] in ['madloop_matchbox']:
-		replace_dict["color_information"] = self.get_color_string_lines(matrix_element)
-		matrix_template = "matrix_standalone_matchbox_splitOrders_v4.inc"
-	    else:
+                replace_dict["color_information"] = self.get_color_string_lines(matrix_element)
+                matrix_template = "matrix_standalone_matchbox_splitOrders_v4.inc"
+            else:
                 matrix_template = "matrix_standalone_splitOrders_v4.inc"
 
         if write:
@@ -2495,7 +2544,7 @@ class ProcessExporterFortranMW(ProcessExporterFortran):
     # Create proc_card_mg5.dat for MadWeight directory
     #===========================================================================
     def finalize_v4_directory(self, matrix_elements, history, makejpg = False,
-                              online = False, compiler='g77'):
+                              online = False, compiler=default_compiler):
         """Finalize Standalone MG4 directory by generation proc_card_mg5.dat"""
 
         #proc_charac
@@ -3235,7 +3284,8 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         # Add the driver.f 
         ncomb = matrix_element.get_helicity_combinations()
         filename = pjoin(Ppath,'driver.f')
-        self.write_driver(writers.FortranWriter(filename),ncomb,n_grouped_proc=1)
+        self.write_driver(writers.FortranWriter(filename),ncomb,n_grouped_proc=1,
+                          v5=self.opt['v5_model'])
 
         # Create the matrix.f file, auto_dsig.f file and all inc files
         filename = pjoin(Ppath, 'matrix.f')
@@ -3405,7 +3455,7 @@ class ProcessExporterFortranME(ProcessExporterFortran):
             ln('../' + file , cwd=Ppath)    
 
     def finalize_v4_directory(self, matrix_elements, history, makejpg = False,
-                              online = False, compiler='gfortran'):
+                              online = False, compiler=default_compiler):
         """Finalize ME v4 directory by creating jpeg diagrams, html
         pages,proc_card_mg5.dat and madevent.tar.gz."""
 
@@ -3492,9 +3542,6 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         # create the run_card
         ProcessExporterFortran.finalize_v4_directory(self, matrix_elements, history, makejpg, online, compiler)
 
-        misc.call([pjoin(self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')],
-                        stdout = devnull)
-        
         # Run "make" to generate madevent.tar.gz file
         if os.path.exists(pjoin(self.dir_path,'SubProcesses', 'subproc.mg')):
             if os.path.exists(pjoin(self.dir_path,'madevent.tar.gz')):
@@ -3502,7 +3549,8 @@ class ProcessExporterFortranME(ProcessExporterFortran):
             misc.call([os.path.join(self.dir_path, 'bin', 'internal', 'make_madevent_tar')],
                         stdout = devnull, cwd=self.dir_path)
 
-
+        misc.call([pjoin(self.dir_path, 'bin', 'internal', 'gen_cardhtml-pl')],
+                        stdout = devnull, cwd=self.dir_path)
 
 
 
@@ -4168,7 +4216,7 @@ c           This is dummy particle used in multiparticle vertices
         replace_dict = {'param_card_name':card, 
                         'ncomb':ncomb,
                         'hel_init_points':n_grouped_proc*10*2}
-        if v5:
+        if not v5:
             replace_dict['secondparam']=',.true.'
         else:
             replace_dict['secondparam']=''            
@@ -4486,7 +4534,7 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
 
         filename = 'driver.f'
         self.write_driver(writers.FortranWriter(filename),ncomb,
-                                  n_grouped_proc=len(matrix_elements), v5=False)
+                                  n_grouped_proc=len(matrix_elements), v5=self.opt['v5_model'])
 
         for ime, matrix_element in \
                 enumerate(matrix_elements):
@@ -4985,7 +5033,7 @@ class UFO_model_to_mg4(object):
     
     def pass_parameter_to_case_insensitive(self):
         """modify the parameter if some of them are identical up to the case"""
-        
+    
         lower_dict={}
         duplicate = set()
         keys = self.model['parameters'].keys()
@@ -5009,11 +5057,24 @@ class UFO_model_to_mg4(object):
         to_change = []
         change={}
         for value in duplicate:
-            for i, var in enumerate(lower_dict[value][1:]):
+            for i, var in enumerate(lower_dict[value]):
                 to_change.append(var.name)
-                change[var.name] = '%s__%s' %( var.name.lower(), i+2)
-                var.name = '%s__%s' %( var.name.lower(), i+2)
-        
+                new_name = '%s%s' % (var.name.lower(), 
+                                                  ('__%d'%(i+1) if i>0 else ''))
+                change[var.name] = new_name
+                var.name = new_name
+    
+        # Apply the modification to the map_CTcoup_CTparam of the model
+        # if it has one (giving for each coupling the CT parameters whcih
+        # are necessary and which should be exported to the model.
+        if hasattr(self.model,'map_CTcoup_CTparam'):
+            for coup, ctparams in self.model.map_CTcoup_CTparam:
+                for i, ctparam in enumerate(ctparams):
+                    try:
+                        self.model.map_CTcoup_CTparam[coup][i] = change[ctparam]
+                    except KeyError:
+                        pass
+
         replace = lambda match_pattern: change[match_pattern.groups()[0]]
         rep_pattern = re.compile(re_expr % '|'.join(to_change))
         
@@ -5082,11 +5143,14 @@ class UFO_model_to_mg4(object):
         """modify the couplings to fit with MG4 convention and creates all the 
         different files"""
         
-        self.pass_parameter_to_case_insensitive()
+        self.pass_parameter_to_case_insensitive() 
         self.refactorize(wanted_couplings)
 
         # write the files
         if full:
+            if wanted_couplings:
+                # extract the wanted ct parameters
+                self.extract_needed_CTparam(wanted_couplings=wanted_couplings)
             self.write_all()
             
 
@@ -5161,7 +5225,8 @@ class UFO_model_to_mg4(object):
         file = open(os.path.join(MG5DIR,\
                               'models/template_files/fortran/rw_para.f')).read()
 
-        includes=["include \'coupl.inc\'","include \'input.inc\'"]
+        includes=["include \'coupl.inc\'","include \'input.inc\'",
+                                              "include \'model_functions.inc\'"]
         if self.opt['mp']:
             includes.extend(["include \'mp_coupl.inc\'","include \'mp_input.inc\'"])
         # In standalone and madloop we do no use the compiled param card but
@@ -5174,7 +5239,7 @@ class UFO_model_to_mg4(object):
             load_card = 'call LHA_loadcard(param_name,npara,param,value)'
             lha_read_filename='lha_read_mp.f'
         elif self.opt['export_format'].startswith('standalone') or self.opt['export_format'] in ['madweight']\
-	        or self.opt['export_format'].startswith('matchbox'):
+                            or self.opt['export_format'].startswith('matchbox'):
             load_card = 'call LHA_loadcard(param_name,npara,param,value)'
             lha_read_filename='lha_read.f'
         else:
@@ -5369,6 +5434,11 @@ class UFO_model_to_mg4(object):
                             if param.type == 'real'and 
                                is_valid(param.name)]
 
+        # check the parameter is a CT parameter or not
+        # if yes, just use the needed ones        
+        real_parameters = [param for param in real_parameters \
+                                           if self.check_needed_param(param)]
+
         fsock.writelines('double precision '+','.join(real_parameters)+'\n')
         fsock.writelines('common/params_R/ '+','.join(real_parameters)+'\n\n')
         if self.opt['mp']:
@@ -5381,6 +5451,11 @@ class UFO_model_to_mg4(object):
                             self.params_indep if param.type == 'complex' and
                             is_valid(param.name)]
 
+        # check the parameter is a CT parameter or not
+        # if yes, just use the needed ones        
+        complex_parameters = [param for param in complex_parameters \
+                             if self.check_needed_param(param)]
+
         if complex_parameters:
             fsock.writelines('double complex '+','.join(complex_parameters)+'\n')
             fsock.writelines('common/params_C/ '+','.join(complex_parameters)+'\n\n')
@@ -5388,8 +5463,69 @@ class UFO_model_to_mg4(object):
                 mp_fsock.writelines(self.mp_complex_format+' '+','.join([\
                             self.mp_prefix+p for p in complex_parameters])+'\n')
                 mp_fsock.writelines('common/MP_params_C/ '+','.join([\
-                          self.mp_prefix+p for p in complex_parameters])+'\n\n')                
+                          self.mp_prefix+p for p in complex_parameters])+'\n\n')
+
+    def check_needed_param(self, param):
+        """ Returns whether the parameter in argument is needed for this 
+        specific computation or not."""
     
+        # If this is a leading order model or if there was no CT parameter
+        # employed in this NLO model, one can directly return that the 
+        # parameter is needed since only CTParameters are filtered.
+        if not hasattr(self, 'allCTparameters') or \
+               self.allCTparameters is None or self.usedCTparameters is None or \
+               len(self.allCTparameters)==0:
+            return True
+         
+        # We must allow the conjugate shorthand for the complex parameter as
+        # well so we check wether either the parameter name or its name with
+        # 'conjg__' substituted with '' is present in the list.
+        # This is acceptable even if some parameter had an original name 
+        # including 'conjg__' in it, because at worst we export a parameter 
+        # was not needed.
+        param = param.lower()
+        cjg_param = param.replace('conjg__','',1)
+                
+        # First make sure it is a CTparameter
+        if param not in self.allCTparameters and \
+           cjg_param not in self.allCTparameters:
+            return True
+        
+        # Now check if it is in the list of CTparameters actually used
+        return (param in self.usedCTparameters or \
+                                             cjg_param in self.usedCTparameters)
+                
+    def extract_needed_CTparam(self,wanted_couplings=[]):
+        """ Extract what are the needed CT parameters given the wanted_couplings"""
+        
+        if not hasattr(self.model,'map_CTcoup_CTparam') or not wanted_couplings:
+            # Setting these lists to none wil disable the filtering in 
+            # check_needed_param
+            self.allCTparameters  = None
+            self.usedCTparameters = None
+            return
+        
+        # All CTparameters appearin in all CT couplings        
+        allCTparameters=self.model.map_CTcoup_CTparam.values()
+        # Define in this class the list of all CT parameters
+        self.allCTparameters=list(\
+                            set(itertools.chain.from_iterable(allCTparameters)))
+
+        # All used CT couplings
+        w_coupls = [coupl.lower() for coupl in wanted_couplings]
+        allUsedCTCouplings = [coupl for coupl in 
+              self.model.map_CTcoup_CTparam.keys() if coupl.lower() in w_coupls]
+        
+        # Now define the list of all CT parameters that are actually used
+        self.usedCTparameters=list(\
+          set(itertools.chain.from_iterable([
+            self.model.map_CTcoup_CTparam[coupl] for coupl in allUsedCTCouplings
+                                                                            ])))       
+        
+        # Now at last, make these list case insensitive
+        self.allCTparameters = [ct.lower() for ct in self.allCTparameters]
+        self.usedCTparameters = [ct.lower() for ct in self.usedCTparameters]
+        
     def create_intparam_def(self, dp=True, mp=False):
         """ create intparam_definition.inc setting the internal parameters.
         Output the double precision and/or the multiple precision parameters
@@ -5407,8 +5543,13 @@ class UFO_model_to_mg4(object):
             fsock.writelines("G = 2 * DSQRT(AS*PI) ! for the first init\n")
         if mp:
             fsock.writelines("MP__G = 2 * SQRT(MP__AS*MP__PI) ! for the first init\n")
+            
         for param in self.params_indep:
             if param.name == 'ZERO':
+                continue
+            # check whether the parameter is a CT parameter
+            # if yes,just used the needed ones
+            if not self.check_needed_param(param.name):
                 continue
             if dp:
                 fsock.writelines("%s = %s\n" % (param.name,
@@ -5425,6 +5566,10 @@ class UFO_model_to_mg4(object):
         if mp:
             fsock.writelines("MP__aS = MP__G**2/4/MP__PI\n")
         for param in self.params_dep:
+            # check whether the parameter is a CT parameter
+            # if yes,just used the needed ones
+            if not self.check_needed_param(param.name):
+                continue
             if dp:
                 fsock.writelines("%s = %s\n" % (param.name,
                                             self.p_to_f.parse(param.expr)))
@@ -5446,11 +5591,11 @@ class UFO_model_to_mg4(object):
         # in Gmu scheme, aEWM1 is not external but Gf is an exteranl variable
         elif ('Gf',) in self.model['parameters']:
             if dp:
-                fsock.writelines(""" gal(1) = 2.378414230005442133435d0*MDL_MW*MDL_SW*DSQRT(MDL_Gf)
+                fsock.writelines(""" gal(1) = 2.378414230005442133435d0*MDL_MW*DSQRT(1D0-MDL_MW**2/MDL_MZ**2)*DSQRT(MDL_Gf)
                                  gal(2) = 1d0
                          """)
             elif mp:
-                fsock.writelines(""" %(mp_prefix)sgal(1) = 2*MP__MDL_MW*MP__MDL_SW*SQRT(SQRT(2e0_16)*MP__MDL_Gf)
+                fsock.writelines(""" %(mp_prefix)sgal(1) = 2*MP__MDL_MW*SQRT(1e0_16-MP__MDL_MW**2/MP__MDL_MZ**2)*SQRT(SQRT(2e0_16)*MP__MDL_Gf)
                                  %(mp_prefix)sgal(2) = 1d0
                                  """ %{'mp_prefix':self.mp_prefix})
                 pass
@@ -5505,7 +5650,8 @@ class UFO_model_to_mg4(object):
                             double precision PI, ZERO
                             logical READLHA
                             parameter  (PI=3.141592653589793d0)
-                            parameter  (ZERO=0d0)""")
+                            parameter  (ZERO=0d0)
+                            include \'model_functions.inc\'""")
         if self.opt['mp']:
             fsock.writelines("""%s MP__PI, MP__ZERO
                                 parameter (MP__PI=3.1415926535897932384626433832795e0_16)
@@ -5543,7 +5689,8 @@ class UFO_model_to_mg4(object):
                             double precision PI, ZERO
                             logical READLHA
                             parameter  (PI=3.141592653589793d0)            
-                            parameter  (ZERO=0d0)""")
+                            parameter  (ZERO=0d0)
+                            include \'model_functions.inc\'""")
         fsock.writelines("""include \'input.inc\'
                             include \'coupl.inc\'
                             READLHA = .false.""")
@@ -5566,7 +5713,8 @@ class UFO_model_to_mg4(object):
                             implicit none
                             double precision PI
                             parameter  (PI=3.141592653589793d0)
-                            double precision mu_r2, as2""")
+                            double precision mu_r2, as2
+                            include \'model_functions.inc\'""")
         fsock.writelines("""include \'input.inc\'
                             include \'coupl.inc\'""")
         fsock.writelines("""
@@ -5582,7 +5730,8 @@ class UFO_model_to_mg4(object):
             fsock.writelines("""subroutine mp_update_as_param()
     
                                 implicit none
-                                logical READLHA""")
+                                logical READLHA
+                                include \'model_functions.inc\'""")
             fsock.writelines("""%s MP__PI, MP__ZERO
                                     parameter (MP__PI=3.1415926535897932384626433832795e0_16)
                                     parameter (MP__ZERO=0e0_16)
@@ -5618,7 +5767,8 @@ class UFO_model_to_mg4(object):
                                                      nb_file), format='fortran')
         fsock.writelines("""subroutine %scoup%s()
           
-          implicit none"""%('mp_' if mp and not dp else '',nb_file))
+          implicit none
+          include \'model_functions.inc\'"""%('mp_' if mp and not dp else '',nb_file))
         if dp:
             fsock.writelines("""
               double precision PI, ZERO
@@ -5633,8 +5783,7 @@ class UFO_model_to_mg4(object):
                                 include \'mp_input.inc\'
                                 include \'mp_coupl.inc\'
                         """%self.mp_real_format) 
-        fsock.writelines("""
-          include 'model_functions.inc'""")
+
         for coupling in data:
             if dp:            
                 fsock.writelines('%s = %s' % (coupling.name,
@@ -5648,18 +5797,44 @@ class UFO_model_to_mg4(object):
         """ Create model_functions.inc which contains the various declarations
         of auxiliary functions which might be used in the couplings expressions
         """
+
+        additional_fct = []
+        # check for functions define in the UFO model
+        ufo_fct = self.model.get('functions')
+        if ufo_fct:
+            for fct in ufo_fct:
+                # already handle by default
+                if fct.name not in ["complexconjugate", "re", "im", "sec", 
+                       "csc", "asec", "acsc", "theta_function", "cond", 
+                       "condif", "reglogp", "reglogm", "reglog", "recms", "arg", "cot"]:
+                    additional_fct.append(fct.name)
+
         
         fsock = self.open('model_functions.inc', format='fortran')
         fsock.writelines("""double complex cond
           double complex condif
           double complex reglog
-          double complex arg""")
+          double complex reglogp
+          double complex reglogm
+          double complex recms
+          double complex arg
+          %s
+          """ % "\n".join(["          double complex %s" % i for i in additional_fct]))
+
+        
         if self.opt['mp']:
             fsock.writelines("""%(complex_mp_format)s mp_cond
           %(complex_mp_format)s mp_condif
           %(complex_mp_format)s mp_reglog
-          %(complex_mp_format)s mp_arg"""\
-          %{'complex_mp_format':self.mp_complex_format})
+          %(complex_mp_format)s mp_reglogp
+          %(complex_mp_format)s mp_reglogm
+          %(complex_mp_format)s mp_recms
+          %(complex_mp_format)s mp_arg
+          %(additional)s
+          """ %\
+          {"additional": "\n".join(["          %s %s" % (self.mp_complex_format, i) for i in additional_fct]),
+           'complex_mp_format':self.mp_complex_format
+           }) 
 
     def create_model_functions_def(self):
         """ Create model_functions.f which contains the various definitions
@@ -5688,14 +5863,59 @@ class UFO_model_to_mg4(object):
              condif=falsecase
           endif
           end
+
+          double complex function recms(condition,expr)
+          implicit none
+          logical condition
+          double complex expr
+          if(condition)then
+             recms=expr
+          else
+             recms=dcmplx(dble(expr))
+          endif
+          end
           
           double complex function reglog(arg)
           implicit none
+          double complex TWOPII
+          parameter (TWOPII=2.0d0*3.1415926535897932d0*(0.0d0,1.0d0))
           double complex arg
           if(arg.eq.(0.0d0,0.0d0)) then
              reglog=(0.0d0,0.0d0)
           else
              reglog=log(arg)
+          endif
+          end
+
+          double complex function reglogp(arg)
+          implicit none
+          double complex TWOPII
+          parameter (TWOPII=2.0d0*3.1415926535897932d0*(0.0d0,1.0d0))
+          double complex arg
+          if(arg.eq.(0.0d0,0.0d0))then
+             reglogp=(0.0d0,0.0d0)
+          else
+             if(dble(arg).lt.0.0d0.and.dimag(arg).lt.0.0d0)then
+                reglogp=log(arg) + TWOPII
+             else
+                reglogp=log(arg)
+             endif
+          endif
+          end
+
+          double complex function reglogm(arg)
+          implicit none
+          double complex TWOPII
+          parameter (TWOPII=2.0d0*3.1415926535897932d0*(0.0d0,1.0d0))
+          double complex arg
+          if(arg.eq.(0.0d0,0.0d0))then
+             reglogm=(0.0d0,0.0d0)
+          else
+             if(dble(arg).lt.0.0d0.and.dimag(arg).gt.0.0d0)then
+                reglogm=log(arg) - TWOPII
+             else
+                reglogm=log(arg)
+             endif
           endif
           end
           
@@ -5733,14 +5953,59 @@ class UFO_model_to_mg4(object):
                  mp_condif=falsecase
               endif
               end
+
+              %(complex_mp_format)s function mp_recms(condition,expr)
+              implicit none
+              logical condition
+              %(complex_mp_format)s expr
+              if(condition)then
+                 mp_recms=expr
+              else
+                 mp_recms=cmplx(real(expr),kind=16)
+              endif
+              end
               
               %(complex_mp_format)s function mp_reglog(arg)
               implicit none
+              %(complex_mp_format)s TWOPII
+              parameter (TWOPII=2.0e0_16*3.14169258478796109557151794433593750e0_16*(0.0e0_16,1.0e0_16))
               %(complex_mp_format)s arg
               if(arg.eq.(0.0e0_16,0.0e0_16)) then
                  mp_reglog=(0.0e0_16,0.0e0_16)
               else
                  mp_reglog=log(arg)
+              endif
+              end
+
+              %(complex_mp_format)s function mp_reglogp(arg)
+              implicit none
+              %(complex_mp_format)s TWOPII
+              parameter (TWOPII=2.0e0_16*3.14169258478796109557151794433593750e0_16*(0.0e0_16,1.0e0_16))
+              %(complex_mp_format)s arg
+              if(arg.eq.(0.0e0_16,0.0e0_16))then
+                 mp_reglogp=(0.0e0_16,0.0e0_16)
+              else
+                 if(real(arg,kind=16).lt.0.0e0_16.and.imagpart(arg).lt.0.0e0_16)then
+                    mp_reglogp=log(arg) + TWOPII
+                 else
+                    mp_reglogp=log(arg)
+                 endif
+              endif
+              end
+              
+              %(complex_mp_format)s function mp_reglogm(arg)
+              implicit none
+              %(complex_mp_format)s TWOPII
+              parameter (TWOPII=2.0e0_16*3.14169258478796109557151794433593750e0_16*(0.0e0_16,1.0e0_16))
+              %(complex_mp_format)s arg
+              if(arg.eq.(0.0e0_16,0.0e0_16))then
+                 mp_reglogm=(0.0e0_16,0.0e0_16)
+              else
+                 if(real(arg,kind=16).lt.0.0e0_16.and.imagpart(arg).gt.0.0e0_16)then
+                    mp_reglogm=log(arg) - TWOPII
+                 else
+                    mp_reglogm=log(arg)
+                 endif 
               endif
               end
               
@@ -5754,7 +6019,8 @@ class UFO_model_to_mg4(object):
               else
                  mp_arg=log(comnum/abs(comnum))/imm
               endif
-              end"""%{'complex_mp_format':self.mp_complex_format})            
+              end"""%{'complex_mp_format':self.mp_complex_format})
+
 
         #check for the file functions.f
         model_path = self.model.get('modelpath')
@@ -5770,8 +6036,8 @@ class UFO_model_to_mg4(object):
             fsock.write_comment_line(' START UFO DEFINE FUNCTIONS ')
             for fct in ufo_fct:
                 # already handle by default
-                if fct.name not in ["complexconjugate", "re", "im", "sec", "csc", "asec", "acsc",
-                                    "theta_function", "cond", "reglog", "arg"]:
+                if fct.name not in ["complexconjugate", "re", "im", "sec", "csc", "asec", "acsc", "condif",
+                                    "theta_function", "cond", "reglog", "reglogp", "reglogm", "recms","arg"]:
                     ufo_fct_template = """
           double complex function %(name)s(%(args)s)
           implicit none
@@ -5791,8 +6057,8 @@ class UFO_model_to_mg4(object):
                 fsock.write_comment_line(' START UFO DEFINE FUNCTIONS FOR MP')
                 for fct in ufo_fct:
                     # already handle by default
-                    if fct.name not in ["complexconjugate", "re", "im", "sec", "csc", "asec", "acsc",
-                                        "theta_function", "cond", "reglog", "arg"]:
+                    if fct.name not in ["complexconjugate", "re", "im", "sec", "csc", "asec", "acsc","condif",
+                                        "theta_function", "cond", "reglog", "reglogp","reglogm", "recms","arg"]:
                         ufo_fct_template = """
           %(complex_mp_format)s function mp__%(name)s(mp__%(args)s)
           implicit none
@@ -5852,12 +6118,13 @@ class UFO_model_to_mg4(object):
                             write(*,*)  ' ---------------------------------'
                             write(*,*)  ' '""")        
         lines = [format(data.name) for data in self.params_indep 
-                                                         if data.name != 'ZERO']
+                  if data.name != 'ZERO' and self.check_needed_param(data.name)]
         fsock.writelines('\n'.join(lines))
         fsock.writelines("""write(*,*)  ' Internal Params evaluated point by point'
                             write(*,*)  ' ----------------------------------------'
                             write(*,*)  ' '""")         
-        lines = [format(data.name) for data in self.params_dep]
+        lines = [format(data.name) for data in self.params_dep \
+                 if self.check_needed_param(data.name)]
         
         fsock.writelines('\n'.join(lines))                
         
@@ -5945,45 +6212,52 @@ class UFO_model_to_mg4(object):
                        'mass': particle.get('mass'),'mp_pref':self.mp_prefix})
 
         fsock.writelines('\n'.join(res_strings))
-        
-    def create_param_card(self):
-        """ create the param_card.dat """
 
+
+    @staticmethod
+    def create_param_card_static(model, output_path, rule_card_path=False,
+                                 mssm_convert=True):
+        """ create the param_card.dat for a givent model --static method-- """
         #1. Check if a default param_card is present:
         done = False
-        if hasattr(self.model, 'restrict_card') and isinstance(self.model.restrict_card, str):
-            restrict_name = os.path.basename(self.model.restrict_card)[9:-4]
-            model_path = self.model.get('modelpath')
+        if hasattr(model, 'restrict_card') and isinstance(model.restrict_card, str):
+            restrict_name = os.path.basename(model.restrict_card)[9:-4]
+            model_path = model.get('modelpath')
             if os.path.exists(pjoin(model_path,'paramcard_%s.dat' % restrict_name)):
                 done = True
                 files.cp(pjoin(model_path,'paramcard_%s.dat' % restrict_name),
-                         pjoin(self.dir_path, 'param_card.dat'))
+                         output_path)
         if not done:
-            out_path = pjoin(self.dir_path, 'param_card.dat')
-            param_writer.ParamCardWriter(self.model, out_path)
-            
-        out_path2 = None
-        if hasattr(self.model, 'rule_card'):
-            out_path2 = pjoin(self.dir_path, 'param_card_rule.dat')
-            self.model.rule_card.write_file(out_path2)
+            param_writer.ParamCardWriter(model, output_path)
+         
+        if rule_card_path:   
+            if hasattr(model, 'rule_card'):
+                model.rule_card.write_file(rule_card_path)
         
-        # IF MSSM convert the card to SLAH1
-        if self.model_name == 'mssm' or self.model_name.startswith('mssm-'):
-            import models.check_param_card as translator
-            
-            # Check the format of the param_card for Pythia and make it correct
-            if out_path2:
-                translator.make_valid_param_card(out_path, out_path2)
-            translator.convert_to_slha1(out_path)
+        if mssm_convert:
+            model_name = model.get('name')
+            # IF MSSM convert the card to SLAH1
+            if model_name == 'mssm' or model_name.startswith('mssm-'):
+                import models.check_param_card as translator    
+                # Check the format of the param_card for Pythia and make it correct
+                if rule_card_path:
+                    translator.make_valid_param_card(output_path, rule_card_path)
+                translator.convert_to_slha1(output_path)        
+    
+    def create_param_card(self):
+        """ create the param_card.dat """
+
+        self.create_param_card_static(self.model, 
+                                      output_path=pjoin(self.dir_path, 'param_card.dat'), 
+                                      rule_card_path=pjoin(self.dir_path, 'param_card_rule.dat'), 
+                                      mssm_convert=True)
         
-def ExportV4Factory(cmd, noclean, output_type='default'):
+def ExportV4Factory(cmd, noclean, output_type='default', group_subprocesses=True):
     """ Determine which Export_v4 class is required. cmd is the command 
         interface containing all potential usefull information.
         The output_type argument specifies from which context the output
         is called. It is 'madloop' for MadLoop5, 'amcatnlo' for FKS5 output
         and 'default' for tree-level outputs."""
-
-    group_subprocesses = cmd.options['group_subprocesses']
 
     opt = cmd.options
 
@@ -5998,9 +6272,12 @@ def ExportV4Factory(cmd, noclean, output_type='default'):
       'pjfry_dir':cmd.options["pjfry"],
       'golem_dir':cmd.options["golem"],
       'fortran_compiler':cmd.options['fortran_compiler'],
+      'f2py_compiler':cmd.options['f2py_compiler'],
       'output_dependencies':cmd.options['output_dependencies'],
       'SubProc_prefix':'P',
-      'compute_color_flows':cmd.options['loop_color_flows']}
+      'compute_color_flows':cmd.options['loop_color_flows'],
+      'mode': 'reweight' if cmd._export_format == "standalone_rw" else ''
+      }
 
     if output_type.startswith('madloop'):
         import madgraph.loop.loop_exporters as loop_exporters
@@ -6067,14 +6344,6 @@ def ExportV4Factory(cmd, noclean, output_type='default'):
 
     # Then the default tree-level output
     elif output_type=='default':
-
-        #check if we need to group processes
-        if cmd.options['group_subprocesses'] == 'Auto':
-            if cmd._curr_amps[0].get_ninitial()  == 2:
-                group_subprocesses = True
-            else:
-                group_subprocesses = False
-
         assert group_subprocesses in [True, False]
         
         opt = dict(opt)
@@ -6083,7 +6352,8 @@ def ExportV4Factory(cmd, noclean, output_type='default'):
                'export_format':cmd._export_format,
                'mp': False,  
                'sa_symmetry':False, 
-               'model': cmd._curr_model.get('name') })
+               'model': cmd._curr_model.get('name'),
+               'v5_model': False if cmd._model_v4_path else True })
 
         format = cmd._export_format #shortcut
 

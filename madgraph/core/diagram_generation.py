@@ -26,7 +26,8 @@ import logging
 
 import madgraph.core.base_objects as base_objects
 import madgraph.various.misc as misc
-from madgraph import InvalidCmd
+from madgraph import InvalidCmd, MadGraph5Error
+
 logger = logging.getLogger('madgraph.diagram_generation')
 
 

@@ -875,8 +875,8 @@ class HwU(Histogram):
             for j, weight in \
                       enumerate(HwU.histo_bin_weight_re.finditer(line_bin)):
                 if j == len(weight_header):
-                    raise ParseError, " There is more bin weights"+\
-                      " specified than expected (%i)"%len(weight_header)
+                    raise HwU.ParseError, "There is more bin weights"+\
+                              " specified than expected (%i)"%len(weight_header)
                 if weight_header[j] == 'boundary_xmin':
                     boundaries[0] = float(weight.group('weight'))
                 elif weight_header[j] == 'boundary_xmax':
@@ -985,7 +985,7 @@ class HwU(Histogram):
                     pdf_up     = 0.0
                     pdf_down   = 0.0
                     cntrl_val  = bin.wgts['central']
-                    if pdfs[-1] <= 90000:
+                    if wgts_to_consider[0] <= 90000:
                         # use Hessian method (CTEQ & MSTW)
                         if len(pdfs)>2:
                             for i in range(int((len(pdfs)-1)/2)):

@@ -1034,6 +1034,10 @@ c        the iproc contribution
      $                    ,pswgt_cnt(-2:2),jac_cnt(-2:2)
       common/counterevnts/p1_cnt,wgt_cnt,pswgt_cnt,jac_cnt
       if (wgt1.eq.0d0 .and. wgt2.eq.0d0 .and. wgt3.eq.0d0) return
+c Check for NaN's and INF's. Simply skip the contribution
+      if (wgt1.ne.wgt1) return
+      if (wgt2.ne.wgt2) return
+      if (wgt3.ne.wgt3) return
       icontr=icontr+1
       if (icontr.gt.max_contr) then
          write (*,*) 'ERROR in add_wgt: too many contributions'
@@ -1190,7 +1194,7 @@ c iwgt=1 is the central value (i.e. no scale/PDF reweighting).
          iwgt=1
          wgt_wo_pdf=(wgt(1,i) + wgt(2,i)*log(mu2_r/mu2_q) + wgt(3,i)
      &        *log(mu2_f/mu2_q))*g_strong(i)**QCDpower(i)
-     &        *rwgt_muR_dep_fac(sqrt(mu2_r))
+     &        *rwgt_muR_dep_fac(sqrt(mu2_r),sqrt(mu2_r))
          wgts(iwgt,i)=xlum * wgt_wo_pdf
          do j=1,iproc
             parton_iproc(j,i)=parton_iproc(j,i) * wgt_wo_pdf
@@ -1200,9 +1204,9 @@ c Special for the soft-virtual needed for the virt-tricks. The
 c *_wgt_mint variable should be directly passed to the mint-integrator
 c and not be part of the plots nor computation of the cross section.
             virt_wgt_mint=virt_wgt_mint*xlum*g_strong(i)**QCDpower(i)
-     &           *rwgt_muR_dep_fac(sqrt(mu2_r))
+     &           *rwgt_muR_dep_fac(sqrt(mu2_r),sqrt(mu2_r))
             born_wgt_mint=born_wgt_mint*xlum*g_strong(i)**QCDpower(i)
-     &           /(8d0*Pi**2)*rwgt_muR_dep_fac(sqrt(mu2_r))
+     &           /(8d0*Pi**2)*rwgt_muR_dep_fac(sqrt(mu2_r),sqrt(mu2_r))
          endif
       enddo
       call cpu_time(tAfter)
@@ -1226,7 +1230,12 @@ c save also the separate contributions to the PDFs and the corresponding
 c PDG codes
       niproc(ict)=iproc
       do j=1,iproc
-         parton_iproc(j,ict)=pd(j)*conv
+         if (nincoming.eq.2) then
+            parton_iproc(j,ict)=pd(j)*conv
+         else
+c           Keep GeV's for decay processes (no conv. factor needed)
+            parton_iproc(j,ict)=pd(j)
+         endif
          do k=1,nexternal
             parton_pdg(k,j,ict)=idup_d(iFKS,k,j)
             if (k.lt.fks_j_d(iFKS)) then
@@ -1314,7 +1323,7 @@ c add the weights to the array
      &              /mu2_q)+wgt(3,i)*log(mu2_f(kf)/mu2_q))*g(kr)
      &              **QCDpower(i)
                wgts(iwgt,i)=wgts(iwgt,i)
-     &              *rwgt_muR_dep_fac(sqrt(mu2_r(kr)))
+     &              *rwgt_muR_dep_fac(sqrt(mu2_r(kr)),sqrt(mu2_r(1)))
             enddo
          enddo
       enddo
@@ -1399,7 +1408,7 @@ c special for the itype=7 (i.e, the veto-compensating factor)
      &                 *veto_compensating_factor_new
                endif
                wgts(iwgt,i)=wgts(iwgt,i)
-     &              *rwgt_muR_dep_fac(sqrt(mu2_r(ks)))
+     &              *rwgt_muR_dep_fac(sqrt(mu2_r(ks)),sqrt(mu2_r(1)))
                wgts(iwgt,i)=wgts(iwgt,i)*veto_multiplier_new(ks,kh)
             enddo
          enddo
@@ -1453,7 +1462,8 @@ c allows for better caching of the PDFs
 c add the weights to the array
             wgts(iwgt,i)=xlum * (wgt(1,i) + wgt(2,i)*log(mu2_r/mu2_q) +
      &           wgt(3,i)*log(mu2_f/mu2_q))*g_strong(i)**QCDpower(i)
-            wgts(iwgt,i)=wgts(iwgt,i)*rwgt_muR_dep_fac(sqrt(mu2_r))
+            wgts(iwgt,i)=wgts(iwgt,i)*
+     &                       rwgt_muR_dep_fac(sqrt(mu2_r),sqrt(mu2_r))
          enddo
       enddo
       call InitPDF(izero)
@@ -1480,7 +1490,7 @@ c must do MC over FKS directories.
       integer iproc_save(fks_configs),eto(maxproc,fks_configs),
      &     etoi(maxproc,fks_configs),maxproc_found
       common/cproc_combination/iproc_save,eto,etoi,maxproc_found
-      if (icontr.gt.6) then
+      if (icontr.gt.7) then
          write (*,*) 'ERROR: too many applgrid weights. '/
      &        /'Should have at most one of each itype.',icontr
          stop 1
@@ -1522,8 +1532,9 @@ c     born
             appl_QES2(2)=scales2(1,i)
             appl_muR2(2)=scales2(2,i)
             appl_muF2(2)=scales2(3,i)
-         elseif (itype(i).eq.3 .or. itype(i).eq.4) then
-c     soft-virtual or soft-counter
+         elseif (itype(i).eq.3 .or. itype(i).eq.4 .or. itype(i).eq.14)
+     $           then
+c     virtual, soft-virtual or soft-counter
             appl_w0(2)=appl_w0(2)+wgt(1,i)*final_state_rescaling
             appl_wR(2)=appl_wR(2)+wgt(2,i)*final_state_rescaling
             appl_wF(2)=appl_wF(2)+wgt(3,i)*final_state_rescaling
@@ -1975,7 +1986,7 @@ c on the imode we should or should not include the virtual corrections.
       include 'mint.inc'
       integer i,j,ict
       double precision f(nintegrals),sigint,sigint1,sigint_ABS
-     $     ,n1body_wgt,tmp_wgt
+     $     ,n1body_wgt,tmp_wgt,max_weight
       double precision           virt_wgt_mint,born_wgt_mint
       common /virt_born_wgt_mint/virt_wgt_mint,born_wgt_mint
       double precision virtual_over_born
@@ -1987,6 +1998,7 @@ c on the imode we should or should not include the virtual corrections.
       sigint1=0d0
       sigint_ABS=0d0
       n1body_wgt=0d0
+      max_weight=0d0
       if (icontr.eq.0) then
          sigint_ABS=0d0
          sigint=0d0
@@ -1994,25 +2006,41 @@ c on the imode we should or should not include the virtual corrections.
       else
          do i=1,icontr
             sigint=sigint+wgts(1,i)
+            max_weight=max(max_weight,abs(wgts(1,i)))
             if (icontr_sum(0,i).eq.0) cycle
             do j=1,niproc(i)
                sigint_ABS=sigint_ABS+abs(unwgt(j,i))
                sigint1=sigint1+unwgt(j,i) ! for consistency check
+               max_weight=max(max_weight,abs(unwgt(j,i)))
             enddo
          enddo
-c check the consistency of the results
+c check the consistency of the results up to machine precision (10^-10 here)
          if (imode.ne.1 .or. only_virt) then
-            if (abs((sigint-sigint1)/(sigint+sigint1)).gt.1d-3) then
+            if (abs((sigint-sigint1)/max_weight).gt.1d-10) then
                write (*,*) 'ERROR: inconsistent integrals #0',sigint
-     $              ,sigint1,abs((sigint-sigint1)/(sigint+sigint1))
+     $              ,sigint1,max_weight,abs((sigint-sigint1)/max_weight)
+               do i=1, icontr
+                  write (*,*) i,icontr_sum(0,i),niproc(i),wgts(1,i)
+                  if (icontr_sum(0,i).eq.0) cycle
+                  do j=1,niproc(i)
+                     write (*,*) j,unwgt(j,i)
+                  enddo
+               enddo
                stop 1
             endif
          else
             sigint1=sigint1+virt_wgt_mint
-            if (abs((sigint-sigint1)/(sigint+sigint1)).gt.1d-3) then
+            if (abs((sigint-sigint1)/max_weight).gt.1d-10) then
                write (*,*) 'ERROR: inconsistent integrals #1',sigint
-     $              ,sigint1,abs((sigint-sigint1)/(sigint+sigint1))
+     $              ,sigint1,max_weight,abs((sigint-sigint1)/max_weight)
      $              ,virt_wgt_mint
+               do i=1, icontr
+                  write (*,*) i,icontr_sum(0,i),niproc(i),wgts(1,i)
+                  if (icontr_sum(0,i).eq.0) cycle
+                  do j=1,niproc(i)
+                     write (*,*) j,unwgt(j,i)
+                  enddo
+               enddo
                stop 1
             endif
          endif
@@ -2176,9 +2204,15 @@ c iproc_picked:
             do ii=1,iproc_save(nFKS(ict))
                if (eto(ii,nFKS(ict)).ne.ipr) cycle
                n_ctr_found=n_ctr_found+1
-               write (n_ctr_str(n_ctr_found),'(3(1x,d18.12),1x,i2)')
-     &              (wgt(j,ict)*conv,j=1,3),
-     &              nexternal
+               if (nincoming.eq.2) then
+                  write (n_ctr_str(n_ctr_found),'(3(1x,d18.12),1x,i2)')
+     &                 (wgt(j,ict)*conv,j=1,3),
+     &                 nexternal
+               else
+                  write (n_ctr_str(n_ctr_found),'(3(1x,d18.12),1x,i2)')
+     &                 (wgt(j,ict),j=1,3),
+     &                 nexternal
+               endif
                procid=''
                do j=1,nexternal
                   write (str_temp,*) parton_pdg(j,ii,ict)
@@ -2204,9 +2238,15 @@ c iproc_picked:
 c H-event
             ipr=iproc_picked
             n_ctr_found=n_ctr_found+1
-            write (n_ctr_str(n_ctr_found),'(3(1x,d18.12),1x,i2)')
-     &           (wgt(j,ict)*conv,j=1,3),
-     &           nexternal
+            if (nincoming.eq.2) then
+               write (n_ctr_str(n_ctr_found),'(3(1x,d18.12),1x,i2)')
+     &              (wgt(j,ict)*conv,j=1,3),
+     &              nexternal
+            else
+               write (n_ctr_str(n_ctr_found),'(3(1x,d18.12),1x,i2)')
+     &              (wgt(j,ict),j=1,3),
+     &              nexternal
+            endif
             procid=''
             do j=1,nexternal
                write (str_temp,*) parton_pdg(j,ipr,ict)
@@ -2319,7 +2359,7 @@ c
       do i=0,3
         xsum(i)=0.d0
         xsuma(i)=0.d0
-        do j=3,npart
+        do j=nincoming+1,npart
           xsum(i)=xsum(i)+xmom(i,j)
           xsuma(i)=xsuma(i)+abs(xmom(i,j))
         enddo
@@ -2386,9 +2426,14 @@ c
       pass=.true.
       jflag=0
       do i=0,3
-        xsum(i)=-xmom(i,1)-xmom(i,2)
-        xsuma(i)=abs(xmom(i,1))+abs(xmom(i,2))
-        do j=3,npart
+        if (nincoming.eq.2) then
+          xsum(i)=-xmom(i,1)-xmom(i,2)
+          xsuma(i)=abs(xmom(i,1))+abs(xmom(i,2))
+        elseif(nincoming.eq.1) then
+          xsum(i)=-xmom(i,1)
+          xsuma(i)=abs(xmom(i,1))
+        endif
+        do j=nincoming+1,npart
           xsum(i)=xsum(i)+xmom(i,j)
           xsuma(i)=xsuma(i)+abs(xmom(i,j))
         enddo
@@ -2401,14 +2446,14 @@ c
           write(*,*)'Momentum is not conserved [nocms]'
           write(*,*)'i=',i
           do j=1,npart
-            write(*,'(4(d14.8,1x))') (xmom(jj,j),jj=0,3)
+            write(*,'(i2,1x,4(d14.8,1x))') j,(xmom(jj,j),jj=0,3)
           enddo
           jflag=1
         endif
       enddo
       if(jflag.eq.1)then
-        write(*,'(4(d14.8,1x))') (xsum(jj),jj=0,3)
-        write(*,'(4(d14.8,1x))') (xrat(jj),jj=0,3)
+        write(*,'(a3,1x,4(d14.8,1x))') 'sum',(xsum(jj),jj=0,3)
+        write(*,'(a3,1x,4(d14.8,1x))') 'rat',(xrat(jj),jj=0,3)
         pass=.false.
         return
       endif
@@ -2435,7 +2480,11 @@ c
         endif
       enddo
 c
-      ecmtmp=sqrt(2d0*dot(xmom(0,1),xmom(0,2)))
+      if (nincoming.eq.2) then
+         ecmtmp=sqrt(2d0*dot(xmom(0,1),xmom(0,2)))
+      elseif (nincoming.eq.1) then
+         ecmtmp=xmom(0,1)
+      endif
       if(abs(ecm-ecmtmp).gt.vtiny)then
         write(*,*)'Inconsistent shat [nocms]'
         write(*,*)'ecm given=   ',ecm
@@ -2668,6 +2717,9 @@ c Born and multiplies with the AP splitting function or eikonal factors.
 
       double precision zero,tiny
       parameter (zero=0d0)
+      
+      integer icount
+      data icount /0/
 
 c Particle types (=color) of i_fks, j_fks and fks_mother
       integer i_type,j_type,m_type
@@ -2690,7 +2742,11 @@ c Unphysical kinematics: set matrix elements equal to zero
 
 c Consistency check -- call to set_cms_stuff() must be done prior to
 c entering this function
-      shattmp=2d0*dot(pp(0,1),pp(0,2))
+      if (nincoming.eq.2) then
+         shattmp=2d0*dot(pp(0,1),pp(0,2))
+      else
+         shattmp=pp(0,1)**2
+      endif
       if(abs(shattmp/shat-1.d0).gt.1.d-5)then
         write(*,*)'Error in sreal: inconsistent shat'
         write(*,*)shattmp,shat
@@ -2698,9 +2754,9 @@ c entering this function
       endif
 
       if (1d0-y_ij_fks.lt.tiny)then
-         if (pmass(j_fks).eq.zero.and.j_fks.le.2)then
+         if (pmass(j_fks).eq.zero.and.j_fks.le.nincoming)then
             call sborncol_isr(pp,xi_i_fks,y_ij_fks,wgt)
-         elseif (pmass(j_fks).eq.zero.and.j_fks.ge.3)then
+         elseif (pmass(j_fks).eq.zero.and.j_fks.ge.nincoming+1)then
             call sborncol_fsr(pp,xi_i_fks,y_ij_fks,wgt)
          else
             wgt=0d0
@@ -2722,11 +2778,20 @@ c i_fks is (anti-)quark
       endif
 
       if(wgt.lt.0.d0)then
-         write(*,*) 'Fatal error #2 in sreal',wgt,xi_i_fks,y_ij_fks
-         do i=1,nexternal
-            write(*,*) 'particle ',i,', ',(pp(j,i),j=0,3)
-         enddo
-         stop
+         icount=icount+1
+         if (icount.le.10) then
+            write(*,*) 'Warning, numerical problem found in sreal. '/
+     $           /'Setting weight to zero',wgt,xi_i_fks,y_ij_fks
+            do i=1,nexternal
+               write(*,*) 'particle ',i,', ',(pp(j,i),j=0,3)
+            enddo
+            if (icount.eq.25) then
+               write (*,*) 'ERROR 25 problems found... '/
+     $              /'stopping the code'
+               stop
+            endif
+         endif
+         wgt=0d0
       endif
 
       return
@@ -2795,7 +2860,7 @@ c Unphysical kinematics: set matrix elements equal to zero
       E_i_fks = p(0,i_fks)
       z = 1d0 - E_i_fks/(E_i_fks+E_j_fks)
       t = z * shat/4d0
-      if(rotategranny .and. nexternal-1.ne.3)then
+      if(rotategranny .and. nexternal-1.ne.3 .and. nincoming.eq.2)then
 c Exclude 2->1 (at the Born level) processes: matrix elements are
 c independent of the PS point, but non-zero helicity configurations
 c might flip when rotating the momenta.
@@ -2915,7 +2980,7 @@ c sreal return {\cal M} of FKS except for the partonic flux 1/(2*s).
 c Thus, an extra factor z (implicit in the flux of the reduced Born
 c in FKS) has to be inserted here
       t = z*shat/4d0
-      if(j_fks.eq.2 .and. nexternal-1.ne.3)then
+      if(j_fks.eq.2 .and. nexternal-1.ne.3 .and. nincoming.eq.2)then
 c Rotation according to innerpin.m. Use rotate_invar() if a more 
 c general rotation is needed.
 c Exclude 2->1 (at the Born level) processes: matrix elements are
@@ -2946,7 +3011,7 @@ c Insert <ij>/[ij] which is not included by sborn()
                pi(i)=p_i_fks_ev(i)
                pj(i)=p(i,j_fks)
             enddo
-            if(j_fks.eq.2)then
+            if(j_fks.eq.2 .and. nincoming.eq.2)then
 c Rotation according to innerpin.m. Use rotate_invar() if a more 
 c general rotation is needed
                pi(1)=-pi(1)
@@ -2967,7 +3032,7 @@ c general rotation is needed
             azifact=Wij_angle/Wij_recta
          endif
 c Insert the extra factor due to Madgraph convention for polarization vectors
-         if(j_fks.eq.2)then
+         if(j_fks.eq.2 .and. nincoming.eq.2)then
            cphi_mother=-1.d0
            sphi_mother=0.d0
          else
@@ -3442,7 +3507,11 @@ c Unphysical kinematics: set matrix elements equal to zero
 
 c Consistency check -- call to set_cms_stuff() must be done prior to
 c entering this function
-      shattmp=2d0*dot(p(0,1),p(0,2))
+      if (nincoming.eq.2) then
+         shattmp=2d0*dot(p(0,1),p(0,2))
+      else
+         shattmp=p(0,1)**2
+      endif
       if(abs(shattmp/shat-1.d0).gt.1.d-5)then
         write(*,*)'Error in sreal: inconsistent shat'
         write(*,*)shattmp,shat
@@ -3751,7 +3820,7 @@ c it as the standard, one should think a bit about it
         enddo
       enddo
       do i=0,3
-        if(j_fks.gt.2)then
+        if(j_fks.gt.nincoming)then
           xnum=p1_cnt(i,i_fks,inum)+p1_cnt(i,j_fks,inum)
           xden=p1_cnt(i,i_fks,iden)+p1_cnt(i,j_fks,iden)
         else
@@ -4351,7 +4420,11 @@ c For the MINT folding
 
 c Consistency check -- call to set_cms_stuff() must be done prior to
 c entering this function
-         shattmp=2d0*dot(p(0,1),p(0,2))
+         if (nincoming.eq.2) then
+            shattmp=2d0*dot(p(0,1),p(0,2))
+         else
+            shattmp=p(0,1)**2
+         endif
          if(abs(shattmp/shat-1.d0).gt.1.d-5)then
            write(*,*)'Error in sreal: inconsistent shat'
            write(*,*)shattmp,shat
@@ -4428,7 +4501,7 @@ c 1+2+3+4
          enddo
 c
          do i=1,nincoming
-            if (particle_type(i).ne.1)then
+            if (particle_type(i).ne.1 .and. pmass(i).eq.ZERO) then
                if (particle_type(i).eq.8) then
                   aj=0
                elseif(abs(particle_type(i)).eq.3) then
@@ -4953,8 +5026,13 @@ c 1+4_L
           elseif(abrv.ne.'virt' .and. abrv.ne.'viSC' .and.
      #           abrv.ne.'viLC')then
 c 1+2+3+4
-            tmp=dlog(xicut_used**2*shat/QES2)-
-     #          1/betai*dlog((1+betai)/(1-betai))
+            if (betai.gt.1d-6) then
+               tmp=dlog(xicut_used**2*shat/QES2)-
+     &              1/betai*dlog((1+betai)/(1-betai))
+            else
+               tmp=dlog(xicut_used**2*shat/QES2)-
+     &              2d0*(1d0+betai**2/3d0+betai**4/5d0)
+            endif
           else
              write(*,*)'Error #14 in eikonal_Ireg',abrv
              stop
@@ -5181,7 +5259,11 @@ c The factor -2 compensate for that missing in sborn_sf
               elseif(pmass(m).ne.zero.and.pmass(n).ne.zero)then
                 kikj=dot(p(0,n),p(0,m))
                 vij=sqrt(1-(pmass(n)*pmass(m)/kikj)**2)
-                single=single+0.5d0*1/vij*log((1+vij)/(1-vij))*wgt
+                if (vij .gt. 1d-6) then
+                   single=single+0.5d0*1/vij*log((1+vij)/(1-vij))*wgt
+                else
+                   single=single+(1d0+vij**2/3d0+vij**4/5d0)*wgt
+                endif
               else
                 write(*,*)'Error in getpoles',i,j,n,m,pmass(n),pmass(m)
                 stop
@@ -5265,7 +5347,7 @@ c$$$      m1l_W_finite_CDR=m1l_W_finite_CDR*born
       end
 
 
-      subroutine setfksfactor(iconfig)
+      subroutine setfksfactor(iconfig,match_to_shower)
       implicit none
 
       double precision CA,CF, PI
@@ -5282,6 +5364,7 @@ c$$$      m1l_W_finite_CDR=m1l_W_finite_CDR*born
       common/sctests/softtest,colltest
 
       integer config_fks,i,j,iconfig,fac1,fac2
+      logical match_to_shower
 
       double precision fkssymmetryfactor,fkssymmetryfactorBorn,
      &     fkssymmetryfactorDeg
@@ -5500,6 +5583,9 @@ c Set color types of i_fks, j_fks and fks_mother.
             else
                m_type=j_type
             endif
+         elseif(i_type.eq.8.and.j_type.eq.1.and.pdg_type(i_fks).eq.-21)then
+         ! dirty trick for LOonly processes without colored legs
+            m_type=j_type
          else
             write(*,*)'Flavour mismatch #2 in setfksfactor',
      &           i_type,j_type,m_type
@@ -5515,7 +5601,7 @@ c Set color types of i_fks, j_fks and fks_mother.
       m_type=m_type_FKS(nFKSprocess)
 
 c Set matrices used by MC counterterms
-      call set_mc_matrices
+      if (match_to_shower) call set_mc_matrices
 
       fac_i=fac_i_FKS(nFKSprocess)
       fac_j=fac_j_FKS(nFKSprocess)

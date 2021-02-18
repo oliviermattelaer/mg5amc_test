@@ -237,7 +237,10 @@ c FxFx
      $     ,FxFx_fac_scale
 c
       tmp=0
-      if(ickkw.eq.3)then
+      if (nincoming.eq.1) then
+         tmp=pp(0,1) ! mass of the decaying particle
+         temp_scale_id='Mass of decaying particle'
+      elseif(ickkw.eq.3)then
 c FxFx merging scale:
 c     Note that nFxFx_ren_scales includes the one scale that corresponds
 c     to the real-emission one (and is zero for the n-body conf.). Skip
@@ -411,7 +414,7 @@ c
       tmp=0
       if(ickkw.eq.3)then
 c FxFx merging scale:
-        tmp=min(FxFx_fac_scale(1),FxFx_fac_scale(2))
+        tmp=(FxFx_fac_scale(1)+FxFx_fac_scale(2))/2d0
         temp_scale_id='FxFx merging scale'
       elseif(imuftype.eq.1)then
         tmp=scale_global_reference(pp)
@@ -490,7 +493,10 @@ c a scale to be used as a reference for Ellis-Sexton scale
       parameter (iQEStype=1)
 c
       tmp=0
-      if(iQEStype.eq.1)then
+      if (nincoming.eq.1) then
+         tmp=pp(0,1) ! mass of the decaying particle
+         temp_scale_id='Mass of decaying particle'
+      elseif(iQEStype.eq.1)then
         tmp=scale_global_reference(pp)
       elseif(iQEStype.eq.2)then
         do i=nincoming+1,nexternal
@@ -557,16 +563,17 @@ c         \sqrt(s), partonic energy
           temp_scale_id='\sqrt(s), partonic energy'
       elseif(dynamical_scale_choice.eq.0) then
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-cc      USER DEFINE SCALE: ENTER YOUR CODE HERE                                  cc
-cc      to use this code you need to set                                         cc
-cc                 dymamical_scale_choice to 0 in the run_card                   cc
+cc      USER-DEFINED SCALE: ENTER YOUR CODE HERE                                 cc
+cc      to use this code you must set                                            cc
+cc                 dynamical_scale_choice = 0                                    cc
+cc      in the run_card (run_card.dat)                                           cc
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-         write(*,*) "No user scale define"
+         write(*,*) "User-defined scale not set"
          stop 1
-         temp_scale_id='User define dynamical scale' ! put meaningfull information
+         temp_scale_id='User-defined dynamical scale' ! use a meaningful string
          tmp = 0
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-cc      USER DEFINE SCALE: END of USER CODE                                      cc
+cc      USER-DEFINED SCALE: END OF USER CODE                                     cc
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       else
         write(*,*)'Unknown option in scale_global_reference',dynamical_scale_choice
@@ -577,3 +584,4 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
       return
       end
+

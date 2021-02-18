@@ -34,6 +34,7 @@ import madgraph.interface.madgraph_interface as mg_interface
 import madgraph.interface.master_interface as master_interface
 import madgraph.various.misc as misc
 import madgraph.iolibs.files as files
+import madgraph.iolibs.export_v4 as export_v4
 import madgraph.various.banner as banner
 import madgraph.various.lhe_parser as lhe_parser
 
@@ -81,7 +82,8 @@ class MadSpinInterface(extended_cmd.Cmd):
                         'max_running_process':100,
                         'onlyhelicity': False,
                         'spinmode': "madspin",
-                        'use_old_dir': False #should be use only for faster debugging
+                        'use_old_dir': False, #should be use only for faster debugging
+                        'run_card': None # define cut for spinmode==none.
                         }
         
 
@@ -228,15 +230,24 @@ class MadSpinInterface(extended_cmd.Cmd):
             args.remove('--bypass_check')
             bypass_check = True
             
-        if len(args) != 2:     
+        if len(args) == 1:  
+            logger.warning("""No param_card defined for the new model. We will use the default one but this might completely wrong.""")
+        elif len(args) != 2:
             return self.InvalidCmd, 'import model requires two arguments'
         
         model_name = args[0]
-        card = args[1]
-        if not os.path.exists(card):
-            raise self.InvalidCmd('%s: no such file' % card)
-
         self.load_model(model_name, False, False)
+        
+        if len(args) == 2:
+            card = args[1]
+            if not os.path.exists(card):
+                raise self.InvalidCmd('%s: no such file' % card)
+        else:
+            card = "madspin_param_card.dat"
+            export_v4.UFO_model_to_mg4.create_param_card_static(self.model,
+                                card, rule_card_path=None)
+
+        
 
         #Check the param_card
         if not bypass_check:
@@ -254,11 +265,15 @@ class MadSpinInterface(extended_cmd.Cmd):
             if diff:
                 raise self.InvalidCmd('''Original param_card differs on some parameters:
     %s
-    Due to those preferences, we prefer not to proceed. If you are sure about what you are doing, 
+    Due to those differences, we prefer not to proceed. If you are sure about what you are doing, 
     you can use the command \'import model MODELNAME PARAM_CARD_PATH --bypass_check\''''
     % diff.replace('\n','\n    '))
+   
+   
                 
-        #OK load the new param_card
+        #OK load the new param_card (but back up the old one)
+        if 'slha' in self.banner:
+            self.banner['slha_original'] = self.banner['slha']
         self.banner['slha'] = open(card).read()
         if hasattr(self.banner, 'param_card'):
             del self.banner.param_card
@@ -307,13 +322,15 @@ class MadSpinInterface(extended_cmd.Cmd):
                 name, value = args[0].split('=')
                 args[0]= name
                 args.append(value)
+            elif len(args) == 1 and args[0] in ['onlyhelicity']:
+                args.append('True')
             else:
                 raise self.InvalidCmd('set command requires at least two argument.')
         
         if args[1].strip() == '=':
             args.pop(1)
         
-        valid = ['max_weight','seed','curr_dir', 'spinmode']
+        valid = ['max_weight','seed','curr_dir', 'spinmode', 'run_card']
         if args[0] not in self.options and args[0] not in valid:
             raise self.InvalidCmd('Unknown options %s' % args[0])        
     
@@ -337,8 +354,18 @@ class MadSpinInterface(extended_cmd.Cmd):
         
         elif args[0] == "spinmode":
             if args[1].lower() not in ["full", "bridge", "none"]:
-                raise self.InvalidCmd("spinmode can only take one of those 3 value: full/bridge/none") 
-        
+                raise self.InvalidCmd("spinmode can only take one of those 3 value: full/bridge/none")
+             
+        elif args[0] == "run_card":
+            if self.options['spinmode'] == "madspin":
+                raise self.InvalidCmd("edition of the run_card is not allowed within normal mode")
+            if "=" in args:
+                args.remove("=")
+            if len(args)==2 and "=" in args[1]:
+                data = args.pop(1)
+                arg, value = data.split("=")
+                args.append(arg)
+                args.append(value)
         
     def do_set(self, line):
         """ add one of the options """
@@ -358,6 +385,17 @@ class MadSpinInterface(extended_cmd.Cmd):
             self.options[args[0]] = float(args[1])
         elif args[0] in ['onlyhelicity', 'use_old_dir']:
             self.options[args[0]] = banner.ConfigFile.format_variable(args[1], bool, args[0])
+        elif args[0] in ['run_card']:
+            if args[1] == 'default':
+                self.options['run_card'] = None
+            elif os.path.isfile(args[1]):
+                self.options['run_card'] = banner.RunCard(args[1])
+            elif  len(args) >2:
+                if not self.options['run_card']:
+                    self.options['run_card'] =  banner.RunCardLO()
+                    self.options['run_card'].remove_all_cut()
+                self.options['run_card'][args[1]] = args[2]
+                
         else:
             self.options[args[0]] = int(args[1])
     
@@ -584,6 +622,10 @@ class MadSpinInterface(extended_cmd.Cmd):
 
         #replace init information
         generate_all.banner['init'] = self.banner['init']
+
+        #replace run card if present in header (to make sure correct random seed is recorded in output file)
+        if 'mgruncard' in self.banner:
+            generate_all.banner['mgruncard'] = self.banner['mgruncard']   
         
         # NOW we have all the information available for RUNNING
         
@@ -656,7 +698,10 @@ class MadSpinInterface(extended_cmd.Cmd):
                 me5_cmd = madevent_interface.MadEventCmdShell(me_dir=os.path.realpath(\
                                                 decay_dir), options=options)
                 me5_cmd.options["automatic_html_opening"] = False
-                run_card = banner.RunCard(pjoin(decay_dir, "Cards", "run_card.dat"))
+                if self.options["run_card"]:
+                    run_card = self.options["run_card"]
+                else:
+                    run_card = banner.RunCard(pjoin(decay_dir, "Cards", "run_card.dat"))
                 run_card["nevents"] = int(1.2*nb_event)
                 run_card["iseed"] = self.seed
                 run_card.write(pjoin(decay_dir, "Cards", "run_card.dat"))
@@ -718,7 +763,7 @@ class MadSpinInterface(extended_cmd.Cmd):
         # 2. Generate the events requested
         with misc.MuteLogger(["madgraph", "madevent", "ALOHA", "cmdprint"], [50,50,50,50]):
             mg5 = self.mg5cmd
-            modelpath = self.model.get('modelpath')
+            modelpath = self.model.get('modelpath+restriction')
             mg5.exec_cmd("import model %s" % modelpath)      
             to_event = {}
             for pdg, nb_needed in to_decay.items():
@@ -892,12 +937,11 @@ class MadSpinInterface(extended_cmd.Cmd):
         #base_model = import_ufo.import_model(model_path)
 
         # Import model
-        base_model = import_ufo.import_model(name, decay=True)
+        base_model = import_ufo.import_model(name, decay=True,
+                                               complex_mass_scheme=complex_mass)
 
         if use_mg_default:
             base_model.pass_particles_name_in_mg_default()
-        if complex_mass:
-            base_model.change_mass_to_complex_scheme()
         
         self.model = base_model
         self.mg5cmd._curr_model = self.model

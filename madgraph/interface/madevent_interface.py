@@ -362,7 +362,9 @@ class HelpToCmd(object):
         logger.info("   Those steps are performed if the related program are installed")
         logger.info("   and if the related card are present in the Cards directory.")
         self.run_options_help([('-f', 'Use default for all questions.'),
-                               ('--laststep=', 'argument might be parton/pythia/pgs/delphes and indicate the last level to be run.')])
+                               ('--laststep=', 'argument might be parton/pythia/pgs/delphes and indicate the last level to be run.'),
+                               ('-M', 'in order to add MadSpin'),
+                               ('-R', 'in order to add the reweighting module')])
 
     def help_initMadLoop(self):
         logger.info("syntax: initMadLoop [options]",'$MG:color:GREEN')
@@ -774,10 +776,11 @@ class CheckValidForCmd(object):
                 raise self.InvalidCmd('''delphes not install. Please install this package first. 
                 To do so type: \'install Delphes\' in the mg5 interface''')
             del args[-1]
+
                                 
-        if len(args) > 1:
-            self.help_generate_events()
-            raise self.InvalidCmd('Too many argument for generate_events command: %s' % cmd)
+        #if len(args) > 1:
+        #    self.help_generate_events()
+        #    raise self.InvalidCmd('Too many argument for generate_events command: %s' % cmd)
                     
         return run
 
@@ -1784,14 +1787,15 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         param_card = lhe.banner[begin_param+6:end_param].split('\n')
         param_card = check_param_card.ParamCard(param_card)
 
-        cst = 6.58211915e-25
+        cst = 6.58211915e-25 # hbar in GeV s
+        c = 299792458000 # speed of light in mm/s
         # Loop over all events
         for event in lhe:
             for particle in event:
                 id = particle.pid
                 width = param_card['decay'].get((abs(id),)).value
                 if width:
-                    vtim = random.expovariate(width/cst)
+                    vtim = c * random.expovariate(width/cst)
                     if vtim > threshold:
                         particle.vtim = vtim
             #write this modify event
@@ -1962,7 +1966,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         args = self.split_arg(line)
         # Check argument's validity
         mode = self.check_generate_events(args)
-        self.ask_run_configuration(mode)
+        self.ask_run_configuration(mode, args)
         if not args:
             # No run name assigned -> assigned one automaticaly 
             self.set_run_name(self.find_available_run_name(self.me_dir), None, 'parton')
@@ -2023,6 +2027,30 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
             self.exec_cmd('pythia --no_default', postcmd=False, printcmd=False)
             # pythia launches pgs/delphes if needed    
             self.store_result()
+            
+            if self.param_card_iterator:
+                param_card_iterator = self.param_card_iterator
+                self.param_card_iterator = []
+                with misc.TMP_variable(self, 'allow_notification_center', False):
+                    param_card_iterator.store_entry(self.run_name, self.results.current['cross'])
+                    #check if the param_card defines a scan.
+                    orig_name = self.run_name
+                    for card in param_card_iterator:
+                        card.write(pjoin(self.me_dir,'Cards','param_card.dat'))
+                        self.exec_cmd("generate_events -f ",precmd=True, postcmd=True,errorhandling=False)
+                        param_card_iterator.store_entry(self.run_name, self.results.current['cross'])
+                    param_card_iterator.write(pjoin(self.me_dir,'Cards','param_card.dat'))
+                    name = misc.get_scan_name(orig_name, self.run_name)
+                    path = pjoin(self.me_dir, 'Events','scan_%s.txt' % name)
+                    logger.info("write all cross-section results in %s" % path ,'$MG:color:BLACK')
+                    param_card_iterator.write_summary(path)
+
+            
+            if self.allow_notification_center:    
+                misc.apple_notify('Run %s finished' % os.path.basename(self.me_dir), 
+                              '%s: %s +- %s ' % (self.results.current['run_name'], 
+                                                 self.results.current['cross'],
+                                                 self.results.current['error']))
     
     def do_initMadLoop(self,line):
         """Compile and run MadLoop for a certain number of PS point so as to 
@@ -2054,7 +2082,7 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
             options['nPS'] = new_n_PS
 
         MadLoopInitializer.init_MadLoop(self.me_dir,n_PS=options['nPS'],
-                                   subproc_prefix='PV', MG_options=self.options)
+                   subproc_prefix='PV', MG_options=self.options, interface=self)
 
     def do_launch(self, line, *args, **opt):
         """Main Commands: exec generate_events for 2>N and calculate_width for 1>N"""
@@ -2319,9 +2347,11 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         self.ask_run_configuration(mode)
         main_name = self.run_name
 
-
-        
-        
+        # check if the param_card requires a scan over parameter.
+        path=pjoin(self.me_dir, 'Cards', 'param_card.dat')
+        self.check_param_card(path, run=False)
+        #store it locally to avoid relaunch
+        param_card_iterator, self.param_card_iterator = self.param_card_iterator, []
         
         crossoversig = 0
         inv_sq_err = 0
@@ -2370,6 +2400,21 @@ class MadEventCmd(CompleteForCmd, CmdExtended, HelpToCmd, common_run.CommonRunCm
         self.update_status('', level='parton')
         self.print_results_in_shell(self.results.current)   
         
+        if param_card_iterator:
+
+            param_card_iterator.store_entry(self.run_name, self.results.current['cross'])
+            #check if the param_card defines a scan.
+            orig_name=self.run_name
+            for card in param_card_iterator:
+                card.write(pjoin(self.me_dir,'Cards','param_card.dat'))
+                self.exec_cmd("multi_run %s -f " % nb_run ,precmd=True, postcmd=True,errorhandling=False)
+                param_card_iterator.store_entry(self.run_name, self.results.current['cross'])
+            param_card_iterator.write(pjoin(self.me_dir,'Cards','param_card.dat'))
+            scan_name = misc.get_scan_name(orig_name, self.run_name)
+            path = pjoin(self.me_dir, 'Events','scan_%s.txt' % scan_name)
+            logger.info("write all cross-section results in %s" % path, '$MG:color:BLACK')
+            param_card_iterator.write_summary(path)
+    
 
     ############################################################################      
     def do_treatcards(self, line, mode=None, opt=None):
@@ -3062,54 +3107,6 @@ Beware that this can be dangerous for local multicore runs.""")
         self.update_status('End Parton', level='parton', makehtml=False)
         devnull.close()
     
-    ############################################################################
-    def do_reweight(self, line):
-        """ Allow to reweight the events generated with a new choices of model
-            parameter.
-        """
-        
-        if '-from_cards' in line and not os.path.exists(pjoin(self.me_dir, 'Cards', 'reweight_card.dat')):
-            return
-        
-        # Check that MG5 directory is present .
-        if MADEVENT and not self.options['mg5_path']:
-            raise self.InvalidCmd, '''The module reweight requires that MG5 is installed on the system.
-            You can install it and set its path in ./Cards/me5_configuration.txt'''
-        elif MADEVENT:
-            sys.path.append(self.options['mg5_path'])
-        try:
-            import madgraph.interface.reweight_interface as reweight_interface
-        except ImportError:
-            raise self.ConfigurationError, '''Can\'t load Reweight module.
-            The variable mg5_path might not be correctly configured.'''
-        
-        self.to_store.append('event')
-        if not '-from_cards' in line:
-            self.keep_cards(['reweight_card.dat'])
-            self.ask_edit_cards(['reweight_card.dat'], 'fixed', plot=False)        
-
-        # forbid this function to create an empty item in results.
-        if self.results.current['cross'] == 0 and self.run_name:
-            self.results.delete_run(self.run_name, self.run_tag)
-
-        # load the name of the event file
-        args = self.split_arg(line) 
-        self.check_decay_events(args) 
-        # args now alway content the path to the valid files
-        reweight_cmd = reweight_interface.ReweightInterface(args[0])
-        reweight_cmd. mother = self
-        self.update_status('Running Reweight', level='madspin')
-        
-        
-        path = pjoin(self.me_dir, 'Cards', 'reweight_card.dat')
-        reweight_cmd.me_dir = self.me_dir
-        reweight_cmd.import_command_file(path)
-        
-        # re-define current run
-        try:
-            self.results.def_current(self.run_name, self.run_tag)
-        except Exception:
-            pass
         
     ############################################################################ 
     def do_create_gridpack(self, line):
@@ -3225,8 +3222,11 @@ Beware that this can be dangerous for local multicore runs.""")
                     self.results.add_detail('cross_pythia', sigma_m)
                     self.results.add_detail('nb_event_pythia', Nacc)
                     #compute pythia error
-                    error = self.results[self.run_name].return_tag(self.run_tag)['error']                    
-                    error_m = math.sqrt((error * Nacc/Ntry)**2 + sigma_m**2 *(1-Nacc/Ntry)/Nacc)
+                    error = self.results[self.run_name].return_tag(self.run_tag)['error']
+                    if Nacc:                    
+                        error_m = math.sqrt((error * Nacc/Ntry)**2 + sigma_m**2 *(1-Nacc/Ntry)/Nacc)
+                    else:
+                        error_m = 10000 * sigma_m
                     # works both for fixed number of generated events and fixed accepted events
                     self.results.add_detail('error_pythia', error_m)
                 break                 
@@ -3306,6 +3306,8 @@ Beware that this can be dangerous for local multicore runs.""")
             else:
                 for match in glob.glob(pjoin(self.me_dir, 'Events','*','*_banner.txt')):
                     run = match.rsplit(os.path.sep,2)[1]
+                    if self.force:
+                        args.append('-f')
                     try:
                         self.exec_cmd('remove %s %s' % (run, ' '.join(args[1:]) ) )
                     except self.InvalidCmd, error:
@@ -3524,6 +3526,7 @@ Beware that this can be dangerous for local multicore runs.""")
         logger.info('Calculating systematics for run %s' % self.run_name)
         
         self.ask_edit_cards(['run_card'], args)
+        self.run_card = banner_mod.RunCard(pjoin(self.medir, 'Cards', 'run_card.dat'))
                 
         if any([arg in ['all','parton'] for arg in args]):
             filename = pjoin(self.me_dir, 'Events', self.run_name, 'unweighted_events.lhe')
@@ -3572,14 +3575,14 @@ Beware that this can be dangerous for local multicore runs.""")
             return 
         
         tag = self.run_card['run_tag']
-        self.update_status('storring files of Previous run', level=None,\
+        self.update_status('storring files of previous run', level=None,\
                                                      error=True)
         if 'event' in self.to_store:
             if not os.path.exists(pjoin(self.me_dir, 'Events',self.run_name, 'unweighted_events.lhe.gz')):
                 misc.gzip(pjoin(self.me_dir,'Events',self.run_name,"unweighted_events.lhe"))
         
         if 'pythia' in self.to_store:
-            self.update_status('Storing Pythia files of Previous run', level='pythia', error=True)
+            self.update_status('Storing Pythia files of previous run', level='pythia', error=True)
             
             p = pjoin(self.me_dir,'Events')
             n = self.run_name
@@ -3710,7 +3713,7 @@ Beware that this can be dangerous for local multicore runs.""")
                             os.remove(pjoin(cwd,G,'ftn25'))
                         except:
                             pass
-                    
+
                 #submitting
                 self.cluster.cluster_submit(exe, stdout=stdout, cwd=cwd, argument=argument,  
                              input_files=input_files, output_files=output_files,
@@ -4157,9 +4160,6 @@ Beware that this can be dangerous for local multicore runs.""")
     def run_syscalc(self, mode='parton', event_path=None, output=None):
         """create the syscalc output""" 
 
-        os.environ['LHAPATH']=''
-
-
         if self.run_card['use_syst'] not in self.true:
             return
         
@@ -4169,6 +4169,12 @@ Beware that this can be dangerous for local multicore runs.""")
         card = pjoin(self.me_dir, 'bin','internal', 'syscalc_card.dat')
         template = open(pjoin(self.me_dir, 'bin','internal', 'syscalc_template.dat')).read()
         self.run_card['sys_pdf'] = self.run_card['sys_pdf'].split('#',1)[0].replace('&&',' \n ')
+        
+        if self.run_card['sys_pdf'].lower() in ['', 'f', 'false', 'none', '.false.']:
+            self.run_card['sys_pdf'] = ''
+        if self.run_card['sys_alpsfact'].lower() in ['', 'f', 'false', 'none','.false.']:
+            self.run_card['sys_alpsfact'] = ''
+        
         # check if the scalecorrelation parameter is define:
         if not 'sys_scalecorrelation' in self.run_card:
             self.run_card['sys_scalecorrelation'] = -1
@@ -4234,7 +4240,7 @@ Beware that this can be dangerous for local multicore runs.""")
 
 
     ############################################################################
-    def ask_run_configuration(self, mode=None):
+    def ask_run_configuration(self, mode=None, args=[]):
         """Ask the question when launching generate_events/multi_run"""
         
         available_mode = ['0']
@@ -4246,7 +4252,7 @@ Beware that this can be dangerous for local multicore runs.""")
                        'pgs': 'Run PGS as detector simulator:',
                        'delphes':'Run Delphes as detector simulator:',
                        'madspin':'Decay particles with the MadSpin module:',
-                       'reweight':'Add weight to events based on coupling parameters:',
+                       'reweight':'Add weights to the events based on changing model parameters:',
                        }
         force_switch = {('pythia', 'OFF'): {'pgs': 'OFF', 'delphes': 'OFF'},
                        ('pgs', 'ON'): {'pythia':'ON'},
@@ -4274,23 +4280,32 @@ Beware that this can be dangerous for local multicore runs.""")
                     switch['delphes'] = 'OFF'
                     
         # Check switch status for MS/reweight
-        if not MADEVENT or self.options['mg5_path']:
+        if not MADEVENT or ('mg5_path' in self.options and self.options['mg5_path']):
             available_mode.append('4')
             available_mode.append('5')
             if os.path.exists(pjoin(self.me_dir,'Cards','madspin_card.dat')):
                 switch['madspin'] = 'ON'
             else:
                 switch['madspin'] = 'OFF'
-            if os.path.exists(pjoin(self.me_dir,'Cards','reweight_card.dat')):
-                switch['reweight'] = 'ON'
-            else:
-                switch['reweight'] = 'OFF'
+            if misc.has_f2py() or self.options['f2py_compiler']:
+                if os.path.exists(pjoin(self.me_dir,'Cards','reweight_card.dat')):
+                    switch['reweight'] = 'ON'
+                else:
+                    switch['reweight'] = 'OFF'
+            else: 
+                switch['reweight'] = 'Not available (requires NumPy)'
                  
-
+        if '-R' in args or '--reweight' in args:
+            if switch['reweight'] == 'OFF':
+                switch['reweight'] = 'ON'
+            elif switch['reweight'] != 'ON':
+                logger.critical("Cannot run reweight: %s", switch['reweight'])
+        if '-M' in args or '--madspin' in args:
+            switch['madspin'] = 'ON'
 
         options = list(available_mode) + ['auto', 'done']
         for id, key in enumerate(switch_order):
-            if switch[key] != void:
+            if switch[key] not in [void, 'Not available (requires NumPy)']:
                 options += ['%s=%s' % (key, s) for s in ['ON','OFF']]
                 options.append(key)
         options.append('parton')    
@@ -4302,7 +4317,7 @@ Beware that this can be dangerous for local multicore runs.""")
                 if mode:
                     answer = mode
                 else:      
-                    switch_format = " %i %-50s %10s=%s\n"
+                    switch_format = " %i %-61s %10s=%s\n"
                     question = "The following switches determine which programs are run:\n"
                     for id, key in enumerate(switch_order):
                         question += switch_format % (id+1, description[key], key, switch[key])
@@ -4845,7 +4860,7 @@ class MadLoopInitializer(object):
         else:
             MLCard      = banner_mod.MadLoopParam(MLCardPath) 
             MLCard_orig = banner_mod.MadLoopParam(MLCard)
-
+        
         # Make sure that LoopFilter really is needed.
         if not MLCard['UseLoopFilter']:
             try:
@@ -4858,7 +4873,7 @@ class MadLoopInitializer(object):
                 my_req_files.remove('HelFilter.dat')
             except ValueError:
                 pass
-        
+
         def need_init():
             """ True if init not done yet."""
             proc_prefix_file = open(pjoin(run_dir,'proc_prefix.txt'),'r')
@@ -4882,6 +4897,7 @@ class MadLoopInitializer(object):
         curr_attempt = 1
 
         MLCard.set('WriteOutFilters',True)  
+        
         while to_attempt!=[] and need_init():
             curr_attempt = to_attempt.pop()
             # if the attempt is a negative number it means we must force 
@@ -4965,7 +4981,8 @@ class MadLoopInitializer(object):
         return False
 
     @staticmethod
-    def init_MadLoop(proc_dir, n_PS=None, subproc_prefix='PV', MG_options=None):
+    def init_MadLoop(proc_dir, n_PS=None, subproc_prefix='PV', MG_options=None,
+                                                              interface = None):
         """Advanced commands: Compiles and run MadLoop on RAMBO random PS points to initilize the
         filters."""
 
@@ -4974,7 +4991,11 @@ class MadLoopInitializer(object):
         # Initialize all the virtuals directory, so as to generate the necessary
         # filters (essentially Helcity filter).
         # Make sure that the MadLoopCard has the loop induced settings
-        misc.compile(arg=['treatCardsLoopNoInit'], cwd=pjoin(proc_dir,'Source'))
+        if interface is None:
+            misc.compile(arg=['treatCardsLoopNoInit'], cwd=pjoin(proc_dir,'Source'))
+        else:
+            interface.do_treatcards('all --no_MadLoopInit')
+        
         # First make sure that IREGI and CUTTOOLS are compiled if needed
         if os.path.exists(pjoin(proc_dir,'Source','CUTTOOLS')):
             misc.compile(arg=['libcuttools'],cwd=pjoin(proc_dir,'Source'))

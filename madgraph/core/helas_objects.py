@@ -2415,7 +2415,7 @@ class HelasWavefunctionList(base_objects.PhysicsObjectList):
                 # Look at all subsequent wfs in the list placed after wf at 
                 # index i. None of them should have wf as its mother
                 for w in diag_wfs[i+1:]:
-                    if w in wf.get('mothers'):
+                    if w['number'] in [mwf['number'] for mwf in wf.get('mothers')]:
                         # There is an inconsisent order so we must move this
                         # mother w *before* wf which is placed at i.
                         diag_wfs.remove(w)
@@ -3185,7 +3185,7 @@ class HelasDiagram(base_objects.PhysicsObject):
         """Calculate the actual coupling orders of this diagram"""
 
         wavefunctions = HelasWavefunctionList.extract_wavefunctions(\
-            self.get('amplitudes')[0].get('mothers'))
+                                       self.get('amplitudes')[0].get('mothers'))
 
         coupling_orders = {}
         for wf in wavefunctions + [self.get('amplitudes')[0]]:

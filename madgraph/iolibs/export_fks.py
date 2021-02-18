@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import string
 import copy
+import platform
 
 import madgraph.core.color_algebra as color
 import madgraph.core.helas_objects as helas_objects
@@ -383,8 +384,11 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
             text=text+str(i+1)+' '+str(len(e))
             for t in e:
                 text=text+'   '
-                for p in t:
-                    text=text+' '+str(p)
+                try:
+                    for p in t:
+                        text=text+' '+str(p)
+                except TypeError:
+                        text=text+' '+str(t)
             text=text+'\n'
         
         ff = open(file_pos, 'w')
@@ -536,6 +540,8 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
         self.write_nexternal_file(writers.FortranWriter(filename),
                              nexternal, ninitial)
+        self.proc_characteristic['ninitial'] = ninitial
+        self.proc_characteristic['nexternal'] = max(self.proc_characteristic['nexternal'], nexternal)
     
         filename = 'pmass.inc'
         try:
@@ -701,7 +707,8 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
         pages,proc_card_mg5.dat and madevent.tar.gz."""
         
         self.proc_characteristic['grouped_matrix'] = False
-        
+        self.create_proc_charac()
+
         self.create_run_card(matrix_elements, history)
 #        modelname = self.model.get('name')
 #        if modelname == 'mssm' or modelname.startswith('mssm-'):
@@ -729,7 +736,7 @@ class ProcessExporterFortranFKS(loop_exporters.LoopProcessExporterFortranSA):
         os.system('touch %s/done' % os.path.join(self.dir_path,'SubProcesses'))
         
         # Check for compiler
-        fcompiler_chosen = self.set_fortran_compiler(compiler_dict['fortran'])
+        fcompiler_chosen = self.set_fortran_compiler(compiler_dict)
         ccompiler_chosen = self.set_cpp_compiler(compiler_dict['cpp'])
 
         old_pos = os.getcwd()
@@ -1221,6 +1228,8 @@ end
     def write_real_matrix_elements(self, matrix_element, fortran_model):
         """writes the matrix_i.f files which contain the real matrix elements""" 
 
+
+
         for n, fksreal in enumerate(matrix_element.real_processes):
             filename = 'matrix_%d.f' % (n + 1)
             self.write_matrix_element_fks(writers.FortranWriter(filename),
@@ -1382,11 +1391,23 @@ end
         make_opts_content=open(pjoin(export_path,'Source','make_opts')).read()
         make_opts=open(pjoin(export_path,'Source','make_opts'),'w')
         if OLP=='GoSam':
-            # apparently -rpath=../$(LIBDIR) is not necessary.
-            #make_opts_content=make_opts_content.replace('libOLP=',
-            #                       'libOLP=-Wl,-rpath=../$(LIBDIR),-lgolem_olp')
-            make_opts_content=make_opts_content.replace('libOLP=',
+            if platform.system().lower()=='darwin':
+                # On mac the -rpath is not supported and the path of the dynamic
+                # library is automatically wired in the executable
+                make_opts_content=make_opts_content.replace('libOLP=',
                                                           'libOLP=-Wl,-lgolem_olp')
+            else:
+                # On other platforms the option , -rpath= path to libgolem.so is necessary
+                # Using a relative path is not ideal because the file libgolem.so is not
+                # copied on the worker nodes.
+#                make_opts_content=make_opts_content.replace('libOLP=',
+#                                      'libOLP=-Wl,-rpath=../$(LIBDIR) -lgolem_olp')
+                # Using the absolute path is working in the case where the disk of the 
+                # front end machine is mounted on all worker nodes as well.
+                make_opts_content=make_opts_content.replace('libOLP=', 
+                 'libOLP=-Wl,-rpath='+str(pjoin(export_path,'lib'))+' -lgolem_olp')
+            
+            
         make_opts.write(make_opts_content)
         make_opts.close()
 
@@ -2096,6 +2117,9 @@ c     this subdir has no soft singularities
             charges = [0.] * len(colors) 
 
             fks_i = len(colors)
+            # use the first colored particle if it exists, or 
+            # just the first
+            fks_j=1
             for cpos, col in enumerate(colors[:-1]):
                 if col != 1:
                     fks_j = cpos+1
@@ -3278,11 +3302,11 @@ class ProcessOptimizedExporterFortranFKS(loop_exporters.LoopProcessOptimizedExpo
         non-optimized mode"""
         filename = os.path.join(self.dir_path, 'Source', 'DHELAS', 'coef_specs.inc')
 
-        general_replace_dict = {}
-        general_replace_dict['max_lwf_size'] = 4 
+        replace_dict = {}
+        replace_dict['max_lwf_size'] = 4 
 
         max_loop_vertex_ranks = [me.get_max_loop_vertex_rank() for me in virt_me_list]
-        general_replace_dict['vertex_max_coefs'] = max(\
+        replace_dict['vertex_max_coefs'] = max(\
                 [q_polynomial.get_number_of_coefs_for_rank(n) 
                     for n in max_loop_vertex_ranks])
 
@@ -3291,7 +3315,7 @@ class ProcessOptimizedExporterFortranFKS(loop_exporters.LoopProcessOptimizedExpo
                            PARAMETER (MAXLWFSIZE=%(max_lwf_size)d)
                            INTEGER VERTEXMAXCOEFS
                            PARAMETER (VERTEXMAXCOEFS=%(vertex_max_coefs)d)"""\
-                           % general_replace_dict)
+                           % replace_dict)
         IncWriter.close()
     
 
