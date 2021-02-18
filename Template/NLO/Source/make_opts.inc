@@ -55,7 +55,7 @@ endif
 
 UNAME := $(shell uname -s)
 ifeq ($(origin LDFLAGS), undefined)
-     LDFLAGS=$(STDLIB)
+     LDFLAGS=$(STDLIB) $(MACFLAG)
 endif
 # Options: dynamic, lhapdf
 
@@ -89,10 +89,10 @@ endif
 
 # Option lhapdf
 
-ifdef lhapdf
+ifneq ($(lhapdf),)
   CXXFLAGS += $(shell $(lhapdf) --cppflags)
   alfas_functions=alfas_functions_lhapdf
-  llhapdf+=-lLHAPDF 
+  llhapdf = $(shell $(lhapdf) --libs)
   reweight_xsec_events_pdf_dummy=
 else
   alfas_functions=alfas_functions
@@ -101,7 +101,7 @@ else
 endif
 
 # Option APPLGrid
-ifdef applgrid
+ifneq ($(applgrid),)
   APPLLIBS=$(shell applgrid-config --ldcflags) $(shell amcfast-config --ldflags)
   applgrid_interface=appl_interface.o
 else

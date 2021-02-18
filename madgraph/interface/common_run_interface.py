@@ -516,7 +516,7 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
     options_madevent = {'automatic_html_opening':True,
                         'notification_center':True,
                          'run_mode':2,
-                         'cluster_queue':'madgraph',
+                         'cluster_queue':None,
                          'cluster_time':None,
                          'cluster_size':100,
                          'cluster_memory':None,
@@ -2036,9 +2036,9 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
             cross = current['cross']
             error = current['error']
             self.results.add_run( new_run, self.run_card)
-            self.results.add_detail('nb_event', nb_event)
-            self.results.add_detail('cross', cross * madspin_cmd.branching_ratio)
-            self.results.add_detail('error', error * madspin_cmd.branching_ratio + cross * madspin_cmd.err_branching_ratio)
+            self.results.add_detail('nb_event', int(nb_event*madspin_cmd.efficiency))
+            self.results.add_detail('cross', madspin_cmd.cross)#cross * madspin_cmd.branching_ratio)
+            self.results.add_detail('error', madspin_cmd.error+ cross * madspin_cmd.err_branching_ratio)
             self.results.add_detail('run_mode', current['run_mode'])
 
         self.run_name = new_run
@@ -2062,12 +2062,14 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
         args = self.split_arg(line[0:begidx], error=False) 
         if len(args) == 1:
             #return valid run_name
-            data = glob.glob(pjoin(self.me_dir, 'Events', '*','unweighted_events.lhe.gz'))
+            data = misc.glob(pjoin('*','unweighted_events.lhe.gz'),
+                             pjoin(self.me_dir, 'Events')) 
+
             data = [n.rsplit('/',2)[1] for n in data]
             tmp1 =  self.list_completion(text, data)
             return tmp1        
         else:
-            data = glob.glob(pjoin(self.me_dir, 'Events', args[0], '*_pythia_events.hep.gz'))
+            data = misc.glob('*_pythia_events.hep.gz', pjoin(self.me_dir, 'Events', args[0]))
             data = [os.path.basename(p).rsplit('_',1)[0] for p in data]
             data += ["--mode=a", "--mode=w", "--path=", "--format=short"]
             tmp1 =  self.list_completion(text, data)
@@ -2114,7 +2116,7 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
 
         if len(args) == 1 and os.path.sep not in text:
             #return valid run_name
-            data = glob.glob(pjoin(self.me_dir, 'Events', '*','*events.lhe*'))
+            data = misc.glob(pjoin('*','*events.lhe*'), pjoin(self.me_dir, 'Events'))
             data = [n.rsplit('/',2)[1] for n in data]
             return  self.list_completion(text, data, line)
         else:
@@ -2127,7 +2129,7 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
         args = self.split_arg(line[0:begidx], error=False)
 
         #return valid run_name
-        data = glob.glob(pjoin(self.me_dir, 'Events', '*','*events.lhe*'))
+        data = misc.glob(pjoin('*','*events.lhe*'), pjoin(self.me_dir, 'Events'))
         data = [n.rsplit('/',2)[1] for n in data]
         if not '-f' in args:
             data.append('-f')
@@ -2212,7 +2214,8 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
         content_variables += '\n%s' % tag
 
         if diff:
-            open(make_opts, 'w').write(content_variables + '\n'.join(content))
+            with open(make_opts, 'w') as fsock: 
+                fsock.write(content_variables + '\n'.join(content))
         return       
 
 
@@ -2267,19 +2270,21 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
 
         pdfsetname=set()
         for lhaid in lhaid_list:
-            try:
-                if lhaid in self.lhapdf_pdfsets:
-                    pdfsetname.add(self.lhapdf_pdfsets[lhaid]['filename'])
-                else:
-                    raise MadGraph5Error('lhaid %s not valid input number for the current lhapdf' % lhaid )
-            except KeyError:
-                if self.lhapdf_version.startswith('5'):
-                    raise MadGraph5Error(\
-                        ('invalid lhaid set in th run_card: %d .\nPlease note that some sets' % lhaid) + \
-                         '(eg MSTW 90%CL error sets) \nare not available in aMC@NLO + LHAPDF 5.x.x')
-                else:
-                    logger.debug('%d not found in pdfsets.index' % lhaid)
-
+            if isinstance(lhaid, (int,float)):
+                try:
+                    if lhaid in self.lhapdf_pdfsets:
+                        pdfsetname.add(self.lhapdf_pdfsets[lhaid]['filename'])
+                    else:
+                        raise MadGraph5Error('lhaid %s not valid input number for the current lhapdf' % lhaid )
+                except KeyError:
+                    if self.lhapdf_version.startswith('5'):
+                        raise MadGraph5Error(\
+                            ('invalid lhaid set in th run_card: %d .\nPlease note that some sets' % lhaid) + \
+                             '(eg MSTW 90%CL error sets) \nare not available in aMC@NLO + LHAPDF 5.x.x')
+                    else:
+                        logger.debug('%d not found in pdfsets.index' % lhaid)
+            else:
+                pdfsetname.add(lhaid)
 
         # check if the file exists, otherwise install it:
         # also check that the PDFsets dir exists, otherwise create it.
@@ -2404,6 +2409,12 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
                     % (filename, pdfsets_dir))
             CommonRunCmd.install_lhapdf_pdfset_static(lhapdf_config, alternate_path, filename,
                                                       lhapdf_version=lhapdf_version)
+        elif lhapdf_version.startswith('6.') and '.LHgrid' in filename:
+            logger.info('Could not download %s: Try %s', filename, filename.replace('.LHgrid',''))
+            return CommonRunCmd.install_lhapdf_pdfset_static(lhapdf_config, pdfsets_dir, 
+                                                              filename.replace('.LHgrid',''), 
+                                        lhapdf_version, alternate_path)
+            
         else:
             raise MadGraph5Error, \
                 'Could not download %s into %s. Please try to install it manually.' \
@@ -2459,10 +2470,16 @@ class CommonRunCmd(HelpToCmd, CheckValidForCmd, cmd.Cmd):
     def get_lhapdf_version(self):
         """returns the lhapdf version number"""
         if not hasattr(self, 'lhapdfversion'):
-            self.lhapdf_version = \
+            try:
+                self.lhapdf_version = \
                     subprocess.Popen([self.options['lhapdf'], '--version'], 
                         stdout = subprocess.PIPE).stdout.read().strip()
-
+            except OSError, error:
+                if error.errno == 2:
+                    raise Exception, 'lhapdf executable (%s) is not found on your system. Please install it and/or indicate the path to the correct executable in input/mg5_configuration.txt' % self.options['lhapdf']
+                else:
+                    raise
+                
         # this will be removed once some issues in lhapdf6 will be fixed
         if self.lhapdf_version.startswith('6.0'):
             raise MadGraph5Error('LHAPDF 6.0.x not supported. Please use v6.1 or later')
@@ -2828,8 +2845,8 @@ class AskforEditCard(cmd.OneLinePathCompletion):
         
         args = self.split_arg(line)
         # fix some formatting problem
-        if '=' in args[-1]:
-            arg1, arg2 = args.pop(-1).split('=')
+        if len(args)==1 and '=' in args[-1]:
+            arg1, arg2 = args.pop(-1).split('=',1)
             args += [arg1, arg2]
         if '=' in args:
             args.remove('=')
@@ -2885,7 +2902,8 @@ class AskforEditCard(cmd.OneLinePathCompletion):
                                     p_card, flags=(re.M+re.I))
                 if n==0:
                     p_card = '%s \n QCUT= %s' % (p_card, args[1])
-                open(pythia_path, 'w').write(p_card)
+                with open(pythia_path, 'w') as fsock: 
+                    fsock.write(p_card)
                 return
         # Special case for the showerkt value
         if args[0].lower() == 'showerkt':
@@ -2898,7 +2916,8 @@ class AskforEditCard(cmd.OneLinePathCompletion):
                                     p_card, flags=(re.M+re.I))
                 if n==0:
                     p_card = '%s \n SHOWERKT= %s' % (p_card, args[1].upper())
-                open(pythia_path, 'w').write(p_card)
+                with open(pythia_path, 'w') as fsock:
+                    fsock.write(p_card)
                 return
             
 
@@ -3368,7 +3387,6 @@ class AskforEditCard(cmd.OneLinePathCompletion):
             logger.info("change madspin_card to add one decay to %s: %s" %(particle, line.strip()), '$MG:color:BLACK')
             
             text = text.replace('launch', "\ndecay %s\nlaunch\n" % line,1)
-            open(path,'w').write(text)       
         else:
             # Here we have to remove all the previous definition of the decay
             #first find the particle
@@ -3379,8 +3397,10 @@ class AskforEditCard(cmd.OneLinePathCompletion):
             text= open(path).read()
             text = decay_pattern.sub('', text)
             text = text.replace('launch', "\ndecay %s\nlaunch\n" % line,1)
-            open(path,'w').write(text)
-        
+
+        with open(path,'w') as fsock:
+            fsock.write(text) 
+
         
 
     def do_compute_widths(self, line):

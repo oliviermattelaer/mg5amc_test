@@ -209,10 +209,10 @@ class MadSpinInterface(extended_cmd.Cmd):
             mg_names = True
         model_name = self.banner.get('proc_card', 'model')
         if model_name:
+            model_name = os.path.expanduser(model_name)
             self.load_model(model_name, mg_names, complex_mass)
         else:
             raise self.InvalidCmd('Only UFO model can be loaded in MadSpin.')
-        
         # check particle which can be decayed:
         self.final_state = set()
         final_model = False
@@ -243,7 +243,7 @@ class MadSpinInterface(extended_cmd.Cmd):
     def import_model(self, args):
         """syntax: import model NAME CARD_PATH
             args didn't include import model"""
-            
+        
         bypass_check = False
         if '--bypass_check' in args:
             args.remove('--bypass_check')
@@ -392,6 +392,9 @@ class MadSpinInterface(extended_cmd.Cmd):
         args = self.split_arg(line)
         self.check_set(args)
         
+        if args[0] not in ['ms_dir', 'run_card']:
+            args[1] = args[1].lower()
+        
         if args[0] in  ['max_weight', 'BW_effect','ms_dir', 'spinmode']:
             self.options[args[0]] = args[1]
             if args[0] == 'ms_dir':
@@ -460,11 +463,11 @@ class MadSpinInterface(extended_cmd.Cmd):
         """ """
 
         try:
-            self.mg5cmd.do_define(line)
+            self.mg5cmd.exec_cmd('define %s' % line)
         except:
             #cleaning if the error is recover later
             key = line.split()[0]
-            if hasattr(self, 'multiparticles_ms' and key in self.multiparticles_ms):
+            if hasattr(self, 'multiparticles_ms') and key in self.multiparticles_ms:
                 del self.multiparticles_ms[key]
             raise
            
@@ -566,6 +569,9 @@ class MadSpinInterface(extended_cmd.Cmd):
         generate_all.run()
                         
         self.branching_ratio = generate_all.branching_ratio
+        self.cross = generate_all.cross
+        self.error = generate_all.error
+        self.efficiency = generate_all.efficiency
         try:
             self.err_branching_ratio = generate_all.err_branching_ratio
         except Exception:
@@ -662,11 +668,15 @@ class MadSpinInterface(extended_cmd.Cmd):
             #seed is specified need to use that one:
             open(pjoin(self.options['ms_dir'],'seeds.dat'),'w').write('%s\n'%self.seed)
             #remove all ranmar_state
-            for name in glob.glob(pjoin(self.options['ms_dir'], '*', 'SubProcesses','*','ranmar_state.dat')):
+            for name in misc.glob(pjoin('*', 'SubProcesses','*','ranmar_state.dat'), 
+                                                        self.options['ms_dir']):
                 os.remove(name)    
         
         generate_all.ending_run()
         self.branching_ratio = generate_all.branching_ratio
+        self.cross = generate_all.cross
+        self.error = generate_all.error
+        self.efficiency = generate_all.efficiency
         try:
             self.err_branching_ratio = generate_all.err_branching_ratio
         except Exception:
@@ -691,8 +701,7 @@ class MadSpinInterface(extended_cmd.Cmd):
         #   of event to generate for each type of particle.
         # 2. Generate the events requested
         # 3. perform the merge of the events.
-        #    if not enough events. re-generate the missing one.
-                
+        #    if not enough events. re-generate the missing one.  
         # First define an utility function for generating events when needed
         def generate_events(pdg, nb_event, mg5, restrict_file=None, cumul=False):
             """generate new events for this particle
@@ -786,7 +795,7 @@ class MadSpinInterface(extended_cmd.Cmd):
                 os.mkdir(self.path_me) 
         else:
             # cleaning
-            for name in glob.glob(pjoin(self.path_me, "decay_*_*")):
+            for name in misc.glob("decay_*_*", self.path_me):
                 shutil.rmtree(name)
 
         self.events_file.close()
@@ -821,8 +830,9 @@ class MadSpinInterface(extended_cmd.Cmd):
         # 2. Generate the events requested
         with misc.MuteLogger(["madgraph", "madevent", "ALOHA", "cmdprint"], [50,50,50,50]):
             mg5 = self.mg5cmd
-            modelpath = self.model.get('modelpath+restriction')
-            mg5.exec_cmd("import model %s" % modelpath)      
+            if not self.model:
+                modelpath = self.model.get('modelpath+restriction')
+                mg5.exec_cmd("import model %s" % modelpath)      
             to_event = {}
             for pdg, nb_needed in to_decay.items():
                 #check if a splitting is needed
@@ -880,6 +890,12 @@ class MadSpinInterface(extended_cmd.Cmd):
             else:
                 raise self.InvalidCmd("The bridge mode of MadSpin does not support event files where events do not *all* share the same set of final state particles to be decayed.")
         self.branching_ratio = br
+        self.efficiency = 1
+        self.cross, self.error = self.banner.get_cross(witherror=True)
+        self.cross *= br
+        self.error *= br
+        
+        
         # modify the cross-section in the init block of the banner
         self.banner.scale_init_cross(self.branching_ratio)
                     
@@ -981,7 +997,6 @@ class MadSpinInterface(extended_cmd.Cmd):
     
     def load_model(self, name, use_mg_default, complex_mass=False):
         """load the model"""
-        
         
         loop = False
         #if (name.startswith('loop_')):

@@ -177,7 +177,7 @@ class ProcessExporterFortran(object):
             # distutils.dir_util.copy_tree since dir_path already exists
             dir_util.copy_tree(pjoin(self.mgme_dir, 'Template/LO'), 
                                self.dir_path)
-#            for name in glob.glob(pjoin(self.mgme_dir, 'Template/LO/*')):
+#            for name in misc.glob('Template/LO/*', self.mgme_dir):
 #                name = os.path.basename(name)
 #                filname = pjoin(self.mgme_dir, 'Template','LO',name)
 #                if os.path.isfile(filename):
@@ -340,10 +340,11 @@ class ProcessExporterFortran(object):
             
             changer = {"pdf_systemwide": to_add}
 
-        ff = open(pjoin(self.dir_path, "Source", "PDF", "opendata.f"),"w")
+
+        ff = writers.FortranWriter(pjoin(self.dir_path, "Source", "PDF", "opendata.f"))        
         template = open(pjoin(MG5DIR, "madgraph", "iolibs", "template_files", "pdf_opendata.f"),"r").read()
-        ff.write(template % changer)
-        
+        ff.writelines(template % changer)
+
         # Do the same for lhapdf set
         if not self.opt["cluster_local_path"]:
             changer = {"cluster_specific_path": ""}
@@ -362,9 +363,10 @@ class ProcessExporterFortran(object):
          """ % {"path" : self.opt["cluster_local_path"]}
             changer = {"cluster_specific_path": to_add}
 
-        ff = open(pjoin(self.dir_path, "Source", "PDF", "pdfwrap_lhapdf.f"),"w")
+        ff = writers.FortranWriter(pjoin(self.dir_path, "Source", "PDF", "pdfwrap_lhapdf.f"))        
+        #ff = open(pjoin(self.dir_path, "Source", "PDF", "pdfwrap_lhapdf.f"),"w")
         template = open(pjoin(MG5DIR, "madgraph", "iolibs", "template_files", "pdf_wrap_lhapdf.f"),"r").read()
-        ff.write(template % changer)
+        ff.writelines(template % changer)
         
         
         return
@@ -768,7 +770,7 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         if hasattr(self, 'aloha_model'):
             aloha_model = self.aloha_model
         else:
-            aloha_model = create_aloha.AbstractALOHAModel(model.get('name'))            
+            aloha_model = create_aloha.AbstractALOHAModel(os.path.basename(model.get('modelpath')))
         aloha_model.add_Lorentz_object(model.get('lorentz'))
 
         # Compute the subroutines

@@ -120,7 +120,8 @@ def compile_dir(*arguments):
             input = pjoin(me_dir, '%s_input.txt' % test)
             #this can be improved/better written to handle the output
             misc.call(['./%s' % (test)], cwd=this_dir, 
-                    stdin = open(input), stdout=open(pjoin(this_dir, '%s.log' % test), 'w'))
+                    stdin = open(input), stdout=open(pjoin(this_dir, '%s.log' % test), 'w'),
+                    close_fds=True)
             if test == 'check_poles' and os.path.exists(pjoin(this_dir,'MadLoop5_resources')) :
                 tf=tarfile.open(pjoin(this_dir,'MadLoop5_resources.tar.gz'),'w:gz',
                                                                  dereference=True)
@@ -132,7 +133,8 @@ def compile_dir(*arguments):
             open(pjoin(this_dir, 'gensym_input.txt'), 'w').write('%s\n' % run_mode)
             misc.call(['./gensym'],cwd= this_dir,
                      stdin=open(pjoin(this_dir, 'gensym_input.txt')),
-                     stdout=open(pjoin(this_dir, 'gensym.log'), 'w')) 
+                     stdout=open(pjoin(this_dir, 'gensym.log'), 'w'),
+                     close_fds=True) 
             #compile madevent_mintMC/mintFO
             misc.compile([exe], cwd=this_dir, job_specs = False)
         if mode in ['aMC@NLO', 'aMC@LO', 'noshower', 'noshowerLO']:
@@ -508,15 +510,16 @@ class CheckValidForCmd(object):
         lock = None              
         if len(arg) == 1:
             prev_tag = self.set_run_name(arg[0], tag, 'pgs')
-            filenames = glob.glob(pjoin(self.me_dir, 'Events', self.run_name,
-                                            'events_*.hep.gz'))
+            filenames = misc.glob('events_*.hep.gz', pjoin(self.me_dir, 'Events', self.run_name)) 
+
             if not filenames:
                 raise self.InvalidCmd('No events file corresponding to %s run with tag %s. '% (self.run_name, prev_tag))
             else:
                 input_file = filenames[0]
                 output_file = pjoin(self.me_dir, 'Events', 'pythia_events.hep')
                 lock = cluster.asyncrone_launch('gunzip',stdout=open(output_file,'w'), 
-                                                    argument=['-c', input_file])
+                                                    argument=['-c', input_file],
+                                                    close_fds=True)
         else:
             if tag: 
                 self.run_card['run_tag'] = tag
@@ -565,8 +568,9 @@ class CheckValidForCmd(object):
                               
         if len(arg) == 1:
             prev_tag = self.set_run_name(arg[0], tag, 'delphes')
-            filenames = glob.glob(pjoin(self.me_dir, 'Events', self.run_name,
-                                            'events_*.hep.gz'))
+            filenames = misc.glob('events_*.hep.gz', pjoin(self.me_dir, 'Events')) 
+            
+            
             if not filenames:
                 raise self.InvalidCmd('No events file corresponding to %s run with tag %s.:%s '\
                     % (self.run_name, prev_tag, 
@@ -575,7 +579,8 @@ class CheckValidForCmd(object):
                 input_file = filenames[0]
                 output_file = pjoin(self.me_dir, 'Events', 'pythia_events.hep')
                 lock = cluster.asyncrone_launch('gunzip',stdout=open(output_file,'w'), 
-                                                    argument=['-c', input_file])
+                                                    argument=['-c', input_file],
+                                                    close_fds=True)
         else:
             if tag:
                 self.run_card['run_tag'] = tag
@@ -656,7 +661,7 @@ class CheckValidForCmd(object):
         else:
             name = args[0]
             type = 'run'
-            banners = glob.glob(pjoin(self.me_dir,'Events', args[0], '*_banner.txt'))
+            banners = misc.glob('*_banner.txt', pjoin(self.me_dir,'Events', args[0]))
             if not banners:
                 raise self.InvalidCmd('No banner associates to this name.')    
             elif len(banners) == 1:
@@ -784,7 +789,7 @@ class CompleteForCmd(CheckValidForCmd):
         
         if len(args) > 1:
             # only options are possible
-            tags = glob.glob(pjoin(self.me_dir, 'Events' , args[1],'%s_*_banner.txt' % args[1]))
+            tags = misc.glob('%s_*_banner.txt' % args[1],pjoin(self.me_dir, 'Events' , args[1]))
             tags = ['%s' % os.path.basename(t)[len(args[1])+1:-11] for t in tags]
 
             if args[-1] != '--tag=':
@@ -803,7 +808,7 @@ class CompleteForCmd(CheckValidForCmd):
         else:
             possibilites['Path from ./'] = comp
 
-        run_list =  glob.glob(pjoin(self.me_dir, 'Events', '*','*_banner.txt'))
+        run_list = misc.glob(pjoin('*','*_banner.txt'), pjoin(self.me_dir, 'Events')) 
         run_list = [n.rsplit('/',2)[1] for n in run_list]
         possibilites['RUN Name'] = self.list_completion(text, run_list)
         
@@ -850,7 +855,7 @@ class CompleteForCmd(CheckValidForCmd):
         args = self.split_arg(line[0:begidx])
         if len(args) == 1:
             #return valid run_name
-            data = glob.glob(pjoin(self.me_dir, 'Events', '*','events.lhe.gz'))
+            data = misc.glob(pjoin('*','events.lhe.gz', pjoin(self.me_dir, 'Events')))
             data = [n.rsplit('/',2)[1] for n in data]
             tmp1 =  self.list_completion(text, data)
             if not self.run_name:
@@ -863,7 +868,7 @@ class CompleteForCmd(CheckValidForCmd):
 
         if len(args) == 1:
             #return valid run_name
-            data = glob.glob(pjoin(self.me_dir, 'Events', '*','events.lhe*'))
+            data = misc.glob(pjoin('*','events.lhe*', pjoin(self.me_dir, 'Events')))
             data = [n.rsplit('/',2)[1] for n in data]
             tmp1 =  self.list_completion(text, data)
             if not self.run_name:
@@ -877,7 +882,8 @@ class CompleteForCmd(CheckValidForCmd):
         args = self.split_arg(line[0:begidx], error=False) 
         if len(args) == 1:
             #return valid run_name
-            data = glob.glob(pjoin(self.me_dir, 'Events', '*', 'events_*.hep.gz'))
+            data = misc.glob(pjoin('*', 'events_*.hep.gz'),
+                             pjoin(self.me_dir, 'Events'))
             data = [n.rsplit('/',2)[1] for n in data]
             tmp1 =  self.list_completion(text, data)
             if not self.run_name:
@@ -961,7 +967,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
         self.check_shower(argss, options)
         evt_file = pjoin(os.getcwd(), argss[0], 'events.lhe')
         self.ask_run_configuration('onlyshower', options)
-        self.run_mcatnlo(evt_file)
+        self.run_mcatnlo(evt_file, options)
 
         self.update_status('', level='all', update_results=True)
 
@@ -1021,11 +1027,9 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
                 os.remove(pjoin(self.me_dir, 'Events', 'plots.top'))
                 
         if any([arg in ['all','shower'] for arg in args]):
-            filenames = glob.glob(pjoin(self.me_dir, 'Events', self.run_name,
-                                        'events_*.lhe.gz'))
+            filenames = misc.glob('events_*.lhe.gz', pjoin(self.me_dir, 'Events', self.run_name))
             if len(filenames) != 1:
-                filenames = glob.glob(pjoin(self.me_dir, 'Events', self.run_name,
-                                            'events_*.hep.gz'))
+                filenames = misc.glob('events_*.hep.gz', pjoin(self.me_dir, 'Events', self.run_name)) 
                 if len(filenames) != 1:
                     logger.info('No shower level file found for run %s' % \
                                 self.run_name)
@@ -1217,7 +1221,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
         
         if not mode in ['LO', 'NLO', 'noshower', 'noshowerLO'] \
                                                       and not options['parton']:
-            self.run_mcatnlo(evt_file)
+            self.run_mcatnlo(evt_file, options)
         elif mode == 'noshower':
             logger.warning("""You have chosen not to run a parton shower. NLO events without showering are NOT physical.
 Please, shower the Les Houches events before using them for physics analyses.""")
@@ -1330,8 +1334,6 @@ Please read http://amcatnlo.cern.ch/FxFx_merging.htm for more details.""")
             event_norm=self.run_card['event_norm']
             nevents=self.run_card['nevents']
             return self.reweight_and_collect_events(options, mode, nevents, event_norm)
-
-        devnull = os.open(os.devnull, os.O_RDWR) 
 
         if mode in ['LO', 'NLO']:
             # this is for fixed order runs
@@ -1919,16 +1921,19 @@ RESTART = %(mint_mode)s
         scale_pdf_info=[]
         if any(self.run_card['reweight_scale']) or any(self.run_card['reweight_PDF']) or \
            len(self.run_card['dynamical_scale_choice']) > 1 or len(self.run_card['lhaid']) > 1:
-            data_files=[]
+            evt_files=[]
+            evt_wghts=[]
             for job in jobs:
-                data_files.append(pjoin(job['dirname'],'scale_pdf_dependence.dat'))
-            scale_pdf_info = self.pdf_scale_from_reweighting(data_files)
+                evt_files.append(pjoin(job['dirname'],'scale_pdf_dependence.dat'))
+                evt_wghts.append(job['wgt_frac'])
+            scale_pdf_info = self.pdf_scale_from_reweighting(evt_files,evt_wghts)
         return scale_pdf_info
 
 
     def combine_plots_FO(self,folder_name,jobs):
         """combines the plots and puts then in the Events/run* directory"""
-        devnull = os.open(os.devnull, os.O_RDWR) 
+        devnull = open(os.devnull, 'w') 
+        
         if self.analyse_card['fo_analysis_format'].lower() == 'topdrawer':
             misc.call(['./combine_plots_FO.sh'] + folder_name, \
                       stdout=devnull, 
@@ -1959,7 +1964,7 @@ RESTART = %(mint_mode)s
         else:
             logger.info('The results of this run' + \
                         ' have been saved in %s' % pjoin(self.me_dir, 'Events', self.run_name))
-
+        devnull.close()
 
     def combine_plots_HwU(self,jobs,out,normalisation=None):
         """Sums all the plots in the HwU format."""
@@ -1979,6 +1984,7 @@ RESTART = %(mint_mode)s
         if normalisation:
             command.append("--multiply="+(','.join([str(n) for n in normalisation])))
         command.append("--sum")
+        command.append("--keep_all_weights")
         command.append("--no_open")
 
         p = misc.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, cwd=self.me_dir)
@@ -2027,8 +2033,9 @@ RESTART = %(mint_mode)s
         # if no appl_start_grid argument given, guess it from the time stamps 
         # of the starting grid files
         if not('appl_start_grid' in options.keys() and options['appl_start_grid']):
-            gfiles=glob.glob(pjoin(self.me_dir, 'Events','*',
-                                            'aMCfast_obs_0_starting_grid.root'))
+            gfiles = misc.glob(pjoin('*', 'aMCfast_obs_0_starting_grid.root'),
+                               pjoin(self.me_dir,'Events')) 
+            
             time_stamps={}
             for root_file in gfiles:
                 time_stamps[root_file]=os.path.getmtime(root_file)
@@ -2104,7 +2111,7 @@ RESTART = %(mint_mode)s
     def finalise_run_FO(self,folder_name,jobs):
         """Combine the plots and put the res*.txt files in the Events/run.../ folder."""
         # Copy the res_*.txt files to the Events/run* folder
-        res_files=glob.glob(pjoin(self.me_dir, 'SubProcesses', 'res_*.txt'))
+        res_files = misc.glob('res_*.txt', pjoin(self.me_dir, 'SubProcesses'))
         for res_file in res_files:
             files.mv(res_file,pjoin(self.me_dir, 'Events', self.run_name))
         # Collect the plots and put them in the Events/run* folder
@@ -2230,8 +2237,11 @@ RESTART = %(mint_mode)s
         else:
             message = '\n   --------------------------------------------------------------'
             message = message + \
-                      '\n      ' + status[2] + proc_info + \
-                      '\n      Number of events generated: %s' % self.run_card['nevents'] +\
+                      '\n      ' + status[2] + proc_info 
+            if mode not in ['LO', 'NLO']:
+                message = message + \
+                      '\n      Number of events generated: %s' % self.run_card['nevents'] 
+            message = message + \
                       '\n      %(xsec_string)s: %(xsect)8.3e +- %(errt)6.1e %(unit)s' % \
                       self.cross_sect_dict
             message = message + \
@@ -2287,18 +2297,18 @@ RESTART = %(mint_mode)s
         # Make sure it never stops a run
         # Gather some basic statistics for the run and extracted from the log files.
         if mode in ['aMC@NLO', 'aMC@LO', 'noshower', 'noshowerLO']: 
-            log_GV_files =  glob.glob(pjoin(self.me_dir, \
-                                    'SubProcesses', 'P*','G*','log_MINT*.txt'))
+            log_GV_files =  misc.glob(pjoin('P*','G*','log_MINT*.txt'), 
+                                      pjoin(self.me_dir, 'SubProcesses'))
             all_log_files = log_GV_files
         elif mode == 'NLO':
-            log_GV_files =  glob.glob(pjoin(self.me_dir, \
-                                    'SubProcesses', 'P*','all_G*','log_MINT*.txt'))
+            log_GV_files = misc.glob(pjoin('P*','all_G*','log_MINT*.txt'), 
+                                      pjoin(self.me_dir, 'SubProcesses')) 
             all_log_files = log_GV_files
 
         elif mode == 'LO':
             log_GV_files = ''
-            all_log_files = glob.glob(pjoin(self.me_dir, \
-                                    'SubProcesses', 'P*','born_G*','log_MINT*.txt'))
+            all_log_files = misc.glob(pjoin('P*','born_G*','log_MINT*.txt'), 
+                                      pjoin(self.me_dir, 'SubProcesses')) 
         else:
             raise aMCatNLOError, 'Running mode %s not supported.'%mode
 
@@ -2774,7 +2784,7 @@ RESTART = %(mint_mode)s
             scale_pdf_info = self.run_reweight(options['reweightonly'])
         self.update_status('Collecting events', level='parton', update_results=True)
         misc.compile(['collect_events'], 
-                    cwd=pjoin(self.me_dir, 'SubProcesses'))
+                    cwd=pjoin(self.me_dir, 'SubProcesses'), nocompile=options['nocompile'])
         p = misc.Popen(['./collect_events'], cwd=pjoin(self.me_dir, 'SubProcesses'),
                 stdin=subprocess.PIPE, 
                 stdout=open(pjoin(self.me_dir, 'collect_events.log'), 'w'))
@@ -2795,7 +2805,7 @@ RESTART = %(mint_mode)s
         misc.gzip(pjoin(self.me_dir, 'SubProcesses', filename), stdout=evt_file)
         if not options['reweightonly']:
             self.print_summary(options, 2, mode, scale_pdf_info)
-            res_files=glob.glob(pjoin(self.me_dir, 'SubProcesses', 'res*.txt'))
+            res_files = misc.glob('res*.txt', pjoin(self.me_dir, 'SubProcesses'))
             for res_file in res_files:
                 files.mv(res_file,pjoin(self.me_dir, 'Events', self.run_name))
 
@@ -2805,7 +2815,7 @@ RESTART = %(mint_mode)s
         return evt_file[:-3]
 
 
-    def run_mcatnlo(self, evt_file):
+    def run_mcatnlo(self, evt_file, options):
         """runs mcatnlo on the generated event file, to produce showered-events
         """
         logger.info('Preparing MCatNLO run')
@@ -2880,8 +2890,8 @@ RESTART = %(mint_mode)s
                     fjwrapper_lines[fjwrapper_lines.index(line)] = include_line
                 if '//NAMESPACE_FJ' in line:
                     fjwrapper_lines[fjwrapper_lines.index(line)] = namespace_line
-            open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc'), 'w').write(\
-                    '\n'.join(fjwrapper_lines) + '\n')
+            with open(pjoin(self.me_dir, 'MCatNLO', 'srcCommon', 'myfastjetfortran.cc'), 'w') as fsock:
+                fsock.write('\n'.join(fjwrapper_lines) + '\n')
 
         extrapaths = self.shower_card['extrapaths'].split()
 
@@ -2933,7 +2943,8 @@ RESTART = %(mint_mode)s
 
         misc.call(['./MCatNLO_MadFKS.inputs'], stdout=open(mcatnlo_log, 'w'),
                     stderr=open(mcatnlo_log, 'w'), 
-                    cwd=pjoin(self.me_dir, 'MCatNLO'))
+                    cwd=pjoin(self.me_dir, 'MCatNLO'),
+                    close_fds=True)
 
         exe = 'MCATNLO_%s_EXE' % shower
         if not os.path.exists(pjoin(self.me_dir, 'MCatNLO', exe)) and \
@@ -2954,22 +2965,20 @@ RESTART = %(mint_mode)s
 
         #look for the event files (don't resplit if one asks for the 
         # same number of event files as in the previous run)
-        event_files = glob.glob(pjoin(self.me_dir, 'Events', self.run_name,
-                                            'events_*.lhe'))
+        event_files = misc.glob('events_*.lhe', pjoin(self.me_dir, 'Events', self.run_name))
         if max(len(event_files), 1) != self.shower_card['nsplit_jobs']:
             logger.info('Cleaning old files and splitting the event file...')
             #clean the old files
             files.rm([f for f in event_files if 'events.lhe' not in f])
             if self.shower_card['nsplit_jobs'] > 1:
-                misc.compile(['split_events'], cwd = pjoin(self.me_dir, 'Utilities'))
+                misc.compile(['split_events'], cwd = pjoin(self.me_dir, 'Utilities'), nocompile=options['nocompile'])
                 p = misc.Popen([pjoin(self.me_dir, 'Utilities', 'split_events')],
                                 stdin=subprocess.PIPE,
                                 stdout=open(pjoin(self.me_dir, 'Events', self.run_name, 'split_events.log'), 'w'),
                                 cwd=pjoin(self.me_dir, 'Events', self.run_name))
                 p.communicate(input = 'events.lhe\n%d\n' % self.shower_card['nsplit_jobs'])
                 logger.info('Splitting done.')
-            event_files = glob.glob(pjoin(self.me_dir, 'Events', self.run_name,
-                                            'events_*.lhe'))
+            event_files = misc.glob('events_*.lhe', pjoin(self.me_dir, 'Events', self.run_name)) 
 
         event_files.sort()
 
@@ -3012,8 +3021,8 @@ RESTART = %(mint_mode)s
                 out_id = 'TOP'
 
         # write the executable
-        open(pjoin(rundir, 'shower.sh'), 'w').write(\
-                open(pjoin(self.me_dir, 'MCatNLO', 'shower_template.sh')).read() \
+        with open(pjoin(rundir, 'shower.sh'), 'w') as fsock:
+            fsock.write(open(pjoin(self.me_dir, 'MCatNLO', 'shower_template.sh')).read() \
                 % {'extralibs': ':'.join(extrapaths)})
         subprocess.call(['chmod', '+x', pjoin(rundir, 'shower.sh')])
 
@@ -3088,7 +3097,7 @@ RESTART = %(mint_mode)s
             elif out_id=='HWU':
                 ext='HwU'
             topfiles = []
-            top_tars = [tarfile.TarFile(f) for f in glob.glob(pjoin(rundir, 'histfile*.tar'))]
+            top_tars = [tarfile.TarFile(f) for f in misc.glob('histfile*.tar', rundir)]
             for top_tar in top_tars:
                 topfiles.extend(top_tar.getnames())
 
@@ -3570,6 +3579,7 @@ RESTART = %(mint_mode)s
         # loop over lines (all but the last one whith is empty) and check that the
         #  number of events is not 0
         evt_files = [line.split()[0] for line in lines[:-1] if line.split()[1] != '0']
+        evt_wghts = [float(line.split()[3]) for line in lines[:-1] if line.split()[1] != '0']
         #prepare the job_dict
         job_dict = {}
         exe = 'reweight_xsec_events.local'
@@ -3598,9 +3608,9 @@ RESTART = %(mint_mode)s
                 newfile.write(line.replace(line.split()[0], line.split()[0] + '.rwgt') + '\n')
         newfile.close()
 
-        return self.pdf_scale_from_reweighting(evt_files)
+        return self.pdf_scale_from_reweighting(evt_files,evt_wghts)
 
-    def pdf_scale_from_reweighting(self, evt_files):
+    def pdf_scale_from_reweighting(self, evt_files,evt_wghts):
         """This function takes the files with the scale and pdf values
         written by the reweight_xsec_events.f code
         (P*/G*/pdf_scale_dependence.dat) and computes the overall
@@ -3609,27 +3619,28 @@ RESTART = %(mint_mode)s
         and returns it in percents.  The expected format of the file
         is: n_scales xsec_scale_central xsec_scale1 ...  n_pdf
         xsec_pdf0 xsec_pdf1 ...."""
+
         scales=[]
         pdfs=[]
-        for evt_file in evt_files:
+        for i,evt_file in enumerate(evt_files):
             path, evt=os.path.split(evt_file)
             with open(pjoin(self.me_dir, 'SubProcesses', path, 'scale_pdf_dependence.dat'),'r') as f:
                 data_line=f.readline()
                 if "scale variations:" in data_line:
-                    for i,scale in enumerate(self.run_card['dynamical_scale_choice']):
+                    for j,scale in enumerate(self.run_card['dynamical_scale_choice']):
                         data_line = f.readline().split()
-                        scales_this = [float(val) for val in f.readline().replace("D", "E").split()]
+                        scales_this = [float(val)*evt_wghts[i] for val in f.readline().replace("D", "E").split()]
                         try:
-                            scales[i] = [a + b for a, b in zip(scales[i], scales_this)]
+                            scales[j] = [a + b for a, b in zip(scales[j], scales_this)]
                         except IndexError:
                             scales+=[scales_this]
                     data_line=f.readline()
                 if "pdf variations:" in data_line:
-                    for i,pdf in enumerate(self.run_card['lhaid']):
+                    for j,pdf in enumerate(self.run_card['lhaid']):
                         data_line = f.readline().split()
-                        pdfs_this = [float(val) for val in f.readline().replace("D", "E").split()]
+                        pdfs_this = [float(val)*evt_wghts[i] for val in f.readline().replace("D", "E").split()]
                         try:
-                            pdfs[i] = [a + b for a, b in zip(pdfs[i], pdfs_this)]
+                            pdfs[j] = [a + b for a, b in zip(pdfs[j], pdfs_this)]
                         except IndexError:
                             pdfs+=[pdfs_this]
 
@@ -4090,7 +4101,8 @@ RESTART = %(mint_mode)s
             exe = 'madevent_mintMC'
             tests = ['test_ME', 'test_MC']
             # write an analyse_opts with a dummy analysis so that compilation goes through
-            open(pjoin(self.me_dir, 'SubProcesses', 'analyse_opts'),'w').write('FO_ANALYSE=analysis_dummy.o dbook.o open_output_files_dummy.o HwU_dummy.o\n')
+            with open(pjoin(self.me_dir, 'SubProcesses', 'analyse_opts'),'w') as fsock:
+                fsock.write('FO_ANALYSE=analysis_dummy.o dbook.o open_output_files_dummy.o HwU_dummy.o\n')
 
         #directory where to compile exe
         p_dirs = [d for d in \
@@ -4122,6 +4134,7 @@ RESTART = %(mint_mode)s
                 logger.info('Using built-in libraries for PDFs')
             if self.run_card['lpp1'] == 0 == self.run_card['lpp2']:
                 logger.info('Lepton-Lepton collision: Ignoring \'pdlabel\' and \'lhaid\' in the run_card.')
+            self.make_opts_var['lhapdf'] = ""
 
         # read the run_card to find if applgrid is used or not
         if self.run_card['iappl'] != 0:
@@ -4153,7 +4166,10 @@ RESTART = %(mint_mode)s
                 if line.strip().startswith('APPLLIBS=$'):
                     line=appllibs
                 text_out.append(line)
-            open(pjoin(self.me_dir,'Source','make_opts'),'w').writelines(text_out)
+            with open(pjoin(self.me_dir,'Source','make_opts'),'w') as fsock:
+                fsock.writelines(text_out)
+        else:
+            self.make_opts_var['applgrid'] = ""
 
         if 'fastjet' in self.options.keys() and self.options['fastjet']:
             self.make_opts_var['fastjet_config'] = self.options['fastjet']

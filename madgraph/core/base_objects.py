@@ -1022,6 +1022,8 @@ class InteractionList(PhysicsObjectList):
 class Model(PhysicsObject):
     """A class to store all the model information."""
     
+    mg5_name = False #store if particle name follow mg5 convention
+    
     def default_setup(self):
 
         self['name'] = ""
@@ -1051,6 +1053,7 @@ class Model(PhysicsObject):
         self['lorentz_dict'] = None
         # attribute which might be define if needed
         #self['name2pdg'] = {'name': pdg}
+        
         
 
     def filter(self, name, value):
@@ -1149,6 +1152,7 @@ class Model(PhysicsObject):
         if name == 'modelpath':
             modeldir = self.get('version_tag').rsplit('##',1)[0]
             if os.path.exists(modeldir):
+                modeldir = os.path.expanduser(modeldir)
                 return modeldir
             else:
                 raise Exception, "path %s not valid anymore." % modeldir
@@ -1164,6 +1168,7 @@ class Model(PhysicsObject):
                 raise Exception, "path %s not valid anymore" % modeldir
             modeldir = os.path.dirname(modeldir)
             modeldir = pjoin(modeldir, modelname)
+            modeldir = os.path.expanduser(modeldir)
             return modeldir
         elif name == 'restrict_name':
             modeldir = self.get('version_tag').rsplit('##',1)[0]
@@ -1489,7 +1494,9 @@ class Model(PhysicsObject):
     def pass_particles_name_in_mg_default(self):
         """Change the name of the particles such that all SM and MSSM particles
         follows the MG convention"""
-
+        
+        self.mg5_name = True
+        
         # Check that default name/antiname is not already use 
         def check_name_free(self, name):
             """ check if name is not use for a particle in the model if it is 
