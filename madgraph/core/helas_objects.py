@@ -199,7 +199,6 @@ class IdentifyMETag(diagram_generation.DiagramTag):
                           coup_keys] + \
                          [str(c) for c in inter.get('color')] + \
                          inter.get('lorentz')+sorted(inter.get('orders')))
-        misc.sprint('CO dropped')
 #           ret_list = array.array('i',sum([list(key) +  
 #                         [model.get('coup_dict')[inter.get('couplings')[key]]] \
 #                         for key in coup_keys], []) + \
