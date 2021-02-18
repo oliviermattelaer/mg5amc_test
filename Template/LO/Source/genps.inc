@@ -30,7 +30,7 @@ c*************************************************************************
 c	Parameters for helicity and color flow sums in matrixN.f
 c*************************************************************************
       REAL*8 LIMHEL
-      PARAMETER(LIMHEL=1e-6)
+      PARAMETER(LIMHEL=1e-8)
       INTEGER MAXTRIES,NUMPERMS
       PARAMETER(MAXTRIES=100,NUMPERMS=10)
       INTEGER NLCFACT
