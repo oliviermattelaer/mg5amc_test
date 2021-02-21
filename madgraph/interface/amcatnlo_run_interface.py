@@ -174,7 +174,13 @@ def check_compiler(options, block=False):
             logger.warning(msg % compiler)
     else:
         curr_version = misc.get_gfortran_version(compiler)
-        if not ''.join(curr_version.split('.')) >= '46':
+        curr_version = curr_version.split('.')
+        if len(curr_version) == 1:
+            curr_version.append(0)
+
+        if int(curr_version[0]) < 5:
+            if int(curr_version[0]) == 4 and int(curr_version[1]) > 5:
+                return
             if block:
                 raise aMCatNLOError(msg % (compiler + ' ' + curr_version))
             else:
@@ -925,7 +931,8 @@ class AskRunNLO(cmd.ControlSwitch):
         self.check_available_module(opt['mother_interface'].options)
         self.last_mode = opt['mother_interface'].last_mode
         self.proc_characteristics = opt['mother_interface'].proc_characteristics
-        self.run_card = banner_mod.RunCard(pjoin(self.me_dir,'Cards', 'run_card.dat'))
+        self.run_card = banner_mod.RunCard(pjoin(self.me_dir,'Cards', 'run_card.dat'),
+                                           consistency='warning')
         super(AskRunNLO,self).__init__(self.to_control, opt['mother_interface'],
                                      *args, **opt)
 
@@ -2784,7 +2791,7 @@ RESTART = %(mint_mode)s
         """Sums all the plots in the HwU format."""
         logger.debug('Combining HwU plots.')
 
-        command =  []
+        command =  [sys.executable]
         command.append(pjoin(self.me_dir, 'bin', 'internal','histograms.py'))
         for job in jobs:
             if job['dirname'].endswith('.HwU'):
