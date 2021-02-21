@@ -1051,6 +1051,8 @@ class Model(PhysicsObject):
         self['coup_dict'] = None
         self['color_dict'] = None
         self['lorentz_dict'] = None
+        self['allow_pickle'] = True
+        self['limitations'] = [] # MLM means that the model can sometimes have issue with MLM/default scale. 
         # attribute which might be define if needed
         #self['name2pdg'] = {'name': pdg}
         
