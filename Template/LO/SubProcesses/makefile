@@ -31,7 +31,7 @@ LIBS = $(LIBDIR)libbias.$(libext) $(LIBDIR)libdhelas.$(libext) $(LIBDIR)libdsamp
 # Source files
 
 PROCESS= driver.o myamp.o genps.o unwgt.o setcuts.o get_color.o ipnext.o idenparts.o\
-         cuts.o cluster.o reweight.o initcluster.o addmothers.o setscales.o \
+         cuts.o cluster.o reweight.o initcluster.o addmothers.o setscales.o dummy_fct.o \
          $(patsubst %.f,%.o,$(wildcard auto_dsig*.f)) \
          $(patsubst %.f,%.o,$(wildcard matrix*.f)) \
          $(patsubst %.f,%.o,$(wildcard flow*.f))
@@ -64,6 +64,7 @@ $(LIBDIR)libpdf.$(libext):
 driver.f: genps.inc
 symmetry.o: genps.inc nexternal.inc configs.inc run_config.inc
 genps.o: genps.inc nexternal.inc configs.inc
+dummy_fct.0: run.inc genps.inc
 cuts.o: genps.inc nexternal.inc pmass.inc
 setcuts.o: genps.inc run_config.inc
 invarients.o: genps.inc nexternal.inc

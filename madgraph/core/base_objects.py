@@ -1727,7 +1727,7 @@ class Model(PhysicsObject):
                 self.add_param(newsw2, ['external'])
             # Force a refresh of the parameter dictionary
             self.parameters_dict = None
-            return true
+            return True
 
         elif mode==set(['mz','mw','alpha']):
             # For now, all we support is to go from mz, Gf, alpha to mz, mw, alpha
@@ -3016,8 +3016,10 @@ class Process(PhysicsObject):
                 if order not in self['sqorders_types']:
                     # Then assign its type to the default '='
                     self['sqorders_types'][order]='='
-
+                    
         return super(Process, self).get(name) # call the mother routine
+
+    
 
     def get_sorted_keys(self):
         """Return process property names as a nicely sorted list."""
@@ -3509,6 +3511,18 @@ class Process(PhysicsObject):
         self['legs_with_decays'] = LegList(legs)
 
         return self['legs_with_decays']
+    
+    def get_tag(self):
+        """return the tag for standalone call"""
+        
+        initial = []    #filled in the next line
+        final = [l.get('id') for l in self.get('legs')\
+              if l.get('state') or initial.append(l.get('id'))]
+        decay_finals = self.get_final_ids_after_decay()
+        decay_finals.sort()
+        tag = (tuple(initial), tuple(decay_finals))
+        return tag
+        
 
     def renumber_legs(self, num_dict):
         """Renumber legs in the process according to num_dict"""

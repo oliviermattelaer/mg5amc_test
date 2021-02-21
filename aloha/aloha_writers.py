@@ -1305,7 +1305,7 @@ def combine_name(name, other_names, outgoing, tag=None, unknown_propa=False):
                 name = short_name
     if unknown_propa:
         addon += '%(propa)s'
-    misc.sprint(name)
+
     if outgoing is not None:
         return '_'.join((name,) + tuple(other_names)) + addon + '_%s' % outgoing
     else:

@@ -488,12 +488,12 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         self.write_pmass_file(writers.FortranWriter(filename),
                          matrix_element)
 
-        linkfiles = ['check_sa.f', 'ipnext.f', 'coupl.inc', 'makefile', 'idenparts.f']
+        linkfiles = ['check_sa.f', 'ipnext.f', 'coupl.inc', 'idenparts.f']
 
 
         for file in linkfiles:
             ln('../%s' % file)
-
+        ln('../makefileP', name='makefile')
         # Return to original PWD
         os.chdir(cwd)
 
