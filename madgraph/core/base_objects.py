@@ -3675,17 +3675,17 @@ for that coupling to be this maximal one. '''%(k,self.get('sqorders_types')[k],
         model = self.get('model')
 
         # First check that the number of fermions is even
-        if len(filter(lambda leg: model.get('particle_dict')[\
-                        leg.get('id')].is_fermion(), legs)) % 2 == 1:
-            raise InvalidCmd, 'The number of fermion is odd' 
+        if len([leg for leg in legs if model.get('particle_dict')[\
+                        leg.get('id')].is_fermion()]) % 2 == 1:
+            raise InvalidCmd('The number of fermion is odd') 
             return False
 
         # Then check same number of incoming and outgoing fermions (if
         # no Majorana particles in model)
         if not model.get('got_majoranas') and \
-           len(filter(lambda leg: leg.is_incoming_fermion(model), legs)) != \
-           len(filter(lambda leg: leg.is_outgoing_fermion(model), legs)):
-            raise InvalidCmd, 'The number of of incoming/outcoming fermions are different' 
+           len([leg for leg in legs if leg.is_incoming_fermion(model)]) != \
+           len([leg for leg in legs if leg.is_outgoing_fermion(model)]):
+            raise InvalidCmd('The number of of incoming/outcoming fermions are different') 
             return False
         
         # Finally check that charge (conserve by all interactions) of
@@ -3696,7 +3696,7 @@ for that coupling to be this maximal one. '''%(k,self.get('sqorders_types')[k],
                 part = model.get('particle_dict')[leg.get('id')]
                 try:
                     value = part.get(charge)
-                except AttributeError, PhysicsObjectError:
+                except AttributeError as PhysicsObjectError:
                     value = 0
                     
                 if (leg.get('id') != part['pdg_code']) != leg['state']:
@@ -3705,7 +3705,7 @@ for that coupling to be this maximal one. '''%(k,self.get('sqorders_types')[k],
                     total += value
 
             if abs(total) > 1e-10:
-                raise InvalidCmd, 'No %s conservation for this process ' % charge
+                raise InvalidCmd('No %s conservation for this process ' % charge)
                 return False
 
         # Passed all checks

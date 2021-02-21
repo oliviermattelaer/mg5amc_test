@@ -77,6 +77,7 @@ class DiagramTagChainLink(object):
         """Compare self with other in the order:
         1. depth 2. len(links) 3. vertex id 4. measure of links"""
 
+
         if self == other:
             return False
 
@@ -87,7 +88,22 @@ class DiagramTagChainLink(object):
             return len(self.links) < len(other.links)
 
         if self.vertex_id[0] != other.vertex_id[0]:
-            return self.vertex_id[0] < other.vertex_id[0]
+            if isinstance(self.vertex_id[0], int) and isinstance(other.vertex_id[0], tuple):
+                return True
+            elif isinstance(self.vertex_id[0], tuple) and isinstance(other.vertex_id[0], int):
+                return False
+            elif isinstance(self.vertex_id[0], str) and isinstance(other.vertex_id[0], tuple):
+                return True
+            elif isinstance(self.vertex_id[0], tuple) and isinstance(other.vertex_id[0], str):
+                return False            
+            else:
+                try:
+                    return self.vertex_id[0] < other.vertex_id[0]
+                except TypeError as error:
+                    if error.args == "'<' not supported between instances of 'tuple' and 'str'":
+                        return False
+                    else:
+                        return True
 
         for i, link in enumerate(self.links):
             if i > len(other.links) - 1:

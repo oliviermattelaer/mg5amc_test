@@ -4869,8 +4869,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
 
         # Find leading component
         #color_basis = self.get('color_basis')
-        max_Nc = max(sum([[v[4] for v in val] for val in color_basis.values()],
-                         []),-99)
+        #max_Nc = max(sum([[v[4] for v in val] for val in color_basis.values()],[]),-99)
 
 
         # There is a color basis - create a list of coefficients and

@@ -14,6 +14,7 @@
 ################################################################################
 """Methods and classes to export matrix elements to v4 format."""
 
+from __future__ import absolute_import
 import copy
 import fractions
 import glob
@@ -48,6 +49,7 @@ import aloha.create_aloha as create_aloha
 import models.write_param_card as param_writer
 from madgraph import MadGraph5Error, MG5DIR
 from madgraph.iolibs.files import cp, ln, mv
+from six.moves import range
 _file_path = os.path.split(os.path.dirname(os.path.realpath(__file__)))[0] + '/'
 logger = logging.getLogger('madgraph.export_v4')
 
@@ -143,7 +145,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Write the file
         writer.writelines(file)
 
-        return len(filter(lambda call: call.find('#') != 0, helas_calls))
+        return len([call for call in helas_calls if call.find('#') != 0])
 
     def get_ic_data_line(self, flow):
         """Get the IC line, giving sign for external HELAS wavefunctions"""
@@ -173,7 +175,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         nflows = len(flows)
         # The permutations with non-zero color matrix elements with
         # the basic color flows
-        needed_perms = sorted(list(set([icol / nflows for (icol, irow) in \
+        needed_perms = sorted(list(set([icol // nflows for (icol, irow) in \
                                         color_matrix.keys()])))
         nperms = len(needed_perms)
         all_perms = matrix_element.get('permutations')
@@ -186,7 +188,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # (for comments see below)
         perm_flow_factors = {}
         for (icol, irow) in sorted(color_matrix.keys()):
-            iperm = icol / nflows
+            iperm = icol // nflows
             iflow = icol % nflows
             flow_Nc = max([c.Nc_power for c in \
                                   color_matrix[(icol, irow)]]) - max_Nc
@@ -205,7 +207,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         for (icol, irow) in sorted(color_matrix.keys()):
             # irow is the number of the basic flow (from first permutation)
             # iperm is the permutation (among the full set, all_perms)
-            iperm = icol / nflows
+            iperm = icol // nflows
             # iflow is the flow number (for this permutation)
             iflow = icol % nflows
 
@@ -234,7 +236,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                              jamp if iperm > 0 else flow_jamp_dict[iflow],
                              color_matrix.col_matrix_fixed_Nc[(icol, irow)][0],
                              flow_Nc))
-
 
         return jamp, needed_perms, perm_needed_flows, row_flow_factors, \
                flow_jamp_dict
@@ -349,7 +350,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                                     (self.fraction_to_string(fact),\
                                      "+".join(["%d*JAMP(%d)" % i for i in \
                                                factor_dict[fact]])) for fact \
-                                    in sorted(factor_dict.keys(), reverse=True)])})
+                                    in sorted(list(factor_dict.keys()), reverse=True)])})
                 color_sum_lines[-1] = color_sum_lines[-1].replace('+-1*', '-')
                 color_sum_lines[-1] = color_sum_lines[-1].replace('+1*', '+')
                 color_sum_lines[-1] = color_sum_lines[-1].replace('(-1*', '(-')
@@ -636,12 +637,12 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
 
         try:
              os.chdir(path)
-        except OSError, error:
+        except OSError as error:
             error_msg = "The directory %s should exist in order to be able " % path + \
                         "to \"export\" in it. If you see this error message by " + \
                         "typing the command \"export\" please consider to use " + \
                         "instead the command \"output\". "
-            raise MadGraph5Error, error_msg 
+            raise MadGraph5Error(error_msg) 
 
 
         pathdir = os.getcwd()
@@ -1244,8 +1245,7 @@ class COFortranUFOHelasCallWriter(helas_call_writers.FortranUFOHelasCallWriter):
 
         if not isinstance(argument, helas_objects.HelasWavefunction) and \
            not isinstance(argument, helas_objects.HelasAmplitude):
-            raise self.PhysicsObjectError, \
-                  "get_helas_call must be called with wavefunction or amplitude"
+            raise self.PhysicsObjectError("get_helas_call must be called with wavefunction or amplitude")
         
         call = "CALL "
 

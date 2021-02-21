@@ -25,6 +25,7 @@ and amplitude calculations needed to the Behrends-Giele n^3 (or n^4 if
 4-gluon vertices are present), or 3^n for color singlet processes.
 """
 
+from __future__ import absolute_import
 import array
 import copy
 import fractions
@@ -41,6 +42,9 @@ import madgraph.iolibs.group_subprocs as group_subprocs
 import madgraph.color_ordering.color_ordered_amplitudes as \
        color_ordered_amplitudes
 from madgraph import MadGraph5Error
+from six.moves import range
+from six.moves import zip
+from functools import reduce
 
 logger = logging.getLogger('madgraph.color_ordered_amplitudes')
 
@@ -87,28 +91,22 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         if name in ['compare_array', 'current_array']:
             if not isinstance(value, list) and not \
                    isinstance(value, array.array):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid list object" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid list object" % str(value))
         elif name == 'external_numbers':
             if not isinstance(value, array.array):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid array object" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid array object" % str(value))
         elif name == 'color_string':
             if not isinstance(value, color.ColorString):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid ColorString object" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid ColorString object" % str(value))
         elif name == 'factor':
             if not isinstance(value, tuple):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid tuple" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid tuple" % str(value))
         elif name == 'external_fermion_numbers':
             if not isinstance(value, list):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid list" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid list" % str(value))
         elif name == 'all_orders':
             if not isinstance(value, dict) or value == None:
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid dict" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid dict" % str(value))
         else:
             super(COHelasWavefunction, self).filter(name, value)
 
@@ -289,20 +287,16 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
 
         if name == 'compare_array':
             if not isinstance(value, list):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid list object" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid list object" % str(value))
         elif name == 'color_string':
             if not isinstance(value, color.ColorString):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid ColorString object" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid ColorString object" % str(value))
         elif name == 'factor':
             if not isinstance(value, tuple):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid tuple" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid tuple" % str(value))
         elif name == 'all_orders':
             if not isinstance(value, dict) or value == None:
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid dict" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid dict" % str(value))
         else:
             super(COHelasAmplitude, self).filter(name, value)
 
@@ -363,9 +357,9 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
         """Create the comparison array compare_array, to find
         identical amplitudes after replacing mothers with currents:
         [mother current arrays, interaction id, coupling key]."""
-
         self.set('compare_array', [sorted([list(m.get('current_array')) \
-                                              for m in self.get('mothers')]),
+                                              for m in self.get('mothers')],
+                                              key= lambda l:str(l)),
                                       self.get('interaction_id'),
                                       self.get('color_key')])
 
@@ -558,16 +552,13 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
 
         if name == 'permutations':
             if not isinstance(value, list):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid list object" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid list object" % str(value))
         elif name == 'color_string':
             if not isinstance(value, color.ColorString):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid color string" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid color string" % str(value))
         elif name in ['number']:
             if not isinstance(value, int):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid integer" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid integer" % str(value))
         else:
             super(COHelasFlow, self).filter(name, value)
 
@@ -600,8 +591,8 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         self.set('permutations', amplitude.get('permutations'))
         
         # Set color string
-        self.set('color_string', self.get_color_string(range(1,
-                                 len(amplitude.get('process').get('legs'))+1)))
+        self.set('color_string', self.get_color_string(list(range(1,
+                                 len(amplitude.get('process').get('legs'))+1))))
 
         # First generate full set of wavefunctions and amplitudes
         super(COHelasFlow, self).generate_helas_diagrams(amplitude,
@@ -654,7 +645,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         # that all mothers come before their daughters.
         if use_bg_currents:
             combined_wavefunctions = sorted(combined_wavefunctions,
-                                            lambda l1,l2:len(l1)-len(l2))
+                                            key=lambda l1:len(l1))
 
         # Dict from old wf number to new wf/BG current
         wf_current_dict = {}
@@ -903,8 +894,8 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
             leg = [l for l in legs if l.get('number') == number][0]
             if not leg.get('color_ordering'):
                 continue
-            co = leg.get('color_ordering').keys()[0]
-            co_val = leg.get('color_ordering').values()[0][0]
+            co = list(leg.get('color_ordering').keys())[0]
+            co_val = list(leg.get('color_ordering').values())[0][0]
             try:
                 color_chains[co].append(co_val)
             except:
@@ -1027,8 +1018,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         # before this can be used for those!
 
         optimization = 1
-        if len(filter(lambda wf: wf.get('number') == 1,
-                      self.get_all_wavefunctions())) > 1:
+        if len([wf for wf in self.get_all_wavefunctions() if wf.get('number') == 1]) > 1:
             optimization = 0
 
         model = self.get('processes')[0].get('model')
@@ -1091,28 +1081,23 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         if name == 'color_flows':
             if not isinstance(value, COHelasFlowList):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid COHelasFlowList object" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid COHelasFlowList object" % str(value))
         
         elif name == 'min_Nc_power':
             if not isinstance(value, int):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid integer" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid integer" % str(value))
 
         elif name in ['permutations']:
             if not isinstance(value, list):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid list" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid list" % str(value))
         
         elif name in ['include_all_t']:
             if not isinstance(value, bool):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid bool" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid bool" % str(value))
         
         elif name in ['tch_depth', 'identify_depth', 'color_order']:
             if not isinstance(value, int):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid integer" % str(value)
+                raise self.PhysicsObjectError("%s is not a valid integer" % str(value))
         
         else:
             super(COHelasMatrixElement, self).filter(name, value)
@@ -1242,7 +1227,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             for iflow, color_flow in enumerate(self.get('color_flows')):
                 # 1,2,3,4,5 -> 1,2,4,5,3 e.g.
                 perm_replace_dict = \
-                          dict(zip(self.get('permutations')[0], perm))
+                          dict(list(zip(self.get('permutations')[0], perm)))
                 col_str = color_flow.get('color_string').create_copy()
                 col_str.replace_indices(perm_replace_dict)
                 # Create the immutable string
@@ -1611,8 +1596,7 @@ class COSubProcessGroup(group_subprocs.SubProcessGroup):
         in self"""
 
         if not self.get('amplitudes'):
-            raise self.PhysicsObjectError, \
-                  "Need amplitudes to generate matrix_elements"
+            raise self.PhysicsObjectError("Need amplitudes to generate matrix_elements")
 
         amplitudes = copy.copy(self.get('amplitudes'))
 
