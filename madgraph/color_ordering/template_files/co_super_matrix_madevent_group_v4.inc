@@ -694,3 +694,10 @@ c                                 1/7     2/8      3/9       4/10    5/11     6/
 
 
     END
+
+    SUBROUTINE PRINT_ZERO_AMP_%(proc_id)s()
+
+    integer i
+            i =1
+    return
+    end

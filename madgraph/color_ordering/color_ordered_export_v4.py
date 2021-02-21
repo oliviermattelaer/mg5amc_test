@@ -113,9 +113,9 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         replace_dict['helas_calls'] = "\n".join(helas_calls)
 
         # Extract JAMP lines
-        jamp_lines = self.get_JAMP_lines(flow)
+        jamp_lines, nb_tmp_jamp = self.get_JAMP_lines(flow)
         replace_dict['jamp_lines'] = '\n'.join(jamp_lines)
-
+        replace_dict['nb_temp_jamp'] = nb_tmp_jamp
         #adding the support for the fake width (forbidding too small width)
         mass_width = flow.get_all_mass_widths()
         width_list = set([e[1] for e in mass_width])

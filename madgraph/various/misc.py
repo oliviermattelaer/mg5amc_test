@@ -800,8 +800,8 @@ def detect_cpp_std_lib_dependence(cpp_compiler):
                 # we venture a guess here.
                 return '-lc++'
             else:
-                v = float(v.rsplit('.')[1])
-                if v >= 9:
+                maj, v = [float(x) for x in v.rsplit('.')[:2]]
+                if maj >=11 or (maj ==10 and v >= 9):
                    return '-lc++'
                 else:
                    return '-lstdc++'
@@ -1503,6 +1503,10 @@ def sprint(*args, **opt):
 
     return 
 
+class misc(object):
+    @staticmethod
+    def sprint(*args, **opt):
+        return sprint(*args, **opt)
 ################################################################################
 # function to check if two float are approximatively equal
 ################################################################################
@@ -1731,6 +1735,9 @@ class Applenotification(object):
             self.NSUserNotificationCenter = objc.lookUpClass('NSUserNotificationCenter')
         except:
             self.working=False
+            if which('osascript'):
+                self.working = 'osascript'
+            return
         self.working=True
 
     def __call__(self,subtitle, info_text, userInfo={}):
@@ -1739,18 +1746,27 @@ class Applenotification(object):
             self.load_notification()
         if not self.working:
             return
-        try:
-            notification = self.NSUserNotification.alloc().init()
-            notification.setTitle_('MadGraph5_aMC@NLO')
-            notification.setSubtitle_(subtitle)
-            notification.setInformativeText_(info_text)
+        elif self.working is True:
             try:
-                notification.setUserInfo_(userInfo)
+                notification = self.NSUserNotification.alloc().init()
+                notification.setTitle_('MadGraph5_aMC@NLO')
+                notification.setSubtitle_(subtitle)
+                notification.setInformativeText_(info_text)
+                try:
+                    notification.setUserInfo_(userInfo)
+                except:
+                    pass
+                self.NSUserNotificationCenter.defaultUserNotificationCenter().scheduleNotification_(notification)
             except:
                 pass
-            self.NSUserNotificationCenter.defaultUserNotificationCenter().scheduleNotification_(notification)
-        except:
-            pass        
+
+        elif self.working=='osascript':
+            try:
+                os.system("""
+              osascript -e 'display notification "{}" with title "MadGraph5_aMC@NLO" subtitle "{}"'
+              """.format(info_text, subtitle))
+            except:
+                pass
         
 
 
@@ -2258,6 +2274,9 @@ the file and returns last line in an internal buffer."""
             return line
         else:
             raise StopIteration
+def tqdm(iterator, **opts):
+    return iterator
+
         
 ############################### TRACQER FOR OPEN FILE
 #openfiles = set()
@@ -2282,3 +2301,5 @@ the file and returns last line in an internal buffer."""
 #    return newfile(*args)
 #__builtin__.file = newfile
 #__builtin__.open = newopen
+
+
