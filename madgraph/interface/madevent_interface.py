@@ -3574,8 +3574,10 @@ Beware that this can be dangerous for local multicore runs.""")
         
         if not hasattr(self,'proc_characteristic'):
             self.proc_characteristic = self.get_characteristics()
-            
-        nb_event = AllEvent.unweight(pjoin(self.me_dir, "Events", self.run_name, "unweighted_events.lhe.gz"),
+        if len(AllEvent) == 0:
+            nb_event = 0 
+        else:
+            nb_event = AllEvent.unweight(pjoin(self.me_dir, "Events", self.run_name, "unweighted_events.lhe.gz"),
                           get_wgt, trunc_error=1e-2, event_target=self.run_card['nevents'],
                           log_level=logging.DEBUG, normalization=self.run_card['event_norm'],
                           proc_charac=self.proc_characteristic)
@@ -3687,7 +3689,7 @@ Beware that this can be dangerous for local multicore runs.""")
 
         # 2) Treat the files present in the P directory
         # Ensure that the number of events is different of 0 
-        if self.results.current['nb_event'] == 0:
+        if self.results.current['nb_event'] == 0 and not self.run_card['gridpack']:
             logger.warning("No event detected. No cleaning performed! This should allow to run:\n" +
                            "    cd Subprocesses; ../bin/internal/combine_events\n"+
                            "  to have your events if those one are missing.")
@@ -4143,9 +4145,14 @@ already exists and is not a fifo file."""%fifo_path)
             self.configure_directory(html_opening =False)
             self.check_pythia8(args)        
 
+        # Update the banner with the pythia card
+        if not self.banner or len(self.banner) <=1:
+            # Here the level keyword 'pythia' must not be changed to 'pythia8'.
+            self.banner = banner_mod.recover_banner(self.results, 'pythia')
+
         # the args are modify and the last arg is always the mode 
         if not no_default:
-            self.ask_pythia_run_configuration(args[-1], pythia_version=8)
+            self.ask_pythia_run_configuration(args[-1], pythia_version=8, banner=self.banner)
 
         if self.options['automatic_html_opening']:
             misc.open_file(os.path.join(self.me_dir, 'crossx.html'))
@@ -4158,10 +4165,7 @@ already exists and is not a fifo file."""%fifo_path)
              #"The normalisation of the hepmc output file will be wrong (i.e. non-standard).\n"+\
              #"Please use 'event_norm = average' in the run_card to avoid this problem.")
 
-        # Update the banner with the pythia card
-        if not self.banner or len(self.banner) <=1:
-            # Here the level keyword 'pythia' must not be changed to 'pythia8'.
-            self.banner = banner_mod.recover_banner(self.results, 'pythia')
+
         
         if not self.options['mg5amc_py8_interface_path'] or not \
              os.path.exists(pjoin(self.options['mg5amc_py8_interface_path'],
@@ -6127,7 +6131,7 @@ tar -czf split_$1.tar.gz split_$1
         return switch
     
     ############################################################################
-    def ask_pythia_run_configuration(self, mode=None, pythia_version=6):
+    def ask_pythia_run_configuration(self, mode=None, pythia_version=6, banner=None):
         """Ask the question when launching pythia"""
         
         pythia_suffix = '' if pythia_version==6 else '%d'%pythia_version
@@ -6188,10 +6192,16 @@ tar -czf split_$1.tar.gz split_$1
         if self.force:
             return mode
         
+        if not banner:
+            banner = self.banner
+        
         if auto:
-            self.ask_edit_cards(cards, mode='auto', plot=(pythia_version==6))
+            self.ask_edit_cards(cards, from_banner=['param', 'run'], 
+                                mode='auto', plot=(pythia_version==6), banner=banner
+                                )
         else:
-            self.ask_edit_cards(cards, plot=(pythia_version==6))
+            self.ask_edit_cards(cards, from_banner=['param', 'run'],
+                                 plot=(pythia_version==6), banner=banner)
 
         return mode
                 
@@ -6414,8 +6424,15 @@ class GridPackCmd(MadEventCmd):
         if not self.readonly:
             self.exec_cmd('store_events')
             self.print_results_in_shell(self.results.current)
-        else:
+            if self.run_card['systematics_program'] == 'systematics':
+                self.exec_cmd('systematics %s --from_card' % self.run_name,
+                                               postcmd=False,printcmd=False)
             self.exec_cmd('decay_events -from_cards', postcmd=False)
+        else:
+            self.exec_cmd('systematics %s --from_card' % 
+                          pjoin('Events', self.run_name, 'unweighted_events.lhe.gz'),
+                                               postcmd=False,printcmd=False)
+            
 
     def refine4grid(self, nb_event):
         """Special refine for gridpack run."""

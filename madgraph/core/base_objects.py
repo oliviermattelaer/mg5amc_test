@@ -1547,7 +1547,7 @@ class Model(PhysicsObject):
     def change_parameter_name_with_prefix(self, prefix='mdl_'):
         """ Change all model parameter by a given prefix.
         Modify the parameter if some of them are identical up to the case"""
-
+        
         lower_dict={}
         duplicate = set()
         keys = self.get('parameters').keys()
@@ -1628,7 +1628,13 @@ class Model(PhysicsObject):
             for key in self['couplings'].keys():
                 for coup in self['couplings'][key]:
                     coup.expr = rep_pattern.sub(replace, coup.expr)
-                    
+
+            # change form-factor
+            ff = [l.formfactors for l in self['lorentz'] if hasattr(l, 'formfactors')]
+            ff = set(sum(ff,[])) # here we have the list of ff used in the model
+            for f in ff:
+                f.value = rep_pattern.sub(replace, f.value)
+
             # change mass/width
             for part in self['particles']:
                 if str(part.get('mass')) in one_change:
@@ -3784,11 +3790,11 @@ class ProcessDefinition(Process):
         # Extract hierarchy and particles corresponding to the
         # different hierarchy levels from the model
         particles, hierarchy = model.get_particles_hierarchy()
-
         # Find legs corresponding to the different orders
         # making sure we look at lowest hierarchy first for each leg
         max_order_now = []
         new_legs =  copy.copy(self.get('legs'))
+        import madgraph.core.base_objects as base_objects
         for parts, value in zip(particles, hierarchy):
             ileg = 0
             while ileg < len(new_legs):

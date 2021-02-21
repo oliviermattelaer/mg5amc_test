@@ -243,6 +243,12 @@ C
       COMPLEX*16 ZTEMP
       COMPLEX*16 AMP(NGRAPHS)
       COMPLEX*16 W(%(wavefunctionsize)d,NWAVEFUNCS)
+%(fake_width_declaration)s
+      logical first
+      data first /.true./
+      save first
+              double precision small_width_treatment
+        common/narrow_width/small_width_treatment
 %(ic_data_line)s
 %(ip_data_line)s
 C
@@ -318,6 +324,10 @@ C
 C ----------
 C BEGIN CODE
 C ----------
+if (first) then
+    first=.false.
+    %(fake_width_definitions)s
+endif
 %(flow_call_lines)s
       ZTEMP = (0.D0,0.D0)
 %(color_sum_lines)s

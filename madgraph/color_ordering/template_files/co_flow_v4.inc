@@ -34,14 +34,25 @@ C
       COMPLEX*16 W(18,NWAVEFUNCS)
       COMPLEX*16 DUM0,DUM1
       DATA DUM0, DUM1/(0d0, 0d0), (1d0, 0d0)/
+%(fake_width_declaration)s
+      logical first
+      data first /.true./
+      save first
 %(ic_data_line)s
 C  
 C GLOBAL VARIABLES
 C  
       include 'coupl.inc'
+
+	double precision small_width_treatment
+        common/narrow_width/small_width_treatment
 C ----------
 C BEGIN CODE
 C ----------
+if (first) then
+    first=.false.
+    %(fake_width_definitions)s
+endif 
 %(helas_calls)s
 %(jamp_lines)s
 

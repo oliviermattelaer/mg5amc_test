@@ -79,7 +79,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         writers.FortranWriter.downcase = False
 
         replace_dict = {}
-
         # Extract version number and date from VERSION file
         info_lines = self.get_mg5_info_lines()
         replace_dict['info_lines'] = info_lines
@@ -114,6 +113,27 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Extract JAMP lines
         jamp_lines = self.get_JAMP_lines(flow)
         replace_dict['jamp_lines'] = '\n'.join(jamp_lines)
+
+        #adding the support for the fake width (forbidding too small width)
+        mass_width = flow.get_all_mass_widths()
+        width_list = set([e[1] for e in mass_width])
+        
+        replace_dict['fake_width_declaration'] = \
+            ('  double precision fk_%s \n' * len(width_list)) % tuple(width_list)
+        replace_dict['fake_width_declaration'] += \
+            ('  save fk_%s \n' * len(width_list)) % tuple(width_list)
+        fk_w_defs = []
+        one_def = ' IF(%(w)s.ne.0d0) fk_%(w)s = SIGN(MAX(ABS(%(w)s), ABS(%(m)s*small_width_treatment)), %(w)s)'    
+        for m, w in mass_width:
+            if w == 'zero':
+                if ' fk_zero = 0d0' not in fk_w_defs: 
+                    fk_w_defs.append(' fk_zero = 0d0')
+                continue    
+            fk_w_defs.append(one_def %{'m':m, 'w':w})
+        replace_dict['fake_width_definitions'] = '\n'.join(fk_w_defs)
+
+
+
 
         file = open(os.path.join(_file_path, \
                                  'color_ordering/template_files/%s' % \
@@ -1063,6 +1083,24 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
 
         # Set color order
         replace_dict['color_order'] = matrix_element.get('color_order')
+
+        #adding the support for the fake width (forbidding too small width)
+        mass_width = matrix_element.get_all_mass_widths()
+        width_list = set([e[1] for e in mass_width])
+        
+        replace_dict['fake_width_declaration'] = \
+            ('  double precision fk_%s \n' * len(width_list)) % tuple(width_list)
+        replace_dict['fake_width_declaration'] += \
+            ('  save fk_%s \n' * len(width_list)) % tuple(width_list)
+        fk_w_defs = []
+        one_def = ' IF(%(w)s.ne.0d0) fk_%(w)s = SIGN(MAX(ABS(%(w)s), ABS(%(m)s*small_width_treatment)), %(w)s)'    
+        for m, w in mass_width:
+            if w == 'zero':
+                if ' fk_zero = 0d0' not in fk_w_defs: 
+                    fk_w_defs.append(' fk_zero = 0d0')
+                continue    
+            fk_w_defs.append(one_def %{'m':m, 'w':w})
+        replace_dict['fake_width_definitions'] = '\n'.join(fk_w_defs)
 
         # Create file contents
         file = open(os.path.join(_file_path, \

@@ -14,7 +14,7 @@
 ################################################################################
 """ How to import a UFO model to the MG5 format """
 
-
+import collections
 import fractions
 import logging
 import os
@@ -106,11 +106,18 @@ def get_model_db():
     r = random.randint(0,1)
     r = [r, (1-r)]
 
+    if 'MG5aMC_WWW' in os.environ and os.environ['MG5aMC_WWW']:
+        data_path.append(os.environ['MG5aMC_WWW']+'/models_db.dat')
+        r.insert(0, 2)
+
+
     for index in r:
         cluster_path = data_path[index]
         try:
             data = urllib.urlopen(cluster_path)
         except Exception:
+            continue
+        if data.getcode() != 200:
             continue
         break
     else:
@@ -121,6 +128,11 @@ def get_model_db():
 def import_model_from_db(model_name, local_dir=False):
     """ import the model with a given name """
 
+    if os.path.sep in model_name and os.path.exists(os.path.dirname(model_name)):
+        target = os.path.dirname(model_name)
+        model_name = os.path.basename(model_name)
+    else:
+        target = None
     data =get_model_db()
     link = None
     for line in data:
@@ -129,17 +141,29 @@ def import_model_from_db(model_name, local_dir=False):
             link = split[1]
             break
     else:
-        logger.debug('no model with that name found online')
+        logger.debug('no model with that name (%s) found online', model_name)
         return False
     
     #get target directory
-    # 1. PYTHONPATH containing UFO
+    # 1. PYTHONPATH containing UFO --only for omattelaer user
     # 2. models directory
-    target = None 
-    if 'PYTHONPATH' in os.environ and not local_dir:
+    
+    username = ''
+    if not target:
+        try:
+            import pwd
+            username =pwd.getpwuid( os.getuid() )[ 0 ]  
+        except Exception, error:
+            misc.sprint(str(error))
+            username = ''
+    if username in ['omatt', 'mattelaer', 'olivier'] and target is None and \
+                                    'PYTHONPATH' in os.environ and not local_dir:
         for directory in os.environ['PYTHONPATH'].split(':'):
-            if 'UFO' in os.path.basename(directory) and os.path.exists(directory):
-                target= directory 
+            #condition only for my setup --ATLAS did not like it
+            if 'UFOMODEL' == os.path.basename(directory) and os.path.exists(directory) and\
+                misc.glob('*/couplings.py', path=directory) and 'matt' in directory:
+                target= directory
+                   
     if target is None:
         target = pjoin(MG5DIR, 'models')    
     try:
@@ -531,8 +555,10 @@ class UFOMG5Converter(object):
                 self.add_CTinteraction(interaction_info, color_info)
     
 
-        for interaction in self.interactions:
+        for interaction in list(self.interactions):
             self.optimise_interaction(interaction)
+            if not interaction['couplings']:
+                self.interactions.remove(interaction)
     
     
         self.model.set('conserved_charge', self.conservecharge)
@@ -585,6 +611,32 @@ class UFOMG5Converter(object):
     
     def optimise_interaction(self, interaction):
         
+        
+        #  Check if two couplings have exactly the same definition. 
+        #  If so replace one by the other
+        if not hasattr(self, 'iden_couplings'):
+            coups = collections.defaultdict(list)
+            coups['0'].append('ZERO')
+            for coupling in self.ufomodel.all_couplings:
+                #if isinstance(coupling.value, str):
+                coups[str(coupling.value)].append( coupling.name)
+            
+            self.iden_couplings = {}
+            for idens in [c for c in coups.values() if len(c)>1]:
+                for i in range(1, len(idens)):
+                    self.iden_couplings[idens[i]] = idens[0]
+
+        # apply the replacement by identical expression
+        for key, coup in list(interaction['couplings'].items()):
+            if coup in self.iden_couplings:
+                interaction['couplings'][key] = self.iden_couplings[coup] 
+            if interaction['couplings'][key] == 'ZERO':
+                del interaction['couplings'][key]
+                
+        
+                
+
+        
         # we want to check if the same coupling is used for two lorentz strucutre 
         # for the same color structure. 
         to_lor = {}
@@ -618,14 +670,15 @@ class UFOMG5Converter(object):
                 continue
             names = [interaction['lorentz'][i] for i in to_lor[key]]
             names.sort()
-            
+            if self.lorentz_info[names[0]].get('structure') == 'external':
+                continue
             # get name of the new lorentz
             if tuple(names) in self.lorentz_combine:
                 # already created new loretnz
                 new_name = self.lorentz_combine[tuple(names)]
             else:
                 new_name = self.add_merge_lorentz(names)
-                
+
             # remove the old couplings 
             color, coup = key
             to_remove = [(color, lor) for lor in to_lor[key]]  
@@ -668,7 +721,12 @@ class UFOMG5Converter(object):
         # load the associate lorentz expression
         new_struct = ' + '.join([self.lorentz_info[n].get('structure') for n in names])
         spins = self.lorentz_info[names[0]].get('spins')
-        new_lor = self.add_lorentz(new_name, spins, new_struct)
+        formfactors = sum([ self.lorentz_info[n].get('formfactors') for n in names \
+                            if hasattr(self.lorentz_info[n], 'formfactors') \
+                            and self.lorentz_info[n].get('formfactors') \
+                      ],[])
+                        
+        new_lor = self.add_lorentz(new_name, spins, new_struct, formfactors)
         self.lorentz_info[new_name] = new_lor
         
         return new_name
@@ -1340,15 +1398,19 @@ class UFOMG5Converter(object):
                     
         return  '' if sign ==1 else '-'
 
-    def add_lorentz(self, name, spins , expr):
+    def add_lorentz(self, name, spins , expr, formfact=None):
         """ Add a Lorentz expression which is not present in the UFO """
 
+        logger.debug('MG5 converter defines %s to %s', name, expr)
         assert name not in [l.name for l in self.model['lorentz']]
         with misc.TMP_variable(self.ufomodel.object_library, 'all_lorentz', 
                                self.model['lorentz']):
             new = self.model['lorentz'][0].__class__(name = name,
                     spins = spins,
                     structure = expr)
+            if formfact:
+                new.formfactors = formfact
+
         assert name in [l.name for l in self.model['lorentz']]
         assert name not in [l.name for l in self.ufomodel.all_lorentz]
         #self.model['lorentz'].append(new) # already done by above command
@@ -1809,9 +1871,9 @@ class RestrictModel(model_reader.ModelReader):
         self.remove_couplings(self.del_coup)
        
         # modify interaction to avoid to have identical coupling with different lorentz
-        for interaction in self.get('interactions'):
+        for interaction in list(self.get('interactions')):
             self.optimise_interaction(interaction)
-            
+                
         # deal with parameters
         parameters = self.detect_special_parameters()
         self.fix_parameter_values(*parameters, simplify=rm_parameter, 
@@ -1945,7 +2007,7 @@ class RestrictModel(model_reader.ModelReader):
                 null_parameters.append(name)
             elif value == 1:
                 one_parameters.append(name)
-        
+
         return null_parameters, one_parameters
     
     def apply_conditional_simplifications(self, modified_params,
@@ -2273,7 +2335,9 @@ class RestrictModel(model_reader.ModelReader):
                 particle['width'] = 'ZERO'
             if particle['width'] in one_parameters:
                 one_parameters.remove(particle['width'])                
-                
+            if particle['mass'] in one_parameters:
+                one_parameters.remove(particle['mass'])                
+
         for pdg, particle in self['particle_dict'].items():
             if particle['mass'] in zero_parameters:
                 particle['mass'] = 'ZERO'
@@ -2312,6 +2376,13 @@ class RestrictModel(model_reader.ModelReader):
                     for coupling in coupling_list:
                         for use in  re_pat.findall(coupling.expr):
                             used.add(use)
+                
+                # check in form-factor
+                for lor in self['lorentz']:
+                    if hasattr(lor, 'formfactors') and lor.formfactors:
+                        for ff in lor.formfactors:
+                            for use in  re_pat.findall(ff.value):
+                                used.add(use)
         else:
             used = set([i for i in special_parameters if i])
         
@@ -2456,16 +2527,26 @@ class RestrictModel(model_reader.ModelReader):
         if any( n.startswith('d') for n in names ):
             new_struct += '-' + ' - '.join(['1.*(%s)' %self.lorentz_info[n[1:]].get('structure') for n in names if n.startswith('d')])
         spins = self.lorentz_info[names[0][1:]].get('spins')
-        new_lor = self.add_lorentz(new_name, spins, new_struct)
+        formfact = sum([ self.lorentz_info[n[1:]].get('formfactors') for n in names \
+                            if hasattr(self.lorentz_info[n[1:]], 'formfactors') \
+                              and self.lorentz_info[n[1:]].get('formfactors') \
+                       ],[])
+
+
+
+ 
+        new_lor = self.add_lorentz(new_name, spins, new_struct, formfact)
         self.lorentz_info[new_name] = new_lor
         
         return new_name
     
-    def add_lorentz(self, name, spin, struct):
+    def add_lorentz(self, name, spin, struct, formfact=None):
         """adding lorentz structure to the current model"""
         new = self['lorentz'][0].__class__(name = name,
                                            spins = spin,
                                            structure = struct)
+        if formfact:
+            new.formfactors = formfact
         self['lorentz'].append(new)
         self.create_lorentz_dict()
         

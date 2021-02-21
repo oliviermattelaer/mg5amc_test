@@ -323,6 +323,8 @@ C GLOBAL VARIABLES
 C  
     DOUBLE PRECISION AMP2(MAXAMPS), JAMP2(0:MAXFLOW)
     COMMON/TO_AMPS/  AMP2,       JAMP2
+	double precision small_width_treatment
+	common/narrow_width/small_width_treatment
 C  
 C LOCAL VARIABLES 
 C  
@@ -330,6 +332,10 @@ C
       COMPLEX*16 ZTEMP
       COMPLEX*16 AMP(NGRAPHS)
       COMPLEX*16 W(%(wavefunctionsize)d,NWAVEFUNCS)
+      %(fake_width_declaration)s
+      logical first
+      data first /.true./
+      save first
 %(ic_data_line)s
 %(ip_data_line)s
 C
@@ -339,7 +345,11 @@ C
       EXTERNAL ONEPERM%(proc_id)s
 
 c     Skip calculating amp2s for PS if secondary flows
-      IF(.NOT.FIRSTFLOW) GOTO 10
+if (first) then
+    first=.false.
+    %(fake_width_definitions)s
+endif
+IF(.NOT.FIRSTFLOW) GOTO 10
 
 %(helas_calls)s
 
