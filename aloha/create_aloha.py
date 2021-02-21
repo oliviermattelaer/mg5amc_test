@@ -883,10 +883,14 @@ class AbstractALOHAModel(dict):
                            
         # Loop on the structure to build exactly what is request
         for l_name, outgoing_info in request.items():
-            if l_name.startswith('sum') and outgoing_info[()] in [[(-1,[])],[(-1,['P0'])]]:
-                self.sum_routines.append((l_name[3], int(l_name[4:])))
-                continue
-            
+            if l_name.startswith('sum'):
+                misc.sprint(outgoing_info)
+                if outgoing_info[()] in [[(-1,[])],[(-1,['P0'])]]:
+                    self.sum_routines.append((l_name[3], int(l_name[4:])))
+                    continue
+                else:
+                    raise Exception
+                
             lorentz = eval('self.model.lorentz.%s' % l_name)
             if lorentz.structure == 'external':
                 for tmp in request[l_name]:

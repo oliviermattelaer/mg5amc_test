@@ -424,8 +424,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
     #===========================================================================
     # generate_subprocess_directory_v4
     #===========================================================================
-    def generate_subprocess_directory_v4(self, matrix_element,
-                                         helas_call_writer):
+    def generate_subprocess_directory(self, matrix_element,
+                                         helas_call_writer, me=None):
         """Generate the Pxxxxx directory for a subprocess in MG4 standalone,
         including the necessary matrix.f and nexternal.inc files"""
 
@@ -455,7 +455,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         filename = 'matrix.f'
         self.write_matrix_element_v4(
             writers.FortranWriter(filename),
-            matrix_element)
+            matrix_element, None)
 
         # Create the flow.f files for each color flow
         calls = 0
@@ -504,7 +504,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
     #===========================================================================
     # write_matrix_element_v4
     #===========================================================================
-    def write_matrix_element_v4(self, writer, matrix_element):
+    def write_matrix_element_v4(self, writer, matrix_element, helascallwriter):
         """Export a matrix element to a matrix.f file in standalone
         color ordered amplitude format"""
 
@@ -605,7 +605,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
     #===========================================================================
     # generate_subprocess_directory_v4 
     #===========================================================================
-    def generate_subprocess_directory_v4(self, matrix_element,
+    def generate_subprocess_directory(self, matrix_element,
                                          co_helas_call_writer,
                                          me_number):
         """Generate the Pxxxxx directory for a subprocess in MG4 madevent,
@@ -1128,7 +1128,7 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
     #===========================================================================
     # generate_subprocess_directory_v4
     #===========================================================================
-    def generate_subprocess_directory_v4(self, subproc_group,
+    def generate_subprocess_directory(self, subproc_group,
                                          co_helas_call_writer,
                                          group_number):
 
@@ -1136,7 +1136,7 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
 
         # First generate all files needed except for the flow files
         export_v4.ProcessExporterFortranMEGroup.\
-                      generate_subprocess_directory_v4(self,
+                      generate_subprocess_directory(self,
                                                        subproc_group,
                                                        co_helas_call_writer,
                                                        group_number)
