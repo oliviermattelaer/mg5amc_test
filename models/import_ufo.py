@@ -21,6 +21,7 @@ import os
 import re
 import sys
 import time
+import collections
 
 
 from madgraph import MadGraph5Error, MG5DIR, ReadWrite
@@ -60,13 +61,13 @@ class InvalidModel(MadGraph5Error):
     """ a class for invalid Model """
 
 last_model_path =''
-def find_ufo_path(model_name):
+def find_ufo_path(model_name, web_search=True):
     """ find the path to a model """
 
     global last_model_path
 
     # Check for a valid directory
-    if model_name.startswith('./') and os.path.isdir(model_name):
+    if model_name.startswith(('./','../')) and os.path.isdir(model_name):
         return model_name
     elif os.path.isdir(os.path.join(MG5DIR, 'models', model_name)):
         return os.path.join(MG5DIR, 'models', model_name)
@@ -80,12 +81,92 @@ def find_ufo_path(model_name):
     if os.path.isdir(model_name):
         logger.warning('No model %s found in default path. Did you mean \'import model ./%s\'',
                        model_name, model_name)
-        raise UFOImportError("Path %s is not a valid pathname" % model_name)    
+        if os.path.sep in model_name:
+            raise UFOImportError("Path %s is not a valid pathname" % model_name)    
+    elif web_search and '-' not in model_name:
+        found = import_model_from_db(model_name)
+        if found:
+            return find_ufo_path(model_name, web_search=False)
+        else:
+            raise UFOImportError("Path %s is not a valid pathname" % model_name)    
     else:
         raise UFOImportError("Path %s is not a valid pathname" % model_name)    
     
-
+    raise UFOImportError("Path %s is not a valid pathname" % model_name)
     return
+
+
+def get_model_db():
+    """return the file with the online model database"""
+
+    data_path = ['http://madgraph.phys.ucl.ac.be/models_db.dat',
+                     'http://madgraph.physics.illinois.edu/models_db.dat']
+    import random
+    import urllib
+    r = random.randint(0,1)
+    r = [r, (1-r)]
+
+    for index in r:
+        cluster_path = data_path[index]
+        try:
+            data = urllib.urlopen(cluster_path)
+        except Exception:
+            continue
+        break
+    else:
+        raise MadGraph5Error, '''Model not found locally and Impossible to connect any of us servers.
+        Please check your internet connection or retry later'''
+    return data
+
+def import_model_from_db(model_name, local_dir=False):
+    """ import the model with a given name """
+
+    data =get_model_db()
+    link = None
+    for line in data:
+        split = line.split()
+        if model_name == split[0]:
+            link = split[1]
+            break
+    else:
+        logger.debug('no model with that name found online')
+        return False
+    
+    #get target directory
+    # 1. PYTHONPATH containing UFO
+    # 2. models directory
+    target = None 
+    if 'PYTHONPATH' in os.environ and not local_dir:
+        for directory in os.environ['PYTHONPATH'].split(':'):
+            if 'UFO' in os.path.basename(directory) and os.path.exists(directory):
+                target= directory 
+    if target is None:
+        target = pjoin(MG5DIR, 'models')    
+    try:
+        os.remove(pjoin(target, 'tmp.tgz'))
+    except Exception:
+        pass
+    logger.info("download model from %s to the following directory: %s", link, target, '$MG:color:BLACK')
+    misc.wget(link, 'tmp.tgz', cwd=target)
+
+    #untar the file.
+    # .tgz
+    if link.endswith(('.tgz','.tar.gz','.tar')):
+        try:
+            proc = misc.call('tar -xzpvf tmp.tgz', shell=True, cwd=target)#, stdout=devnull, stderr=devnull)
+            if proc: raise Exception
+        except:
+            proc = misc.call('tar -xpvf tmp.tgz', shell=True, cwd=target)#, stdout=devnull, stderr=devnull)
+    # .zip
+    if link.endswith(('.zip')):
+        try:
+            proc = misc.call('unzip tmp.tgz', shell=True, cwd=target)#, stdout=devnull, stderr=devnull)
+            if proc: raise Exception
+        except:
+            proc = misc.call('tar -xzpvf tmp.tgz', shell=True, cwd=target)#, stdout=devnull, stderr=devnull)
+    if proc:
+        raise Exception, "Impossible to unpack the model. Please install it manually"
+    return True
 
 def import_model(model_name, decay=False, restrict=True, prefix='mdl_',
                                                     complex_mass_scheme = None):
@@ -96,10 +177,17 @@ def import_model(model_name, decay=False, restrict=True, prefix='mdl_',
         model_path = find_ufo_path(model_name)
     except UFOImportError:
         if '-' not in model_name:
+            if model_name == "mssm":
+                logger.error("mssm model has been replaced by MSSM_SLHA2 model.\n The new model require SLHA2 format. You can use the \"update to_slha2\" command to convert your slha1 param_card.\n That option is available at the time of the edition of the cards.")
             raise
         split = model_name.split('-')
         model_name = '-'.join([text for text in split[:-1]])
-        model_path = find_ufo_path(model_name)
+        try:
+            model_path = find_ufo_path(model_name)
+        except UFOImportError:
+            if model_name == "mssm":
+                logger.error("mssm model has been replaced by MSSM_SLHA2 model.\n The new model require SLHA2 format. You can use the \"update to_slha2\" command to convert your slha1 param_card.\n That option is available at the time of the edition of the cards.")
+            raise
         restrict_name = split[-1]
          
         restrict_file = os.path.join(model_path, 'restrict_%s.dat'% restrict_name)
@@ -327,6 +415,9 @@ class UFOMG5Converter(object):
     def __init__(self, model, auto=False):
         """ initialize empty list for particles/interactions """
        
+        if hasattr(model, '__arxiv__'):
+            logger.info('Please cite %s when using this model', model.__arxiv__, '$MG:color:BLACK')
+       
         self.particles = base_objects.ParticleList()
         self.interactions = base_objects.InteractionList()
         self.wavefunction_CT_couplings = []
@@ -407,7 +498,7 @@ class UFOMG5Converter(object):
         color_info = self.find_color_anti_color_rep()
 
         # load the lorentz structure.
-        self.model.set('lorentz', self.ufomodel.all_lorentz)
+        self.model.set('lorentz', list(self.ufomodel.all_lorentz))
         
         # Substitute the expression of CT couplings which include CTparameters
         # in their definition with the corresponding dictionaries, e.g.
@@ -438,6 +529,11 @@ class UFOMG5Converter(object):
 
             for interaction_info in self.ufomodel.all_CTvertices:
                 self.add_CTinteraction(interaction_info, color_info)
+    
+
+        for interaction in self.interactions:
+            self.optimise_interaction(interaction)
+    
     
         self.model.set('conserved_charge', self.conservecharge)
 
@@ -486,7 +582,102 @@ class UFOMG5Converter(object):
         del self.checked_lor
 
         return self.model
+    
+    def optimise_interaction(self, interaction):
         
+        # we want to check if the same coupling is used for two lorentz strucutre 
+        # for the same color structure. 
+        to_lor = {}
+        for (color, lor), coup in interaction['couplings'].items():
+            key = (color, coup)
+            if key in to_lor:
+                to_lor[key].append(lor)
+            else:
+                to_lor[key] = [lor]
+                
+        nb_reduce = []
+        optimize = False
+        for key in to_lor:
+            if len(to_lor[key]) >1:
+                nb_reduce.append(len(to_lor[key])-1)
+                optimize = True
+           
+        if not optimize:
+            return
+        
+        if not hasattr(self, 'defined_lorentz_expr'):
+            self.defined_lorentz_expr = {}
+            self.lorentz_info = {}
+            self.lorentz_combine = {}
+            for lor in self.model['lorentz']:
+                self.defined_lorentz_expr[lor.get('structure')] = lor.get('name')
+                self.lorentz_info[lor.get('name')] = lor #(lor.get('structure'), lor.get('spins'))
+        
+        for key in to_lor:
+            if len(to_lor[key]) == 1:
+                continue
+            names = [interaction['lorentz'][i] for i in to_lor[key]]
+            names.sort()
+            
+            # get name of the new lorentz
+            if tuple(names) in self.lorentz_combine:
+                # already created new loretnz
+                new_name = self.lorentz_combine[tuple(names)]
+            else:
+                new_name = self.add_merge_lorentz(names)
+                
+            # remove the old couplings 
+            color, coup = key
+            to_remove = [(color, lor) for lor in to_lor[key]]  
+            for rm in to_remove:
+                del interaction['couplings'][rm]
+                
+            #add the lorentz structure to the interaction            
+            if new_name not in [l for l in interaction.get('lorentz')]:
+                interaction.get('lorentz').append(new_name)
+
+            #find the associate index
+            new_l = interaction.get('lorentz').index(new_name)
+            # adding the new combination (color,lor) associate to this sum of structure
+            interaction['couplings'][(color, new_l)] = coup  
+                
+    
+    def add_merge_lorentz(self, names):
+        """add a lorentz structure which is the sume of the list given above"""
+        
+        
+        #create new_name
+        ii = len(names[0])
+        while ii>0:
+            if not all(n.startswith(names[0][:ii]) for n in names[1:]):
+                ii -=1
+            else:
+                base_name = names[0][:ii]
+                break
+        else:
+            base_name = 'LMER'
+            
+        i = 1
+        while '%s%s' %(base_name, i) in self.lorentz_info:
+            i +=1
+        new_name = '%s%s' %(base_name, i)
+        self.lorentz_combine[tuple(names)] = new_name
+        assert new_name not in self.lorentz_info
+        assert new_name not in [l.name for l in self.model['lorentz']]
+        
+        # load the associate lorentz expression
+        new_struct = ' + '.join([self.lorentz_info[n].get('structure') for n in names])
+        spins = self.lorentz_info[names[0]].get('spins')
+        new_lor = self.add_lorentz(new_name, spins, new_struct)
+        self.lorentz_info[new_name] = new_lor
+        
+        return new_name
+                
+                # We also have to create the new lorentz
+                
+                    
+            
+            
     
     def add_particle(self, particle_info):
         """ convert and add a particle in the particle list """
@@ -890,7 +1081,6 @@ class UFOMG5Converter(object):
                           (intType if poleOrder==0 else (intType+str(poleOrder)+\
                                                              'eps')),loop_particles)
 
-
     def find_color_anti_color_rep(self, output=None):
         """find which color are in the 3/3bar states"""
         # method look at the 3 3bar 8 configuration.
@@ -1107,6 +1297,7 @@ class UFOMG5Converter(object):
                 self.conservecharge.discard(charge)
         
         
+        
     def get_sign_flow(self, flow, nb_fermion):
         """ensure that the flow of particles/lorentz are coherent with flow 
            and return a correct version if needed"""
@@ -1149,19 +1340,20 @@ class UFOMG5Converter(object):
                     
         return  '' if sign ==1 else '-'
 
-
-
-    
     def add_lorentz(self, name, spins , expr):
         """ Add a Lorentz expression which is not present in the UFO """
-        
-        new = self.model['lorentz'][0].__class__(name = name,
-                spins = spins,
-                structure = expr)
-        
-        self.model['lorentz'].append(new)
+
+        assert name not in [l.name for l in self.model['lorentz']]
+        with misc.TMP_variable(self.ufomodel.object_library, 'all_lorentz', 
+                               self.model['lorentz']):
+            new = self.model['lorentz'][0].__class__(name = name,
+                    spins = spins,
+                    structure = expr)
+        assert name in [l.name for l in self.model['lorentz']]
+        assert name not in [l.name for l in self.ufomodel.all_lorentz]
+        #self.model['lorentz'].append(new) # already done by above command
         self.model.create_lorentz_dict()
-        return name
+        return new
     
     _pat_T = re.compile(r'T\((?P<first>\d*),(?P<second>\d*)\)')
     _pat_id = re.compile(r'Identity\((?P<first>\d*),(?P<second>\d*)\)')
@@ -1570,6 +1762,7 @@ class RestrictModel(model_reader.ModelReader):
         super(RestrictModel, self).default_setup()
         self.rule_card = check_param_card.ParamCardRule()
         self.restrict_card = None
+        self.coupling_order_dict ={}
      
     def restrict_model(self, param_card, rm_parameter=True, keep_external=False,
                                                       complex_mass_scheme=None):
@@ -1615,6 +1808,10 @@ class RestrictModel(model_reader.ModelReader):
         self.del_coup += zero_couplings
         self.remove_couplings(self.del_coup)
        
+        # modify interaction to avoid to have identical coupling with different lorentz
+        for interaction in self.get('interactions'):
+            self.optimise_interaction(interaction)
+            
         # deal with parameters
         parameters = self.detect_special_parameters()
         self.fix_parameter_values(*parameters, simplify=rm_parameter, 
@@ -1646,6 +1843,8 @@ class RestrictModel(model_reader.ModelReader):
         self.coupling_pos = {}
         for vertex in self['interactions']:
             for key, coupling in vertex['couplings'].items():
+                if coupling.startswith('-'):
+                    coupling = coupling[1:]
                 if coupling in self.coupling_pos:
                     if vertex not in self.coupling_pos[coupling]:
                         self.coupling_pos[coupling].append(vertex)
@@ -1683,17 +1882,58 @@ class RestrictModel(model_reader.ModelReader):
                 return self.detect_identical_couplings(strict_zero=True)
 
             
-            if value in dict_value_coupling:
-                iden_key.add(value)
-                dict_value_coupling[value].append(name)
+            if value in dict_value_coupling or -1*value in dict_value_coupling:
+                if value in dict_value_coupling:
+                    iden_key.add(value)
+                    dict_value_coupling[value].append((name,1))
+                else:
+                    iden_key.add(-1*value)
+                    dict_value_coupling[-1*value].append((name,-1))
             else:
-                dict_value_coupling[value] = [name]
-        
+                dict_value_coupling[value] = [(name,1)]
         for key in iden_key:
-            iden_coupling.append(dict_value_coupling[key])
+            tmp = []
+            if key in dict_value_coupling:
+                tmp += dict_value_coupling[key]
+            elif -1*key in dict_value_coupling:
+                tmp += dict_value_coupling[-1*key]
+            assert tmp
+
+            #ensure that all coupling have the same coupling order.
+            ords = [self.get_coupling_order(k) for k,c in tmp]
+            coup_by_ord = collections.defaultdict(list)
+            for o,t in zip(ords, tmp):
+                coup_by_ord[str(o)].append(t)
+            # add the remaining identical
+            for tmp3 in coup_by_ord.values():
+                if len(tmp3) > 1:
+                    if tmp3[0][1] == -1: #ensure that the first coupling has positif value
+                        tmp3 = [(t0,-t1) for t0, t1 in tmp3]
+                    iden_coupling.append(tmp3)
+
+            
+            
 
         return zero_coupling, iden_coupling
     
+    def get_coupling_order(self, cname):
+        """return the coupling order associated to a coupling """
+        
+        if cname in self.coupling_order_dict:
+            return self.coupling_order_dict[cname]
+
+        for v in self['interactions']:
+            for c in v['couplings'].values():
+                self.coupling_order_dict[c] = v['orders']
+        
+        if cname not in self.coupling_order_dict:
+            self.coupling_order_dict[cname] = None
+            #can happen when some vertex are discarded due to ghost/...
+            
+        
+        return self.coupling_order_dict[cname]
+
+
     
     def detect_special_parameters(self):
         """ return the list of (name of) parameter which are zero """
@@ -1809,18 +2049,52 @@ class RestrictModel(model_reader.ModelReader):
         return output
 
 
+    @staticmethod
+    def get_new_coupling_name(main, coupling, value, coeff):
+        """ We have main == coeff * coupling
+            coeff is only +1 or -1
+            main can be either GC_X or -GC_X
+            coupling can be either GC_Y or -GC_Y
+            value is either GC_Y or -GC_Y
+            the return is either GC_X or -GC_X
+            such that we have value == OUTPUT
+        """
+        assert coeff in [-1,1]
+        assert value == coupling or value == '-%s' % coupling or coupling == '-%s' % value
+        assert isinstance(main, str)
+        assert isinstance(coupling, str)
+        assert isinstance(value, str)
+        if coeff ==1: 
+            if value == coupling:
+                return main # 4/4
+            else:
+                if main.startswith('-'):
+                    return main[1:] # 2/2
+                else:
+                    return '-%s' % main # 2/2
+        else:
+            if value == coupling:
+                if main.startswith('-'):
+                    return main[1:] # 2/2
+                else:
+                    return '-%s' % main # 2/2
+            else:
+                return main # 4/4
+
+
     def merge_iden_couplings(self, couplings):
         """merge the identical couplings in the interactions and particle 
         counterterms"""
 
         
         logger_mod.debug(' Fuse the Following coupling (they have the same value): %s '% \
-                        ', '.join([obj for obj in couplings]))
+                        ', '.join([str(obj) for obj in couplings]))
+
+        main = couplings[0][0]
+        assert couplings[0][1] == 1
+        self.del_coup += [c[0] for c in couplings[1:]] # add the other coupl to the suppress list
         
-        main = couplings[0]
-        self.del_coup += couplings[1:] # add the other coupl to the suppress list
-        
-        for coupling in couplings[1:]:
+        for coupling, coeff in couplings[1:]:
             # check if param is linked to an interaction
             if coupling not in self.coupling_pos:
                 continue
@@ -1829,9 +2103,13 @@ class RestrictModel(model_reader.ModelReader):
                          isinstance(vert, base_objects.Interaction)]
             for vertex in vertices:
                 for key, value in vertex['couplings'].items():
-                    if value == coupling:
-                        vertex['couplings'][key] = main
-
+                    if value == coupling or value == '-%s' % coupling or coupling == '-%s' % value:
+                        vertex['couplings'][key] = self.get_new_coupling_name(\
+                                                   main, coupling, value, coeff)
+                    
+                    
+                            
+                        
             # replace the coupling appearing in the particle counterterm
             particles_ct = [ pct for pct in self.coupling_pos[coupling] if 
                          isinstance(pct, tuple)]
@@ -2090,11 +2368,109 @@ class RestrictModel(model_reader.ModelReader):
             data = self['parameters'][param_info[param]['dep']]
             data.remove(param_info[param]['obj'])
 
+    def optimise_interaction(self, interaction):
+        
+        # we want to check if the same coupling (up to the sign) is used for two lorentz structure 
+        # for the same color structure. 
+        to_lor = {}
+        for (color, lor), coup in interaction['couplings'].items():
+            abscoup, coeff = (coup[1:],-1) if coup.startswith('-') else (coup, 1)
+            key = (color, abscoup)
+            if key in to_lor:
+                to_lor[key].append((lor,coeff))
+            else:
+                to_lor[key] = [(lor,coeff)]
+
+        nb_reduce = []
+        optimize = False
+        for key in to_lor:
+            if len(to_lor[key]) >1:
+                nb_reduce.append(len(to_lor[key])-1)
+                optimize = True
+           
+        if not optimize:
+            return
+        
+        if not hasattr(self, 'defined_lorentz_expr'):
+            self.defined_lorentz_expr = {}
+            self.lorentz_info = {}
+            self.lorentz_combine = {}
+            for lor in self.get('lorentz'):
+                self.defined_lorentz_expr[lor.get('structure')] = lor.get('name')
+                self.lorentz_info[lor.get('name')] = lor #(lor.get('structure'), lor.get('spins'))
+            
+        for key in to_lor:
+            if len(to_lor[key]) == 1:
+                continue
+            names = ['u%s' % interaction['lorentz'][i[0]] if i[1] ==1 else \
+                     'd%s' % interaction['lorentz'][i[0]] for i in to_lor[key]]
+
+            names.sort()
+            
+            # get name of the new lorentz
+            if tuple(names) in self.lorentz_combine:
+                # already created new loretnz
+                new_name = self.lorentz_combine[tuple(names)]
+            else:
+                new_name = self.add_merge_lorentz(names)
                 
-
-
-
+            # remove the old couplings 
+            color, coup = key
+            to_remove = [(color, lor[0]) for lor in to_lor[key]] 
+            for rm in to_remove:
+                del interaction['couplings'][rm]
                 
+            #add the lorentz structure to the interaction            
+            if new_name not in [l for l in interaction.get('lorentz')]:
+                interaction.get('lorentz').append(new_name)
+
+            #find the associate index
+            new_l = interaction.get('lorentz').index(new_name)
+            # adding the new combination (color,lor) associate to this sum of structure
+            interaction['couplings'][(color, new_l)] = coup     
+
+
+
+    def add_merge_lorentz(self, names):
+        """add a lorentz structure which is the sume of the list given above"""
+        
+        #create new_name
+        ii = len(names[0])
+        while ii>1:
+            #do not count the initial "u/d letter whcih indicates the sign"
+            if not all(n[1:].startswith(names[0][1:ii]) for n in names[1:]):
+                ii -=1
+            else:
+                base_name = names[0][1:ii]
+                break
+        else:
+            base_name = 'LMER'
+        i = 1
+        while '%s%s' %(base_name, i) in self.lorentz_info:
+            i +=1
+        new_name = '%s%s' %(base_name, i)
+        self.lorentz_combine[tuple(names)] = new_name
+        
+        # load the associate lorentz expression
+        new_struct = ' + '.join([self.lorentz_info[n[1:]].get('structure') for n in names if n.startswith('u')])
+        if any( n.startswith('d') for n in names ):
+            new_struct += '-' + ' - '.join(['1.*(%s)' %self.lorentz_info[n[1:]].get('structure') for n in names if n.startswith('d')])
+        spins = self.lorentz_info[names[0][1:]].get('spins')
+        new_lor = self.add_lorentz(new_name, spins, new_struct)
+        self.lorentz_info[new_name] = new_lor
+        
+        return new_name
+    
+    def add_lorentz(self, name, spin, struct):
+        """adding lorentz structure to the current model"""
+        new = self['lorentz'][0].__class__(name = name,
+                                           spins = spin,
+                                           structure = struct)
+        self['lorentz'].append(new)
+        self.create_lorentz_dict()
+        
+        return None
+                                
         
         
         

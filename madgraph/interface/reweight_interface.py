@@ -217,12 +217,16 @@ class ReweightInterface(extended_cmd.Cmd):
         
         # split the line definition with the part before and after the NLO tag
         process, order, final = re.split('\[\s*(.*)\s*\]', proc)
+        if process.strip().startswith(('generate', 'add process')):
+            process = process.replace('generate', '')
+            process = process.replace('add process','')
+        
         # add the part without any additional jet.
         commandline="add process %s %s --no_warning=duplicate;" % (process, final)
         if not order:
             #NO NLO tag => nothing to do actually return input
             return proc
-        elif not order.startswith(('virt','loonly','noborn')):
+        elif not order.startswith(('virt','LOonly','noborn')):
             # OK this a standard NLO process            
             if real_only:
                 commandline= '' 
@@ -258,11 +262,16 @@ class ReweightInterface(extended_cmd.Cmd):
                 commandline +='add process %s pert_%s %s --no_warning=duplicate;' % (process,order.replace(' ',''), final)
         elif order.startswith(('noborn=')):
             # pass in sqrvirt=
-            return "add process %s ;" % proc.replace('noborn=', 'sqrvirt=')
-            
+            return "add process %s [%s] %s;" % (process, order.replace('noborn=', 'sqrvirt='), final)
+        elif order.startswith('LOonly'):
+            #remove [LOonly] flag
+            return "add process %s %s;" % (process, final)
         else:
             #just return the input. since this Madloop.
-            return "add process %s ;" % proc                                       
+            if order:
+                return "add process %s [%s] %s ;" % (process, order,final)
+            else:
+                return "add process %s %s ;" % (process, final)
         return commandline
 
 
@@ -382,7 +391,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 os.mkdir(self.rwgt_dir)
             self.rwgt_dir = os.path.abspath(self.rwgt_dir)
         elif args[0] == 'systematics':
-            if self.output_type == 'default':
+            if self.output_type == 'default' and args[1].lower() not in ['none', 'off']:
                 logger.warning('systematics can only be computed for non default output type. pass to output mode \'2.0\'')
                 self.output_type = '2.0'
             if len(args) == 2:
@@ -458,6 +467,8 @@ class ReweightInterface(extended_cmd.Cmd):
         if not self.has_standalone_dir:                           
             if self.rwgt_dir and os.path.exists(pjoin(self.rwgt_dir,'rw_me','rwgt.pkl')):
                 self.load_from_pickle()
+                if opts['rwgt_name']:
+                    self.options['rwgt_name'] = opts['rwgt_name']
                 if not self.rwgt_dir:
                     self.me_dir = self.rwgt_dir
                 self.load_module()       # load the fortran information from the f2py module
@@ -614,7 +625,7 @@ class ReweightInterface(extended_cmd.Cmd):
             for name in type_rwgt:
                 variance = ratio_square[name]/event_nb - (ratio[name]/event_nb)**2
                 orig_cross, orig_error = self.orig_cross
-                error[name] = variance/math.sqrt(event_nb) * orig_cross + ratio[name]/event_nb * orig_error
+                error[name] = math.sqrt(max(0,variance/math.sqrt(event_nb))) * orig_cross + ratio[name]/event_nb * orig_error
             results.add_detail('error', error[type_rwgt[0]])
             import madgraph.interface.madevent_interface as ME_interface
 
@@ -906,6 +917,33 @@ class ReweightInterface(extended_cmd.Cmd):
     def do_compute_widths(self, line):
         return self.mother.do_compute_widths(line)
     
+    
+    dynamical_scale_warning=True
+    def change_kinematics(self, event):
+ 
+
+        if isinstance(self.run_card, banner.RunCardLO):
+            jac = event.change_ext_mass(self.new_param_card)
+            new_event = event
+        else:
+            jac =1
+            new_event = event
+
+        if jac != 1:
+            if self.output_type == 'default':
+                logger.critical('mass reweighting requires dedicated lhe output!. Please include "change output 2.0" in your reweight_card')
+                raise Exception
+            mode = self.run_card['dynamical_scale_choice']
+            if mode == -1:
+                if self.dynamical_scale_warning:
+                    logger.warning('dynamical_scale is set to -1. New sample will be with HT/2 dynamical scale for renormalisation scale')
+                mode = 3
+            new_event.scale = event.get_scale(mode)
+            new_event.aqcd = self.lhe_input.get_alphas(new_event.scale, lhapdf_config=self.mother.options['lhapdf'])
+         
+        return jac, new_event
+    
+    
     def calculate_weight(self, event):
         """space defines where to find the calculator (in multicore)"""
         
@@ -918,27 +956,15 @@ class ReweightInterface(extended_cmd.Cmd):
         orig_wgt = event.wgt
         # LO reweighting    
         w_orig = self.calculate_matrix_element(event, 0)
+        
         # reshuffle event for mass effect # external mass only
-        if isinstance(self.run_card, banner.RunCardLO):
-            jac = event.change_ext_mass(self.new_param_card)
-        else:
-            jac =1
-
-        if jac != 1:
-            if self.output_type == 'default':
-                logger.critical('mass reweighting requires dedicated lhe output!. Please include "change output 2.0" in your reweight_card')
-                raise Exception
-            mode = self.run_card['dynamical_scale_choice']
-            if mode == -1:
-                logger.warning('dynamical_scale is set to -1. New sample will be with HT/2 dynamical scale for renormalisation scale')
-                mode = 3
-            event.scale = event.get_scale(mode)
-            event.aqcd = self.lhe_input.get_alphas(event.scale, lhapdf_config=self.mother.options['lhapdf'])
- 
+        # carefull that new_event can sometimes be = to event 
+        # (i.e. change can be in place)
+        jac, new_event = self.change_kinematics(event)
         
         
         if event.wgt != 0: # impossible reshuffling
-            w_new =  self.calculate_matrix_element(event, 1)
+            w_new =  self.calculate_matrix_element(new_event, 1)
         else:
             w_new = 0
 
@@ -1072,16 +1098,17 @@ class ReweightInterface(extended_cmd.Cmd):
             final_weight['_lo'] = w_new/w_orig*event.wgt
             
             
-        if self.output_type != 'default':
-            if len(type_nlo) !=1:
-                raise Exception
+        if self.output_type != 'default' and len(type_nlo)==1 and '_lo' not in type_nlo:
             to_write = [partial[i]/ref_wgts[i]*partial_check[i]
                              if 0.85<avg[i]<1.15 else 0
                               for i in range(len(ref_wgts))]
             for cevent in event.nloweight.cevents:
                 for c_wgt in cevent.wgts:
                         c_wgt.ref_wgt = to_write.pop(0)
-                        c_wgt.pwgt = wgt_tree.pop(0)
+                        if '_tree' in type_nlo:
+                            c_wgt.pwgt = wgt_tree.pop(0)
+                        else:
+                            c_wgt.pwgt = wgt_virt.pop(0)
             assert not to_write
             assert not wgt_tree
         return final_weight 
@@ -1141,15 +1168,20 @@ class ReweightInterface(extended_cmd.Cmd):
         
         hel_order = event.get_helicity(orig_order)
         if self.helicity_reweighting and 9 not in hel_order:
-            nhel = hel_dict[tuple(hel_order)]
-            if event[1].status == -1: #check if this is a 2 >N processes
-                # need to pass to the rest-frame
-                pboost = lhe_parser.FourMomentum(p[0]) + lhe_parser.FourMomentum(p[1])
-                for i,thisp in enumerate(p):
-                    p[i] = lhe_parser.FourMomentum(thisp).zboost(pboost).get_tuple()
-                assert p[0][1] == p[0][2] == 0 == p[1][2] == p[1][2] == 0                 
+            nhel = hel_dict[tuple(hel_order)]                
         else:
             nhel = -1
+            
+        # For 2>N pass in the center of mass frame
+        #   - required for helicity by helicity re-weighitng
+        #   - Speed-up loop computation 
+        if (hasattr(event[1], 'status') and event[1].status == -1) or \
+           (event[1].px == event[1].py == 0.):
+            pboost = lhe_parser.FourMomentum(p[0]) + lhe_parser.FourMomentum(p[1])
+            for i,thisp in enumerate(p):
+                p[i] = lhe_parser.FourMomentum(thisp).zboost(pboost).get_tuple()
+            assert p[0][1] == p[0][2] == 0 == p[1][2] == p[1][2] == 0 
+        
         pold = list(p)
         p = self.invert_momenta(p)
         pdg = list(orig_order[0])+list(orig_order[1])
@@ -1682,9 +1714,19 @@ class ReweightInterface(extended_cmd.Cmd):
                 continue 
             pdir = pjoin(path_me, onedir, 'SubProcesses')
             for tag in [2*metag,2*metag+1]:
-                with misc.TMP_variable(sys, 'path', [pjoin(path_me)]+sys.path):
-                    mymod = __import__('%s.SubProcesses.allmatrix%spy' % (onedir, tag), globals(), locals(), [],-1)
-                    reload(mymod)
+                with misc.TMP_variable(sys, 'path', [pjoin(path_me)]+sys.path):      
+                    mod_name = '%s.SubProcesses.allmatrix%spy' % (onedir, tag)
+                    #mymod = __import__('%s.SubProcesses.allmatrix%spy' % (onedir, tag), globals(), locals(), [],-1)
+                    if mod_name in sys.modules.keys():
+                        del sys.modules[mod_name]
+                        tmp_mod_name = mod_name
+                        while '.' in tmp_mod_name:
+                            tmp_mod_name = tmp_mod_name.rsplit('.',1)[0]
+                            del sys.modules[tmp_mod_name]
+                        mymod = __import__(mod_name, globals(), locals(), [],-1)  
+                    else:
+                        mymod = __import__(mod_name, globals(), locals(), [],-1)    
+                    
                     S = mymod.SubProcesses
                     mymod = getattr(S, 'allmatrix%spy' % tag)
                 
@@ -1698,7 +1740,7 @@ class ReweightInterface(extended_cmd.Cmd):
             data = self.id_to_path
             if '_second' in onedir:
                 data = self.id_to_path_second
-                
+
             # get all the information
             all_pdgs = mymod.get_pdg_order()
             all_pdgs = [[pdg for pdg in pdgs if pdg!=0] for pdgs in  mymod.get_pdg_order()]
@@ -1726,7 +1768,7 @@ class ReweightInterface(extended_cmd.Cmd):
 
             for i,pdg in enumerate(all_pdgs):
                 if self.is_decay:
-                    incoming = pdg[0]
+                    incoming = [pdg[0]]
                     outgoing = pdg[1:]
                 else:
                     incoming = pdg[0:2]
@@ -1745,7 +1787,7 @@ class ReweightInterface(extended_cmd.Cmd):
                         for i in range(len(pdg)):
                             if pdg[i] == oldpdg[i]:
                                 continue
-                            if not self.model:
+                            if not self.model or not getattr(self.model, 'get_mass'):
                                 continue
                             if self.model.get_mass(int(pdg[i])) == self.model.get_mass(int(oldpdg[i])):
                                 continue
@@ -1758,7 +1800,7 @@ class ReweightInterface(extended_cmd.Cmd):
                         misc.sprint(data[tag][:-1])
                         misc.sprint(order, pdir,)
                         raise Exception
-                
+
                 data[tag] = order, pdir, hel
              
              

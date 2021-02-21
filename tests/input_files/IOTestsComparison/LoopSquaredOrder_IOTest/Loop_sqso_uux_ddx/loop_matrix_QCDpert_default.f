@@ -47,9 +47,9 @@ C
       INTEGER NBORNAMPS
       PARAMETER (NBORNAMPS=1)
       INTEGER    NLOOPS, NLOOPGROUPS, NCTAMPS
-      PARAMETER (NLOOPS=14, NLOOPGROUPS=13, NCTAMPS=27)
+      PARAMETER (NLOOPS=14, NLOOPGROUPS=13, NCTAMPS=28)
       INTEGER    NLOOPAMPS
-      PARAMETER (NLOOPAMPS=41)
+      PARAMETER (NLOOPAMPS=42)
       INTEGER    NCOLORROWS
       PARAMETER (NCOLORROWS=NLOOPAMPS)
       INTEGER    NEXTERNAL
@@ -958,7 +958,7 @@ C         In general, only wavefunction renormalization counterterms
 C         (if needed by the loop UFO model) are of this type.
 C         Quite often and in principle for all loop UFO models from 
 C         FeynRules, there are none of these type of counterterms.
-
+          CALL ML5_0_HELAS_CALLS_UVCT_1(P,NHEL,H,IC)
  3000     CONTINUE
           UVCT_REQ_SO_DONE=.TRUE.
 
@@ -1942,6 +1942,16 @@ C        not included
           ENDIF
         ENDIF
 
+C       If NaN are present in the evaluation, automatically set the
+C        accuracy to 1.0d99.
+        DO I=1,3
+          DO J=1,MAXSTABILITYLENGTH
+            IF (ISNAN(FULLLIST(I,K,J))) THEN
+              ACC(K) = 1.0D99
+            ENDIF
+          ENDDO
+        ENDDO
+
       ENDDO
 
       END
@@ -2107,7 +2117,7 @@ C
 C     CONSTANTS
 C     
       INTEGER    NLOOPAMPS
-      PARAMETER (NLOOPAMPS=41)
+      PARAMETER (NLOOPAMPS=42)
 C     
 C     ARGUMENTS
 C     
@@ -2124,7 +2134,7 @@ C
       DATA (LOOPAMPORDERS(I),I= 26, 30) /    2,    2,    2,    2,    2/
       DATA (LOOPAMPORDERS(I),I= 31, 35) /    2,    2,    2,    2,    2/
       DATA (LOOPAMPORDERS(I),I= 36, 40) /    2,    2,    2,    2,    2/
-      DATA (LOOPAMPORDERS(I),I= 41, 41) /    2/
+      DATA (LOOPAMPORDERS(I),I= 41, 42) /    2,    2/
 C     -----------
 C     BEGIN CODE
 C     -----------

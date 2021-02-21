@@ -104,7 +104,7 @@ c     Arguments
 c
       integer iconfig,mincfig,maxcfig,invar
       double precision p1(0:3,nexternal+1)
-      double precision x(maxinvar)
+      double precision x(*)
       double precision wgt
 c
 c     Local
@@ -279,19 +279,18 @@ c        Set CM rapidity for use in the rap() function
          cm_rap=.5d0*dlog((p0+p3)/(p0-p3))
          set_cm_rap=.true.
 c        Set shat
-         s(-nbranch) = m2**2+2*xbk(1)*ebeam(1) *
-     $                 (ebeam(2)+sqrt(ebeam(2)**2-m2**2))
+         s(-nbranch) = x(ndim)*stot         
       elseif (abs(lpp(2)) .ge. 1) then
          call sample_get_x(sjac,x(ndim),ndim,mincfig,0d0,1d0)
          xbk(2) = x(ndim)
+
 c        Set CM rapidity for use in the rap() function
          p0=ebeam(1)+xbk(2)*ebeam(2)
          p3=sqrt(ebeam(1)**2-m1**2)-xbk(2)*ebeam(2)
          cm_rap=.5d0*dlog((p0+p3)/(p0-p3))
          set_cm_rap=.true.
 c        Set shat
-         s(-nbranch) = m1**2+2*(ebeam(1)+sqrt(ebeam(1)**2-m1**2))
-     $                 * xbk(2)*ebeam(2)
+         s(-nbranch) =  x(ndim)*stot         
       else
 c        Set CM rapidity for use in the rap() function
          p0=ebeam(1) + ebeam(2)
@@ -575,6 +574,8 @@ c        Set stot
             if (abs(lpp(2)) .eq. 1 .or. abs(lpp(2)) .eq. 2) m2 = 0.938d0
             if (abs(lpp(1)) .eq. 3) m1 = 0.000511d0
             if (abs(lpp(2)) .eq. 3) m2 = 0.000511d0
+            if (mass_ion(1).ge.0d0) m1 = mass_ion(1)
+            if (mass_ion(2).ge.0d0) m1 = mass_ion(2)
             if(ebeam(1).lt.m1.and.lpp(1).ne.9) ebeam(1)=m1
             if(ebeam(2).lt.m2.and.lpp(2).ne.9) ebeam(2)=m2
             pi1(0)=ebeam(1)
@@ -661,7 +662,7 @@ c
 c      double precision spole(-max_branch:0),swidth(-max_branch:0)
       double precision jac,pswgt
       integer nbranch
-      double precision x(40) ! ja 3/2/11 21->40 after strange segfault
+      double precision x(*) ! ja 3/2/11 21->40 after strange segfault
 c
 c     Local
 c
@@ -863,21 +864,20 @@ c
 
 c         write(*,*) 'tmin, tmax',tmin,tmax
 
-         tmax = max(tmax,0d0) !This line if want really t freedom
+      if (tmax.gt.-0.01.and.tmin.lt.-0.02)then
+c         set tmax to 0. The idea is to be sure to be able to hit zero
+c         and not to be block by numerical inacuracy
+c         tmax = max(tmax,0d0) !This line if want really t freedom
+         call sample_get_x(wgt,x(-ibranch),-ibranch,iconfig,
+     $        0, -tmin/stot)
+         t = stot*(-x(-ibranch))
 
+      else
          call sample_get_x(wgt,x(-ibranch),-ibranch,iconfig,
      $        -tmax/stot, -tmin/stot)
          t = stot*(-x(-ibranch))
-c
-c     now reset tmax if messed it up for t freedom 3 lines above
-c
-         call yminmax(s1,t,m12,ma2,mb2,mn2,tmin,tmax) 
+      endif
 
-c         write(*,*) tmin,t,tmax
-c         if (t .eq. 0d0) then
-c            jac = -3
-c            return
-c         endif
          if (t .lt. tmin .or. t .gt. tmax) then
             jac=-3d0
             return
