@@ -19,7 +19,6 @@ except:
     import internal.file_writers as file_writers
     import internal.misc as misc
 
-import StringIO
     
 class InvalidParamCard(Exception):
     """ a class for invalid param_card """
@@ -121,13 +120,13 @@ class Parameter (object):
         
         if format == 'float':
             if self.lhablock == 'decay' and not isinstance(self.value,basestring):
-                return 'DECAY %s %.{}e # %s'.format(precision) % (' '.join([str(d) for d in self.lhacode]), self.value, self.comment)
+                return 'DECAY %s %.{0}e # %s'.format(precision) % (' '.join([str(d) for d in self.lhacode]), self.value, self.comment)
             elif self.lhablock == 'decay':
                 return 'DECAY %s Auto # %s' % (' '.join([str(d) for d in self.lhacode]), self.comment)
             elif self.lhablock and self.lhablock.startswith('qnumbers'):
                 return '      %s %i # %s' % (' '.join([str(d) for d in self.lhacode]), int(self.value), self.comment)
             else:
-                return '      %s %.{}e # %s'.format(precision) % (' '.join([str(d) for d in self.lhacode]), self.value, self.comment)
+                return '      %s %.{0}e # %s'.format(precision) % (' '.join([str(d) for d in self.lhacode]), self.value, self.comment)
         elif format == 'int':
             return '      %s %i # %s' % (' '.join([str(d) for d in self.lhacode]), int(self.value), self.comment)
         elif format == 'str':
@@ -351,9 +350,6 @@ class ParamCard(dict):
                 cur_block = Block('decay_table_%s' % id)
                 self['decay'].decay_table[id] = cur_block
             
-            
-
-            
             if cur_block.name.startswith('decay_table'):
                 param = Parameter()
                 param.load_decay(line)
@@ -368,6 +364,13 @@ class ParamCard(dict):
                 cur_block.append(param)
                   
         return self
+    
+    def __setitem__(self, name, value):
+        
+        return dict.__setitem__(self, name.lower(), value)
+    
+    def __getitem__(self, name):
+        return dict.__getitem__(self,name.lower())
     
     def analyze_param_card(self):
         """ Analyzes the comment of the parameter in the param_card and returns
@@ -432,7 +435,7 @@ class ParamCard(dict):
         
         # apply all the basic restriction rule
         if restrict_rule:
-            restrict_rule.check_param_card(self, modify=True, log=loglevel)
+            _, modify = restrict_rule.check_param_card(self, modify=True, log=loglevel)
         
         import models.model_reader as model_reader
         import madgraph.core.base_objects as base_objects
@@ -441,17 +444,21 @@ class ParamCard(dict):
             parameters = model.set_parameters_and_couplings(self)
         else:
             parameters = model.set_parameters_and_couplings(self)
-            
+
             
         for particle in model.get('particles'):
             if particle.get('goldstone') or particle.get('ghost'):
                 continue
-
             mass = model.get_parameter(particle.get('mass'))
             lhacode = abs(particle.get_pdg_code())
 
             if isinstance(mass, base_objects.ModelVariable) and not isinstance(mass, base_objects.ParamCardVariable):
-                param_value = self.get('mass').get(lhacode).value
+                try:
+                    param_value = self.get('mass').get(lhacode).value
+                except Exception:
+                    param = Parameter(block='mass', lhacode=(lhacode,),value=0,comment='added')
+                    param_value = -999.999
+                    self.get('mass').append(param)
                 model_value = parameters[particle.get('mass')]
                 if isinstance(model_value, complex):
                     if model_value.imag > 1e-5 * model_value.real:
@@ -470,7 +477,12 @@ class ParamCard(dict):
         
             width = model.get_parameter(particle.get('width'))            
             if isinstance(width, base_objects.ModelVariable):
-                param_value = self.get('decay').get(lhacode).value
+                try:
+                    param_value = self.get('decay').get(lhacode).value
+                except Exception:
+                    param = Parameter(block='decay', lhacode=(lhacode,),value=0,comment='added')
+                    param_value = -999.999
+                    self.get('decay').append(param)
                 model_value = parameters[particle.get('width')]
                 if isinstance(model_value, complex):
                     if model_value.imag > 1e-5 * model_value.real:
@@ -485,6 +497,7 @@ class ParamCard(dict):
                     #logger.debug('was %s', param_value)
                 if model_value != param_value:   
                     self.get('decay').get(abs(particle.get_pdg_code())).value = model_value
+
         return modify
 
 
@@ -865,7 +878,7 @@ class ParamCardIterator(ParamCard):
         for key in keys:
             for param, values in all_iterators[key]:
                 self.param_order.append("%s#%s" % (param.lhablock, '_'.join(`i` for i in param.lhacode)))
-        
+
         # do the loop
         lengths = [range(len(all_iterators[key][0][1])) for key in keys]
         for positions in itertools.product(*lengths):
@@ -897,10 +910,13 @@ class ParamCardIterator(ParamCard):
             self.cross.append({'bench' : self.itertag, 'run_name': run_name, 'cross(pb)':cross})
         
 
-    def write_summary(self, path, order=None):
+    def write_summary(self, path, order=None, lastline=False, nbcol=20):
         """ """
         
-        ff = open(path, 'w')        
+        if path:
+            ff = open(path, 'w')
+        else:
+            ff = StringIO.StringIO()        
         if order:
             keys = order
         else:
@@ -909,13 +925,19 @@ class ParamCardIterator(ParamCard):
             keys.remove('run_name')
             keys.sort()
 
-        formatting = "#%s%s%s\n" %('%-19s ', '%-20s '* len(self.param_order),
-                                             '%-20s '* len(keys))
+        formatting = "#%s%s%s\n" %('%%-%is ' % (nbcol-1), ('%%-%is ' % (nbcol))* len(self.param_order),
+                                             ('%%-%is ' % (nbcol))* len(keys))
         # header
-        ff.write(formatting % tuple(['run_name'] + self.param_order + keys))
-        formatting = "%s%s%s\n" %('%-20s ', '%-20s '* len(self.param_order),
-                                             '%-20s '* len(keys))
-        for info in self.cross:
+        if not lastline:
+            ff.write(formatting % tuple(['run_name'] + self.param_order + keys))
+        formatting = "%s%s%s\n" %('%%-%is ' % (nbcol), ('%%-%ie ' % (nbcol))* len(self.param_order),
+                                             ('%%-%ie ' % (nbcol))* len(keys))
+        
+        if not lastline:
+            to_print = self.cross
+        else:
+            to_print = self.cross[-1:]
+        for info in to_print:
             name = info['run_name']
             bench = info['bench']
             data = []
@@ -924,7 +946,10 @@ class ParamCardIterator(ParamCard):
                 
             ff.write(formatting % tuple([name] + bench + data))
                 
-            
+        if not path:
+            return ff.getvalue()
+        
+         
     def get_next_name(self, run_name):
         """returns a smart name for the next run"""
     
@@ -1125,7 +1150,9 @@ class ParamCardRule(object):
     
     def check_param_card(self, path, modify=False, write_missing=False, log=False):
         """Check that the restriction card are applied"""
-            
+        
+        is_modified = False
+        
         if isinstance(path,str):    
             card = self.read_param_card(path)
         else:
@@ -1154,12 +1181,13 @@ class ParamCardRule(object):
                         param = card[block].get(id) 
                         param.value = 0.0
                         param.comment += ' fixed by the model'
+                        is_modified = True
                         if log ==20:
                             logger.log(log,'For model consistency, update %s with id %s to value %s',
-                                        (block, id, 0.0), '$MG:color:BLACK')                            
+                                        block, id, 0.0, '$MG:color:BLACK')                            
                         elif log:
                             logger.log(log,'For model consistency, update %s with id %s to value %s',
-                                        (block, id, 0.0))
+                                        block, id, 0.0)
                         
         # check one 
         for block, id, comment in self.one:
@@ -1184,6 +1212,7 @@ class ParamCardRule(object):
                         param = card[block].get(id) 
                         param.value = 1.0
                         param.comment += ' fixed by the model'
+                        is_modified = True
                         if log ==20:
                             logger.log(log,'For model consistency, update %s with id %s to value %s',
                                         (block, id, 1.0), '$MG:color:BLACK')                            
@@ -1195,6 +1224,7 @@ class ParamCardRule(object):
         # check identical
         for block, id1, id2, comment in self.identical:
             if block not in card:
+                is_modified = True
                 logger.warning('''Param card is not complete: Block %s is simply missing.
                 We will use model default for all missing value! Please cross-check that
                 this correspond to your expectation.''' % block)
@@ -1219,6 +1249,7 @@ class ParamCardRule(object):
                         param = card[block].get(id1) 
                         param.value = value2
                         param.comment += ' must be identical to %s' % id2
+                        is_modified = True
                         if log ==20:
                             logger.log(log,'For model consistency, update %s with id %s to value %s since it should be equal to parameter with id %s',
                                         block, id1, value2, id2, '$MG:color:BLACK')
@@ -1247,6 +1278,7 @@ class ParamCardRule(object):
                         param = card[block].get(id1) 
                         param.value = -value2
                         param.comment += ' must be opposite to %s' % id2
+                        is_modified = True
                         if log ==20:
                             logger.log(log,'For model consistency, update %s with id %s to value %s since it should be equal to the opposite of the parameter with id %s',
                                         block, id1, -value2, id2, '$MG:color:BLACK')
@@ -1254,7 +1286,7 @@ class ParamCardRule(object):
                             logger.log(log,'For model consistency, update %s with id %s to value %s since it should be equal to the opposite of the parameter with id %s',
                                         block, id1, -value2, id2)
 
-        return card
+        return card, is_modified
                         
 
 def convert_to_slha1(path, outputpath=None ):
@@ -1636,8 +1668,9 @@ def make_valid_param_card(path, restrictpath, outputpath=None):
     try :
         cardrule.check_param_card(path, modify=False)
     except InvalidParamCard:
-        new_data = cardrule.check_param_card(path, modify=True, write_missing=True)
-        cardrule.write_param_card(outputpath, new_data)
+        new_data, was_modified = cardrule.check_param_card(path, modify=True, write_missing=True)
+        if was_modified:
+            cardrule.write_param_card(outputpath, new_data)
     else:
         if path != outputpath:
             shutil.copy(path, outputpath)

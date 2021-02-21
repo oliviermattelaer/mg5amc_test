@@ -39,6 +39,7 @@ import inspect
 import urllib
 import random
 
+
 #useful shortcut
 pjoin = os.path.join
 
@@ -59,6 +60,8 @@ import madgraph.loop.loop_diagram_generation as loop_diagram_generation
 import madgraph.loop.loop_base_objects as loop_base_objects
 import madgraph.core.drawing as draw_lib
 import madgraph.core.helas_objects as helas_objects
+
+
 
 import madgraph.iolibs.drawing_eps as draw
 import madgraph.iolibs.export_cpp as export_cpp
@@ -103,10 +106,11 @@ import aloha.aloha_lib as aloha_lib
 
 import mg5decay.decay_objects as decay_objects
 
+
 # Special logger for the Cmd Interface
 logger = logging.getLogger('cmdprint') # -> stdout
 logger_check = logging.getLogger('check') # -> stdout
-logger_mg = logging.getLogger('madgraph') # -> stdout
+logger_mg = logging.getLogger('madgraph.interface') # -> stdout
 logger_stderr = logging.getLogger('fatalerror') # ->stderr
 logger_tuto = logging.getLogger('tutorial') # -> stdout include instruction in
                                             #order to learn MG5
@@ -1509,24 +1513,29 @@ This will take effect only in a NEW terminal
             self._export_format = args.pop(0)
         elif args:
             # check for PLUGIN format
-            for plug in os.listdir(pjoin(MG5DIR, 'PLUGIN')):
-                if os.path.exists(pjoin(MG5DIR, 'PLUGIN', plug, '__init__.py')):
-                    try:
-                        __import__('PLUGIN.%s' % plug)
-                    except Exception, error:
-                        logger.warning("error detected in plugin: %s.", plug)
-                        logger.warning("%s", error)
-                        continue
-                    plugin = sys.modules['PLUGIN.%s' % plug]                
-                    if hasattr(plugin, 'new_output'):
-                        if not misc.is_plugin_supported(plugin):
+            for plugpath in self.plugin_path:
+                plugindirname = os.path.basename(plugpath)
+                for plug in os.listdir(plugpath):
+                    if os.path.exists(pjoin(plugpath, plug, '__init__.py')):
+                        try:
+                            __import__('%s.%s' % (plugindirname,plug))
+                        except Exception, error:
+                            logger.warning("error detected in plugin: %s.", plug)
+                            logger.warning("%s", error)
                             continue
-                        if args[0] in plugin.new_output:
-                            self._export_format = 'plugin'
-                            self._export_plugin = plugin.new_output[args[0]]
-                            logger.info('Output will be done with PLUGIN: %s' % plug ,'$MG:color:BLACK')
-                            args.pop(0)
-                            break
+                        plugin = sys.modules['%s.%s' % (plugindirname,plug)]                
+                        if hasattr(plugin, 'new_output'):
+                            if not misc.is_plugin_supported(plugin):
+                                continue
+                            if args[0] in plugin.new_output:
+                                self._export_format = 'plugin'
+                                self._export_plugin = plugin.new_output[args[0]]
+                                logger.info('Output will be done with PLUGIN: %s' % plug ,'$MG:color:BLACK')
+                                args.pop(0)
+                                break
+                else:
+                    continue
+                break
             else:
                 self._export_format = default
         else:
@@ -1568,6 +1577,9 @@ This will take effect only in a NEW terminal
                 if '-noclean' not in args and os.path.exists(self._export_dir):
                     args.append('-noclean')
             elif path != 'auto':
+                if path in ['HELAS', 'tests', 'MadSpin', 'madgraph', 'mg5decay', 'vendor']:
+                    if os.getcwd() == MG5DIR:
+                        raise self.InvalidCmd, "This name correspond to a buildin MG5 directory. Please choose another name"
                 self._export_dir = path
             elif path == 'auto':
                 if self.options['pythia8_path']:
@@ -2454,6 +2466,7 @@ class CompleteForCmd(cmd.CompleteCmd):
 
     def complete_set(self, text, line, begidx, endidx):
         "Complete the set command"
+        #misc.sprint([text,line,begidx, endidx])
         args = self.split_arg(line[0:begidx])
 
         # Format
@@ -2737,7 +2750,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                    'gauge','lorentz', 'brs', 'cms']
     _import_formats = ['model_v4', 'model', 'proc_v4', 'command', 'banner']
     _install_opts = ['Delphes', 'MadAnalysis4', 'ExRootAnalysis',
-                     'update', 'SysCalc', 'Golem95', 'PJFry', 'QCDLoop']
+                     'update', 'SysCalc', 'Golem95', 'PJFry', 'QCDLoop', 'maddm']
     
     # The targets below are installed using the HEPToolsInstaller.py script
     _advanced_install_opts = ['pythia8','zlib','boost','lhapdf6','lhapdf5','collier',
@@ -2807,7 +2820,8 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                        'cluster_nb_retry':1,
                        'cluster_retry_wait':300,
                        'cluster_size':100,
-                       'output_dependencies':'external'
+                       'output_dependencies':'external',
+                       'crash_on_error':False
                        }
 
     options_madgraph= {'group_subprocesses': 'Auto',
@@ -2873,6 +2887,14 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                              mgme_dir)
                 self._mgme_dir = MG4DIR
 
+        # check that make_opts exists
+        make_opts = pjoin(MG5DIR, 'Template','LO','Source','make_opts')
+        make_opts_source = pjoin(MG5DIR, 'Template','LO','Source','.make_opts')
+        if not os.path.exists(make_opts):
+            shutil.copy(make_opts_source, make_opts)
+        elif  os.path.getmtime(make_opts) <  os.path.getmtime(make_opts_source):
+            shutil.copy(make_opts_source, make_opts)
+            
         # Variables to store state information
         self._multiparticles = {}
         self.options = {}
@@ -2922,6 +2944,9 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
             self.do_install('update --mode=mg5_end')
         print
 
+        misc.EasterEgg('quit')
+        
+        
         return value
 
     # Add a process to the existing multiprocess definition
@@ -2945,6 +2970,11 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
         if '--diagram_filter' in args:
             diagram_filter = True
             args.remove('--diagram_filter')
+        
+        standalone_only = False
+        if '--standalone' in args:
+            standalone_only = True
+            args.remove('--standalone')            
 
         # Check the validity of the arguments
         self.check_add(args)
@@ -3010,7 +3040,7 @@ This implies that with decay chains:
             # Check that we have the same number of initial states as
             # existing processes
             if self._curr_amps and self._curr_amps[0].get_ninitial() != \
-               myprocdef.get_ninitial():
+               myprocdef.get_ninitial() and not standalone_only:
                 raise self.InvalidCmd("Can not mix processes with different number of initial states.")               
 
             self._curr_proc_defs.append(myprocdef)
@@ -3118,7 +3148,7 @@ This implies that with decay chains:
         
         #Need to do the work!!!        
         import models.usermod as usermod
-        base_model = usermod.UFOModel(self._curr_model.get('modelpath'))
+        base_model = copy.deepcopy(usermod.UFOModel(self._curr_model.get('modelpath')))
         
         identify = dict(tuple(a.split('=')) for a in args if '=' in a)
         base_model.add_model(path=model_path, identify_particles=identify)
@@ -4399,7 +4429,7 @@ This implies that with decay chains:
         ## Now check for orders/squared orders/constrained orders
         order_pattern = re.compile(\
            "^(?P<before>.+>.+)\s+(?P<name>(\w|(\^2))+)\s*(?P<type>"+\
-                    "(=|(<=)|(==)|(===)|(!=)|(>=)|<|>))\s*(?P<value>-?\d+)\s*$")
+                    "(=|(<=)|(==)|(===)|(!=)|(>=)|<|>))\s*(?P<value>-?\d+)\s*")
         order_re = order_pattern.match(line)
         squared_orders = {}
         orders = {}
@@ -5509,7 +5539,7 @@ This implies that with decay chains:
              # And that the option '--force' is placed last.
             add_options = [opt for opt in add_options if opt!='--force']+\
                         (['--force'] if '--force' in add_options else [])
-            return_code = misc.call([pjoin(MG5DIR,'HEPTools',
+            return_code = misc.call([sys.executable, pjoin(MG5DIR,'HEPTools',
              'HEPToolsInstallers','HEPToolInstaller.py'),'pythia8',
              '--prefix=%s' % prefix]
                         + lhapdf_option + compiler_options + add_options)
@@ -5520,7 +5550,7 @@ This implies that with decay chains:
              # And that the option '--force' is placed last.
             add_options = [opt for opt in add_options if opt!='--force']+\
                         (['--force'] if '--force' in add_options else [])
-            return_code = misc.call([pjoin(MG5DIR,'HEPTools',
+            return_code = misc.call([sys.executable, pjoin(MG5DIR,'HEPTools',
               'HEPToolsInstallers', 'HEPToolInstaller.py'), tool,'--prefix=%s'%
               prefix] + compiler_options + add_options)
 
@@ -5586,7 +5616,7 @@ This implies that with decay chains:
             # At this stage, pythia is guaranteed to be installed
             if self.options['pythia8_path'] in ['',None,'None']:
                 self.options['pythia8_path'] = pjoin(prefix,'pythia8')
-            self.options['mg5amc_py8_interface_path'] = pjoin(prefix, 'mg5amc_py8_interface')
+            self.options['mg5amc_py8_interface_path'] = pjoin(prefix, 'MG5aMC_PY8_interface')
             self.exec_cmd('save options %s mg5amc_py8_interface_path' % config_file, 
                                                             printcmd=False, log=False)      
         elif tool == 'collier':
@@ -5678,6 +5708,8 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
             self.install_update(['update']+install_options['update_options'],wget=program)
             return
 
+        plugin = ['maddm']
+        
         advertisements = {'pythia-pgs':['arXiv:0603175'],
                           'Delphes':['arXiv:1307.6346'],
                           'Delphes2':['arXiv:0903.2225'],
@@ -5694,7 +5726,8 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
                           'MadAnalysis5':['arXiv:1206.1599'],
                           'MadAnalysis':['arXiv:1206.1599'],
                           'collier':['arXiv:1604.06792'],
-                          'oneloop':['arXiv:1007.4716']}
+                          'oneloop':['arXiv:1007.4716'],
+                          'maddm':['arXiv:1505.04190']}
 
 
         if args[0] in advertisements:
@@ -5713,7 +5746,7 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
             path = {}
     
             data_path = ['http://madgraph.phys.ucl.ac.be/package_info.dat',
-                         'http://madgraph.hep.uiuc.edu/package_info.dat']
+                         'http://madgraph.physics.illinois.edu/package_info.dat']
 
             r = random.randint(0,1)
             r = [r, (1-r)]
@@ -5799,6 +5832,7 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
                 'ExRootAnalysis': 'ExRootAnalysis','MadAnalysis':'MadAnalysis',
                 'SysCalc':'SysCalc', 'Golem95': 'golem95',
                 'PJFry':'PJFry','QCDLoop':'QCDLoop',
+                'maddm':'maddm'
                 }
             name = name[args[0]]
         except:
@@ -5938,7 +5972,54 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
                 make_flags.append('CXX=%s' % self.options['cpp_compiler'])
             
 
-        if logger.level <= logging.INFO:
+        if name in plugin:
+            logger.info('no compilation needed for plugin. Loading plugin information')
+            try:
+                shutil.rmtree(pjoin(MG5DIR, 'PLUGIN', name))
+            except Exception:
+                pass
+            shutil.move(pjoin(os.path.join(MG5DIR, name)), os.path.join(MG5DIR, 'PLUGIN', name))
+            # read the __init__.py to check if we need to add a new executable
+            try:
+                __import__('PLUGIN.%s' % name, globals(), locals(), [], -1)
+                plugin = sys.modules['PLUGIN.%s' % name] 
+                new_interface = plugin.new_interface
+                new_output = plugin.new_output
+                latest_validated_version = plugin.latest_validated_version
+                minimal_mg5amcnlo_version = plugin.minimal_mg5amcnlo_version
+                maximal_mg5amcnlo_version = plugin.maximal_mg5amcnlo_version
+            except Exception, error:
+                raise Exception, 'Plugin %s fail to be loaded. Please contact the author of the PLUGIN\n Error %s' % (name, error)
+                
+            logger.info('Plugin %s correctly interfaced. Latest official validition for MG5aMC version %s.' % (name, '.'.join(`i` for i in latest_validated_version)))
+            if new_interface:
+                ff = open(pjoin(MG5DIR, 'bin', '%s.py' % name) , 'w') 
+                if __debug__:
+                    text = '''#! /usr/bin/env python
+import os
+import sys
+root_path = os.path.split(os.path.dirname(os.path.realpath( __file__ )))[0]
+exe_path = os.path.join(root_path,'bin','mg5_aMC')
+sys.argv.pop(0)
+os.system('%s  -tt %s %s --mode={0}' %(sys.executable, str(exe_path) , ' '.join(sys.argv) ))
+'''.format(name)                    
+                else:
+                    text = '''#! /usr/bin/env python
+import os
+import sys
+root_path = os.path.split(os.path.dirname(os.path.realpath( __file__ )))[0]
+exe_path = os.path.join(root_path,'bin','mg5_aMC')
+sys.argv.pop(0)
+os.system('%s  -O -W ignore::DeprecationWarning %s %s --mode={0}' %(sys.executable, str(exe_path) , ' '.join(sys.argv) ))
+'''.format(name)                     
+                ff.write(text)
+                ff.close()
+                import stat
+                os.chmod(pjoin(MG5DIR, 'bin', '%s.py' % name), stat.S_IRWXU)
+                logger.info('To use this module, you need to quite MG5aMC and run the executable bin/%s.py' % name)
+            status=0
+                
+        elif logger.level <= logging.INFO:
             devnull = open(os.devnull,'w')
             try:
                 misc.call(['make', 'clean'], stdout=devnull, stderr=-2)
@@ -5968,7 +6049,7 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
                                                cwd = os.path.join(MG5DIR, name))
 
         if not status:
-            logger.info('Compilation succeeded')
+            logger.info('Installation succeeded')
         else:
             # For pythia-pgs check when removing the "-fno-second-underscore" flag
             if name == 'pythia-pgs':
@@ -6060,13 +6141,13 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
             opt = options_name[args[0]]
             if opt=='golem':
                 self.options[opt] = pjoin(MG5DIR,name,'lib')
-                self.exec_cmd('save options', printcmd=False)
+                self.exec_cmd('save options %s' % opt, printcmd=False)
             elif opt=='pjfry':
                 self.options[opt] = pjoin(MG5DIR,'PJFry','lib')
-                self.exec_cmd('save options', printcmd=False)            
+                self.exec_cmd('save options %s' % opt, printcmd=False)            
             elif self.options[opt] != self.options_configuration[opt]:
                 self.options[opt] = self.options_configuration[opt]
-                self.exec_cmd('save options',printcmd=False)
+                self.exec_cmd('save options %s' % opt, printcmd=False)
 
 
 
@@ -6206,7 +6287,7 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
 
             # Re-compile CutTools and IREGI
             if os.path.isfile(pjoin(MG5DIR,'vendor','CutTools','includects','libcts.a')):
-                misc.compile(cwd=pjoin(MG5DIR,'vendor','CutTools'))
+                misc.compile(arg=['-j1'],cwd=pjoin(MG5DIR,'vendor','CutTools'),nb_core=1)
             if os.path.isfile(pjoin(MG5DIR,'vendor','IREGI','src','libiregi.a')):
                 misc.compile(cwd=pjoin(MG5DIR,'vendor','IREGI','src'))
 
@@ -6382,6 +6463,12 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
             subprocess.call([os.path.join('tests','test_manager.py')],
                                                                   cwd=MG5DIR)            
             print 'new version installed, please relaunch mg5'
+            try:
+                os.remove(pjoin(MG5DIR, 'Template','LO','Source','make_opts'))
+                shutil.copy(pjoin(MG5DIR, 'Template','LO','Source','.make_opts'),
+                            pjoin(MG5DIR, 'Template','LO','Source','make_opts'))
+            except:
+                pass
             sys.exit(0)
         elif answer == 'n':
             # prevent for a future check
@@ -6447,7 +6534,7 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
                     self.options[name] = value
                 if value.lower() == "none" or value=="":
                     self.options[name] = None
-
+        config_file.close()      
         self.options['stdout_level'] = logging.getLogger('madgraph').level
         if not final:
             return self.options # the return is usefull for unittest
@@ -6459,12 +6546,12 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
             if key in ['pythia8_path', 'hwpp_path', 'thepeg_path', 'hepmc_path',
                        'mg5amc_py8_interface_path','madanalysis5_path']:
                 if self.options[key] in ['None', None]:
-                    self.options[key] = None
+                    self.options[key] = None 
                     continue
                 path = self.options[key]
                 #this is for pythia8
                 if key == 'pythia8_path' and not os.path.isfile(pjoin(MG5DIR, path, 'include', 'Pythia8', 'Pythia.h')):
-                    if not os.path.isfile(pjoin(path, 'include', 'Pythia8', 'Pythia.h')):
+                    if not os.path.isfile(pjoin(path,  'include', 'Pythia8', 'Pythia.h')):
                         self.options['pythia8_path'] = None
                     else:
                         continue
@@ -6493,8 +6580,8 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
                     else:
                         continue
                 # this is for hepmc
-                elif key == 'hepmc_path' and not os.path.isfile(pjoin(MG5DIR, path, 'include', 'HEPEVT_Wrapper.h')):
-                    if not os.path.isfile(pjoin(path, 'include', 'HEPEVT_Wrapper.h')):
+                elif key == 'hepmc_path' and not os.path.isfile(pjoin(MG5DIR, path, 'include', 'HepMC', 'HEPEVT_Wrapper.h')):
+                    if not os.path.isfile(pjoin(path, 'include', 'HepMC', 'HEPEVT_Wrapper.h')):
                         self.options['hepmc_path'] = None
                     else:
                         continue
@@ -6830,6 +6917,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
     def do_save(self, line, check=True, to_keep={}, log=True):
         """Not in help: Save information to file"""
 
+        
         args = self.split_arg(line)
         # Check argument validity
         if check:
@@ -7185,6 +7273,10 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
                 self.allow_notification_center = self.options[args[0]]
             else:
                 raise self.InvalidCmd('expected bool for notification_center')
+        # True/False formatting
+        elif args[0] in ['crash_on_error']:
+            tmp = banner_module.ConfigFile.format_variable(args[1], bool, 'crash_on_error')
+            self.options[args[0]] = tmp        
         elif args[0] in ['cluster_queue']:
             self.options[args[0]] = args[1].strip()
         elif args[0] in self.options:
@@ -7208,7 +7300,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             return stop
 
         if args[0] in self.options_configuration and '--no_save' not in args:
-            self.exec_cmd('save options --auto', log=False)
+            self.exec_cmd('save options %s' % args[0] , log=False)
         elif args[0] in self.options_madevent:
             if not '--no_save' in line:
                 logger.info('This option will be the default in any output that you are going to create in this session.')
@@ -7786,7 +7878,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
 
 
     # Calculate decay width
-    def do_compute_widths(self, line, model=None, do2body=True):
+    def do_compute_widths(self, line, model=None, do2body=True, decaymodel=None):
         """Documented commands:Generate amplitudes for decay width calculation, with fixed
            number of final particles (called level)
            syntax; compute_widths particle [other particles] [--options=]
@@ -7819,8 +7911,8 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             modelname = self._curr_model.get('modelpath+restriction')
             with misc.MuteLogger(['madgraph'], ['INFO']):
                 model = import_ufo.import_model(modelname, decay=True)
-        else:
-            self._curr_model = model
+        self._curr_model = model
+            
         if not isinstance(model, model_reader.ModelReader):
             model = model_reader.ModelReader(model)
 
@@ -7911,7 +8003,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
                                          ' '.join('--%s=%s' % (key,value)
                                                   for key,value in opts.items()
                                                   if key not in ['precision_channel'])
-                                         ), skip_2body=skip_2body)
+                                         ), skip_2body=skip_2body, model=decaymodel)
 
         if self._curr_amps:
             logger.info('Pass to numerical integration for computing the widths:')
@@ -8088,7 +8180,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
         return
 
     # Calculate decay width
-    def do_decay_diagram(self, line, skip_2body=False, model=None):
+    def do_decay_diagram(self, line, skip_2body=False,  model=None):
         """Not in help: Generate amplitudes for decay width calculation, with fixed
            number of final particles (called level)
            syntax; decay_diagram part_name level param_path
@@ -8111,7 +8203,8 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
         """
 
         if model:
-            self._curr_model = model
+            self._curr_decaymodel = model
+
 
         args = self.split_arg(line)
         #check the validity of the arguments

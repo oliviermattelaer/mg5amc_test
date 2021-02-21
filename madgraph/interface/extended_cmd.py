@@ -43,6 +43,7 @@ except ImportError, error:
         import internal.misc as misc
     except:
         raise error
+    
     MADEVENT = True
 
 
@@ -443,10 +444,11 @@ class BasicCmd(OriginalCmd):
     def set_readline_completion_display_matches_hook(self):
         """ This has been refactorized here so that it can be called when another
         program called by MG5 (such as MadAnalysis5) changes this attribute of readline"""
-        if readline and not 'libedit' in readline.__doc__:
-            readline.set_completion_display_matches_hook(self.print_suggestions)
-        else:
-            readline.set_completion_display_matches_hook()
+        if readline:
+            if not 'libedit' in readline.__doc__:
+                readline.set_completion_display_matches_hook(self.print_suggestions)
+            else:
+                readline.set_completion_display_matches_hook()
 
     def preloop(self):
         self.set_readline_completion_display_matches_hook()
@@ -859,7 +861,25 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
            
     keyboard_stop_msg = """stopping all current operation
             in order to quit the program please enter exit"""
- 
+
+
+    if MADEVENT:
+        plugin_path = []
+    else:
+        plugin_path = [pjoin(MG5DIR, 'PLUGIN')]
+    if 'PYTHONPATH' in os.environ:
+        for PluginCandidate in os.environ['PYTHONPATH'].split(':'):
+            try:
+                dirlist = os.listdir(PluginCandidate)
+            except OSError:
+                continue
+            for onedir in dirlist:
+                if onedir == 'MG5aMC_PLUGIN':
+                    plugin_path.append(pjoin(PluginCandidate, 'MG5aMC_PLUGIN'))
+                    break
+            else:
+                continue
+            break
     
     def __init__(self, *arg, **opt):
         """Init history and line continuation"""
@@ -887,6 +907,7 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
                 readline.set_completer(self.complete)
                 readline.parse_and_bind(self.completekey+": complete")
             except ImportError:
+                readline = None
                 pass
         if readline and not 'libedit' in readline.__doc__:
             readline.set_completion_display_matches_hook(self.print_suggestions)
@@ -1157,7 +1178,7 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
             # Comment or empty line, pass to the next one
             return self.check_answer_in_input_file(question_instance, default, path)
         options = question_instance.allow_arg
-        if line in options:
+        if line in options or line.lower() in options:
             return line
         elif hasattr(question_instance, 'do_%s' % line.split()[0]):
             #This is a command line, exec it and check next line
@@ -1258,6 +1279,11 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
             except Exception:
                 pass
             
+
+        if hasattr(self, 'options') and 'crash_on_error' in self.options and \
+                                                self.options['crash_on_error']:
+            logger.info('stop computation due to crash_on_error=True')
+            sys.exit(str(error))
         #stop the execution if on a non interactive mode
         if self.use_rawinput == False:
             return True 
@@ -1278,6 +1304,11 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         error_text += '%s : %s' % (error.__class__.__name__, 
                                                 str(error).replace('\n','\n\t'))
         logger_stderr.error(error_text)
+        
+        if hasattr(self, 'options') and 'crash_on_error' in self.options and \
+                                                self.options['crash_on_error']:
+            logger.info('stop computation due to crash_on_error=True')
+            sys.exit(str(error))
         #stop the execution if on a non interactive mode
         if self.use_rawinput == False:
             return True
@@ -1309,6 +1340,11 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
             self.do_display('options', debug_file)
         except Exception, error:
             debug_file.write('Fail to write options with error %s' % error)
+        if hasattr(self, 'options') and 'crash_on_error' in self.options and \
+                                                self.options['crash_on_error']:
+            logger.info('stop computation due to crash_on_error=True')
+            sys.exit(str(error))
+        
         #stop the execution if on a non interactive mode                                
         if self.use_rawinput == False:
             return True
@@ -1353,7 +1389,8 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
         if hasattr(self, 'me_dir'):
             me_dir = os.path.basename(me_dir) + ' '
         
-        
+        misc.EasterEgg('error')
+            
         try:
             raise 
         except self.InvalidCmd as error:            
@@ -1862,7 +1899,6 @@ class Cmd(CheckCmd, HelpCmd, CompleteCmd, BasicCmd):
                 if not os.path.isabs(value):
                     value = os.path.realpath(os.path.join(basedir, value))
             text += '%s = %s # %s \n' % (key, value, comment)
-            
         for key in to_write:
             if key in to_keep:
                 text += '%s = %s \n' % (key, to_keep[key])

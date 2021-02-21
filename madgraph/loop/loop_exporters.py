@@ -469,7 +469,7 @@ class LoopProcessExporterFortranSA(LoopExporterFortran,
             not os.path.exists(os.path.realpath(pjoin(libdir, 'mpmodule.mod'))):
                 if os.path.exists(pjoin(sourcedir,'CutTools')):
                     logger.info('Compiling CutTools (can take a couple of minutes) ...')
-                    misc.compile(['CutTools'], cwd = sourcedir)
+                    misc.compile(['CutTools','-j1'], cwd = sourcedir, nb_core=1)
                     logger.info('          ...done.')
                 else:
                     raise MadGraph5Error('Could not compile CutTools because its'+\
@@ -490,7 +490,7 @@ class LoopProcessExporterFortranSA(LoopExporterFortran,
                     logger.info('CutTools was compiled with a different fortran'+\
                                             ' compiler. Re-compiling it now...')
                     misc.compile(['cleanCT'], cwd = sourcedir)
-                    misc.compile(['CutTools'], cwd = sourcedir)
+                    misc.compile(['CutTools','-j1'], cwd = sourcedir, nb_core=1)
                     logger.info('          ...done.')
                 else:
                     raise MadGraph5Error("CutTools installation in %s"\
@@ -1345,6 +1345,8 @@ p= [[None,]*4]*%d"""%len(curr_proc.get('legs'))
         # When the user asks for the polarized matrix element we must 
         # multiply back by the helicity averaging factor
         replace_dict['hel_avg_factor'] = matrix_element.get_hel_avg_factor()
+        replace_dict['beamone_helavgfactor'], replace_dict['beamtwo_helavgfactor'] =\
+                                       matrix_element.get_beams_hel_avg_factor()
 
         # These entries are specific for the output for loop-induced processes
         # Also sets here the details of the squaring of the loop ampltiudes
@@ -2443,7 +2445,7 @@ class LoopProcessOptimizedExporterFortranSA(LoopProcessExporterFortranSA):
                                       '%(proc_prefix)sBornColorFlowCoefs.dat'
                                                 %matrix_element.rep_dict),'w')
             self.write_color_flow_coefs_data_file(dat_writer,
-                          born_col_amps, matrix_element.get('loop_color_basis'))
+                          born_col_amps, matrix_element.get('born_color_basis'))
             dat_writer.close()
             
             dat_writer = open(pjoin('..','MadLoop5_resources',
@@ -2480,7 +2482,7 @@ class LoopProcessOptimizedExporterFortranSA(LoopProcessExporterFortranSA):
 
         writer.writelines(file,context=self.get_context(matrix_element))
     
-    def write_global_specs(self, matrix_element_list):
+    def write_global_specs(self, matrix_element_list, output_path=None):
         """ From the list of matrix element, or the single matrix element, derive
         the global quantities to write in global_coef_specs.inc"""
         
@@ -2493,7 +2495,12 @@ class LoopProcessOptimizedExporterFortranSA(LoopProcessExporterFortranSA):
         else:
             me_list = [matrix_element_list]    
 
-        open(pjoin(self.dir_path,'SubProcesses','global_specs.inc'),'w').write(
+        if output_path is None:
+            out_path = pjoin(self.dir_path,'SubProcesses','global_specs.inc')
+        else:
+            out_path = output_path
+
+        open(out_path,'w').write(
 """      integer MAXNEXTERNAL
       parameter(MAXNEXTERNAL=%d)
       integer OVERALLMAXRANK
@@ -2729,7 +2736,9 @@ PARAMETER (NSQUAREDSO=%d)"""%matrix_element.rep_dict['nSquaredSO'])
         # When the user asks for the polarized matrix element we must 
         # multiply back by the helicity averaging factor
         replace_dict['hel_avg_factor'] = matrix_element.get_hel_avg_factor()
-        
+        replace_dict['beamone_helavgfactor'], replace_dict['beamtwo_helavgfactor'] =\
+                                       matrix_element.get_beams_hel_avg_factor()
+
         if write_auxiliary_files:
             # Write out the color matrix
             (CMNum,CMDenom) = self.get_color_matrix(matrix_element)
@@ -2974,7 +2983,9 @@ class LoopInducedExporterME(LoopProcessOptimizedExporterFortranSA):
         
         #set the average over the number of initial helicities
         replace_dict['hel_avg_factor'] = matrix_element.get_hel_avg_factor()
-        
+        replace_dict['beamone_helavgfactor'], replace_dict['beamtwo_helavgfactor'] =\
+                                       matrix_element.get_beams_hel_avg_factor()
+
         # Extract helicity lines
         helicity_lines = self.get_helicity_lines(matrix_element)
         replace_dict['helicity_lines'] = helicity_lines

@@ -12,7 +12,7 @@
 # For more information, visit madgraph.phys.ucl.ac.be and amcatnlo.web.cern.ch
 #
 ################################################################################
-""" Command interface for MadSpin """
+""" Command interface for Re-Weighting """
 from __future__ import division
 import difflib
 import logging
@@ -35,7 +35,7 @@ import madgraph.interface.master_interface as master_interface
 import madgraph.interface.common_run_interface as common_run_interface
 import madgraph.interface.madevent_interface as madevent_interface
 import madgraph.iolibs.files as files
-import MadSpin.interface_madspin as madspin_interface
+#import MadSpin.interface_madspin as madspin_interface
 import madgraph.various.misc as misc
 import madgraph.various.banner as banner
 import madgraph.various.lhe_parser as lhe_parser
@@ -46,7 +46,7 @@ import madgraph.core.diagram_generation as diagram_generation
 
 import models.import_ufo as import_ufo
 import models.check_param_card as check_param_card 
-import MadSpin.decay as madspin
+#import MadSpin.decay as madspin
 
 
 logger = logging.getLogger('decay.stdout') # -> stdout
@@ -172,16 +172,16 @@ class ReweightInterface(extended_cmd.Cmd):
 
         if 'madspin' in self.banner and not allow_madspin:
             raise self.InvalidCmd('Reweight should be done before running MadSpin')
-                
+        
                 
         # load information
         process = self.banner.get_detail('proc_card', 'generate')
-        if '[' in process:
+        if '[' in process and isinstance(self.banner.get('run_card'), banner.RunCardNLO):
             if not self.banner.get_detail('run_card', 'store_rwgt_info'):
                 logger.warning("The information to perform a proper NLO reweighting is not present in the event file.")
                 logger.warning("       We will perform a LO reweighting instead. This does not guarantee NLO precision.")
                 self.rwgt_mode = 'LO'
-            
+
             if 'OLP' in self.mother.options:
                 if self.mother.options['OLP'].lower() != 'madloop':
                     logger.warning("Accurate NLO mode only works for OLP=MadLoop not for OLP=%s. An approximate (LO) reweighting will be performed instead")
@@ -203,7 +203,8 @@ class ReweightInterface(extended_cmd.Cmd):
         logger.info("options: %s" % option)
 
 
-    def get_LO_definition_from_NLO(self, proc, real_only=False):
+    @staticmethod
+    def get_LO_definition_from_NLO(proc, model, real_only=False):
         """return the LO definitions of the process corresponding to the born/real"""
         
         # split the line definition with the part before and after the NLO tag
@@ -223,18 +224,22 @@ class ReweightInterface(extended_cmd.Cmd):
                 order = order.split('=',1)[1]
                 
             # define the list of particles that are needed for the radiation
-            pert = fks_common.find_pert_particles_interactions(self.model,
+            pert = fks_common.find_pert_particles_interactions(model,
                                            pert_order = order)['soft_particles']
             commandline += "define pert_%s = %s;" % (order.replace(' ',''), ' '.join(map(str,pert)) )
             
             # check if we have to increase by one the born order
-            if '%s=' % order in process:
+            
+            if '%s=' % order in process or '%s<=' % order in process:
                 result=re.split(' ',process)
                 process=''
                 for r in result:
                     if '%s=' % order in r:
                         ior=re.split('=',r)
                         r='QCD=%i' % (int(ior[1])+1)
+                    elif '%s<=' % order in r:
+                        ior=re.split('=',r)
+                        r='QCD<=%i' % (int(ior[1])+1)
                     process=process+r+' '
             #handle special tag $ | / @
             result = re.split('([/$@]|\w+(?:^2)?(?:=|<=|>)?\w+)', process, 1)                    
@@ -890,7 +895,6 @@ class ReweightInterface(extended_cmd.Cmd):
         # LO reweighting    
         w_orig = self.calculate_matrix_element(event, 0, space)
         w_new =  self.calculate_matrix_element(event, 1, space)
-        
         if w_orig == 0:
             tag, order = event.get_tag_and_order()
             orig_order, Pdir, hel_dict = self.id_to_path[tag]
@@ -1193,7 +1197,7 @@ class ReweightInterface(extended_cmd.Cmd):
                 
         else:
             nhel = 0
-
+        pold = list(p)
         p = self.invert_momenta(p)
 
         with misc.chdir(Pdir):
@@ -1387,11 +1391,11 @@ class ReweightInterface(extended_cmd.Cmd):
                 has_nlo = True
                 if self.banner.get('run_card','ickkw') == 3:
                     if len(proc) == min([len(p.strip()) for p in data['processes']]):
-                        commandline += self.get_LO_definition_from_NLO(proc)
+                        commandline += self.get_LO_definition_from_NLO(proc,self.model)
                     else:
-                        commandline += self.get_LO_definition_from_NLO(proc, real_only=True)
+                        commandline += self.get_LO_definition_from_NLO(proc,self.model, real_only=True)
                 else:
-                    commandline += self.get_LO_definition_from_NLO(proc)
+                    commandline += self.get_LO_definition_from_NLO(proc,self.model)
         
         commandline = commandline.replace('add process', 'generate',1)
         logger.info(commandline)
@@ -1402,7 +1406,14 @@ class ReweightInterface(extended_cmd.Cmd):
             for proc in data['processes']:
                 if '[' not in proc:
                     raise
-                commandline += "add process %s ;" % proc
+                # pass to virtsq=
+                base, post = proc.split('[',1)
+                nlo_order, post = post.split(']',1)
+                if '=' not in nlo_order:
+                    nlo_order = 'virt=%s' % nlo_order
+                elif 'noborn' in nlo_order:
+                    nlo_order = nlo_order.replace('noborn', 'virt')
+                commandline += "add process %s [%s] %s;" % (base,nlo_order,post)
             commandline = commandline.replace('add process', 'generate',1)
             logger.info("RETRY with %s", commandline)
             mgcmd.exec_cmd(commandline, precmd=True)
@@ -1438,8 +1449,9 @@ class ReweightInterface(extended_cmd.Cmd):
 
                 if not os.path.exists(Pdir):
                     to_check.append(tag)
-                    continue                        
-                if tag in data['id2path']:
+                    continue   
+                         
+                if self.banner.run_card['ickkw']!=3 and tag in data['id2path']:
                     if not Pdir == data['id2path'][tag][1]:
                         misc.sprint(tag, Pdir, data['id2path'][tag][1])
                         raise self.InvalidCmd, '2 different process have the same final states. This module can not handle such situation'
@@ -1471,15 +1483,20 @@ class ReweightInterface(extended_cmd.Cmd):
                          commentdefault=False)
             
             if self.multicore == 'create':
-                print "compile OLP", data['paths'][0]
-                misc.compile(['OLP_static'], cwd=pjoin(path_me, data['paths'][0],'SubProcesses'),
+                try:
+                    misc.compile(['OLP_static'], cwd=pjoin(path_me, data['paths'][0],'SubProcesses'),
                              nb_core=self.mother.options['nb_core'])
+                except:
+                    misc.compile(['OLP_static'], cwd=pjoin(path_me, data['paths'][0],'SubProcesses'))                    
         
         if os.path.exists(pjoin(path_me, data['paths'][1], 'Cards', 'MadLoopParams.dat')):
             if self.multicore == 'create':
                 print "compile OLP", data['paths'][1]
-                misc.compile(['OLP_static'], cwd=pjoin(path_me, data['paths'][1],'SubProcesses'),
+                try:
+                    misc.compile(['OLP_static'], cwd=pjoin(path_me, data['paths'][1],'SubProcesses'),
                              nb_core=self.mother.options['nb_core'])
+                except:
+                    misc.compile(['OLP_static'], cwd=pjoin(path_me, data['paths'][1],'SubProcesses'))                    
                 
         
         # 5. create the virtual for NLO reweighting  ---------------------------
@@ -1565,9 +1582,9 @@ class ReweightInterface(extended_cmd.Cmd):
             #compile the module to combine the weight
             misc.compile(cwd=pjoin(path_me, data['paths'][1], 'Source'))
             #link it 
+            if path_me not in sys.path:
+                sys.path.insert(0, os.path.realpath(path_me))
             with misc.chdir(pjoin(path_me)):
-                if path_me not in sys.path:
-                    sys.path.insert(0, path_me)
                 mymod = __import__('%s.Source.rwgt2py' % data['paths'][1], globals(), locals(), [],-1)
                 mymod =  mymod.Source.rwgt2py
                 with misc.stdchannel_redirected(sys.stdout, os.devnull):
