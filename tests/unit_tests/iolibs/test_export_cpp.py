@@ -12,16 +12,18 @@
 # For more information, visit madgraph.phys.ucl.ac.be and amcatnlo.web.cern.ch
 #
 ################################################################################
-
 """Unit test library for the export Pythia8 format routines"""
 
-import StringIO
+from __future__ import absolute_import
+from __future__ import print_function
+import six
+StringIO = six
 import copy
 import fractions
 import os
 import re
 import tests.IOTests as IOTests
-
+from tests import test_manager
 
 import tests.unit_tests as unittest
 
@@ -581,14 +583,14 @@ void Sigma_sm_qqx_qqx::sigmaKin()
 double Sigma_sm_qqx_qqx::sigmaHat() 
 {
   // Select between the different processes
-  if(id1 == 4 && id2 == -4)
-  {
-    // Add matrix elements for processes with beams (4, -4)
-    return matrix_element[0]; 
-  }
-  else if(id1 == 2 && id2 == -2)
+  if(id1 == 2 && id2 == -2)
   {
     // Add matrix elements for processes with beams (2, -2)
+    return matrix_element[0]; 
+  }
+  else if(id1 == 4 && id2 == -4)
+  {
+    // Add matrix elements for processes with beams (4, -4)
     return matrix_element[0]; 
   }
   else
@@ -603,10 +605,10 @@ double Sigma_sm_qqx_qqx::sigmaHat()
 
 void Sigma_sm_qqx_qqx::setIdColAcol() 
 {
-  if(id1 == 4 && id2 == -4)
+  if(id1 == 2 && id2 == -2)
   {
-    // Pick one of the flavor combinations (4, -4)
-    int flavors[1][2] = {{4, -4}}; 
+    // Pick one of the flavor combinations (2, -2)
+    int flavors[1][2] = {{2, -2}}; 
     vector<double> probs; 
     double sum = matrix_element[0]; 
     probs.push_back(matrix_element[0]/sum); 
@@ -614,10 +616,10 @@ void Sigma_sm_qqx_qqx::setIdColAcol()
     id3 = flavors[choice][0]; 
     id4 = flavors[choice][1]; 
   }
-  else if(id1 == 2 && id2 == -2)
+  else if(id1 == 4 && id2 == -4)
   {
-    // Pick one of the flavor combinations (2, -2)
-    int flavors[1][2] = {{2, -2}}; 
+    // Pick one of the flavor combinations (4, -4)
+    int flavors[1][2] = {{4, -4}}; 
     vector<double> probs; 
     double sum = matrix_element[0]; 
     probs.push_back(matrix_element[0]/sum); 
@@ -1893,8 +1895,8 @@ double Sigma__uu_ttg::matrix_uu_ttg()
                                                       process_string = "q q~ > q q~",
                                                       path = "/tmp")
         
-        print "Please try compiling the file /tmp/Sigma_sm_qqx_qqx.cc:"
-        print "cd /tmp; g++ -c -I $PATH_TO_PYTHIA8/include Sigma_sm_qqx_qqx.cc.cc"
+        print("Please try compiling the file /tmp/Sigma_sm_qqx_qqx.cc:")
+        print("cd /tmp; g++ -c -I $PATH_TO_PYTHIA8/include Sigma_sm_qqx_qqx.cc.cc")
 
 
 #===============================================================================
@@ -1910,7 +1912,12 @@ class ExportUFOModelPythia8Test(unittest.TestCase,
 
         model_pkl = os.path.join(MG5DIR, 'models','sm','model.pkl')
         if os.path.isfile(model_pkl):
-            self.model = save_load_object.load_from_file(model_pkl)
+            try:
+                self.model = save_load_object.load_from_file(model_pkl)
+            except:
+                sm_path = import_ufo.find_ufo_path('sm')
+                self.model = import_ufo.import_model(sm_path)
+                self.model = save_load_object.load_from_file(model_pkl)                
         else:
             sm_path = import_ufo.find_ufo_path('sm')
             self.model = import_ufo.import_model(sm_path)
@@ -1923,6 +1930,7 @@ class ExportUFOModelPythia8Test(unittest.TestCase,
 
     tearDown = test_file_writers.CheckFileCreate.clean_files
 
+    @test_manager.bypass_for_py3
     def test_write_pythia8_parameter_files(self):
         """Test writing the Pythia model parameter files"""
 
