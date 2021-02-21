@@ -37,109 +37,6 @@ from six.moves import zip
 
 logger = logging.getLogger('madgraph.diagram_generation')
 
-
-class DiagramTagChainLink(object):
-    """Chain link for a DiagramTag. A link is a tuple + vertex id + depth,
-    with a comparison operator defined"""
-
-    def __init__(self, objects, vertex_id = None):
-        """Initialize, either with a tuple of DiagramTagChainLinks and
-        a vertex_id (defined by DiagramTag.vertex_id_from_vertex), or
-        with an external leg object (end link) defined by
-        DiagramTag.link_from_leg"""
-
-        if vertex_id == None:
-            # This is an end link, corresponding to an external leg
-            self.links = tuple(objects)
-            self.vertex_id = (0,)
-            self.depth = 0
-            self.end_link = True
-            return
-        # This is an internal link, corresponding to an internal line
-        self.links = tuple(sorted(list(tuple(objects)), reverse=True))
-        self.vertex_id = vertex_id
-        # depth = sum(depth for links) + max(1, len(self.links)-1)
-        # in order to get depth 2 for a 4-particle vertex
-        self.depth = sum([l.depth for l in self.links],
-                         max(1, len(self.links)-1))
-        self.end_link = False
-
-    def get_external_numbers(self):
-        """Get the permutation of external numbers (assumed to be the
-        second entry in the end link tuples)"""
-
-        if self.end_link:
-            return [self.links[0][1]]
-
-        return sum([l.get_external_numbers() for l in self.links], [])
-
-    def __lt__(self, other):
-        """Compare self with other in the order:
-        1. depth 2. len(links) 3. vertex id 4. measure of links"""
-
-
-        if self == other:
-            return False
-
-        if self.depth != other.depth:
-            return self.depth < other.depth
-
-        if len(self.links) != len(other.links):
-            return len(self.links) < len(other.links)
-
-        if self.vertex_id[0] != other.vertex_id[0]:
-            if isinstance(self.vertex_id[0], int) and isinstance(other.vertex_id[0], tuple):
-                return True
-            elif isinstance(self.vertex_id[0], tuple) and isinstance(other.vertex_id[0], int):
-                return False
-            elif isinstance(self.vertex_id[0], str) and isinstance(other.vertex_id[0], tuple):
-                return True
-            elif isinstance(self.vertex_id[0], tuple) and isinstance(other.vertex_id[0], str):
-                return False            
-            else:
-                try:
-                    return self.vertex_id[0] < other.vertex_id[0]
-                except TypeError as error:
-                    if error.args == "'<' not supported between instances of 'tuple' and 'str'":
-                        return False
-                    else:
-                        return True
-
-        for i, link in enumerate(self.links):
-            if i > len(other.links) - 1:
-                return False
-            if link != other.links[i]:
-                return link < other.links[i]
-
-    def __gt__(self, other):
-        return self != other and not self.__lt__(other)
-
-    def __eq__(self, other):
-        """For end link,
-        consider equal if self.links[0][0] == other.links[0][0],
-        i.e., ignore the leg number (in links[0][1])."""
-
-        if self.end_link and other.end_link and self.depth == other.depth \
-           and self.vertex_id == other.vertex_id:
-            return self.links[0][0] == other.links[0][0]
-        
-        return self.end_link == other.end_link and self.depth == other.depth \
-            and self.vertex_id[0] == other.vertex_id[0] \
-            and self.links == other.links 
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-
-    def __str__(self):
-        if self.end_link:
-            return str(self.links)
-        return "%s, %s; %d" % (str(self.links),
-                               str(self.vertex_id),
-                               self.depth)
-
-    __repr__ = __str__
-
 class NoDiagramException(InvalidCmd): pass
 
 #===============================================================================
@@ -173,12 +70,13 @@ class DiagramTag(object):
         pass
 
 
-    link_class = DiagramTagChainLink
+    #link_class = DiagramTagChainLink
 
     def __init__(self, diagram, model=None, ninitial=2):
         """Initialize with a diagram. Create DiagramTagChainLinks according to
         the diagram, and figure out if we need to shift the central vertex."""
 
+        DiagramTag.link_class = DiagramTagChainLink
         # wf_dict keeps track of the intermediate particles
         leg_dict = {}
         # Create the chain which will be the diagram tag
@@ -430,8 +328,107 @@ class DiagramTag(object):
 
     __repr__ = __str__
 
+class DiagramTagChainLink(object): #new
+    """Chain link for a DiagramTag. A link is a tuple + vertex id + depth,
+    with a comparison operator defined"""
+
+    def __init__(self, objects, vertex_id = None):
+        """Initialize, either with a tuple of DiagramTagChainLinks and
+        a vertex_id (defined by DiagramTag.vertex_id_from_vertex), or
+        with an external leg object (end link) defined by
+        DiagramTag.link_from_leg"""
+
+        if vertex_id == None:
+            # This is an end link, corresponding to an external leg
+            self.links = tuple(objects)
+            self.vertex_id = (0,)
+            self.depth = 0
+            self.end_link = True
+            return
+        # This is an internal link, corresponding to an internal line
+        self.links = tuple(sorted(list(tuple(objects)), reverse=True))
+        self.vertex_id = vertex_id
+        # depth = sum(depth for links) + max(1, len(self.links)-1)
+        # in order to get depth 2 for a 4-particle vertex
+        self.depth = sum([l.depth for l in self.links],
+                         max(1, len(self.links)-1))
+        self.end_link = False
+
+    def get_external_numbers(self):
+        """Get the permutation of external numbers (assumed to be the
+        second entry in the end link tuples)"""
+
+        if self.end_link:
+            return [self.links[0][1]]
+
+        return sum([l.get_external_numbers() for l in self.links], [])
+
+    def __lt__(self, other):
+        """Compare self with other in the order:
+        1. depth 2. len(links) 3. vertex id 4. measure of links"""
+
+        if self == other:
+            return False
+
+        if self.depth != other.depth:
+            return self.depth < other.depth
+
+        if len(self.links) != len(other.links):
+            return len(self.links) < len(other.links)
+
+        if self.vertex_id[0] != other.vertex_id[0]:
+            if isinstance(self.vertex_id[0], int) and isinstance(other.vertex_id[0], tuple):
+                return True
+            elif isinstance(self.vertex_id[0], tuple) and isinstance(other.vertex_id[0], int):
+                return False
+            elif isinstance(self.vertex_id[0], str) and isinstance(other.vertex_id[0], tuple):
+                return True
+            elif isinstance(self.vertex_id[0], tuple) and isinstance(other.vertex_id[0], str):
+                return False            
+            else:
+                try:
+                    return self.vertex_id[0] < other.vertex_id[0]
+                except TypeError as error:
+                    if error.args == "'<' not supported between instances of 'tuple' and 'str'":
+                        return False
+                    else:
+                        return True
+                    
+
+        for i, link in enumerate(self.links):
+            if i > len(other.links) - 1:
+                return False
+            if link != other.links[i]:
+                return link < other.links[i]
+
+    def __gt__(self, other):
+        return self != other and not self.__lt__(other)
+
+    def __eq__(self, other):
+        """For end link,
+        consider equal if self.links[0][0] == other.links[0][0],
+        i.e., ignore the leg number (in links[0][1])."""
+
+        if self.end_link and other.end_link and self.depth == other.depth \
+           and self.vertex_id == other.vertex_id:
+            return self.links[0][0] == other.links[0][0]
+        
+        return self.end_link == other.end_link and self.depth == other.depth \
+            and self.vertex_id[0] == other.vertex_id[0] \
+            and self.links == other.links 
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
+    def __str__(self):
+        if self.end_link:
+            return str(self.links)
+        return "%s, %s; %d" % (str(self.links),
+                               str(self.vertex_id),
+                               self.depth)
+
+    __repr__ = __str__
 
 #===============================================================================
 # Amplitude

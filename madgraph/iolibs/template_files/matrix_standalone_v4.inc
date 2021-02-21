@@ -85,7 +85,10 @@ C
       INTEGER USERHEL
 	  COMMON/%(proc_prefix)sHELUSERCHOICE/USERHEL
 	  DATA USERHEL/-1/	  
-
+      LOGICAL HELRESET
+      common/%(proc_prefix)shelreset/HELRESET
+      data HELRESET/.true./
+      
 %(helicity_lines)s
 %(den_factor_line)s
 
@@ -97,6 +100,17 @@ C
 C     FUNCTIONS
 C
       LOGICAL %(proc_prefix)sIS_BORN_HEL_SELECTED
+
+c----------
+c   Check if helreset mode is on
+c---------
+if (HELRESET) then
+   NTRY = 0
+   do i=1,NCOMB
+      GOODHEL(I) = .false.
+   enddo
+   HELRESET = .false.
+endif
 
 C ----------
 C BEGIN CODE
@@ -151,7 +165,7 @@ C     For this reason, we simply remove the filterin when there is only three ex
 C  
 %(info_lines)s
 C
-C Returns amplitude squared summed/avg over colors
+C Returns amplitude squared -- no average over initial state/symmetry factor
 c for the point with external lines W(0:6,NEXTERNAL)
 C  
 %(process_lines)s
