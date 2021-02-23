@@ -458,26 +458,32 @@ in presence of majorana particle/flow violation"""
             denominator = "P(-2,id)**2 * Mass(id)**2 * (P(-1,id)**2 - Mass(id) * Mass(id) + complex(0,1) * Mass(id) * Width(id))"
         elif propa in ["1P"]:
             # shift and flip the tag if we multiply by C matrices
+            # add offshell fermions
             spin_id = id
             if (id + 1) // 2 in self.conjg:
                 spin_id += _conjugate_gap + id % 2 - (id +1) % 2
             if (spin_id % 2):
-                numerator =  "UFP(1,id)*UFPC(2,id)"
+                #numerator =  "UFP(1,id)*UFPC(2,id)"
+                numerator =  "(math.sqrt(P(-1,id)*P(-1,id)) + Mass(id))*UFP(1,id)*UFPC(2,id) + (math.sqrt(P(-1,id)*P(-1,id)) - Mass(id))*VFP(1,id)*VFPC(2,id)"
             else:
-                numerator =  "VFP(1,id)*VFPC(2,id)"
+                #numerator =  "VFP(1,id)*VFPC(2,id)"
+                numerator =  "(math.sqrt(P(-1,id)*P(-1,id)) - Mass(id))*UFP(1,id)*UFPC(2,id) + (math.sqrt(P(-1,id)*P(-1,id)) + Mass(id))*VFP(1,id)*VFPC(2,id)"
                
-            denominator = "(2*Tnorm(id)*TnormZ(id))*(P(-1,id)*P(-1,id) - Mass(id) * Mass(id) + complex(0,1) * Mass(id) * Width(id))"
-        
+            #denominator = "(2*Tnorm(id)*TnormZ(id))*(P(-1,id)*P(-1,id) - Mass(id) * Mass(id) + complex(0,1) * Mass(id) * Width(id))"
+            denominator = "(2*math.sqrt(P(-1,id)*P(-1,id))*(2*Tnorm(id)*TnormZ(id))*(P(-1,id)*P(-1,id) - Mass(id) * Mass(id) + complex(0,1) * Mass(id) * Width(id)))"
         elif propa == "1M":
             # shift and flip the tag if we multiply by C matrices
             spin_id = id
             if (id + 1) // 2 in self.conjg:
                 spin_id += _conjugate_gap + id % 2 - (id +1) % 2
             if (spin_id % 2):
-                numerator =  "UFM(1,id)*UFMC(2,id)"
+                #numerator =  "UFM(1,id)*UFMC(2,id)"
+                numerator =  "(math.sqrt(P(-1,id)*P(-1,id)) + Mass(id))*UFP(1,id)*UFPC(2,id) + (math.sqrt(P(-1,id)*P(-1,id)) - Mass(id))*VFP(1,id)*VFPC(2,id)"
             else:
-                numerator =  "VFM(1,id)*VFMC(2,id)"
-            denominator = "(2*Tnorm(id)*TnormZ(id))*(P(-1,id)*P(-1,id) - Mass(id) * Mass(id) + complex(0,1) * Mass(id) * Width(id))"
+                #numerator =  "VFM(1,id)*VFMC(2,id)"
+                numerator =  "(math.sqrt(P(-1,id)*P(-1,id)) - Mass(id))*UFP(1,id)*UFPC(2,id) + (math.sqrt(P(-1,id)*P(-1,id)) + Mass(id))*VFP(1,id)*VFPC(2,id)"
+            #denominator = "(2*Tnorm(id)*TnormZ(id))*(P(-1,id)*P(-1,id) - Mass(id) * Mass(id) + complex(0,1) * Mass(id) * Width(id))"
+            denominator = "(2*math.sqrt(P(-1,id)*P(-1,id))*(2*Tnorm(id)*TnormZ(id))*(P(-1,id)*P(-1,id) - Mass(id) * Mass(id) + complex(0,1) * Mass(id) * Width(id)))"
         elif propa == "1PS":
             numerator = "(-1*(P(-1,id)*PBar(-1,id)) * Metric(1, 2) + P(1,id)*PBar(2,id) + PBar(1,id)*P(2,id))"
             denominator = "(P(-3,id)*PBar(-3,id))*P(-2,id)**2"
