@@ -88,6 +88,10 @@ def generate_directories_fks_async(i):
 
     nexternal = curr_exporter.proc_characteristic['nexternal']
     ninitial = curr_exporter.proc_characteristic['ninitial']
+    splitting_types = curr_exporter.proc_characteristic['splitting_types']
+
+    proc_characteristics = {'nexternal': nexternal, 'ninitial': ninitial, 'splitting_types': splitting_types}
+
     max_n_matched_jets = curr_exporter.proc_characteristic['max_n_matched_jets']
     #processes = me.born_matrix_element.get('processes')
     processes = me.born_me.get('processes')
@@ -97,9 +101,9 @@ def generate_directories_fks_async(i):
     if me.virt_matrix_element:
         max_loop_vertex_rank = me.virt_matrix_element.get_max_loop_vertex_rank()  
     if six.PY2:
-        return [calls, curr_exporter.fksdirs, max_loop_vertex_rank, ninitial, nexternal, processes, max_n_matched_jets]
+        return [calls, curr_exporter.fksdirs, max_loop_vertex_rank, proc_characteristics, processes, max_n_matched_jets]
     else:
-        return [calls, curr_exporter.fksdirs, max_loop_vertex_rank, ninitial, nexternal, None,max_n_matched_jets]
+        return [calls, curr_exporter.fksdirs, max_loop_vertex_rank, proc_characteristics, None, max_n_matched_jets]
 
 class CheckFKS(mg_interface.CheckValidForCmd):
 
@@ -824,7 +828,7 @@ class aMCatNLOInterface(CheckFKS, CompleteFKS, HelpFKS, Loop_interface.CommonLoo
                 proc_charac['ninitial'] = list(ninitial_set)[0]
                 
                 #  max_n_matched_jets
-                njet_set = set([int(diroutput[6]) for diroutput in diroutputmap])
+                njet_set = set([int(diroutput[5]) for diroutput in diroutputmap])
                 proc_charac['max_n_matched_jets'] = max(njet_set)
 
                 self.born_processes = []
