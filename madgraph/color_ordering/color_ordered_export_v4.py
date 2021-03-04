@@ -286,11 +286,11 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         flow_call_lines = []
         # First calculate minimum color order from color orders in 
         # perm_needed_flows
-        min_color_order = min(sum([[c for (i,j,c) in perm_needed_flows[key]] \
-                                    for key in perm_needed_flows.keys()], []))
+        min_color_order = int(min(sum([[c for (i,j,c) in perm_needed_flows[key]] \
+                                    for key in perm_needed_flows.keys()], [])))
 
         # Write out the calls to the color flows, order by order
-        for color_order in range(0, min_color_order - 1, -2):
+        for color_order in range(0, int(min_color_order) - 1, -2):
             # We only want to separate odd orders, since even
             # correspond to singlet gluon contributions only
             flow_call_lines.append("IF(ICO.EQ.%d) THEN" % \
@@ -326,8 +326,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # The color matrix summation lines for the basic color flows
         color_sum_lines = []
         
-        min_color_order = min(sum([[n for (i,j,c,n) in row_flow_factors[key]] \
-                                    for key in row_flow_factors.keys()], []))
+        min_color_order = int(min(sum([[n for (i,j,c,n) in row_flow_factors[key]] \
+                                    for key in row_flow_factors.keys()], [])))
 
         # Go through the rows and output the explicit color matrix
         # summation for this line

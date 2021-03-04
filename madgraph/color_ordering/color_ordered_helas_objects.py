@@ -41,6 +41,7 @@ import madgraph.core.helas_objects as helas_objects
 import madgraph.iolibs.group_subprocs as group_subprocs
 import madgraph.color_ordering.color_ordered_amplitudes as \
        color_ordered_amplitudes
+import madgraph.various.misc as misc
 from madgraph import MadGraph5Error
 from six.moves import range
 from six.moves import zip
@@ -586,6 +587,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                     "Missing or erraneous arguments for generate_helas_diagrams"
 
         use_bg_currents = (optimization // 2 == 1)
+        import madgraph.various.misc as misc
 
         # Set permutations
         self.set('permutations', amplitude.get('permutations'))
@@ -1109,7 +1111,6 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                  include_all_t = True, tch_depth = 1, identify_depth = 1):
         """Initialize a COHelasMatrixElement with a ColorOrderedAmplitude"""
         
-
         if amplitude != None:
             if isinstance(amplitude,
                           color_ordered_amplitudes.ColorOrderedAmplitude):

@@ -1876,6 +1876,7 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
     def coeff(self, ff_number, frac, is_imaginary, Nc_power, Nc_value=3):
         """Returns a nicely formatted string for the coefficients in JAMP lines"""
 
+        misc.sprint(ff_number, frac, Nc_value, Nc_power)
         total_coeff = ff_number * frac * fractions.Fraction(Nc_value) ** Nc_power
 
         if total_coeff == 1:
@@ -1888,12 +1889,14 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
                 return '-imag1*'
             else:
                 return '-'
+        if isinstance(total_coeff, float):
+            res_str = '%.14f' % total_coeff
+        else:
+            res_str = '%+iD0' % total_coeff.numerator
 
-        res_str = '%+iD0' % total_coeff.numerator
-
-        if total_coeff.denominator != 1:
-            # Check if total_coeff is an integer
-            res_str = res_str + '/%iD0' % total_coeff.denominator
+            if total_coeff.denominator != 1:
+                # Check if total_coeff is an integer
+                res_str = res_str + '/%iD0' % total_coeff.denominator
 
         if is_imaginary:
             res_str = res_str + '*imag1'
