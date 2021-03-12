@@ -1890,7 +1890,7 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
             else:
                 return '-'
         if isinstance(total_coeff, float):
-            res_str = '%.14f' % total_coeff
+            res_str = '%+.14f' % total_coeff
         else:
             res_str = '%+iD0' % total_coeff.numerator
 
