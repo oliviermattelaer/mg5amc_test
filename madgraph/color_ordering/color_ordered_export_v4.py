@@ -342,6 +342,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 # Get denominator and flows for this color_order
                 den, factor_dict = self.organize_row(row_flow_factors[irow],
                                                      color_order)
+      
                 color_sum_lines.append(\
                     'ZTEMP = ZTEMP+%(den)s*JAMP(%(jamp)d)*DCONJG(%(flows)s)' % \
                     {'den': self.fraction_to_string(den),
@@ -371,10 +372,10 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # First pick out only the relevant factors, based on color_order
         orders = [(i,j,c) for (i,j,c,n) in flow_factors if \
-                  n/2 == color_order/2]
+                  int(n)//2 == int(color_order)//2]
         assert(orders)
         co_flow_factors = orders
-
+     
         # Then get common denominators for this row
         den = color_amp.ColorMatrix.lcmm(*[fact[2].denominator \
                                            for fact in co_flow_factors])

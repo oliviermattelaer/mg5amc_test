@@ -1876,7 +1876,6 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
     def coeff(self, ff_number, frac, is_imaginary, Nc_power, Nc_value=3):
         """Returns a nicely formatted string for the coefficients in JAMP lines"""
 
-        misc.sprint(ff_number, frac, Nc_value, Nc_power)
         total_coeff = ff_number * frac * fractions.Fraction(Nc_value) ** Nc_power
 
         if total_coeff == 1:
