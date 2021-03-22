@@ -290,15 +290,15 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                                     for key in perm_needed_flows.keys()], [])))
 
         # Write out the calls to the color flows, order by order
-        for color_order in range(0, int(min_color_order) - 1, -2):
+        for color_order in range(0, int(min_color_order) - 7, -2):
             # We only want to separate odd orders, since even
             # correspond to singlet gluon contributions only
             flow_call_lines.append("IF(ICO.EQ.%d) THEN" % \
-                                       (1 - (color_order / 2)))
+                                       (1 - (int(color_order) // 2)))
             for iperm, perm in enumerate(needed_perms):
                 orders = max([c/2 for (i,j,c) in perm_needed_flows[perm]])
                 # Only include permutations with relevant flows
-                if color_order/2 > orders: continue
+                if int(color_order)//2 > orders: continue
 
                 # Set the perm needed in the flow calls
                 flow_call_lines.append("DO I=1,NEXTERNAL")
@@ -331,12 +331,12 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # Go through the rows and output the explicit color matrix
         # summation for this line
-        for color_order in range(0, min_color_order - 1, -2):
+        for color_order in range(0, min_color_order - 2, -2):
             color_sum_lines.append("IF(ICO.EQ.%d) THEN" % \
                                        (1 - (color_order / 2)))
             for irow in sorted(row_flow_factors.keys()):
                 orders = [n for (i,j,c,n) in row_flow_factors[irow] if \
-                          n/2 == color_order/2]
+                          int(n)//2 == int(color_order)//2]
                 # Only include lines with relevant flows
                 if not orders: continue
                 # Get denominator and flows for this color_order

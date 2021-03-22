@@ -1449,7 +1449,6 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
             start_time = 0
         
         res_list = []
-        #misc.sprint(len(all_element))  
         
         self.myjamp_count = 0
         new_mat, defs = self.optimise_jamp(all_element)
@@ -1457,7 +1456,6 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
             logger.info("Color-Flow passed to %s term in %ss. Introduce %i contraction", len(new_mat), int(time.time()-start_time), len(defs))
         
         
-        #misc.sprint("number of iteration", self.myjamp_count)
         def format(frac):
             if isinstance(frac, Fraction):
                 if frac.denominator == 1:
@@ -1465,7 +1463,6 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
                 else:
                     return "%id0/%id0" % (frac.numerator, frac.denominator)
             elif frac.real == frac:
-                #misc.sprint(frac.real, frac)
                 return str(float(frac.real)).replace('e','d')
             else:
                 return str(frac).replace('e','d').replace('j','*imag1')
@@ -1485,7 +1482,6 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
             res_list.append(' TMP_JAMP(%d) = %s + (%s) * %s ! used %d times' % (i,amp1, format(frac), amp2, nb))                
                  
 
-#        misc.sprint(new_mat)
         jamp_res = collections.defaultdict(list)
         max_jamp=0
         for (jamp, var), factor in new_mat.items():
@@ -1543,9 +1539,6 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
                         all_index.append((j1,j2, R))
         if max_count <= 1:
             return all_element, []
-        #added += 1
-        #misc.sprint(max_count, len(all_index))
-        #misc.sprint(operation)
         to_add = []
         for index in all_index:
             j1,j2,R = index
