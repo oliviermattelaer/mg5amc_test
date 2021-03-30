@@ -206,7 +206,7 @@ c*************************************************************
 c*************************************************************
 c     computation of upper bounding envelope
 c*************************************************************
-      elseif(imode.eq.1) then
+      elseif(imode.eq.1 .or. imode.eq.3) then
          write (*,*) 'imode is ',imode
          call mint(sigintF)
          call deallocate_weight_lines
@@ -591,6 +591,9 @@ c These should be ignored (but kept for 'historical reasons')
       write (*,*) 'MINT running mode:',imode
       if (imode.eq.2)then
          write (*,*) 'Generating events, doing only one iteration'
+         nitmax=1
+      elseif (imode.eq.3)then
+         write (*,*) 'Setting up Born smearing'
          nitmax=1
       endif
 

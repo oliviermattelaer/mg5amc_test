@@ -71,6 +71,7 @@ module mint_module
   integer, parameter, public  :: ndimmax=60       ! max number of dimensions of the integral
   integer, parameter, public  :: n_ave_virt=10    ! max number of grids to set up to approx virtual
   integer, parameter, public  :: nintegrals=26    ! number of integrals to keep track of
+  integer, parameter, public  :: n_BS_xi=10, n_BS_yij=10
   integer, parameter, private :: nintervals_virt=8! max number of intervals in the grids for the approx virtual
   integer, parameter, private :: min_inter=4      ! minimal number of intervals
   integer, parameter, private :: min_it0=4        ! minimal number of iterations in the mint step 0 phase
@@ -95,6 +96,7 @@ module mint_module
   double precision, dimension(0:n_ave_virt), public :: virt_wgt_mint,born_wgt_mint,polyfit
   double precision, dimension(maxchannels), public :: virtual_fraction
   double precision, dimension(nintegrals,0:maxchannels), public :: ans,unc
+  double precision, dimension(n_BS_yij,n_BS_xi,0:2), public :: BornSmear
   logical :: only_virt,new_point,pass_cuts_check
 
 ! private variables
@@ -225,7 +227,7 @@ contains
        call setup_imode_0
     elseif (imode.eq.-1) then
        call setup_imode_m1
-    elseif (imode.eq.1) then
+    elseif (imode.eq.1 .or. imode.eq.3) then
        call setup_imode_1
     endif
     cross_section=ans_chan(0) * wgt_mult
@@ -965,6 +967,7 @@ contains
     call reset_upper_bounding_envelope
     ans_chan(1:nchans)=ans(1,1:nchans)
     ans_chan(0)=sum(ans(1,1:nchans))
+    if (imode.eq.3) BornSmear(1:n_BS_yij,1:n_BS_xi,0:2)=0d0
   end subroutine setup_imode_1
 
   subroutine reset_upper_bounding_envelope
@@ -1049,9 +1052,19 @@ contains
        do j=0,nintervals
           write (12,*) 'AVE',(xgrid(j,i,kchan),i=1,ndim)
        enddo
-       if (imode.ge.1) then
+       if (imode.ge.1 .and. .not.imode.eq.3) then
           do j=1,nintervals
              write (12,*) 'MAX',(ymax(j,i,kchan),i=1,ndim)
+          enddo
+       endif
+       if (imode.eq.3) then
+          do j=1,n_BS_xi
+             do i=1,n_BS_yij
+                BornSmear(i,j,0)=(BornSmear(i,j,1)-BornSmear(i,j,2))/2d0
+             enddo
+          enddo
+          do j=1,n_BS_xi
+             write (12,*) 'AVE',(BornSmear(i,j,0),i=1,n_BS_yij)
           enddo
        endif
        if (.not.use_poly_virtual) then
@@ -1061,7 +1074,7 @@ contains
              enddo
           enddo
        endif
-       if (imode.ge.1) then
+       if (imode.ge.1 .and. .not.imode.eq.3) then
           write (12,*) 'MAX',ymax_virt(kchan)
        endif
        write (12,*) 'SUM',(ans(i,kchan),i=1,nintegrals)
@@ -1087,9 +1100,14 @@ contains
        do j=0,nintervals
           read (12,*) dummy,(xgrid(j,i,kchan),i=1,ndim)
        enddo
-       if (imode.ge.2) then
+       if (imode.ge.2 .and. .not.imode.eq.3) then
           do j=1,nintervals
              read (12,*) dummy,(ymax(j,i,kchan),i=1,ndim)
+          enddo
+       endif
+       if (imode.eq.1) then
+          do j=1,n_BS_xi
+             read (12,*) dummy,(BornSmear(i,j,0),i=1,n_BS_yij)
           enddo
        endif
        if (.not.use_poly_virtual) then
@@ -1099,7 +1117,7 @@ contains
              enddo
           enddo
        endif
-       if (imode.ge.2) then
+       if (imode.ge.2 .and. .not.imode.eq.3) then
           read (12,*) dummy,ymax_virt(kchan)
        endif
        read (12,*) dummy,(ans(i,kchan),i=1,nintegrals)

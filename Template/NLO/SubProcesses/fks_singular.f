@@ -2729,12 +2729,17 @@ c various FKS configurations can be summed together.
       include 'nFKSconfigs.inc'
       include 'fks_info.inc'
       include 'timing_variables.inc'
+      double precision xi_i_fks_ev,y_ij_fks_ev
+      double precision p_i_fks_ev(0:3),p_i_fks_cnt(0:3,-2:2)
+      common/fksvariables/xi_i_fks_ev,y_ij_fks_ev,p_i_fks_ev,p_i_fks_cnt
       integer i,j,ii,jj,i_soft
       logical momenta_equal,pdg_equal,equal,found_S
       external momenta_equal,pdg_equal
       integer iproc_save(fks_configs),eto(maxproc,fks_configs),
      &     etoi(maxproc,fks_configs),maxproc_found
       common/cproc_combination/iproc_save,eto,etoi,maxproc_found
+      double precision bornsmear_weight
+      external bornsmear_weight
       call cpu_time(tBefore)
       if (icontr.eq.0) return
 c Find the contribution to sum all the S-event ones. This should be one
@@ -2762,8 +2767,22 @@ c Main loop over contributions. For H-events we have to check explicitly
 c to which contribution we can sum the current contribution (if any),
 c while for the S-events we can sum it to the 'i_soft' one.
       do i=1,icontr
+         if (itype(i).eq.2 .and. imode.eq.1) then
+            wgts(1,i)=wgts(1,i)*BornSmear_weight(xi_i_fks_ev
+     $           ,y_ij_fks_ev)
+            do j=1,niproc(i)
+               parton_iproc(j,i)= parton_iproc(j,i)*
+     $              BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev)
+            enddo
+c$$$            write (*,*) xi_i_fks_ev,y_ij_fks_ev,bornsmear_weight(xi_i_fks_ev,y_ij_fks_ev)
+         endif
+      enddo
+
+      do i=1,icontr
          do j=1,niproc(i)
             unwgt(j,i)=0d0
+            unwgt_noB(j,i)=0d0
+            unwgt_B(j,i)=0d0
          enddo
          icontr_sum(0,i)=0
          if (H_event(i)) then
@@ -2806,7 +2825,14 @@ c virtual corrections. Exception: when computing only the virtual, do
 c include it here!
                      if (itype(i).eq.14 .and. imode.eq.1 .and. .not.
      $                    only_virt) exit
-                     unwgt(j,i_soft)=unwgt(j,i_soft)+parton_iproc(jj,i)
+                     unwgt(j,i_soft)=unwgt(j,i_soft)+ parton_iproc(jj,i)
+                     if (itype(i).ne.2) then
+                        unwgt_noB(j,i_soft)=unwgt_noB(j,i_soft)
+     $                       +parton_iproc(jj,i)
+                     else
+                        unwgt_B(j,i_soft)=unwgt_B(j,i_soft)
+     $                       +parton_iproc(jj,i)
+                     endif
                   endif
                enddo
             enddo
@@ -2887,12 +2913,18 @@ c on the imode we should or should not include the virtual corrections.
       include 'orders.inc'
       integer i,j,ict,iamp,ithree,isix
       double precision f(nintegrals),sigint,sigint1,sigint_ABS
-     $     ,n1body_wgt,tmp_wgt,max_weight
+     $     ,n1body_wgt,tmp_wgt,max_weight,sigint_noBorn
+     $     ,sigint_ABS_noBorn
       double precision virtual_over_born
       common /c_vob/   virtual_over_born
+      double precision xi_i_fks_ev,y_ij_fks_ev
+      double precision p_i_fks_ev(0:3),p_i_fks_cnt(0:3,-2:2)
+      common/fksvariables/xi_i_fks_ev,y_ij_fks_ev,p_i_fks_ev,p_i_fks_cnt
       sigint=0d0
       sigint1=0d0
       sigint_ABS=0d0
+      sigint_noBorn=0d0
+      sigint_ABS_noBorn=0d0
       n1body_wgt=0d0
       max_weight=0d0
       if (icontr.eq.0) then
@@ -2906,7 +2938,9 @@ c on the imode we should or should not include the virtual corrections.
             if (icontr_sum(0,i).eq.0) cycle
             do j=1,niproc(i)
                sigint_ABS=sigint_ABS+abs(unwgt(j,i))
+               sigint_ABS_noBorn=sigint_ABS_noBorn+abs(unwgt_noB(j,i))
                sigint1=sigint1+unwgt(j,i) ! for consistency check
+               sigint_noBorn=sigint_noBorn+unwgt_noB(j,i)
                max_weight=max(max_weight,abs(unwgt(j,i)))
             enddo
          enddo
@@ -2953,6 +2987,14 @@ c n1body_wgt is used for the importance sampling over FKS directories
             n1body_wgt=n1body_wgt+abs(tmp_wgt)
          enddo
       endif
+c
+      if (imode.eq.3) then
+         j=int(n_BS_xi*xi_i_fks_ev)+1
+         i=int(n_BS_yij*(y_ij_fks_ev+1d0)/2d0)+1
+         BornSmear(i,j,1)=BornSmear(i,j,1)+sigint_ABS_noBorn
+         BornSmear(i,j,2)=BornSmear(i,j,2)+sigint_noBorn
+      endif
+      
       f(1)=sigint_ABS
       f(2)=sigint
       f(4)=virtual_over_born
@@ -2977,6 +3019,43 @@ c n1body_wgt is used for the importance sampling over FKS directories
       end
 
 
+      double precision function BornSmear_weight(xi,y)
+      use mint_module
+      implicit none
+      integer i,j
+      double precision xi,y
+      double precision sum_wgts
+      save sum_wgts
+      logical firsttime
+      data firsttime/.true./
+c
+c     compute weight normalisation
+      if (firsttime) then
+         sum_wgts=0d0
+         do j=1,n_BS_xi
+            do i=1,n_BS_yij
+               sum_wgts=sum_wgts+BornSmear(j,i,0)
+            enddo
+         enddo
+c     check
+         if(sum_wgts.eq.0d0)then
+            write(*,*)'Error in bias weight, zero total weight'
+            stop
+         endif
+         firsttime=.false.
+      endif
+c
+c     determine bin corresponding to actual xi and y values
+      j=int(n_BS_xi*xi)+1
+      i=int(n_BS_yij*(y+1d0)/2d0)+1
+c
+c     output weight at xi and y
+c$$$      BornSmear_weight=BornSmear(i,j,0)/sum_wgts*n_BS_xi*n_BS_yij
+      BornSmear_weight=sum(BornSmear(i,1:n_BS_xi,0))/sum_wgts*n_BS_yij
+c
+      return
+      end
+      
       subroutine pick_unweight_contr(iFKS_picked)
 c Randomly pick (weighted by the ABS values) the contribution to a given
 c PS point that should be written in the event file.

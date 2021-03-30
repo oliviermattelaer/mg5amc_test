@@ -13,7 +13,7 @@
      $        ,:),wgt(:,:),wgt_ME_tree(:,:),bjx(:,:),scales2(:,:)
      $        ,g_strong(:),wgts(:,:),parton_iproc(:,:),y_bst(:)
      $        ,cpower(:),plot_wgts(:,:),shower_scale(:),unwgt(:,:)
-     $        ,bias_wgt(:)
+     $        ,bias_wgt(:),unwgt_nob(:,:),unwgt_b(:,:)
          save
       end module weight_lines
 
@@ -53,6 +53,14 @@ c unwgt
          allocate(temp2(n_proc,max_contr))
          temp2(1:max_iproc,1:max_contr)=unwgt
          call move_alloc(temp2,unwgt)
+c unwgt_noB
+         allocate(temp2(n_proc,max_contr))
+         temp2(1:max_iproc,1:max_contr)=unwgt_noB
+         call move_alloc(temp2,unwgt_noB)
+c unwgt_B
+         allocate(temp2(n_proc,max_contr))
+         temp2(1:max_iproc,1:max_contr)=unwgt_B
+         call move_alloc(temp2,unwgt_B)
 c update maximum
          max_iproc=n_proc
       endif
@@ -191,6 +199,14 @@ c unwgt
          allocate(temp2(max_iproc,n_contr))
          temp2(1:max_iproc,1:max_contr)=unwgt
          call move_alloc(temp2,unwgt)
+c unwgt_noB
+         allocate(temp2(max_iproc,n_contr))
+         temp2(1:max_iproc,1:max_contr)=unwgt_noB
+         call move_alloc(temp2,unwgt_noB)
+c unwgt_B
+         allocate(temp2(max_iproc,n_contr))
+         temp2(1:max_iproc,1:max_contr)=unwgt_B
+         call move_alloc(temp2,unwgt_B)
 c update maximum
          max_contr=n_contr
       endif
@@ -231,6 +247,8 @@ c update maximum
       allocate(plot_wgts(1,1))
       allocate(shower_scale(1))
       allocate(unwgt(1,1))
+      allocate(unwgt_noB(1,1))
+      allocate(unwgt_B(1,1))
       max_contr=1
       max_wgt=1
       max_iproc=1
@@ -273,5 +291,7 @@ c update maximum
       if (allocated(plot_wgts)) deallocate(plot_wgts)
       if (allocated(shower_scale)) deallocate(shower_scale)
       if (allocated(unwgt)) deallocate(unwgt)
+      if (allocated(unwgt_noB)) deallocate(unwgt_noB)
+      if (allocated(unwgt_B)) deallocate(unwgt_B)
       return
       end
