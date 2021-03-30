@@ -172,6 +172,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         color_matrix = matrix_element.get('color_matrix')
         flows = matrix_element.get('color_flows')
+        
+
         nflows = len(flows)
         # The permutations with non-zero color matrix elements with
         # the basic color flows
@@ -276,7 +278,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return iferm_line
 
-    def get_flow_call_lines(self, needed_perms, perm_needed_flows,
+    def get_flow_call_lines(self, needed_perms, perm_needed_flows, min_color_order,
                             me_flag = ''):
         """Write out the calls to all color flows. Need to multiply by
         fermion permutation factor for this color flow to get right
@@ -284,13 +286,9 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # Generate the calls to all needed flows, by color order
         flow_call_lines = []
-        # First calculate minimum color order from color orders in 
-        # perm_needed_flows
-        min_color_order = int(min(sum([[c for (i,j,c) in perm_needed_flows[key]] \
-                                    for key in perm_needed_flows.keys()], [])))
-
+        
         # Write out the calls to the color flows, order by order
-        for color_order in range(0, int(min_color_order) - 7, -2):
+        for color_order in range(0, int(min_color_order) - 2, -2):
             # We only want to separate odd orders, since even
             # correspond to singlet gluon contributions only
             flow_call_lines.append("IF(ICO.EQ.%d) THEN" % \
@@ -318,7 +316,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return flow_call_lines
 
-    def get_color_flow_lines(self, row_flow_factors, flow_jamp_dict):
+    def get_color_flow_lines(self, row_flow_factors, flow_jamp_dict, min_color_order):
         """Write summation of all color flows. Need to multiply by
         fermion permutation factor for this color flow to get right
         sign."""
@@ -326,9 +324,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # The color matrix summation lines for the basic color flows
         color_sum_lines = []
         
-        min_color_order = int(min(sum([[n for (i,j,c,n) in row_flow_factors[key]] \
-                                    for key in row_flow_factors.keys()], [])))
-
         # Go through the rows and output the explicit color matrix
         # summation for this line
         for color_order in range(0, min_color_order - 2, -2):
@@ -585,10 +580,12 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                                                     needed_perms)
         flow_iferm_data_line = self.get_iferm_line(matrix_element,
                                                    needed_perms)
-        flow_call_lines = self.get_flow_call_lines(needed_perms,
-                                                   perm_needed_flows)
+        min_color_order = int(min(sum([[n for (i,j,c,n) in row_flow_factors[key]]
+                                    for key in row_flow_factors.keys()], [])))
+        flow_call_lines = self.get_flow_call_lines(needed_perms,perm_needed_flows, 
+                                                   min_color_order)
         color_sum_lines = self.get_color_flow_lines(row_flow_factors,
-                                                    flow_jamp_dict)
+                                                    flow_jamp_dict, min_color_order)
 
         replace_dict['flow_perms_data_lines'] = '\n'.join(flow_perms_data_lines)
         replace_dict['flow_iferm_data_line'] = flow_iferm_data_line
@@ -1061,11 +1058,13 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                                                     needed_perms)
         flow_iferm_data_line = self.get_iferm_line(matrix_element,
                                                    needed_perms)
+        min_color_order = int(min(sum([[n for (i,j,c,n) in row_flow_factors[key]] \
+                                    for key in row_flow_factors.keys()], [])))
         flow_call_lines = self.get_flow_call_lines(needed_perms,
-                                                   perm_needed_flows,
+                                                   perm_needed_flows, min_color_order,
                                                    me_flag)
         color_sum_lines = self.get_color_flow_lines(row_flow_factors,
-                                                    flow_jamp_dict)
+                                                    flow_jamp_dict, min_color_order)
         replace_dict['flow_perms_data_lines'] = '\n'.join(flow_perms_data_lines)
         replace_dict['flow_iferm_data_line'] = flow_iferm_data_line
         replace_dict['nflowperms'] = nflowperms
