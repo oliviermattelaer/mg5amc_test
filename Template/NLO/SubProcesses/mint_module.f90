@@ -96,7 +96,7 @@ module mint_module
   double precision, dimension(0:n_ave_virt), public :: virt_wgt_mint,born_wgt_mint,polyfit
   double precision, dimension(maxchannels), public :: virtual_fraction
   double precision, dimension(nintegrals,0:maxchannels), public :: ans,unc
-  double precision, dimension(n_BS_yij,n_BS_xi,0:2), public :: BornSmear
+  double precision, dimension(n_BS_yij,n_BS_xi,0:3), public :: BornSmear
   logical :: only_virt,new_point,pass_cuts_check
 
 ! private variables
@@ -967,7 +967,7 @@ contains
     call reset_upper_bounding_envelope
     ans_chan(1:nchans)=ans(1,1:nchans)
     ans_chan(0)=sum(ans(1,1:nchans))
-    if (imode.eq.3) BornSmear(1:n_BS_yij,1:n_BS_xi,0:2)=0d0
+    if (imode.eq.3) BornSmear(1:n_BS_yij,1:n_BS_xi,0:3)=0d0
   end subroutine setup_imode_1
 
   subroutine reset_upper_bounding_envelope
@@ -1065,6 +1065,7 @@ contains
           enddo
           do j=1,n_BS_xi
              write (12,*) 'AVE',(BornSmear(i,j,0),i=1,n_BS_yij)
+             write (12,*) 'AVE',(BornSmear(i,j,3),i=1,n_BS_yij)
           enddo
        endif
        if (.not.use_poly_virtual) then
@@ -1108,6 +1109,7 @@ contains
        if (imode.eq.1) then
           do j=1,n_BS_xi
              read (12,*) dummy,(BornSmear(i,j,0),i=1,n_BS_yij)
+             read (12,*) dummy,(BornSmear(i,j,3),i=1,n_BS_yij)
           enddo
        endif
        if (.not.use_poly_virtual) then

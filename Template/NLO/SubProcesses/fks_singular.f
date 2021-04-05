@@ -1512,6 +1512,12 @@ c Check for NaN's and INF's. Simply skip the contribution
       if (wgt2.ne.wgt2) return
       if (wgt3.ne.wgt3) return
 
+      if(type.eq.1 .or. type.eq. 8 .or. type.eq.9 .or. type.eq.10 .or.
+     &     type.eq.13) then
+         ! DO NOT INCLUDE H-EVENTS !
+         return
+      endif
+
 C Apply user-defined (in FKS_params.dat) contribution type filters if necessary
       if (VetoedContributionTypes(0).gt.0) then
         do i=1,VetoedContributionTypes(0)
@@ -2738,7 +2744,7 @@ c various FKS configurations can be summed together.
       integer iproc_save(fks_configs),eto(maxproc,fks_configs),
      &     etoi(maxproc,fks_configs),maxproc_found
       common/cproc_combination/iproc_save,eto,etoi,maxproc_found
-      double precision bornsmear_weight
+      double precision bornsmear_weight,BornSmear_wgt
       external bornsmear_weight
       call cpu_time(tBefore)
       if (icontr.eq.0) return
@@ -2768,13 +2774,11 @@ c to which contribution we can sum the current contribution (if any),
 c while for the S-events we can sum it to the 'i_soft' one.
       do i=1,icontr
          if (itype(i).eq.2 .and. imode.eq.1) then
-            wgts(1,i)=wgts(1,i)*BornSmear_weight(xi_i_fks_ev
-     $           ,y_ij_fks_ev)
+            BornSmear_wgt=BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev)
+            wgts(1,i)=wgts(1,i)*BornSmear_wgt
             do j=1,niproc(i)
-               parton_iproc(j,i)= parton_iproc(j,i)*
-     $              BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev)
+               parton_iproc(j,i)= parton_iproc(j,i)*BornSmear_wgt
             enddo
-c$$$            write (*,*) xi_i_fks_ev,y_ij_fks_ev,bornsmear_weight(xi_i_fks_ev,y_ij_fks_ev)
          endif
       enddo
 
@@ -2914,7 +2918,7 @@ c on the imode we should or should not include the virtual corrections.
       integer i,j,ict,iamp,ithree,isix
       double precision f(nintegrals),sigint,sigint1,sigint_ABS
      $     ,n1body_wgt,tmp_wgt,max_weight,sigint_noBorn
-     $     ,sigint_ABS_noBorn
+     $     ,sigint_ABS_noBorn,sigint_Born
       double precision virtual_over_born
       common /c_vob/   virtual_over_born
       double precision xi_i_fks_ev,y_ij_fks_ev
@@ -2925,6 +2929,7 @@ c on the imode we should or should not include the virtual corrections.
       sigint_ABS=0d0
       sigint_noBorn=0d0
       sigint_ABS_noBorn=0d0
+      sigint_Born=0d0
       n1body_wgt=0d0
       max_weight=0d0
       if (icontr.eq.0) then
@@ -2941,6 +2946,7 @@ c on the imode we should or should not include the virtual corrections.
                sigint_ABS_noBorn=sigint_ABS_noBorn+abs(unwgt_noB(j,i))
                sigint1=sigint1+unwgt(j,i) ! for consistency check
                sigint_noBorn=sigint_noBorn+unwgt_noB(j,i)
+               sigint_Born=sigint_Born+unwgt_B(j,i)
                max_weight=max(max_weight,abs(unwgt(j,i)))
             enddo
          enddo
@@ -2989,10 +2995,11 @@ c n1body_wgt is used for the importance sampling over FKS directories
       endif
 c
       if (imode.eq.3) then
-         j=int(n_BS_xi*xi_i_fks_ev)+1
          i=int(n_BS_yij*(y_ij_fks_ev+1d0)/2d0)+1
+         j=int(n_BS_xi*xi_i_fks_ev)+1
          BornSmear(i,j,1)=BornSmear(i,j,1)+sigint_ABS_noBorn
          BornSmear(i,j,2)=BornSmear(i,j,2)+sigint_noBorn
+         BornSmear(i,j,3)=BornSmear(i,j,3)+sigint_Born
       endif
       
       f(1)=sigint_ABS
@@ -3024,19 +3031,14 @@ c
       implicit none
       integer i,j
       double precision xi,y
-      double precision sum_wgts
-      save sum_wgts
+      double precision sum_wgts,sum_Born,sum_Bwgt
+      save sum_wgts,sum_Born,sum_Bwgt
       logical firsttime
       data firsttime/.true./
 c
 c     compute weight normalisation
       if (firsttime) then
-         sum_wgts=0d0
-         do j=1,n_BS_xi
-            do i=1,n_BS_yij
-               sum_wgts=sum_wgts+BornSmear(j,i,0)
-            enddo
-         enddo
+         sum_wgts=sum(BornSmear(1:n_BS_xi,1:n_BS_yij,0))
 c     check
          if(sum_wgts.eq.0d0)then
             write(*,*)'Error in bias weight, zero total weight'
@@ -3046,13 +3048,13 @@ c     check
       endif
 c
 c     determine bin corresponding to actual xi and y values
-      j=int(n_BS_xi*xi)+1
       i=int(n_BS_yij*(y+1d0)/2d0)+1
+      j=int(n_BS_xi*xi)+1
+      sum_Born=sum(BornSmear(i,1:n_BS_xi,3))
+      sum_Bwgt=sum(BornSmear(i,1:n_BS_xi,0)*BornSmear(i,1:n_BS_xi,3))
 c
 c     output weight at xi and y
-c$$$      BornSmear_weight=BornSmear(i,j,0)/sum_wgts*n_BS_xi*n_BS_yij
-      BornSmear_weight=sum(BornSmear(i,1:n_BS_xi,0))/sum_wgts*n_BS_yij
-c
+      BornSmear_weight=BornSmear(i,j,0)/(sum_Bwgt/sum_Born)
       return
       end
       
