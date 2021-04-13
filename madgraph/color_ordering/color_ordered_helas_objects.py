@@ -351,8 +351,13 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
 
         color_string = self.get('color_string')
         singlet_orders = self.get('all_orders')['singlet_QCD'] / 2
-        color_string.coeff *= fractions.Fraction(-1, 2)**singlet_orders
-        color_string.Nc_power += singlet_orders
+        misc.sprint(singlet_orders, color_string.Nc_power)
+        if singlet_orders <2 :
+            color_string.coeff *= fractions.Fraction(-1, 2*3**3)
+            color_string.Nc_power += 4*singlet_orders
+        else:
+            color_string.coeff *= fractions.Fraction(-1, 2)**singlet_orders
+            color_string.Nc_power += singlet_orders
 
     def create_arrays(self):
         """Create the comparison array compare_array, to find
@@ -1119,9 +1124,13 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 self.set('has_mirror_process',
                          amplitude.get('has_mirror_process'))
                 for iflow, flow in enumerate(amplitude.get('color_flows')):
-                    if flow.get('process').get('orders')['singlet_QCD'] > \
-                            (color_order - 1) * 2:
+                    if color_order == 1:
+                        if flow.get('process').get('orders')['singlet_QCD'] > 2:
+                            continue
+                    elif flow.get('process').get('orders')['singlet_QCD'] > \
+                             (color_order - 1) * 2: 
                         continue
+
                     self.get('color_flows').append(COHelasFlow(flow,
                                                    optimization = optimization,
                                                    gen_color = False,
@@ -1186,9 +1195,11 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # The resulting color matrix will only have for non-zero
         # entries, and only lines for the basic color flows (first
         # permutation)
+        misc.sprint(color_order)
 
         # First figure out maximum Nc power from the color strings
         Nc_powers = []
+        misc.sprint(len(self.get('color_flows')))
         for color_flow in self.get('color_flows'):
             col_str = color_flow.get('color_string').create_copy()
             col_str2 = col_str.create_copy()
@@ -1199,13 +1210,14 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             result = col_fact.full_simplify()
             # result now has all Nc powers
             Nc_powers.extend([cs.Nc_power for cs in result])
-
+        misc.sprint(Nc_powers)
         # Set min Nc power to max(Nc_powers) - (color_order - 1),
         # i.e., Nc^Nmax for leading, Nc^(Nmax-1) to subleading, etc.
         min_Nc_power = 0
         if Nc_powers:
             min_Nc_power = max(Nc_powers) - (color_order - 1)
             self.set('min_Nc_power', min_Nc_power)
+
 
         # Check if this is an all-octet amplitude
         process = self.get('processes')[0]

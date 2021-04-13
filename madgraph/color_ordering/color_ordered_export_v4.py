@@ -183,7 +183,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Get maximum color factor Nc
         max_Nc = max([max([c.Nc_power for c in color_matrix[(icol, irow)]]) \
                       for (icol, irow) in color_matrix.keys()])
-        
+        misc.sprint(max_Nc)
         # Get maximum color factor for each flow in each perm
         # (for comments see below)
         perm_flow_factors = {}
@@ -192,6 +192,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             iflow = icol % nflows
             flow_Nc = max([c.Nc_power for c in \
                                   color_matrix[(icol, irow)]]) - max_Nc
+            misc.sprint(flow_Nc)
             perm_flow_factors[(iperm,iflow)] = \
               max(flow_Nc, perm_flow_factors.setdefault((iperm,iflow), flow_Nc))
 
