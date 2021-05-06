@@ -558,14 +558,14 @@ Please also cite ref. 'arXiv:1804.10017' when using results from this code.
         # now check that all couplings that are there in orders also appear
         # in squared_orders. If not, set the corresponding one
         for k, v in myprocdef['orders'].items():
-            if k not in myprocdef['squared_orders'].keys():
+            if k not in list(myprocdef['squared_orders'].keys()):
                 myprocdef['squared_orders'][k] = 2*v 
                 logger.warning('Order %s is not constrained as squared_orders. Using: %s^2=%d' % (k,k,2*v) )
 
         # check that all the couplings of the model have been constrained
         # in the squared orders, otherwise set the others to zero
         for o in myprocdef['model'].get('coupling_orders'):
-            if o not in myprocdef['squared_orders'].keys():
+            if o not in list(myprocdef['squared_orders'].keys()):
                 logger.warning('No squared order constraint for order %s. Setting to 0' % o)
                 myprocdef['squared_orders'][o] = 0 
 

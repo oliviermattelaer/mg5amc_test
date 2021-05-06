@@ -4800,7 +4800,7 @@ This implies that with decay chains:
             if name.endswith('^2'):
                 basename = name[:-2]
                 if basename not in model_orders:
-                    valid = list(model_orders) + coupling_alias.keys()
+                    valid = list(model_orders) + list(coupling_alias.keys())
                     raise self.InvalidCmd("model order %s not valid for this model (valid one are: %s). Please correct" % (name, ', '.join(valid))) 
 
                 if type not in self._valid_sqso_types:
@@ -4935,8 +4935,7 @@ This implies that with decay chains:
 
             # check that only final-state particles are tagged
             if is_tagged and not state:
-                raise self.InvalidCmd,\
-                            "initial particles cannot be tagged"
+                raise self.InvalidCmd("initial particles cannot be tagged")
 
             mylegids = []
             polarization = []
@@ -5019,8 +5018,7 @@ This implies that with decay chains:
             if part_name in self._multiparticles:
                 # multiparticles cannot be tagged
                 if is_tagged:
-                    raise self.InvalidCmd,\
-                            "Multiparticles cannot be tagged"
+                    raise self.InvalidCmd("Multiparticles cannot be tagged")
                 if isinstance(self._multiparticles[part_name][0], list):
                     raise self.InvalidCmd("Multiparticle %s is or-multiparticle" % part_name + \
                           " which can be used only for required s-channels")
@@ -5053,8 +5051,7 @@ This implies that with decay chains:
                 if LoopOption in ['virt','sqrvirt','tree','noborn']:
                     # check that no tagged particles exist in this mode
                     if is_tagged:
-                        raise self.InvalidCmd,\
-                            "%s mode does not handle tagged particles" % LoopOption
+                        raise self.InvalidCmd("%s mode does not handle tagged particles" % LoopOption)
                     for _ in range(duplicate):
                         myleglist.append(base_objects.MultiLeg({'ids':mylegids,
                                                                 'state':state,
@@ -5907,9 +5904,12 @@ This implies that with decay chains:
         line = []
         for part in self._curr_model.get('particles'):
             line.append('%s %s' % (part.get('name'), part.get('antiname')))
-        line = 'all =' + ' '.join(line)
-        self.do_define(line)
-
+        if line:
+            line = 'all =' + ' '.join(line)
+            self.do_define(line)
+        else:
+            del self._multiparticles['all']
+            
     def advanced_install(self, tool_to_install, 
                                HepToolsInstaller_web_address=None,
                                additional_options=[]):

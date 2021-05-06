@@ -15,6 +15,7 @@
 
 """Definitions of the objects needed both for MadFKS with tagged particles"""
 
+from __future__ import absolute_import
 import madgraph.core.base_objects as MG
 
 
@@ -40,9 +41,8 @@ class MultiTagLeg(MG.MultiLeg):
 
         if name == 'is_tagged':
             if not isinstance(value, bool):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid string for leg 'is_tagged' flag" \
-                                                        % str(value)
+                raise self.PhysicsObjectError("%s is not a valid string for leg 'is_tagged' flag" \
+                                                        % str(value))
         return super(MultiTagLeg,self).filter(name, value)
     
      
@@ -69,7 +69,6 @@ class TagLeg(MG.Leg):
 
         if name == 'is_tagged':
             if not isinstance(value, bool):
-                raise self.PhysicsObjectError, \
-                        "%s is not a valid string for leg 'is_tagged' flag" \
-                                                        % str(value)
+                raise self.PhysicsObjectError("%s is not a valid string for leg 'is_tagged' flag" \
+                                                        % str(value))
         return super(TagLeg,self).filter(name, value)

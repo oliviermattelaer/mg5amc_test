@@ -67,7 +67,9 @@ class UFOModel(object):
         old_particles = [id(p) for p in model.all_particles]
         self.particles = [copy.copy(p) for p in model.all_particles]
         if any(hasattr(p, 'loop_particles') for p in self.particles):
-            raise USRMODERROR('Base Model doesn\'t follows UFO convention ')
+            logger.warning("BYPASS CRAsHED-> be cautious")
+#            raise USRMODERROR('Base Model doesn\'t follows UFO convention ')
+
         self.vertices = list(model.all_vertices)
         # ensure that the particles are correctly listed
         for v in self.vertices:
@@ -108,7 +110,7 @@ class UFOModel(object):
         
         #translate for how to write the python file
         if 'self.expr = expression' in open(pjoin(self.modelpath, 'object_library.py')).read():
-            self.translate = {'expr': 'expression'}
+            self.translate = {'expr': 'expression', 'expression':'expr'}
         else:
             self.translate = {}
         
@@ -231,6 +233,9 @@ class UFOModel(object):
                 return '(%s)' % ','.join([self.format_param(p) for p in param])
         elif isinstance(param, dict):
             return '{%s}' % ','.join(['%s: %s' % (self.format_param(key), self.format_param(value)) for key, value in param.items()])
+        elif isinstance(param, type):
+            misc.sprint('is this needed?', param.__name__)
+            return '%s' % param.__name__
         elif param.__class__.__name__ == 'Parameter':
             return 'Param.%s' % repr(param)
         elif param.__class__.__name__ == 'Coupling':
@@ -950,7 +955,7 @@ from object_library import all_propagators, Propagator
         if not hasattr(model, 'all_orders'):
             raise USRMODERROR('Add-on Model doesn\'t follows UFO convention (no couplings_order information)\n' +\
                                'MG5 is able to load such model but NOT to the add model feature.')
-        if isinstance(model.all_particles[0].mass, six.string_types):
+        if model.all_particles and isinstance(model.all_particles[0].mass, six.string_types):
             raise USRMODERROR('Add-on Model doesn\'t follows UFO convention (Mass/Width of particles are string name, not object)\n' +\
                                'MG5 is able to load such model but NOT to the add model feature.') 
     
