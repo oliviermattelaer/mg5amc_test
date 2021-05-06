@@ -554,6 +554,7 @@ def get_gfortran_version(compiler='gfortran'):
                     stderr=subprocess.PIPE)
         output, error = p.communicate()
         output = output.decode("utf-8")
+
         version_finder=re.compile(r"(?P<version>\d[\d.]*)")
         version = version_finder.search(output).group('version')
         return version
