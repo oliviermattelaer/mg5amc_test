@@ -71,73 +71,77 @@ C***************************************************************
       call recombine_momenta(rphreco, etaphreco, lepphreco, quarkphreco,
      $                       p, iPDG, p_reco, iPDG_reco)
 
-      ! Apply the lepton cuts
-      passcuts_user = passcuts_user .and. 
-     $                  passcuts_leptons(p_reco,istatus,ipdg_reco,is_a_lp,is_a_lm)
-      if (.not.passcuts_user) return
-
-      ! Find the QCD partons 
-      call identify_QCD_partons(p_reco,istatus,ipdg_reco,is_a_j,pQCD,nQCD)
-
-      ! Apply the UNLOPS/JetVeto cuts
-      passcuts_user = passcuts_user .and. 
-     $                  passcuts_unlops_jv(p_reco,istatus,ipdg_reco,pQCD,nQCD,ickkw)
-      if (.not.passcuts_user) return
-
-      ! Apply the Photon cuts
-      passcuts_user = passcuts_user .and. 
-     $ passcuts_photons(p_reco,istatus,ipdg_reco,is_a_lp,is_a_lm,pQCD,nQCD,pgamma,nph,is_nph_iso)
-      if (.not.passcuts_user) return
-
-      ! Apply the Jet cuts
-      passcuts_user = passcuts_user .and. 
-     $                  passcuts_jets(p_reco,pQCD,nQCD,pgamma,nph,is_nph_iso,ickkw)
-      if (.not.passcuts_user) return
-
-      ! Apply PDG specific cuts
-      passcuts_user = passcuts_user .and. 
-     $                  passcuts_pdgs(p_reco,istatus,ipdg_reco)
-      if (.not.passcuts_user) return
-
-C***************************************************************
-C***************************************************************
-C PUT HERE YOUR USER-DEFINED CUTS
-C***************************************************************
-C***************************************************************
-C
-c$$$C EXAMPLE: cut on top quark pT
-c$$$C          Note that PDG specific cut are more optimised than simple user cut
-c$$$      do i=1,nexternal   ! loop over all external particles
-c$$$         if (istatus(i).eq.1    ! final state particle
-c$$$     &        .and. abs(ipdg(i)).eq.6) then    ! top quark
-c$$$C apply the pT cut (pT should be large than 200 GeV for the event to
-c$$$C pass cuts)
-c$$$            if ( p(1,i)**2+p(2,i)**2 .lt. 200d0**2 ) then
-c$$$C momenta do not pass cuts. Set passcuts_user to false and return
-c$$$               passcuts_user=.false.
-c$$$               return
-c$$$            endif
-c$$$         endif
-c$$$      enddo
 c
-      return
-      end
-
-
-
-      subroutine identify_QCD_partons(p,istatus,ipdg,is_a_j,pQCD,nQCD)
-      implicit none
-      include 'nexternal.inc'
-      integer istatus(nexternal)
-      integer iPDG(nexternal)
-      double precision p(0:4,nexternal)
-      logical is_a_j(nexternal)
-      integer nQCD
-      double precision pQCD(0:3,nexternal)
-      include "run.inc" 
-      include "cuts.inc"
-
-      integer i, j 
+c CHARGED LEPTON CUTS
+c
+c find the charged leptons (also used in the photon isolation cuts below)
+      do i=1,nexternal
+         if(istatus(i).eq.1 .and.
+     &    (ipdg_reco(i).eq.11 .or. ipdg_reco(i).eq.13 .or. ipdg_reco(i).eq.15)) then
+            is_a_lm(i)=.true.
+         else
+            is_a_lm(i)=.false.
+         endif
+         if(istatus(i).eq.1 .and.
+     &    (ipdg_reco(i).eq.-11 .or. ipdg_reco(i).eq.-13 .or. ipdg_reco(i).eq.-15)) then
+            is_a_lp(i)=.true.
+         else
+            is_a_lp(i)=.false.
+         endif
+      enddo
+c apply the charged lepton cuts
+      do i=nincoming+1,nexternal
+         if (is_a_lp(i).or.is_a_lm(i)) then
+c transverse momentum
+            if (ptl.gt.0d0) then
+               if (pt_04(p_reco(0,i)).lt.ptl) then
+                  passcuts_user=.false.
+                  return
+               endif
+            endif
+c pseudo-rapidity
+            if (etal.gt.0d0) then
+               if (abs(eta_04(p_reco(0,i))).gt.etal) then
+                  passcuts_user=.false.
+                  return
+               endif
+            endif
+c DeltaR and invariant mass cuts
+            if (is_a_lp(i)) then
+               do j=nincoming+1,nexternal
+                  if (is_a_lm(j)) then
+                     if (drll.gt.0d0) then
+                        if (R2_04(p_reco(0,i),p_reco(0,j)).lt.drll**2) then
+                           passcuts_user=.false.
+                           return
+                        endif
+                     endif
+                     if (mll.gt.0d0) then
+                        if (invm2_04(p_reco(0,i),p_reco(0,j),1d0).lt.mll**2) then
+                           passcuts_user=.false.
+                           return
+                        endif
+                     endif
+                     if (ipdg_reco(i).eq.-ipdg_reco(j)) then
+                        if (drll_sf.gt.0d0) then
+                           if (R2_04(p_reco(0,i),p_reco(0,j)).lt.drll_sf**2) then
+                              passcuts_user=.false.
+                              return
+                           endif
+                        endif
+                        if (mll_sf.gt.0d0) then
+                           if (invm2_04(p_reco(0,i),p_reco(0,j),1d0).lt.mll_sf**2)
+     $                          then
+                              passcuts_user=.false.
+                              return
+                           endif
+                        endif
+                     endif
+                  endif
+               enddo
+            endif
+         endif
+      enddo
 c
 c JET CUTS
 c
@@ -154,7 +158,7 @@ c find the jets
 
 c If we do not require a mimimum jet energy, there's no need to apply
 c jet clustering and all that.
-      if (ptj.ne.0d0.or.ptgmin.ne.0d0) then
+      if (ptj.gt.0d0.or.ptgmin.gt.0d0) then
 c Put all (light) QCD partons in momentum array for jet clustering.
 c From the run_card.dat, maxjetflavor defines if b quark should be
 c considered here (via the logical variable 'is_a_jet').  nQCD becomes
@@ -270,7 +274,6 @@ c find the photons
             is_a_ph(i)=.false.
          endif
       enddo
-
       if (ptgmin.ne.0d0) then
          nph=0
          do j=nincoming+1,nexternal
@@ -627,150 +630,6 @@ c DeltaR and invariant mass cuts
 
 
 
-
-      subroutine recombine_momenta(R, etaph, reco_l, reco_q, p_in, pdg_in, p_out, pdg_out)
-      implicit none
-      ! recombine photons with the closest fermion if the distance is
-      ! less than R and if the rapidity of photons is < etaph (etaph < 0
-      ! means no cut). Output a new set of momenta and pdgs corresponding
-      ! to the recombined particles. If recombination occurs the photon
-      ! disappears from the output particles
-      ! arguments
-      include 'nexternal.inc'
-      double precision R, etaph, p_in(0:4,nexternal), p_out(0:4,nexternal)
-      logical reco_l, reco_q
-      integer pdg_in(nexternal), pdg_out(nexternal)
-      ! local variables
-      integer nq, nl
-      integer id_ph
-      parameter (id_ph=22)
-      integer n_ph, i_ph
-      integer i,j
-      integer ifreco
-      double precision dreco, dthis
-      integer skip
-      logical is_light_charged_fermion
-      double precision R2_04, eta_04
-      ! 
-      integer times_reco
-      common/to_times_reco/ times_reco
-      ! reset everything
-      do j=1,nexternal
-        pdg_out(j)=0
-        do i=0,4
-          p_out(i,j)=0d0
-        enddo
-      enddo
-
-      ! check if we want to recombine with leptons
-      if (reco_l) then
-          nl = 3
-      else 
-          nl = 0
-      endif
-
-      ! check if we want to recombine with quarks
-      if (reco_q) then
-          nq = 5
-      else 
-          nq = 0
-      endif
-
-      ! count the photons
-      n_ph=0
-      do i=nincoming+1, nexternal
-        if (pdg_in(i).eq.id_ph.and.
-     $   (abs(eta_04(p_in(0,i))).lt.etaph.or.etaph.lt.0d0)) then
-            n_ph=n_ph+1
-            i_ph=i
-        endif
-      enddo
-      if (n_ph.eq.0 .or. (nl.eq.0 .and. nq.eq.0)) then
-        ! do nothing
-        do j=1,nexternal
-          pdg_out(j)=pdg_in(j)
-          do i=0,4
-            p_out(i,j)=p_in(i,j)
-          enddo
-        enddo
-        return
-      elseif (n_ph.eq.1) then
-        ! do nothing for initial states
-        do j=1,nincoming
-          pdg_out(j)=pdg_in(j)
-          do i=0,4
-            p_out(i,j)=p_in(i,j)
-          enddo
-        enddo
-        ! find the closest fermion to the photon
-        ifreco=0
-        dreco=R
-        if (i_ph.gt.0) then
-          do i = nincoming+1, nexternal
-            if (is_light_charged_fermion(pdg_in(i),nq,nl)) then
-              dthis=dsqrt(R2_04(p_in(0,i_ph),p_in(0,i)))
-              if (dthis.le.dreco) then
-                dreco=dthis
-                ifreco=i
-              endif
-            endif
-          enddo
-        endif
-        if (ifreco.eq.0) then
-        ! do nothing also for final states
-          do j=nincoming+1,nexternal
-            pdg_out(j)=pdg_in(j)
-            do i=0,4
-              p_out(i,j)=p_in(i,j)
-            enddo
-          enddo
-        else
-          times_reco=times_reco+1
-          skip=0
-          do j=nincoming+1,nexternal
-            if (j.ne.i_ph.and.j.ne.ifreco) then
-              pdg_out(j-skip)=pdg_in(j)
-              do i=0,4
-                p_out(i,j-skip)=p_in(i,j)
-              enddo
-            elseif (j.eq.ifreco) then
-              pdg_out(j-skip)=pdg_in(j)
-              do i=0,3
-                p_out(i,j-skip)=p_in(i,j)+p_in(i,i_ph)
-              enddo
-              p_out(4,j-skip)=p_in(4,j)
-            elseif (j.eq.i_ph) then
-              skip=skip+1
-            endif
-          enddo
-        endif
-      else
-        write(*,*) 'ERROR, too many photons', n_ph
-        stop 1
-      endif
-
-      return 
-      end
-
-
-      logical function is_light_charged_fermion(id, nf, nl)
-      implicit none
-      integer id, nf, nl
-      if (abs(id).le.nf) then
-          is_light_charged_fermion = .true.
-      elseif ((abs(id).eq.11.and.nl.ge.1).or.
-     $        (abs(id).eq.13.and.nl.ge.2).or.
-     $        (abs(id).eq.15.and.nl.ge.3)) then
-          is_light_charged_fermion = .true.
-      else
-          is_light_charged_fermion = .false.
-      endif
-      return
-      end
-
-
-
-
 C***************************************************************
 C***************************************************************
 C NO NEED TO CHANGE ANY OF THE FUNCTIONS BELOW
@@ -890,10 +749,10 @@ C
 C
     2 IF (N.EQ.1)            RETURN
       IF (MODE)    10,20,30
-   10 CALL SORTTI (A,INDEX,N)
+   10 STOP 5 ! CALL SORTTI (A,INDEX,N)
       GO TO 40
 C
-   20 CALL SORTTC(A,INDEX,N)
+   20 STOP 5 ! CALL SORTTC(A,INDEX,N)
       GO TO 40
 C
    30 CALL SORTTF (A,INDEX,N)
@@ -1327,6 +1186,7 @@ c      bias_wgt=H_T**2
 
       return
       end
+
 
 
 

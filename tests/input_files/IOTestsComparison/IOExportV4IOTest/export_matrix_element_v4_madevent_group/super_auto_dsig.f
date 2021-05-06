@@ -72,6 +72,10 @@ C
 C     
 C     GLOBAL VARIABLES
 C     
+      INTEGER NB_SPIN_STATE(2)
+      DATA  NB_SPIN_STATE /2,2/
+      COMMON /NB_HEL_STATE/ NB_SPIN_STATE
+
       INCLUDE 'coupl.inc'
       INCLUDE 'run.inc'
 C     ICONFIG has this config number
@@ -101,6 +105,8 @@ C      and to 0 to reset the cache.
       DATA LAST_ICONF/-1/
       COMMON/TO_LAST_ICONF/LAST_ICONF
 
+      LOGICAL INIT_MODE
+      COMMON /TO_DETERMINE_ZERO_HEL/INIT_MODE
 C     ----------
 C     BEGIN CODE
 C     ----------
@@ -140,10 +146,12 @@ C       Output weights and number of events
           ENDDO
         ENDDO
         WRITE(*,*)'Relative summed weights:'
-        DO J=1,SYMCONF(0)
-          WRITE(*,'(4E12.4)')((SUMWGT(K,I,J)/SUMPROB,K=1,2),I=1
-     $     ,MAXSPROC)
-        ENDDO
+        IF (SUMPROB.NE.0D0)THEN
+          DO J=1,SYMCONF(0)
+            WRITE(*,'(4E12.4)')((SUMWGT(K,I,J)/SUMPROB,K=1,2),I=1
+     $       ,MAXSPROC)
+          ENDDO
+        ENDIF
         SUMPROB=0D0
         DO J=1,SYMCONF(0)
           DO I=1,MAXSPROC
@@ -153,10 +161,12 @@ C       Output weights and number of events
           ENDDO
         ENDDO
         WRITE(*,*)'Relative number of events:'
-        DO J=1,SYMCONF(0)
-          WRITE(*,'(4E12.4)')((NUMEVTS(K,I,J)/SUMPROB,K=1,2),I=1
-     $     ,MAXSPROC)
-        ENDDO
+        IF (SUMPROB.NE.0D0)THEN
+          DO J=1,SYMCONF(0)
+            WRITE(*,'(4E12.4)')((NUMEVTS(K,I,J)/SUMPROB,K=1,2),I=1
+     $       ,MAXSPROC)
+          ENDDO
+        ENDIF
         WRITE(*,*)'Events:'
         DO J=1,SYMCONF(0)
           WRITE(*,'(4I12)')((NUMEVTS(K,I,J),K=1,2),I=1,MAXSPROC)
@@ -183,7 +193,7 @@ C     IMODE.EQ.0, regular run mode
         CALL DS_SET_MIN_POINTS(10,'grouped_processes')
         DO J=1,SYMCONF(0)
           DO IPROC=1,MAXSPROC
-            IF(CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
+            IF(INIT_MODE.OR.CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
               DO IMIRROR=1,2
                 IF(IMIRROR.EQ.1.OR.MIRRORPROCS(IPROC))THEN
                   CALL MAP_3_TO_1(J,IPROC,IMIRROR,MAXSPROC,2,LMAPPED)
@@ -206,7 +216,7 @@ C     Turn caching on in dsigproc to avoid too many calls to switchmom
       LAST_ICONF=0
       DO J=1,SYMCONF(0)
         DO IPROC=1,MAXSPROC
-          IF(CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
+          IF(INIT_MODE.OR.CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
             DO IMIRROR=1,2
               IF(IMIRROR.EQ.1.OR.MIRRORPROCS(IPROC))THEN
 C               Calculate PDF weight for all subprocesses
@@ -254,7 +264,7 @@ C        switchmom
         LAST_ICONF=0
         DO J=1,SYMCONF(0)
           DO I=1,MAXSPROC
-            IF(CONFSUB(I,SYMCONF(J)).NE.0) THEN
+            IF(INIT_MODE.OR.CONFSUB(I,SYMCONF(J)).NE.0) THEN
               DO K=1,2
                 IF(K.EQ.1.OR.MIRRORPROCS(I))THEN
                   IPROC=I
@@ -275,7 +285,11 @@ C                   Need to flip back x values
                     XBK(2)=XDUM
                     CM_RAP=-CM_RAP
                   ENDIF
-                  SELPROC(K,I,J) = DABS(DSIG*SELPROC(K,I,J))
+                  IF(INIT_MODE) THEN
+                    SELPROC(K,I,J) = 1D0
+                  ELSE
+                    SELPROC(K,I,J) = DABS(DSIG*SELPROC(K,I,J))
+                  ENDIF
                   SUMPROB = SUMPROB + SELPROC(K,I,J)
                 ENDIF
               ENDDO
@@ -303,7 +317,7 @@ C      all, then we pick a point based on PDF only.
         TOTWGT=0D0
         DO J=1,SYMCONF(0)
           DO I=1,MAXSPROC
-            IF(CONFSUB(I,SYMCONF(J)).NE.0) THEN
+            IF(INIT_MODE.OR.CONFSUB(I,SYMCONF(J)).NE.0) THEN
               DO K=1,2
                 TOTWGT=TOTWGT+SELPROC(K,I,J)
                 IF(R.LT.TOTWGT)THEN
@@ -471,6 +485,9 @@ C       Flip CM_RAP (to get rapidity right)
       DSIGPROC=0D0
 
       IF (PASSCUTS(P1)) THEN
+        IF (IMODE.EQ.0D0.AND.NB_PASS_CUTS.LT.2**12)THEN
+          NB_PASS_CUTS = NB_PASS_CUTS + 1
+        ENDIF
         IF(IPROC.EQ.1) DSIGPROC=DSIG1(P1,WGT,IMODE)  ! u u~ > u u~
         IF(IPROC.EQ.2) DSIGPROC=DSIG2(P1,WGT,IMODE)  ! u u~ > d d~
       ENDIF
@@ -486,7 +503,6 @@ C       Flip back local momenta P1 if cached
       RETURN
 
       END
-
 
 C     -----------------------------------------
 C     Subroutine to map three positive integers
@@ -586,5 +602,10 @@ C
 
 
 
+      SUBROUTINE PRINT_ZERO_AMP()
 
+      CALL PRINT_ZERO_AMP_1()
+      CALL PRINT_ZERO_AMP_2()
+      RETURN
+      END
 

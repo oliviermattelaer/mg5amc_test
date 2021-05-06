@@ -16,6 +16,9 @@ c
       integer                                        lpp(2)
       double precision    ebeam(2), xbk(2),q2fact(2)
       common/to_collider/ ebeam   , xbk   ,q2fact,   lpp
+
+      integer frame_id
+      common/to_frame_me/frame_id
 c
 c     Number of events
 c
@@ -95,3 +98,8 @@ c
 
        double precision small_width_treatment
        common/narrow_width/small_width_treatment
+
+       double precision tmin_for_channel
+       integer sde_strat ! 1 means standard single diagram enhancement strategy,
+c                          2 means approximation by the denominator of the propagator
+       common/TO_CHANNEL_STRAT/tmin_for_channel, sde_strat

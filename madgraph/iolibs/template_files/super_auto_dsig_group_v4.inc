@@ -69,6 +69,10 @@ C
 C  
 C GLOBAL VARIABLES
 C  
+      integer nb_spin_state(2)
+      data  nb_spin_state /%(nb_spin_state1)i,%(nb_spin_state2)i/
+      common /nb_hel_state/ nb_spin_state
+
       include 'coupl.inc'
       include 'run.inc'
 C   ICONFIG has this config number
@@ -93,6 +97,8 @@ c     To limit the number of calls to switchmom, use in DSIGPROC the cached vari
 	  DATA LAST_ICONF/-1/
 	  COMMON/TO_LAST_ICONF/LAST_ICONF
 
+      logical init_mode
+      common /to_determine_zero_hel/init_mode
 C ----------
 C BEGIN CODE
 C ----------
@@ -132,9 +138,11 @@ C     Output weights and number of events
           ENDDO
         ENDDO
         WRITE(*,*)'Relative summed weights:'
+	if (SUMPROB.ne.0d0)then
         DO J=1,SYMCONF(0)
           WRITE(*,'(%(nsprocs)dE12.4)')((SUMWGT(K,I,J)/SUMPROB,K=1,2),I=1,MAXSPROC)
         ENDDO
+	endif
         SUMPROB=0D0
         DO J=1,SYMCONF(0)
           DO I=1,MAXSPROC
@@ -144,9 +152,11 @@ C     Output weights and number of events
           ENDDO
         ENDDO
         WRITE(*,*)'Relative number of events:'
+	if (SUMPROB.ne.0d0)then
         DO J=1,SYMCONF(0)
           WRITE(*,'(%(nsprocs)dE12.4)')((NUMEVTS(K,I,J)/SUMPROB,K=1,2),I=1,MAXSPROC)
         ENDDO
+	ENDIF
         WRITE(*,*)'Events:'
         DO J=1,SYMCONF(0)
           WRITE(*,'(%(nsprocs)dI12)')((NUMEVTS(K,I,J),K=1,2),I=1,MAXSPROC)
@@ -172,7 +182,7 @@ C   IMODE.EQ.0, regular run mode
 		call DS_set_min_points(10,'grouped_processes')
         DO J=1,SYMCONF(0)
           DO IPROC=1,MAXSPROC
-            IF(CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
+            IF(init_mode.or.CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
               DO IMIRROR=1,2
                 IF(IMIRROR.EQ.1.OR.MIRRORPROCS(IPROC))THEN
                   CALL MAP_3_TO_1(J,IPROC,IMIRROR,MAXSPROC,2,LMAPPED)
@@ -193,7 +203,7 @@ C     Turn caching on in dsigproc to avoid too many calls to switchmom
       LAST_ICONF=0
       DO J=1,SYMCONF(0)
          DO IPROC=1,MAXSPROC
-            IF(CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
+            IF(init_mode.or.CONFSUB(IPROC,SYMCONF(J)).NE.0) THEN
                DO IMIRROR=1,2
                   IF(IMIRROR.EQ.1.OR.MIRRORPROCS(IPROC))THEN
 C                 Calculate PDF weight for all subprocesses
@@ -237,7 +247,7 @@ C       Turn caching on in dsigproc to avoid too many calls to switchmom
         LAST_ICONF=0
         DO J=1,SYMCONF(0)
           DO I=1,MAXSPROC
-            IF(CONFSUB(I,SYMCONF(J)).NE.0) THEN		  
+            IF(init_mode.or.CONFSUB(I,SYMCONF(J)).NE.0) THEN		  
               DO K=1,2
                 IF(K.EQ.1.OR.MIRRORPROCS(I))THEN			
                   IPROC=I
@@ -256,7 +266,11 @@ C                   Need to flip back x values
                     XBK(2)=XDUM
                     CM_RAP=-CM_RAP
                   ENDIF
-                  SELPROC(K,I,J) = DABS(DSIG*SELPROC(K,I,J))
+		  if(init_mode) then
+		    SELPROC(K,I,J) = 1d0
+		  else
+                    SELPROC(K,I,J) = DABS(DSIG*SELPROC(K,I,J))
+		  endif
                   SUMPROB = SUMPROB + SELPROC(K,I,J) 
 		        ENDIF
               ENDDO
@@ -281,7 +295,7 @@ c     If we are still initializing the grid or simply not using one at all, then
       TOTWGT=0D0
       DO J=1,SYMCONF(0)
         DO I=1,MAXSPROC
-	  IF(CONFSUB(I,SYMCONF(J)).NE.0) THEN
+	  IF(init_mode.or.CONFSUB(I,SYMCONF(J)).NE.0) THEN
           DO K=1,2
             TOTWGT=TOTWGT+SELPROC(K,I,J)
             IF(R.LT.TOTWGT)THEN
@@ -436,6 +450,9 @@ C       Flip CM_RAP (to get rapidity right)
       DSIGPROC=0D0
 
       IF (PASSCUTS(P1)) THEN
+      if (IMODE.eq.0d0.and.nb_pass_cuts.lt.2**12)then
+        nb_pass_cuts = nb_pass_cuts + 1
+      endif
 %(call_dsig_proc_lines)s
       ENDIF
 
@@ -450,7 +467,6 @@ C       Flip back local momenta P1 if cached
       RETURN
 
       END
-
 
 C     -----------------------------------------
 C     Subroutine to map three positive integers
@@ -497,4 +513,8 @@ C
 %(read_write_good_hel)s
 
 
+     SUBROUTINE PRINT_ZERO_AMP()
 
+     %(print_zero_amp)s
+     return
+     end
