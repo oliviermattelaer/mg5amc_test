@@ -352,12 +352,19 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
         color_string = self.get('color_string')
         singlet_orders = self.get('all_orders')['singlet_QCD'] / 2
         misc.sprint(singlet_orders, color_string.Nc_power)
-        if singlet_orders <2 :
-            color_string.coeff *= fractions.Fraction(-1, 2*3**3)
-            color_string.Nc_power += 4*singlet_orders
-        else:
-            color_string.coeff *= fractions.Fraction(-1, 2)**singlet_orders
-            color_string.Nc_power += singlet_orders
+        color_string.coeff *= fractions.Fraction(-1,2*3**3)**int(singlet_orders)
+        color_string.Nc_power += 4*singlet_orders
+        misc.sprint(color_string.coeff,color_string.Nc_power)
+        
+        # if singlet_orders >0 :
+        #     # color_string.coeff *= fractions.Fraction(-1, 2*3**3)
+        #     color_string.coeff *= fractions.Fraction(-1,2*3**3)**int(singlet_orders)
+        #     color_string.Nc_power += 4*singlet_orders
+        #     misc.sprint(color_string.coeff,color_string.Nc_power)
+        # # else:
+        #     color_string.coeff *= fractions.Fraction(-1, 2)**singlet_orders
+        #     color_string.Nc_power += singlet_orders
+        #     misc.sprint(color_string.coeff,color_string.Nc_power)
 
     def create_arrays(self):
         """Create the comparison array compare_array, to find
@@ -1124,12 +1131,18 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 self.set('has_mirror_process',
                          amplitude.get('has_mirror_process'))
                 for iflow, flow in enumerate(amplitude.get('color_flows')):
-                    if color_order == 1:
-                        if flow.get('process').get('orders')['singlet_QCD'] > 2:
-                            continue
-                    elif flow.get('process').get('orders')['singlet_QCD'] > \
+                    # if color_order == 1:
+                    #     if flow.get('process').get('orders')['singlet_QCD'] > 2:
+                    #         continue
+                    # elif flow.get('process').get('orders')['singlet_QCD'] > \
+                    #          (color_order - 1) * 2: 
+                    #     continue
+                    if flow.get('process').get('orders')['singlet_QCD'] > \
                              (color_order - 1) * 2: 
-                        continue
+                        if color_order != 1:
+                          continue
+
+
 
                     self.get('color_flows').append(COHelasFlow(flow,
                                                    optimization = optimization,
