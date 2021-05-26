@@ -1603,7 +1603,7 @@ class digest:
         def digest(text):
             """using mg5 for the hash"""
             t = hashlib.md5()
-            t.update(text.encode())
+            t.update(text)
             return t.hexdigest()
         return digest
     
