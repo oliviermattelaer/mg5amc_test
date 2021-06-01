@@ -99,6 +99,7 @@ except:
    pass
 
 if __debug__:
+ 	print 'THIS IS MADSPIN_FO BRANCH'
         print 'Running MG5 in debug mode'
 
 

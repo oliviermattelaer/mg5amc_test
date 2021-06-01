@@ -62,6 +62,7 @@ class MadSpinOptions(banner.ConfigFile):
         self.add_param("max_weight", -1)
         self.add_param('curr_dir', os.path.realpath(os.getcwd()))
         self.add_param('Nevents_for_max_weight', 0)
+#######################################
         self.add_param("max_weight_ps_point", 400)
         self.add_param('BW_cut', -1)
         self.add_param('nb_sigma', 0.)
@@ -232,7 +233,8 @@ class MadSpinInterface(extended_cmd.Cmd):
             if not self.options['Nevents_for_max_weight']:
                 nevents = run_card['nevents']
                 N_weight = max([75, int(3*nevents**(1/3))])
-                self.options['Nevents_for_max_weight'] = N_weight
+########## 
+                self.options['Nevents_for_max_weight'] = 75 #N_weight
                 N_sigma = max(4.5, math.log(nevents,7.7))
                 self.options['nb_sigma'] = N_sigma
             if self.options['BW_cut'] == -1:
@@ -585,10 +587,12 @@ class MadSpinInterface(extended_cmd.Cmd):
     @misc.mute_logger()
     def do_launch(self, line):
         """end of the configuration launched the code"""
-        
+
+        print 'we are in the do_launch now: ',line
         if self.options["spinmode"] in ["none"]:
             return self.run_bridge(line)
         elif self.options["spinmode"] == "onshell":
+            print 'in onshell mode'
             return self.run_onshell(line)
         elif self.options["spinmode"] == "bridge":
             raise Exception, "Bridge mode not available."
@@ -1166,6 +1170,8 @@ class MadSpinInterface(extended_cmd.Cmd):
         name = part.get_name()
         out = {}
         logger.info("generate %s decay event for particle %s" % (int(nb_event), name))
+
+        print self.list_branches
         if name not in self.list_branches:
             return out
         for i,proc in enumerate(self.list_branches[name]):
@@ -1183,9 +1189,11 @@ class MadSpinInterface(extended_cmd.Cmd):
                 else:
                     mg5.exec_cmd("generate %s" % proc)
                     mg5.exec_cmd("output %s -f" % decay_dir)
-                
+                print decay_dir
                 options = dict(mg5.options)
+                print self.options['ms_dir']
                 if self.options['ms_dir']:
+                    print 'we entered first loop'
                     # we are in gridpack mode -> create it
                     if decay_dir in self.me_int:
                         me5_cmd = self.me_int[decay_dir]
@@ -1233,6 +1241,7 @@ class MadSpinInterface(extended_cmd.Cmd):
                         devnull.close()
             # Now generate the events
             if not self.options['ms_dir']:
+                print 'we enter second loop'
                 if decay_dir in self.me_int:
                         me5_cmd = self.me_int[decay_dir]
                 else:
@@ -1307,9 +1316,13 @@ class MadSpinInterface(extended_cmd.Cmd):
         #    if not enough events. re-generate the missing one.
         # First define an utility function for generating events when needed
 
+        print '************************'
         args = self.split_arg(line)
 
         asked_to_decay = set()
+        print '****************************'
+        print self.list_branches.keys()
+        print '****************************'
         for part in self.list_branches.keys():
             if part in self.mg5cmd._multiparticles:
                 for pdg in self.mg5cmd._multiparticles[part]:
@@ -1332,6 +1345,7 @@ class MadSpinInterface(extended_cmd.Cmd):
         orig_lhe = lhe_parser.EventFile(self.events_file.name)
         if self.options['fixed_order']:
             orig_lhe.eventgroup = True
+        print orig_lhe.eventgroup
 
         #count the number of particle need to be decayed.
         to_decay = collections.defaultdict(int)
@@ -1339,12 +1353,14 @@ class MadSpinInterface(extended_cmd.Cmd):
         for event in orig_lhe:
             if self.options['fixed_order']:
                 event = event[0]
+#                print event[0]
             nb_event +=1
             for particle in event:
                 if particle.status == 1 and particle.pdg in asked_to_decay:
                     # final state and tag as to decay
+###########################
                     to_decay[particle.pdg] += 1
-
+#        print to_decay[6]
         with misc.MuteLogger(["madgraph", "madevent", "ALOHA", "cmdprint"], [50,50,50,50]):
             mg5 = self.mg5cmd
             if not self.model:
@@ -1374,7 +1390,6 @@ class MadSpinInterface(extended_cmd.Cmd):
         if nevents_for_max == 0 :
             nevents_for_max = 75
         nevents_for_max *= self.options['max_weight_ps_point']
-        
         with misc.MuteLogger(["madgraph", "madevent", "ALOHA", "cmdprint"], [50,50,50,50]):
             mg5 = self.mg5cmd
             if not self.model:
@@ -1382,16 +1397,26 @@ class MadSpinInterface(extended_cmd.Cmd):
                 mg5.exec_cmd("import model %s" % modelpath)      
             evt_decayfile = {}
             br = 1.
+
             for pdg, nb_needed in to_decay.items():
                 # muliply by expected effeciency of generation
                 spin = self.model.get_particle(pdg).get('spin')
+                print spin
+                print nb_needed
                 if spin ==1:
                     efficiency = 1.1
                 else:
                     efficiency = 2.0
-                    
+                print efficiency
+
                 totwidth = self.banner.get('param_card', 'decay', abs(pdg)).value
+                print totwidth
                 #check if a splitting is needed
+##############################
+#
+# Generate each decay chain to get partial decay widths
+#
+###############################
                 if nb_needed == nb_event:
                     nb_needed = int(efficiency*nb_needed) + nevents_for_max   
                     evt_decayfile[pdg], pwidth = self.generate_events(pdg, nb_needed, mg5, output_width=True)
@@ -1436,6 +1461,8 @@ class MadSpinInterface(extended_cmd.Cmd):
         self.cross *= self.branching_ratio
         self.error *= self.branching_ratio
         
+
+############## Why is this done?
         # 3. generate the various matrix-element
         self.update_status('generating Madspin matrix element')
         self.generate_all = madspin.decay_all_events_onshell(self, self.banner, self.events_file, 
@@ -1446,7 +1473,6 @@ class MadSpinInterface(extended_cmd.Cmd):
         
         #4. determine the maxwgt
         maxwgt = self.get_maxwgt_for_onshell(orig_lhe, evt_decayfile)
-        
         #5. generate the decay 
         orig_lhe.seek(0)
         output_lhe = lhe_parser.EventFile(orig_lhe.name.replace('.lhe', '_decayed.lhe'), 'w')
@@ -1462,28 +1488,60 @@ class MadSpinInterface(extended_cmd.Cmd):
         
         start = time.time()
         for curr_event,production in enumerate(orig_lhe):
-            if self.options['fixed_order']:
-                production, counterevt= production[0], production[1:]
+
             if curr_event and self.efficiency and curr_event % 10 == 0 and float(str(curr_event)[1:]) ==0:
                 logger.info("decaying event number %s. Efficiency: %s [%s s]" % (curr_event, 1/self.efficiency, time.time()-start))
             #else:
             #    logger.info("next event [%s]", time.time()-start)
             while 1:
                 nb_try +=1
-                decays = self.get_decay_from_file(production, evt_decayfile, nb_event-curr_event)
-                full_evt, wgt = self.get_onshell_evt_and_wgt(production, copy.deepcopy(decays))
-                if random.random()*maxwgt < wgt:
+                decays = self.get_decay_from_file(production[0], evt_decayfile, nb_event-curr_event)
+                full_evt, wgt,_,_,_ = self.get_onshell_evt_and_wgt(production[0], copy.deepcopy(decays))
+                R = random.random()
+                if R*maxwgt < wgt:
                     if self.options['fixed_order']:
-                        full_evt = [full_evt] + [evt.add_decays(copy.deepcopy(decays)) for evt in counterevt]
+                        full_evt = []
+                        wgts_list = []
+                        full_me=[]
+			prod_me=[]
+		     	dec_me=[]
+                        for evt in production: 
+                         full_evt_i,wgt_i,full_me_i,prod_me_i,dec_me_i = self.get_onshell_evt_and_wgt(evt, copy.deepcopy(decays))
+                         full_evt.append(full_evt_i)
+                         wgts_list.append(wgt_i)
+                         full_me.append(full_me_i)
+                         prod_me.append(prod_me_i)
+                         dec_me.append(dec_me_i)
                     break
+            for event in production:
+ 	       count_all +=1 
+               particles = [p for p in event if int(p.status) == 1.0]
+
+            if len(particles)==3:
+                real_parton=lhe_parser.FourMomentum(event[4])
+                pT=math.sqrt((real_parton.px)**2+(real_parton.py)**2)
+            else:
+                pT=0.0
             self.efficiency = curr_event/nb_try
             if self.options['fixed_order']:
-                for evt in full_evt:
+                for i,evt in enumerate(full_evt):
+                    x1=15.0
+  	            x2=30.0
+                    if (pT<x1):
+                        damp = 0.0
+                        count_1 += 1
+                    elif (pT>=x1 and pT<x2):
+                        damp=(3/((x2-x1)**2))*((pT-x1)**2)+(-2/((x2-x1)**3))*((pT-x1)**3)
+                        count_2 += 1
+                    elif (pT>=x2):
+                        damp=1.0
+ 			count_3 +=1 
                     # change the weight associate to the event
-                    evt.wgt *= self.branching_ratio
+		    ratio = 1.0 + (wgts_list[i]/wgts_list[0]-1)*damp
+                    evt.wgt *= self.branching_ratio*ratio
                     wgts = evt.parse_reweight()
                     for key in wgts:
-                        wgts[key] *= self.branching_ratio 
+                        wgts[key] *= self.branching_ratio*ratio
             else:
                 # change the weight associate to the event
                 full_evt.wgt *= self.branching_ratio
@@ -1491,7 +1549,6 @@ class MadSpinInterface(extended_cmd.Cmd):
                 for key in wgts:
                     wgts[key] *= self.branching_ratio            
             output_lhe.write_events(full_evt)
-            
         output_lhe.write('</LesHouchesEvents>\n')    
         self.efficiency = 1 # to let me5 to write the correct number of events
 #        misc.sprint('Done so far. output written in %s' % output_lhe.name)
@@ -1508,6 +1565,7 @@ class MadSpinInterface(extended_cmd.Cmd):
             if particle.pdg not in evt_decayfile:
                 continue # nothing to do for this particle
             # check how the decay need to be done
+#### Checks how many decay events for each particle
             nb_decay = len(evt_decayfile[particle.pdg])
             if nb_decay == 0:
                 continue #nothing to do for this particle
@@ -1537,6 +1595,7 @@ class MadSpinInterface(extended_cmd.Cmd):
                     raise Exception
             # So now we know which file to read. Do it and re-generate events for that 
             # file if needed.
+########### Isn't only one line here appended to out - decay is only one item (event) at a time? 
             while 1:
                 try:
                     decay = decay_file.next()
@@ -1550,7 +1609,7 @@ class MadSpinInterface(extended_cmd.Cmd):
                     evt_decayfile[particle.pdg].update(new_file)
                     decay_file = evt_decayfile[particle.pdg][decay_file_nb]
                     continue
-            
+           
             out[particle.pdg].append(decay)
                         
         return out
@@ -1587,7 +1646,7 @@ class MadSpinInterface(extended_cmd.Cmd):
             for j in range(self.options['max_weight_ps_point']):
                 decays = self.get_decay_from_file(base_event, evt_decayfile, nevents-i)   
                 #carefull base_event is modified by the following function 
-                _, wgt = self.get_onshell_evt_and_wgt(base_event, decays)
+                _, wgt,_,_,_ = self.get_onshell_evt_and_wgt(base_event, decays)
                 maxwgt = max(wgt, maxwgt)
             all_maxwgt.append(maxwgt)
             
@@ -1639,12 +1698,13 @@ class MadSpinInterface(extended_cmd.Cmd):
         for pdg in decays:
             for dec in decays[pdg]:
                 decay_me *= self.calculate_matrix_element(dec)
+###  Re-shuffles all momenta of tops decay events
             random.shuffle(decays[pdg])
 
         full_event = lhe_parser.Event(str(production))
         full_event = full_event.add_decays(decays)
         full_me = self.calculate_matrix_element(full_event)
-        return full_event, full_me/(production_me*decay_me)
+        return full_event, full_me/(production_me*decay_me),full_me,production_me,decay_me
         
         
     def calculate_matrix_element(self, event):

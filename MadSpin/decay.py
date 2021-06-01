@@ -3038,6 +3038,7 @@ class decay_all_events(object):
     def extract_resonances_mass_width(self, resonances):
         """ """
 
+        print 'I enter extract_resonances_mass_width'
         label2width = {}
         label2mass = {}
         pid2width = {}
@@ -3055,6 +3056,10 @@ class decay_all_events(object):
             else:
                 if (width.value > 0.001):  
                     label2width[particle_label]=float(width.value)
+########################################################
+                    print 'I entered first if at line 3058 in decay.py'
+                    need_param_card_modif=True
+##########################################################
                 else: # the width is less than 1 MeV, need to use an effective width !!
                       # this is useful to handle cases like tau decays
                     label2width[particle_label]=0.001
@@ -4040,9 +4045,13 @@ class decay_all_events_onshell(decay_all_events):
         # 2. compute the production matrix element -----------------------------
         processes = [line[9:].strip() for line in self.banner.proc_card
                      if line.startswith('generate')]
+#        processes = ['p p > t t~ QCD=2 QED=1 [QED]']
+        print processes
         processes += [' '.join(line.split()[2:]) for line in self.banner.proc_card
                       if re.search('^\s*add\s+process', line)]
         
+
+
         mgcmd = self.mgcmd
         modelpath = self.model.get('modelpath+restriction')
 

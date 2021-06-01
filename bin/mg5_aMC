@@ -107,6 +107,7 @@ except:
    pass
 
 if __debug__:
+	print('THIS IS MADSPIN_FO_3.0 BRANCH')
         print( 'Running MG5 in debug mode')
 
 # Set logging level according to the logging level given by options
@@ -129,6 +130,7 @@ except:
 import madgraph.interface.master_interface as interface
 
 if __debug__ and time.time() - start > 0.5:
+    print('THIS IS MADSPIN_FO_3.0 BRANCH')
     print( 'WARNING: loading of madgraph too slow!!!', time.time() - start)
 
 try:

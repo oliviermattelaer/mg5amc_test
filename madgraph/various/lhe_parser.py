@@ -2255,10 +2255,15 @@ class Event(list):
         #avoid to modify the input
         order = [list(get_order[0]), list(get_order[1])] 
         out = [''] *(len(order[0])+len(order[1]))
+        counter=0
         for i, part in enumerate(self):
             if part.status == 1: #final
                 try:
-                    ind = order[1].index(part.pid)
+                     if i == 4 and len(order[1])==7:
+                         ind = 6
+                     else: 
+                        counter += 1
+                        ind = counter-1  #order[1].index(part.pid)
                 except ValueError, error:
                     if not allow_reversed:
                         raise error
@@ -2269,6 +2274,7 @@ class Event(list):
                         except ValueError:
                             raise error     
                 position = len(order[0]) + ind
+                
                 order[1][ind] = 0   
             elif part.status == -1:
                 try:
