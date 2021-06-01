@@ -22,6 +22,8 @@ C
       PARAMETER (             NCOMB=%(ncomb)d)
       INTEGER    ICO
       PARAMETER (ICO=%(color_order)d)
+      INTEGER    NPERMS
+      PARAMETER (NPERMS=%(nperms)d) 
 C  
 C ARGUMENTS 
 C  
@@ -38,6 +40,10 @@ C
       DATA GOODHEL/NCOMB*.FALSE./
 %(helicity_lines)s
 %(den_factor_line)s
+
+      INTEGER PM(NEXTERNAL,NPERMS)
+%(perms)s
+
 C ----------
 C BEGIN CODE
 C ----------
@@ -47,7 +53,7 @@ C ----------
              IF (GOODHEL(IHEL) .OR. NTRY .LT. 2) THEN
                T=0d0
                DO I=1,ICO
-                  T=T+MATRIX(P ,NHEL(1,IHEL), I)
+                  T=T+MATRIX(P ,NHEL(1,IHEL), PM, I)
                ENDDO
                ANS=ANS+T
                IF (T .NE. 0D0 .AND. .NOT.    GOODHEL(IHEL)) THEN
@@ -59,7 +65,7 @@ C ----------
       END
        
 C     -----------------------------------
-      REAL*8 FUNCTION MATRIX(P,NHEL, ICO)
+      REAL*8 FUNCTION MATRIX(P,NHEL,PM, ICO)
 C     -----------------------------------
 C
 C Returns amplitude squared summed/avg over colors
@@ -79,7 +85,7 @@ C
 C ARGUMENTS 
 C  
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL),ICO
+      INTEGER NHEL(NEXTERNAL),ICO,PM(NEXTERNAL,NPERMS)
 C  
 C LOCAL VARIABLES 
 C  
@@ -93,8 +99,7 @@ C
 
       ZTEMP = (0.D0,0.D0)
       DO I=1,NPERMS
-        CALL GETPERM(I,PERM)
-	ZTEMP=ZTEMP+ONEPERM(P,NHEL,PERM,ICO)
+      	ZTEMP=ZTEMP+ONEPERM(P,NHEL,PM(:,I),ICO)
       ENDDO
       MATRIX=REAL(ZTEMP)
 
@@ -118,8 +123,8 @@ C
       PARAMETER (NEXTERNAL=%(nexternal)d)
       INTEGER    NFLOWS
       PARAMETER (NFLOWS=%(nflows)d) 
-      INTEGER    NPERMS
-      PARAMETER (NPERMS=%(nflowperms)d) 
+      INTEGER    NFPERMS
+      PARAMETER (NFPERMS=%(nflowperms)d) 
 C  
 C ARGUMENTS 
 C  
@@ -133,7 +138,7 @@ C
       INTEGER I,J
       COMPLEX*16 ZTEMP
       COMPLEX*16 JAMP(NFLOWS)
-      INTEGER PERMS(NEXTERNAL,NPERMS),IFERM(NPERMS),PERM(NEXTERNAL)
+      INTEGER PERMS(NEXTERNAL,NFPERMS),IFERM(NFPERMS),PERM(NEXTERNAL)
 %(flow_perms_data_lines)s
 %(flow_iferm_data_line)s
 C
@@ -153,50 +158,4 @@ C ----------
       ONEPERM=ZTEMP
 
       RETURN
-      END
-
-C     ------------------------------------
-      SUBROUTINE GETPERM(IPERM,PERM)
-C     ------------------------------------
-C
-C Gives permutation number IPERM. 
-C Return value is the fermion factor due to PERM
-C  
-%(process_lines)s
-C  
-      IMPLICIT NONE
-C  
-C CONSTANTS
-C  
-      INTEGER    NEXTERNAL
-      PARAMETER (NEXTERNAL=%(nexternal)d)
-C  
-C ARGUMENTS 
-C  
-      INTEGER IPERM,PERM(NEXTERNAL)
-C  
-C LOCAL VARIABLES 
-C  
-      INTEGER I,J,IFLAG
-      LOGICAL OK
-      INTEGER COMP(NEXTERNAL)
-%(comp_data_line)s
-C ----------
-C BEGIN CODE
-C ----------
-      DO I=1,NEXTERNAL
-        PERM(I)=I
-      ENDDO
-      I=1
-      DO WHILE(I.LT.IPERM)
-         CALL IPNEXT(PERM,NEXTERNAL,IFLAG)
-	 OK=.TRUE.
-	 DO J=1,NEXTERNAL
-           IF(COMP(PERM(J)).ne.COMP(J))THEN
-              OK=.FALSE.
-              EXIT
-           ENDIF
-	 ENDDO
-         IF(OK) I=I+1
-      ENDDO
       END

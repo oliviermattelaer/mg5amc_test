@@ -489,7 +489,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         process = self.get('process')
 
         if diagram_filter:
-            raise Exeception("no diagram filter allowed in this mode")
+            raise Exception("no diagram filter allowed in this mode")
         # Check that this is a valid process
         if not process.check_valid_process():
             return base_objects.DiagramList()

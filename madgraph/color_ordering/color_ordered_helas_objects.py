@@ -782,6 +782,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         for amp in self.get_all_amplitudes():
             amp.get('color_string').Nc_power -= common_Nc_power
 
+
     def get_color_amplitudes(self):
         """Return a list of (coefficient, amplitude number) lists,
         corresponding to the JAMPs for this matrix element. The
@@ -1277,7 +1278,22 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                         col_matrix[(irow, icol)] = col_matrix[(icol, irow)]
                         col_matrix.col_matrix_fixed_Nc[(irow, icol)] = \
                                col_matrix.col_matrix_fixed_Nc[(icol, irow)]
-                
+
+    def get_all_perms_lines(self, matrix_element,array_name='PM'):
+        """Return the permutations matrix definition lines for this matrix element"""
+
+        perm_line_list = []
+        i = 0
+        for perms in matrix_element.get('permutations'):
+            i = i + 1
+            int_list = [i, len(perms)]
+            int_list.extend(perms)
+            perm_line_list.append(\
+                ("DATA ("+array_name+"(I,%4r),I=1,%d) /" + \
+                 ",".join(['%2r'] * len(perms)) + "/") % tuple(int_list))
+
+        return "\n".join(perm_line_list)
+        
     def get_external_wavefunctions(self):
         """Redefine HelasMatrixElement.get_external_wavefunctions"""
 

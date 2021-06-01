@@ -18,11 +18,13 @@ from __future__ import absolute_import
 import copy
 import fractions
 import glob
+from itertools import permutations
 import logging
 import os
 import re
 import shutil
 import subprocess
+from typing import SupportsIndex
 
 import madgraph.core.base_objects as base_objects
 import madgraph.core.color_algebra as color
@@ -248,7 +250,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         all_perms = matrix_element.get('permutations')
         nexternal = len(all_perms[0])
-
+        
         # The data lines giving the needed permutations
         iperm_line_list = []
         for iperm, perm in enumerate(needed_perms):
@@ -356,7 +358,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 color_sum_lines[-1] = color_sum_lines[-1].replace('/1*', '*')
             color_sum_lines.append("ENDIF")
         return color_sum_lines
-
+   
     @staticmethod
     def organize_row(flow_factors, color_order):
         """Organize the information for this row to get a nice output.
@@ -570,8 +572,12 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         replace_dict['flow_functions_lines'] = flow_functions_lines
 
         # Extract nperms
-        replace_dict['nperms'] = len(matrix_element.get('permutations'))       
+        replace_dict['nperms'] = len(matrix_element.get('permutations'))    
 
+      
+        # Extract permutations
+        replace_dict['perms'] = matrix_element.get_all_perms_lines(matrix_element)
+        
         # Extract call lines and color sum lines
         nflows, needed_perms, perm_needed_flows, row_flow_factors, \
                 flow_jamp_dict = self.get_flow_info(matrix_element)
