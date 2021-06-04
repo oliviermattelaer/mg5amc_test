@@ -1514,7 +1514,6 @@ class MadSpinInterface(extended_cmd.Cmd):
                          dec_me.append(dec_me_i)
                     break
             for event in production:
- 	       count_all +=1 
                particles = [p for p in event if int(p.status) == 1.0]
 
             if len(particles)==3:
@@ -1529,13 +1528,10 @@ class MadSpinInterface(extended_cmd.Cmd):
   	            x2=30.0
                     if (pT<x1):
                         damp = 0.0
-                        count_1 += 1
                     elif (pT>=x1 and pT<x2):
                         damp=(3/((x2-x1)**2))*((pT-x1)**2)+(-2/((x2-x1)**3))*((pT-x1)**3)
-                        count_2 += 1
                     elif (pT>=x2):
                         damp=1.0
- 			count_3 +=1 
                     # change the weight associate to the event
 		    ratio = 1.0 + (wgts_list[i]/wgts_list[0]-1)*damp
                     evt.wgt *= self.branching_ratio*ratio
