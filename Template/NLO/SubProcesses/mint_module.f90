@@ -88,7 +88,7 @@ module mint_module
   !
 
 ! public variables 
-  integer, public :: ncalls0,ndim,itmax,imode,n_ord_virt,nchans,iconfig,ichan,ifold_energy,ifold_yij,ifold_phi
+  integer, public :: ncalls0,ndim,itmax,imode,n_ord_virt,nchans,iconfig,ichan,ifold_energy,ifold_yij,ifold_phi,fks_confs
   integer, dimension(ndimmax), public :: ifold
   integer, dimension(maxchannels), public :: iconfigs
   double precision, public :: accuracy,min_virt_fraction_mint,wgt_mult
@@ -96,7 +96,7 @@ module mint_module
   double precision, dimension(0:n_ave_virt), public :: virt_wgt_mint,born_wgt_mint,polyfit
   double precision, dimension(maxchannels), public :: virtual_fraction
   double precision, dimension(nintegrals,0:maxchannels), public :: ans,unc
-  double precision, dimension(n_BS_yij,n_BS_xi,0:3), public :: BornSmear
+  double precision, dimension(:,:,:,:), public, allocatable :: BornSmear
   logical :: only_virt,new_point,pass_cuts_check
 
 ! private variables
@@ -967,7 +967,7 @@ contains
     call reset_upper_bounding_envelope
     ans_chan(1:nchans)=ans(1,1:nchans)
     ans_chan(0)=sum(ans(1,1:nchans))
-    if (imode.eq.3) BornSmear(1:n_BS_yij,1:n_BS_xi,0:3)=0d0
+    if (imode.eq.3) BornSmear(1:n_BS_yij,1:n_BS_xi,1:fks_confs,0:3)=0d0
   end subroutine setup_imode_1
 
   subroutine reset_upper_bounding_envelope
@@ -1046,7 +1046,7 @@ contains
   subroutine write_grids_to_file
 ! Write the MINT integration grids to file
     implicit none
-    integer :: i,j,k,kchan
+    integer :: i,j,k,kchan,iFKS
     open (unit=12,file='mint_grids',status='unknown')
     do kchan=1,nchans
        do j=0,nintervals
@@ -1060,12 +1060,18 @@ contains
        if (imode.eq.3) then
           do j=1,n_BS_xi
              do i=1,n_BS_yij
-                BornSmear(i,j,0)=(BornSmear(i,j,1)-BornSmear(i,j,2))/2d0
+                do iFKS=1,fks_confs
+                   BornSmear(i,j,iFKS,0)=(BornSmear(i,j,iFKS,1)-BornSmear(i,j,iFKS,2))/2d0
+                enddo
              enddo
           enddo
+       endif
+       if (imode.eq.3 .or. imode.eq.1) then
           do j=1,n_BS_xi
-             write (12,*) 'AVE',(BornSmear(i,j,0),i=1,n_BS_yij)
-             write (12,*) 'AVE',(BornSmear(i,j,3),i=1,n_BS_yij)
+             do iFKS=1,fks_confs
+                write (12,*) 'AVE',(BornSmear(i,j,iFKS,0),i=1,n_BS_yij)
+                write (12,*) 'AVE',(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
+             enddo
           enddo
        endif
        if (.not.use_poly_virtual) then
@@ -1091,7 +1097,7 @@ contains
   subroutine read_grids_from_file
 ! Read the MINT integration grids from file
     implicit none
-    integer :: i,j,k,kchan,idum
+    integer :: i,j,k,kchan,idum,iFKS
     integer,dimension(maxchannels) :: points
     character(len=3) :: dummy
     open (unit=12, file='mint_grids',status='old')
@@ -1106,10 +1112,12 @@ contains
              read (12,*) dummy,(ymax(j,i,kchan),i=1,ndim)
           enddo
        endif
-       if (imode.eq.1) then
+       if (imode.eq.1 .or. imode.eq.2) then
           do j=1,n_BS_xi
-             read (12,*) dummy,(BornSmear(i,j,0),i=1,n_BS_yij)
-             read (12,*) dummy,(BornSmear(i,j,3),i=1,n_BS_yij)
+             do iFKS=1,fks_confs
+                read (12,*) dummy,(BornSmear(i,j,iFKS,0),i=1,n_BS_yij)
+                read (12,*) dummy,(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
+             enddo
           enddo
        endif
        if (.not.use_poly_virtual) then

@@ -82,6 +82,7 @@ c timing statistics
      &     ,dermax,xi_i_fks_ev_der_max,y_ij_fks_ev_der_max
       integer                     n_MC_subt_diverge
       common/counter_subt_diverge/n_MC_subt_diverge
+      include 'nFKSconfigs.inc'
 
 C-----
 C  BEGIN CODE
@@ -89,6 +90,10 @@ C-----
 c Write the process PID in the log.txt files (i.e., to the screen)
       write (*,*) getpid()
 
+      fks_confs=fks_configs
+      allocate(BornSmear(n_BS_yij,n_BS_xi,fks_confs,0:3))
+      
+      
       call cpu_time(tBefore)
       fixed_order=.false.
       nlo_ps=.true.

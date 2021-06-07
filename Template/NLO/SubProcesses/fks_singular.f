@@ -2774,7 +2774,8 @@ c to which contribution we can sum the current contribution (if any),
 c while for the S-events we can sum it to the 'i_soft' one.
       do i=1,icontr
          if (itype(i).eq.2 .and. (imode.eq.1 .or. imode.eq.2)) then
-            BornSmear_wgt=BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev)
+            BornSmear_wgt=BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
+     $           ,nFKS(i))
             wgts(1,i)=wgts(1,i)*BornSmear_wgt
             do j=1,niproc(i)
                parton_iproc(j,i)= parton_iproc(j,i)*BornSmear_wgt
@@ -2915,7 +2916,7 @@ c on the imode we should or should not include the virtual corrections.
       implicit none
       include 'nexternal.inc'
       include 'orders.inc'
-      integer i,j,ict,iamp,ithree,isix,iconf
+      integer i,j,ict,iamp,ithree,isix,iFKS_soft
       double precision f(nintegrals),sigint,sigint1,sigint_ABS
      $     ,n1body_wgt,tmp_wgt,max_weight,sigint_noBorn
      $     ,sigint_ABS_noBorn,sigint_Born
@@ -2926,9 +2927,10 @@ c on the imode we should or should not include the virtual corrections.
       common/fksvariables/xi_i_fks_ev,y_ij_fks_ev,p_i_fks_ev,p_i_fks_cnt
       double precision bornsmear_weight
 
-      iconf=0
+      iFKS_soft=0
       do i=1,icontr
-         iconf=nFKS(i)
+         ! THIS DEFINES iFKS_soft, WHICH IS THE FKS-CONFIGURATION OF THE S-EVENT.
+         iFKS_soft=nFKS(i)
          if(itype(i).ge.2 .and. itype(i).le.7 .or. itype(i).eq.11 .or.
      $        itype(i).eq.12.or. itype(i).eq.14 .or. itype(i).eq.15)
      $        exit
@@ -3008,16 +3010,19 @@ c
       if (imode.eq.3) then
          i=int(n_BS_yij*(y_ij_fks_ev+1d0)/2d0)+1
          j=int(n_BS_xi*xi_i_fks_ev)+1
-         BornSmear(i,j,1)=BornSmear(i,j,1)+sigint_ABS_noBorn
-         BornSmear(i,j,2)=BornSmear(i,j,2)+sigint_noBorn
-         BornSmear(i,j,3)=BornSmear(i,j,3)+sigint_Born
+         BornSmear(i,j,iFKS_soft,1)=
+     $        BornSmear(i,j,iFKS_soft,1)+sigint_ABS_noBorn
+         BornSmear(i,j,iFKS_soft,2)=
+     $        BornSmear(i,j,iFKS_soft,2)+sigint_noBorn
+         BornSmear(i,j,iFKS_soft,3)=
+     $        BornSmear(i,j,iFKS_soft,3)+sigint_Born
       endif
 
       if (imode.eq.1) then
          write (45,*) xi_i_fks_ev,y_ij_fks_ev,sigint,sigint_ABS
      $        ,sigint_Born,sigint_noBorn,sigint_ABS_noBorn,sigint_Born
-     $        ,sigint_Born/BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev)
-     $        ,iconf
+     $        ,sigint_Born/BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
+     $        ,iFKS_soft),iFKS_soft
       endif
 
       
@@ -3045,33 +3050,27 @@ c
       end
 
 
-      double precision function BornSmear_weight(xi,y)
+      double precision function BornSmear_weight(xi,y,iFKS)
       use mint_module
       implicit none
-      integer i,j
+      include 'nFKSconfigs.inc'
+      integer i,j,iFKS
       double precision xi,y
-      double precision sum_wgts,sum_Born,sum_Bwgt,temp(n_BS_yij)
-      save sum_wgts,sum_Born,sum_Bwgt
-      logical firsttime
-      data firsttime/.true./
+      double precision sum_wgts(fks_configs),sum_Born(fks_configs)
+      save sum_wgts,sum_Born
+      logical firsttime(fks_configs)
+      data firsttime/fks_configs*.true./
 c
 c     compute weight normalisation
-      if (firsttime) then
-c$$$         BornSmear(1:n_BS_yij,1:n_BS_xi,0)=
-c$$$     &        BornSmear(1:n_BS_yij,1:n_BS_xi,0)**2
-         sum_wgts=sum(BornSmear(1:n_BS_yij,1:n_BS_xi,0))
-         sum_Born=sum(BornSmear(1:n_BS_yij,1:n_BS_xi,3))
-c$$$         do i=1,n_BS_yij
-c$$$            temp(i)=sum(BornSmear(i,1:n_BS_xi,0)/BornSmear(i
-c$$$     $           ,1:n_BS_xi,3))
-c$$$         enddo
-c$$$         sum_Bwgt=sum(temp(1:n_BS_yij))
+      if (firsttime(iFKS)) then
+         sum_wgts(iFKS)=sum(BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,0))
+         sum_Born(iFKS)=sum(BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,3))
 c     check
-         if(sum_wgts.eq.0d0)then
-            write(*,*)'Error in bias weight, zero total weight'
+         if(sum_wgts(iFKS).eq.0d0)then
+            write(*,*)'Error in BornSmear, zero total weight',iFKS
             stop
          endif
-         firsttime=.false.
+         firsttime(iFKS)=.false.
       endif
 c
 c     determine bin corresponding to actual xi and y values
@@ -3079,20 +3078,18 @@ c     determine bin corresponding to actual xi and y values
       j=int(n_BS_xi*xi)+1
 
 c     output weight at xi and y
-c$$$      BornSmear_weight=BornSmear(i,j,0)/(sum_Bwgt/sum_Born)
-
-      BornSmear_weight=(BornSmear(i,j,0)/BornSmear(i,j,3))/
-     &                         (sum_wgts/sum_Born)
-
-c$$$      write (*,*) (sum(BornSmear(i,1:n_BS_xi,0)),i=1,n_BS_yij)
-c$$$      write (*,*) (sum(BornSmear(i,1:n_BS_xi,3)),i=1,n_BS_yij)
-c$$$      
-c$$$      write (*,*) (sum(BornSmear(i,1:n_BS_xi,0))/(sum(BornSmear(i
-c$$$     $     ,1:n_BS_xi,0)*BornSmear(i,1:n_BS_xi,3))/sum(BornSmear(i
-c$$$     $     ,1:n_BS_xi,3))),i=1,n_BS_yij)
-c$$$      stop
-
       
+      if(BornSmear(i,j,iFKS,0).eq.0d0 .and. BornSmear(i,j,iFKS
+     $     ,3).eq.0d0) then
+         BornSmear_weight=1d0
+      elseif(BornSmear(i,j,iFKS,3).eq.0d0) then
+         write (*,*)'Born is zero in BornSmear',iFKS,BornSmear(i,j,iFKS
+     $        ,0),sum_Born(iFKS),BornSmear(i,j,iFKS,3),sum_wgts(iFKS)
+         stop
+      else
+         BornSmear_weight=(BornSmear(i,j,iFKS,0)*sum_Born(iFKS))
+     $        /(BornSmear(i,j,iFKS,3)*sum_wgts(iFKS))
+      endif
       return
       end
       
