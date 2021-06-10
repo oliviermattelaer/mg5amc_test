@@ -24,7 +24,6 @@ import os
 import re
 import shutil
 import subprocess
-from typing import SupportsIndex
 
 import madgraph.core.base_objects as base_objects
 import madgraph.core.color_algebra as color
