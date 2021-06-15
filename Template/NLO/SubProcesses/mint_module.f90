@@ -71,7 +71,7 @@ module mint_module
   integer, parameter, public  :: ndimmax=60       ! max number of dimensions of the integral
   integer, parameter, public  :: n_ave_virt=10    ! max number of grids to set up to approx virtual
   integer, parameter, public  :: nintegrals=26    ! number of integrals to keep track of
-  integer, parameter, public  :: n_BS_xi=10, n_BS_yij=10
+  integer, parameter, public  :: n_BS_xi=20, n_BS_yij=20
   integer, parameter, private :: nintervals_virt=8! max number of intervals in the grids for the approx virtual
   integer, parameter, private :: min_inter=4      ! minimal number of intervals
   integer, parameter, private :: min_it0=4        ! minimal number of iterations in the mint step 0 phase
@@ -1058,17 +1058,17 @@ contains
           enddo
        endif
        if (imode.eq.3) then
-          do j=1,n_BS_xi
-             do i=1,n_BS_yij
-                do iFKS=1,fks_confs
+          do iFKS=1,fks_confs
+             do j=1,n_BS_xi
+                do i=1,n_BS_yij
                    BornSmear(i,j,iFKS,0)=(BornSmear(i,j,iFKS,1)-BornSmear(i,j,iFKS,2))/2d0
                 enddo
              enddo
           enddo
        endif
        if (imode.eq.3 .or. imode.eq.1) then
-          do j=1,n_BS_xi
-             do iFKS=1,fks_confs
+          do iFKS=1,fks_confs
+             do j=1,n_BS_xi
                 write (12,*) 'AVE',(BornSmear(i,j,iFKS,0),i=1,n_BS_yij)
                 write (12,*) 'AVE',(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
              enddo
@@ -1113,8 +1113,8 @@ contains
           enddo
        endif
        if (imode.eq.1 .or. imode.eq.2) then
-          do j=1,n_BS_xi
-             do iFKS=1,fks_confs
+          do iFKS=1,fks_confs
+             do j=1,n_BS_xi
                 read (12,*) dummy,(BornSmear(i,j,iFKS,0),i=1,n_BS_yij)
                 read (12,*) dummy,(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
              enddo

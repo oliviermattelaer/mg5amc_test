@@ -1512,11 +1512,11 @@ c Check for NaN's and INF's. Simply skip the contribution
       if (wgt2.ne.wgt2) return
       if (wgt3.ne.wgt3) return
 
-      if(type.eq.1 .or. type.eq. 8 .or. type.eq.9 .or. type.eq.10 .or.
-     &     type.eq.13) then
-         ! DO NOT INCLUDE H-EVENTS !
-         return
-      endif
+c$$$      if(type.eq.1 .or. type.eq. 8 .or. type.eq.9 .or. type.eq.10 .or.
+c$$$     &     type.eq.13) then
+c$$$         ! DO NOT INCLUDE H-EVENTS !
+c$$$         return
+c$$$      endif
 
 C Apply user-defined (in FKS_params.dat) contribution type filters if necessary
       if (VetoedContributionTypes(0).gt.0) then
@@ -3007,7 +3007,7 @@ c n1body_wgt is used for the importance sampling over FKS directories
          enddo
       endif
 c
-      if (imode.eq.3) then
+      if (imode.eq.3.and.iFKS_soft.ne.0) then
          i=int(n_BS_yij*(y_ij_fks_ev+1d0)/2d0)+1
          j=int(n_BS_xi*xi_i_fks_ev)+1
          BornSmear(i,j,iFKS_soft,1)=
@@ -3018,12 +3018,12 @@ c
      $        BornSmear(i,j,iFKS_soft,3)+sigint_Born
       endif
 
-      if (imode.eq.1) then
-         write (45,*) xi_i_fks_ev,y_ij_fks_ev,sigint,sigint_ABS
-     $        ,sigint_Born,sigint_noBorn,sigint_ABS_noBorn,sigint_Born
-     $        ,sigint_Born/BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
-     $        ,iFKS_soft),iFKS_soft
-      endif
+c$$$      if (imode.eq.1) then
+c$$$         write (45,*) xi_i_fks_ev,y_ij_fks_ev,sigint,sigint_ABS
+c$$$     $        ,sigint_Born,sigint_noBorn,sigint_ABS_noBorn,sigint_Born
+c$$$     $        ,sigint_Born/BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
+c$$$     $        ,iFKS_soft),iFKS_soft
+c$$$      endif
 
       
       f(1)=sigint_ABS
@@ -3083,8 +3083,8 @@ c     output weight at xi and y
      $     ,3).eq.0d0) then
          BornSmear_weight=1d0
       elseif(BornSmear(i,j,iFKS,3).eq.0d0) then
-         write (*,*)'Born is zero in BornSmear',iFKS,BornSmear(i,j,iFKS
-     $        ,0),sum_Born(iFKS),BornSmear(i,j,iFKS,3),sum_wgts(iFKS)
+        write (*,*)'Born is zero in BornSmear',iFKS,
+     $   BornSmear(i,j,iFKS,0:3),sum_Born(iFKS),sum_wgts(iFKS)
          stop
       else
          BornSmear_weight=(BornSmear(i,j,iFKS,0)*sum_Born(iFKS))
