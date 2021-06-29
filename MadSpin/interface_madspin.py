@@ -1025,6 +1025,9 @@ class MadSpinInterface(extended_cmd.Cmd):
             random.shuffle(particles)
             ids = [particle.pid for particle in particles]
             br = 1 #br for that particular events (for special/weighted case)
+            if  self.options['new_wgt'] == 'cross-section':
+                br = self.branching_ratio
+
             hepmc_output = lhe_parser.Event() #for hepmc case: collect the decay particle
             for i,particle in enumerate(particles):
                 #misc.sprint(i, particle.pdg, particle.pid)
@@ -1070,6 +1073,19 @@ class MadSpinInterface(extended_cmd.Cmd):
                     tot_width = float(self.banner.get('param', 'decay', abs(pdg)).value)
                     if tot_width:
                         br = decay_file.cross / tot_width
+                elif  self.options['new_wgt'] == 'cross-section':
+                    if decay_file.banner.get('run_card','bias_module') != 'None':
+                        norm = decay_file.banner.get('run_card','event_norm')
+                        if norm == "sum":
+                            br /= (decay_file.cross/len(decay_file))
+                        elif norm == "average":
+                            br /= decay_file.cross
+                        elif norm == "unitary":
+                            br *= 1
+                        else:
+                            raise Exception
+
+
                 # ok start the procedure
                 if hasattr(particle,'helicity'):
                     helicity = particle.helicity
@@ -1123,8 +1139,12 @@ class MadSpinInterface(extended_cmd.Cmd):
                     decayed_particle.add_decay(decay)
             # change the weight associate to the event
             if self.options['new_wgt'] == 'cross-section':
-                event.wgt *= self.branching_ratio
-                br = self.branching_ratio
+                if decay_file.banner.get('run_card','bias_module') != 'None':
+                    event.wgt *= br * decay.wgt
+                    br = br * decay.wgt
+                else:
+                    event.wgt *= self.branching_ratio
+                    br = self.branching_ratio
             else:
                 event.wgt *= br
                 
