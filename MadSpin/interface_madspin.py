@@ -1074,8 +1074,8 @@ class MadSpinInterface(extended_cmd.Cmd):
                     if tot_width:
                         br = decay_file.cross / tot_width
                 elif  self.options['new_wgt'] == 'cross-section':
-                    if decay_file.banner.get('run_card','bias_module') != 'None':
-                        norm = decay_file.banner.get('run_card','event_norm')
+                    if self.options["run_card"] and self.run_card['bias_module'] != 'None':
+                        norm = self.run_card['event_norm']
                         if norm == "sum":
                             br /= (decay_file.cross/len(decay_file))
                         elif norm == "average":
@@ -1139,7 +1139,7 @@ class MadSpinInterface(extended_cmd.Cmd):
                     decayed_particle.add_decay(decay)
             # change the weight associate to the event
             if self.options['new_wgt'] == 'cross-section':
-                if decay_file.banner.get('run_card','bias_module') != 'None':
+                if self.options["run_card"] and self.run_card['bias_module'] != 'None':
                     event.wgt *= br * decay.wgt
                     br = br * decay.wgt
                 else:
