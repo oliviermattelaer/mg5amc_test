@@ -451,7 +451,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
     def __init__(self, argument=None):
         """Allow color-ordered initialization with Process"""
-        
+
         if isinstance(argument, base_objects.Process):
             super(ColorOrderedAmplitude, self).__init__()
             self.set('process', argument)
@@ -468,15 +468,11 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         
         super(ColorOrderedAmplitude, self).default_setup()
         self['color_flows'] = ColorOrderedFlowList()
-        misc.sprint(ColorOrderedFlowList())
 
     def get(self, name):
         """Special get for diagrams"""
 
         if name == 'diagrams':
-            diagrams=base_objects.DiagramList(sum([cf.get('diagrams') \
-                                for cf in self.get('color_flows')],[]))
-            # misc.sprint(diagrams)
             return base_objects.DiagramList(sum([cf.get('diagrams') \
                                 for cf in self.get('color_flows')],[]))
         return super(ColorOrderedAmplitude, self).get(name)
@@ -509,9 +505,8 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
         legs = base_objects.LegList([copy.copy(l) for l in \
                                      process.get('legs')])
-        
+
         if not isinstance(process.get('model'), ColorOrderedModel):
-            misc.sprint('here')
             process.set('model', ColorOrderedModel(process.get('model')))
 
         model = process.get('model')
@@ -565,7 +560,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                                   triplet_legs + \
                                                   octet_legs,
                                                   key=lambda l1: l1[0])):
-            misc.sprint(perm)
             # Remove permutations where the order of anti-triplets is changed
             anti_triplet_numbers = [p[0] for p in perm if p[2]==-3]
             if anti_triplet_numbers != sorted(anti_triplet_numbers):
@@ -579,8 +573,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 same_flavor_perms[ind].append([p[0] for p in perm] + \
                                               [last_leg[0][0]] + \
                                               [l[0] for l in singlet_legs])
-                # misc.sprint('here')
-                # AL: this is needed to keep all perms of gluons in single flow.f file
                 # continue
             except ValueError:
                 pass
@@ -607,16 +599,13 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                                  [l[0] for l in singlet_legs]]
             # Add permutation ids for comparison above
             good_perm_ids.append(perm_ids)
-            misc.sprint(good_perm_ids)
             # Add permutation to accepted permutations
             leg_perms.append(perm)
-            misc.sprint(leg_perms)
 
         # Create color flow amplitudes corresponding to all resulting
         # permutations
         color_flows = ColorOrderedFlowList()
         colegs = base_objects.LegList([ColorOrderedLeg(l) for l in legs])
-        misc.sprint(color_flows,colegs)
 
         # Set color flow flags (color_ordering) so that every
         # chain (3 8 8 .. 8 3bar) has a unique color ordering
@@ -627,22 +616,14 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         # Create the color ordered flows for all combinations
         # numbers of octet and singlet gluon
         for iflow in range(max(1, ntriplets)):
-            # Each iflow in this loop gives a flow{iflow}.f file
-            misc.sprint(iflow, ntriplets)
-            # loop over perms of gluons over different quark lines
             for iperm, perm in enumerate(leg_perms):
-                # Add loop here over all gluon permutations within a flow.f file
-                misc.sprint(perm)
                 colegs = base_objects.LegList([ColorOrderedLeg(l) for l in legs])
-                # colegs = base_objects.LegList(legs)
-                misc.sprint(colegs)
                 # Keep track of number of triplets
                 ichain = 0
                 ileg = 0
                 # Set color ordering flags for all colored legs
                 for perm_leg in list(perm) + last_leg:
                     leg = colegs[perm_leg[0]-1]
-                    # misc.sprint(leg,perm_leg,last_leg)
                     if perm_leg[2] == 3:
                         ichain += 1
                         ileg = 0
@@ -665,21 +646,19 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                     if coprocess.get('orders')['QCD'] < 0:
                         continue
                 coprocess.get('orders')['singlet_QCD'] = 2*iflow
-               
+
                 # Create and generate diagrams for the color flow
                 flow = ColorOrderedFlow(coprocess)
                 
                 if flow.get('diagrams'):
                     # Set permutation information for this flow
                     # (relative to first permutation)
-                    misc.sprint('in flow.get(diagrams)')
                     perms = same_flavor_perms[iperm]
                     flow.set('permutations',
                              [base_objects.reorder_permutation(perms[0], p) \
                               for p in perms])
                     # Add flow to list
                     color_flows.append(flow)
-                    misc.sprint(len(color_flows))
                     if not 'QCD' in process.get('orders'):
                         # Set coupling orders for the process
                         process.set('orders', coprocess.get('orders'))
@@ -690,7 +669,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                         process.get('orders')['singlet_QCD'] = 0
                     # Sort diagrams for this color flow using OrderDiagramTags
                     for idiag, diag in enumerate(flow.get('diagrams')):
-                        # misc.sprint(idiag,diag)
                         flow.get('diagrams')[idiag] = \
                                       OrderDiagramTag(diag).\
                                                          diagram_from_tag(model)
@@ -700,7 +678,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 break
 
         self.set('color_flows', color_flows)
-        # misc.sprint(color_flows)
         return self.get('diagrams')
 
     def get_periferal_diagrams_from_flows(self, include_all_t = False,
@@ -921,23 +898,8 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
            c) no uncompleted group, and 1 or 2 groups (if color octet).
         """
 
-        # mylegs = [(ColorOrderedLeg({'id':leg_id,
-        #                            'number':number,
-        #                            'state':state,
-        #                            'from_group':True}),
-        #                         #    'color_ordering': color_orderings[leg_id]}),
-        #            vert_id) for (leg_id, vert_id) in leg_vert_ids]
-        # # misc.sprint(mylegs)
-        # # add index with which permutations of legs we must perform to accept mylegs
-        # # add index to say to which jamp does this permutation of mylegs belong?
-        # # check what's below
-        # return mylegs
-
-
-
         # Find all color ordering groups
         groups = set(sum([list(l.get('color_ordering').keys()) for l in legs],[]))
-        misc.sprint(groups)
         model = self.get('process').get('model')
         new_leg_colors = dict([(leg_id,
                                 model.get_particle(leg_id).get('color')) \
@@ -954,18 +916,16 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
                           (i, l) in enumerate(legs) \
                           if group in l.get('color_ordering')]
 
-            
             # Check for unattached color octet legs
-            # if len(groups) >= 2 and len(color_legs) == 1 and \
-            #    old_leg_colors[legs[color_legs[0][0]].get('id')] == 8 and \
-            #        len(legs[color_legs[0][0]].get('color_ordering')) == 1:
-            #     return []            
+            if len(groups) >= 2 and len(color_legs) == 1 and \
+               old_leg_colors[legs[color_legs[0][0]].get('id')] == 8 and \
+                   len(legs[color_legs[0][0]].get('color_ordering')) == 1:
+                return []            
 
             color_legs.sort(key=lambda l1: l1[1][0])
-            misc.sprint(color_legs)
 
             color_ordering = (color_legs[0][1][0], color_legs[-1][1][1])
-            misc.sprint(color_ordering)
+
             # Check that we don't try to combine legs with
             # non-adjacent color ordering (allowing to wrap around
             # cyclically)
@@ -1019,7 +979,6 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
                 valid_orderings = [group for group in groups if \
                                    color_orderings[leg_id][group] != \
                                    (1, self.get('max_color_orders')[group])]
-                misc.sprint(valid_orderings)
                 if (len(valid_orderings) < 1 or \
                     len(valid_orderings) > 2):
                     leg_vert_ids.remove((leg_id, vert_id))
@@ -1037,18 +996,12 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
                                    'from_group':True,
                                    'color_ordering': color_orderings[leg_id]}),
                    vert_id) for (leg_id, vert_id) in leg_vert_ids]
-        misc.sprint(mylegs)
+
         return mylegs
 
     def get_combined_vertices(self, legs, vert_ids):
         """Check that all color-ordering groups are pairwise
         connected, i.e., we do not allow groups that are disjuct."""
-        # add index with which permutations of legs we must perform to accept mylegs
-        # add index to say to which jamp does this permutation of mylegs belong?
-        # check what's below
-        # Will fixing below be enough???
-
-        # return vert_ids
 
         # Find all color ordering groups
         groups = set(sum([list(l.get('color_ordering').keys()) for l in legs],[]))
