@@ -3614,6 +3614,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                 new_color_lists = []
                 for number_wf_dict, color_list in zip(number_to_wavefunctions,
                                                      color_lists):
+                    misc.sprint(color_list)
                     legs = copy.copy(vertex.get('legs'))
                     last_leg = legs.pop()
                     # Generate list of mothers from legs
@@ -3629,6 +3630,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                     done_color = {} # store link to color
                     for coupl_key in sorted(inter.get('couplings').keys()):
                         color = coupl_key[0]
+                        misc.sprint(coupl_key[0])
                         if color in done_color:
                             wf = done_color[color]
                             wf.get('coupling').append(inter.get('couplings')[coupl_key])
@@ -3639,6 +3641,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                         if inter.get('color'):
                             wf.set('inter_color', inter.get('color')[coupl_key[0]])
                         done_color[color] = wf
+                        # misc.sprint(done_color[color])
                         wf.set('lorentz', [inter.get('lorentz')[coupl_key[1]]])
                         wf.set('color_key', color)
                         wf.set('mothers', mothers)
@@ -3685,6 +3688,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                         new_color_list = copy.copy(color_list)
                         new_color_list.append(coupl_key[0])
                         new_color_lists.append(new_color_list)
+                        misc.sprint(new_color_list,new_color_lists)
 
                 number_to_wavefunctions = new_number_to_wavefunctions
                 color_lists = new_color_lists
@@ -3693,6 +3697,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
             # copies of this diagram
             helas_diagram = HelasDiagram()
             diagram_number = diagram_number + 1
+            misc.sprint(diagram_number)
             helas_diagram.set('number', diagram_number)
             for number_wf_dict, color_list in zip(number_to_wavefunctions,
                                                   color_lists):
@@ -3728,7 +3733,10 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                 done_color = {}
                 for i, coupl_key in enumerate(keys):
                     color = coupl_key[0]
+                    misc.sprint(list(done_color.keys()))
+                    # misc.sprint(color)
                     if inter and color in list(done_color.keys()):
+                        # misc.sprint('done_colours')
                         amp = done_color[color]
                         amp.get('coupling').append(inter.get('couplings')[coupl_key])
                         amp.get('lorentz').append(inter.get('lorentz')[coupl_key[1]])
@@ -3781,6 +3789,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                 wavefunctions.extend(diagram_wavefunctions)
                 wf_mother_arrays.extend([wf.to_array() for wf \
                                          in diagram_wavefunctions])
+                misc.sprint(wf_mother_arrays)
             else:
                 wf_number = len(process.get('legs'))
 
@@ -4697,6 +4706,8 @@ class HelasMatrixElement(base_objects.PhysicsObject):
     def get_all_amplitudes(self):
         """Gives a list of all amplitudes for this ME"""
 
+        misc.sprint([type(d) for d in self.get('diagrams')])
+
         return sum([d.get('amplitudes') for d in \
                        self.get('diagrams')], [])
 
@@ -4854,6 +4865,8 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         in argument. The coefficients are given in the format (fermion factor, 
         colorcoeff (frac), imaginary, Nc power). """
 
+        misc.sprint('in generate_color_amplitudes')
+
         if not color_basis:
             # No color, simply add all amplitudes with correct factor
             # for first color amplitude
@@ -4876,7 +4889,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         col_amp_list = []
         for i, col_basis_elem in \
                 enumerate(sorted(color_basis.keys())):
-
+            misc.sprint(col_basis_elem)
             col_amp = []
             for diag_tuple in color_basis[col_basis_elem]:
                 #Only include leading color contributions

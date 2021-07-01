@@ -412,7 +412,8 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
         for vertices in vertex_lists:
             vertices.append(vertex)
             diagrams.append(base_objects.Diagram({'vertices': vertices}))
-
+        # misc.sprint(diagrams)
+        
         return diagrams
 
     def get_wf_numbers(self):
@@ -420,6 +421,7 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
         numbers that correspond to this wavefunction and its mothers."""
 
         numbers = sum([list(m.get_wf_numbers()) for m in self.get('mothers')], [])
+        misc.sprint(numbers)
         return set(numbers)
 
 #===============================================================================
@@ -545,6 +547,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         self['permutations'] = []
         # Color string corresponding to this color flow
         self['color_string'] = color.ColorString()
+        misc.sprint(color.ColorString())
         # Identifier for this color flow
         self['number'] = 0
 
@@ -581,7 +584,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                                 decay_ids=[]):
         """Generate Behrends-Giele diagrams for a color ordered amplitude
         """
-        
+
         assert  isinstance(amplitude,
                            color_ordered_amplitudes.ColorOrderedFlow), \
                     "Missing or erraneous arguments for generate_helas_diagrams"
@@ -591,10 +594,15 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
 
         # Set permutations
         self.set('permutations', amplitude.get('permutations'))
-        
+        misc.sprint(amplitude.get('permutations'))
+
         # Set color string
         self.set('color_string', self.get_color_string(list(range(1,
                                  len(amplitude.get('process').get('legs'))+1))))
+        misc.sprint(list(range(1,
+                                 len(amplitude.get('process').get('legs'))+1)))
+        col_temp = self.get('color_string')
+        misc.sprint(col_temp)
 
         # First generate full set of wavefunctions and amplitudes
         super(COHelasFlow, self).generate_helas_diagrams(amplitude,
@@ -604,6 +612,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         # Collect all wavefunctions and turn into COHelasWavefunctions
         co_wavefunctions = helas_objects.HelasWavefunctionList(\
             [COHelasWavefunction(wf) for wf in self.get_all_wavefunctions()])
+        misc.sprint(len(co_wavefunctions))
 
         # Same thing for amplitudes
         for diag in self.get('diagrams'):
@@ -789,12 +798,21 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         coefficients are given in the format (fermion factor, color
         coeff (frac), imaginary, Nc power)."""
 
+        # self['color_basis'] = color_amp.ColorBasis()
+
+        # misc.sprint(self['color_basis'])
+
+        # return(super(COHelasFlow,self).get_color_amplitudes())
+
         col_amp = []
+        # Can we add loops over gluon perms here and create list of lists??
         for amplitude in self.get_all_amplitudes():
+            # How to get correct amplitude numbers??
             col_amp.append((amplitude.get('factor') + 
                             (amplitude.get('color_string').Nc_power,),
                             amplitude.get('number')))
-        return [col_amp]
+        misc.sprint(col_amp)
+        return [col_amp,col_amp]
 
     def replace_mothers(self, arg, wf_current_dict):
         """Find BG currents in combined_wavefunctions corresponding to
@@ -811,6 +829,8 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         """Check that the wavefunction/amplitude color is consistent
         with the color ordering, and set the corresponding color of
         the wavefunction or amplitude."""
+
+        return True
 
         assert isinstance(arg, COHelasWavefunction) or \
                isinstance(arg, COHelasAmplitude)
@@ -899,6 +919,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                 continue
             co = list(leg.get('color_ordering').keys())[0]
             co_val = list(leg.get('color_ordering').values())[0][0]
+            misc.sprint(co,co_val)
             try:
                 color_chains[co].append(co_val)
             except:
@@ -920,6 +941,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
                     chain_types[co] = leg_color//3
 
         color_string = color.ColorString()
+        misc.sprint(color_string)
         # Insert last leg in appropriate place
         if lastleg:
             lastleg_color = model.get_particle(lastleg.get('id')).get_color()
@@ -1156,8 +1178,10 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         list_color_dict = []
         # Build a color basis from the leading color flows
         for iflow, flow in enumerate(self.get('color_flows')):
+            misc.sprint(flow.get('color_string'))
             if flow.get('color_string').Nc_power < max_Nc: continue
             color_string = flow.get('color_string')
+            misc.sprint(color_string)
             list_color_dict.append(dict([((0,), copy.copy(color_string))]))
 
         self.get('color_basis')._list_color_dict = list_color_dict
@@ -1173,6 +1197,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             return
 
         col_matrix = self.get('color_matrix')
+        misc.sprint(col_matrix)
 
         if col_matrix:
             return
@@ -1193,13 +1218,16 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         for color_flow in self.get('color_flows'):
             col_str = color_flow.get('color_string').create_copy()
             col_str2 = col_str.create_copy()
+            misc.sprint(col_str,col_str2)
             # Multiply color string with its complex conjugate
             col_str.product(col_str2.complex_conjugate())
             # Create a color factor to store the result and simplify it
             col_fact = color.ColorFactor([col_str])
             result = col_fact.full_simplify()
+            misc.sprint(col_fact,result)
             # result now has all Nc powers
             Nc_powers.extend([cs.Nc_power for cs in result])
+            misc.sprint(Nc_powers)
 
         # Set min Nc power to max(Nc_powers) - (color_order - 1),
         # i.e., Nc^Nmax for leading, Nc^(Nmax-1) to subleading, etc.
@@ -1215,6 +1243,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                   process.get('legs') if \
                   model.get_particle(l.get('id')).get('color') != 1]
         all_octets = (set(colors) == set([8]))
+        misc.sprint(colors)
         
         # The col_basis will contain the basis strings for the basic flows
         basic_immutable_factors = []
@@ -1226,12 +1255,15 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             permutations = self.get('permutations')
 
         for iperm, perm in enumerate(permutations):
+            misc.sprint(iperm,perm)
             for iflow, color_flow in enumerate(self.get('color_flows')):
                 # 1,2,3,4,5 -> 1,2,4,5,3 e.g.
                 perm_replace_dict = \
                           dict(list(zip(self.get('permutations')[0], perm)))
                 col_str = color_flow.get('color_string').create_copy()
+                misc.sprint(col_str)
                 col_str.replace_indices(perm_replace_dict)
+                misc.sprint(col_str,col_str.to_immutable())
                 # Create the immutable string
                 immutable_col_str = col_str.to_immutable()
                 if iperm == 0:
@@ -1257,6 +1289,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                     icol = iperm * len(self.get('color_flows')) + iflow
 
                     col_matrix[(icol, irow)] = copy.copy(result)
+                    misc.sprint(col_matrix[(icol,irow)],irow,icol)
 
                     # For color octets, pick leading order contribution,
                     # and multiply by 1-1/Nc^2

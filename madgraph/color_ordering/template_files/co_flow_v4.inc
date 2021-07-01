@@ -1,4 +1,4 @@
-      COMPLEX*16 FUNCTION FLOW%(number)s(P,NHEL,IP)
+      SUBROUTINE FLOW%(number)s(P,NHEL,JAMP)
 C  
 %(info_lines)s
 C
@@ -17,6 +17,8 @@ C
       PARAMETER (NEXTERNAL=%(nexternal)d)
       INTEGER    NWAVEFUNCS
       PARAMETER (NWAVEFUNCS=%(nwavefuncs)d) 
+      INTEGER    NPERMS
+      PARAMETER (NPERMS=%(nperms)d) 
       REAL*8     ZERO
       PARAMETER (ZERO=0D0)
       COMPLEX*16 IMAG1, ONE
@@ -25,12 +27,13 @@ C
 C ARGUMENTS 
 C  
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL),IP(NEXTERNAL)
+      INTEGER NHEL(NEXTERNAL)
+      COMPLEX*16 JAMP(NPERMS)
 C  
 C LOCAL VARIABLES 
 C  
       INTEGER I,J,IC(NEXTERNAL)
-      COMPLEX*16 AMP(NGRAPHS), JAMP(1)
+      COMPLEX*16 AMP(NGRAPHS)
       COMPLEX*16 W(18,NWAVEFUNCS)
       COMPLEX*16 DUM0,DUM1
       DATA DUM0, DUM1/(0d0, 0d0), (1d0, 0d0)/
@@ -56,6 +59,4 @@ endif
 %(helas_calls)s
 %(jamp_lines)s
 
-      FLOW%(number)s=JAMP(1)
-      RETURN
       END

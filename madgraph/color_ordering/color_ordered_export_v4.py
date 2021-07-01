@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 import copy
+import enum
 import fractions
 import glob
 from itertools import permutations
@@ -100,10 +101,16 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Extract ngraphs
         ngraphs = flow.get_number_of_amplitudes()
         replace_dict['ngraphs'] = ngraphs
+        misc.sprint(ngraphs)
 
         # Extract nwavefuncs
         nwavefuncs = flow.get_number_of_wavefunctions()
         replace_dict['nwavefuncs'] = nwavefuncs
+        misc.sprint(nwavefuncs)
+        # misc.sprint(flow)
+
+        # Extract nperms
+        replace_dict['nperms'] = len(flow.get('permutations')) 
 
         # Extract IC data line
         ic_data_line = self.get_ic_data_line(flow)
@@ -111,10 +118,12 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # Extract helas calls
         helas_calls = helas_call_writer.get_matrix_element_calls(flow)
+        misc.sprint(helas_calls)
         replace_dict['helas_calls'] = "\n".join(helas_calls)
 
         # Extract JAMP lines
         jamp_lines, nb_tmp_jamp = self.get_JAMP_lines(flow)
+        misc.sprint(jamp_lines)
         replace_dict['jamp_lines'] = '\n'.join(jamp_lines)
         replace_dict['nb_temp_jamp'] = nb_tmp_jamp
         #adding the support for the fake width (forbidding too small width)
@@ -173,6 +182,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         color_matrix = matrix_element.get('color_matrix')
         flows = matrix_element.get('color_flows')
+        misc.sprint(len(flows))
+        misc.sprint(color_matrix.keys())
         
 
         nflows = len(flows)
@@ -180,6 +191,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # the basic color flows
         needed_perms = sorted(list(set([icol // nflows for (icol, irow) in \
                                         color_matrix.keys()])))
+        misc.sprint(needed_perms) 
         nperms = len(needed_perms)
         all_perms = matrix_element.get('permutations')
 
@@ -213,10 +225,12 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             iperm = icol // nflows
             # iflow is the flow number (for this permutation)
             iflow = icol % nflows
+            misc.sprint(icol,irow,iperm,iflow)
 
             # Calculate Nc for this flow in this row
             row_Nc = max([c.Nc_power for c in color_matrix[(icol, irow)]])
             flow_Nc = row_Nc - max_Nc
+
 
             # Add this flow to the needed flows for this permutation
             # (used for the flow call lines generated below)
@@ -226,7 +240,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 perm_needed_flows[iperm].append((iflow, jamp,
                                          perm_flow_factors[(iperm, iflow)]))
                 if iperm == 0: flow_jamp_dict[iflow] = jamp
-
+                misc.sprint(jamp,flow_jamp_dict[iflow])
+                
             # Make sure that also the basic flow is included
             if not irow in [i for (i,n,c) in perm_needed_flows[0]]:
                 jamp += 1
@@ -239,6 +254,9 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                              jamp if iperm > 0 else flow_jamp_dict[iflow],
                              color_matrix.col_matrix_fixed_Nc[(icol, irow)][0],
                              flow_Nc))
+            # misc.sprint(color_matrix.col_matrix_fixed_Nc[(icol, irow)][0])
+        misc.sprint(perm_needed_flows)
+        misc.sprint(row_flow_factors)
 
         return jamp, needed_perms, perm_needed_flows, row_flow_factors, \
                flow_jamp_dict
@@ -250,15 +268,22 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         all_perms = matrix_element.get('permutations')
         nexternal = len(all_perms[0])
         
+        # misc.sprint(needed_perms)
+
         # The data lines giving the needed permutations
         iperm_line_list = []
         for iperm, perm in enumerate(needed_perms):
+            # misc.sprint(iperm,perm)
             int_list = [iperm+1, nexternal]
+            # misc.sprint(int_list)
             int_list.extend(all_perms[perm])
+            # misc.sprint(int_list)
             iperm_line_list.append(\
                 ("DATA (PERMS(I,%4r),I=1,%d) /" + \
                  ",".join(['%2r'] * nexternal) + "/") % tuple(int_list))
 
+        # misc.sprint(iperm_line_list)
+# 
         return iperm_line_list
     
     def get_iferm_line(self, matrix_element, needed_perms):
@@ -280,6 +305,50 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         return iferm_line
 
     def get_flow_call_lines(self, needed_perms, perm_needed_flows, min_color_order,
+                            me_flag = ''):
+        """Write out the calls to all color flows. Need to multiply by
+        fermion permutation factor for this color flow to get right
+        sign."""
+
+        # Generate the calls to all needed flows, by color order
+        flow_call_lines = []
+        
+        # Write out the calls to the color flows, order by order
+        for color_order in range(0, int(min_color_order) - 2, -2):
+            # We only want to separate odd orders, since even
+            # correspond to singlet gluon contributions only
+            flow_call_lines.append("IF(ICO.EQ.%d) THEN" % \
+                                       (1 - (int(color_order) // 2)))
+            for iperm, perm in enumerate(needed_perms):
+                # misc.sprint(color_order)
+                # misc.sprint(needed_perms, iperm ,perm)
+                orders = max([c/2 for (i,j,c) in perm_needed_flows[perm]])
+                # misc.sprint(orders)
+                # misc.sprint(perm_needed_flows[perm])
+                # Only include permutations with relevant flows
+                # if int(color_order)//2 > orders: continue
+
+                # Set the perm needed in the flow calls
+                flow_call_lines.append("DO I=1,NEXTERNAL")
+                flow_call_lines.append("PERM(I)=PM(PERMS(I,%d))" % \
+                                       (iperm + 1))
+                flow_call_lines.append("ENDDO")
+                # Now generate the flow calls
+                for iflow, jmp, co in perm_needed_flows[perm]:
+                    misc.sprint(iflow,jmp,co, color_order)
+                    # if co < color_order: 
+                    #     continue
+                    flow_call_lines.append(\
+                        "JAMP(%d)=IFERM(%d)*FLOW%s%d(P,NHEL,PERM)" \
+                        % (jmp, iperm+1, me_flag, iflow+1))
+
+            if color_order % 2 == 0:
+                flow_call_lines.append("ENDIF")
+
+        return flow_call_lines
+
+
+    def get_flow_call_lines_temp(self, needed_perms, perm_needed_flows, min_color_order,
                             me_flag = ''):
         """Write out the calls to all color flows. Need to multiply by
         fermion permutation factor for this color flow to get right
@@ -317,18 +386,21 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return flow_call_lines
 
+
     def get_color_flow_lines(self, row_flow_factors, flow_jamp_dict, min_color_order):
         """Write summation of all color flows. Need to multiply by
         fermion permutation factor for this color flow to get right
         sign."""
         
         # The color matrix summation lines for the basic color flows
-        color_sum_lines = []
+        color_sum_lines = ["IF(ICO.EQ.0) THEN"]
         
         # Go through the rows and output the explicit color matrix
         # summation for this line
         for color_order in range(0, min_color_order - 2, -2):
-            color_sum_lines.append("IF(ICO.EQ.%d) THEN" % \
+            misc.sprint(color_order)
+            if color_order != 0: 
+              color_sum_lines.append("ELSE IF(ICO.EQ.%d) THEN" % \
                                        (1 - (color_order / 2)))
             for irow in sorted(row_flow_factors.keys()):
                 orders = [n for (i,j,c,n) in row_flow_factors[irow] if \
@@ -355,7 +427,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 color_sum_lines[-1] = color_sum_lines[-1].replace('+-', '-')
                 color_sum_lines[-1] = color_sum_lines[-1].replace('+1D0*', '+')
                 color_sum_lines[-1] = color_sum_lines[-1].replace('/1*', '*')
-            color_sum_lines.append("ENDIF")
+        color_sum_lines.append("ENDIF")
         return color_sum_lines
    
     @staticmethod
@@ -416,7 +488,19 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                                  for flow in matrix_element.get('color_flows')])
 
         return "COMPLEX*16 %(ff)s\nEXTERNAL %(ff)s" % {"ff": flow_functions}
-        
+
+    def get_call_flow_lines(self, matrix_element, me_flag = ''):
+        """Write out calls to flow subroutine lines"""
+
+        flow_calls=[]
+
+        for flow in matrix_element.get('color_flows'):
+            flow_calls.append('CALL FLOW%s%d(P,NHEL(:,IHEL), JAMP)'\
+                                % (me_flag, flow.get('number')))
+
+        return flow_calls
+
+
     def combine_jamp_factors(self, allnums):
         """Combine all JAMPs with the same factors"""
 
@@ -591,6 +675,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                                                    min_color_order)
         color_sum_lines = self.get_color_flow_lines(row_flow_factors,
                                                     flow_jamp_dict, min_color_order)
+        call_flow_lines = self.get_call_flow_lines(matrix_element)
 
         replace_dict['flow_perms_data_lines'] = '\n'.join(flow_perms_data_lines)
         replace_dict['flow_iferm_data_line'] = flow_iferm_data_line
@@ -599,6 +684,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         replace_dict['color_sum_lines'] = '\n'.join(color_sum_lines)
         replace_dict['nflows'] = nflows
         replace_dict['color_order'] = matrix_element.get('color_order')
+        replace_dict['call_flow_lines'] = '\n'.join(call_flow_lines)
 
         # Extract the info about which particles should be permuted
         comp_data_line = self.get_comp_data_line(matrix_element)

@@ -1364,14 +1364,18 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         # the color amplitudes lists.
         if(isinstance(col_amps,helas_objects.HelasMatrixElement)):
             color_amplitudes=col_amps.get_color_amplitudes()
+            misc.sprint('here')
         elif(isinstance(col_amps,list)):
             if(col_amps and isinstance(col_amps[0],list)):
                 color_amplitudes=col_amps
+                misc.sprint('or here')
             else:
                 raise MadGraph5Error("Incorrect col_amps argument passed to get_JAMP_lines")
         else:
             raise MadGraph5Error("Incorrect col_amps argument passed to get_JAMP_lines")
 
+        misc.sprint(color_amplitudes)
+        
         all_element = {}
         res_list = []
         for i, coeff_list in enumerate(color_amplitudes):
@@ -1391,6 +1395,7 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
                 coeff_list=coeff_list[n:]
                 res = ((JAMP_format+"=") % str(i + 1)) + \
                       ((JAMP_format % str(i + 1)) if not first and split>0 else '')
+                misc.sprint(res)
 
                 first=False
                 # Optimization: if all contributions to that color basis element have

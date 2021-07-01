@@ -1313,7 +1313,7 @@ class UFOMG5Converter(object):
             # Interaction with a ghost/goldstone
             return 
         particles = base_objects.ParticleList(particles)
-
+        
         # Import Lorentz content:
         lorentz = [helas for helas in interaction_info.lorentz]            
         

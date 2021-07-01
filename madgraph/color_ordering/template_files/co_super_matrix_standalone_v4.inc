@@ -18,8 +18,8 @@ C CONSTANTS
 C  
       INTEGER    NEXTERNAL
       PARAMETER (NEXTERNAL=%(nexternal)d)
-      INTEGER                 NCOMB         
-      PARAMETER (             NCOMB=%(ncomb)d)
+      INTEGER    NCOMB         
+      PARAMETER (NCOMB=%(ncomb)d)
       INTEGER    ICO
       PARAMETER (ICO=%(color_order)d)
       INTEGER    NPERMS
@@ -34,6 +34,7 @@ C
       INTEGER NHEL(NEXTERNAL,NCOMB),NTRY
       REAL*8 T
       REAL*8 MATRIX
+      COMPLEX*16 JAMP(NPERMS)
       INTEGER IHEL,IDEN, I
       LOGICAL GOODHEL(NCOMB)
       DATA NTRY/0/
@@ -41,8 +42,6 @@ C
 %(helicity_lines)s
 %(den_factor_line)s
 
-      INTEGER PM(NEXTERNAL,NPERMS)
-%(perms)s
 
 C ----------
 C BEGIN CODE
@@ -52,8 +51,9 @@ C ----------
           DO IHEL=1,NCOMB
              IF (GOODHEL(IHEL) .OR. NTRY .LT. 2) THEN
                T=0d0
+               %(call_flow_lines)s
                DO I=1,ICO
-                  T=T+MATRIX(P ,NHEL(1,IHEL), PM, I)
+                  T=T+MATRIX(P , NHEL(1,IHEL), I, JAMP)
                ENDDO
                ANS=ANS+T
                IF (T .NE. 0D0 .AND. .NOT.    GOODHEL(IHEL)) THEN
@@ -65,7 +65,7 @@ C ----------
       END
        
 C     -----------------------------------
-      REAL*8 FUNCTION MATRIX(P,NHEL,PM, ICO)
+      REAL*8 FUNCTION MATRIX(P, NHEL, ICO, JAMP)
 C     -----------------------------------
 C
 C Returns amplitude squared summed/avg over colors
@@ -81,26 +81,24 @@ C
       PARAMETER (NEXTERNAL=%(nexternal)d)
       INTEGER    NPERMS
       PARAMETER (NPERMS=%(nperms)d) 
+      INTEGER    NFPERMS
+      PARAMETER (NFPERMS=%(nflowperms)d) 
+      
 C  
 C ARGUMENTS 
 C  
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL),ICO,PM(NEXTERNAL,NPERMS)
+      INTEGER NHEL(NEXTERNAL),ICO
+      COMPLEX*16 JAMP(NPERMS)
 C  
 C LOCAL VARIABLES 
 C  
       INTEGER I,J,PERM(NEXTERNAL)
       COMPLEX*16 ZTEMP
-C
-C EXTERNAL FUNCTIONS
-C
-      COMPLEX*16 ONEPERM
-      EXTERNAL ONEPERM
+      INTEGER PMFLOW(NFPERMS,NPERMS)
 
       ZTEMP = (0.D0,0.D0)
-      DO I=1,NPERMS
-      	ZTEMP=ZTEMP+ONEPERM(P,NHEL,PM(:,I),ICO)
-      ENDDO
+%(color_sum_lines)s
       MATRIX=REAL(ZTEMP)
 
       RETURN
