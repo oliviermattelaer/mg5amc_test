@@ -181,12 +181,23 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         basic color flow)."""
 
         color_matrix = matrix_element.get('color_matrix')
+        # misc.sprint(matrix_element)
         flows = matrix_element.get('color_flows')
-        misc.sprint(len(flows))
-        misc.sprint(color_matrix.keys())
+        # misc.sprint(len(flows))
+        # misc.sprint(color_matrix.keys())
+        # misc.sprint(flows[0])
+        # misc.sprint(flows[0].get('processes')[0])
+        flow_nums = [l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs')]
+        # misc.sprint(flow_nums)
+        nflows = max(l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs'))
+        # misc.sprint(nflows)
+        # misc.sprint(flows[0].get('processes')[0].get('legs'))
         
 
-        nflows = len(flows)
+        # old nflows call
+        # nflows = len(flows)
+
+        
         # The permutations with non-zero color matrix elements with
         # the basic color flows
         needed_perms = sorted(list(set([icol // nflows for (icol, irow) in \
@@ -219,13 +230,15 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         flow_jamp_dict = {}
         # nflows_needed keeps track of the present JAMP number
         jamp = 0
+        misc.sprint(sorted(color_matrix.keys()))
         for (icol, irow) in sorted(color_matrix.keys()):
+            # misc.sprint(icol,irow)
             # irow is the number of the basic flow (from first permutation)
             # iperm is the permutation (among the full set, all_perms)
             iperm = icol // nflows
             # iflow is the flow number (for this permutation)
             iflow = icol % nflows
-            misc.sprint(icol,irow,iperm,iflow)
+            # misc.sprint(icol,irow,iperm,iflow)
 
             # Calculate Nc for this flow in this row
             row_Nc = max([c.Nc_power for c in color_matrix[(icol, irow)]])
@@ -236,17 +249,20 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             # (used for the flow call lines generated below)
             if not iflow in [i for (i,n,c) in \
                              perm_needed_flows.setdefault(iperm, [])]:
+                misc.sprint(perm_needed_flows.setdefault(iperm, []))
                 jamp += 1
                 perm_needed_flows[iperm].append((iflow, jamp,
                                          perm_flow_factors[(iperm, iflow)]))
                 if iperm == 0: flow_jamp_dict[iflow] = jamp
-                misc.sprint(jamp,flow_jamp_dict[iflow])
+                # misc.sprint(jamp,flow_jamp_dict[iflow])
                 
             # Make sure that also the basic flow is included
             if not irow in [i for (i,n,c) in perm_needed_flows[0]]:
                 jamp += 1
                 perm_needed_flows[0].append((irow, jamp, 
                                              perm_flow_factors[(0, irow)]))
+                # perm_needed_flows[0].append((irow, jamp, 
+                #                              perm_flow_factors[(0, 0)]))
                 flow_jamp_dict[irow] = jamp
             # Add the factor needed for this JAMP
             row_flow_factors.setdefault(irow, []).append(\
@@ -664,6 +680,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         # Extract call lines and color sum lines
         nflows, needed_perms, perm_needed_flows, row_flow_factors, \
                 flow_jamp_dict = self.get_flow_info(matrix_element)
+        misc.sprint(self.get_flow_info(matrix_element))
+        misc.sprint(flow_jamp_dict)
         nflowperms = len(needed_perms)
         flow_perms_data_lines = self.get_perm_lines(matrix_element,
                                                     needed_perms)

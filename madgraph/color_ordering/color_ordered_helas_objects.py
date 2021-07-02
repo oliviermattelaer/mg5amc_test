@@ -889,6 +889,7 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         insert lastleg as appropriate (for wavefunctions)."""
 
         legs = self.get('processes')[0].get('legs')
+        # misc.sprint(legs)
         model = self.get('processes')[0].get('model')
         color_chains = {}
         chain_types = {}
@@ -1080,6 +1081,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         self['tch_depth'] = 0
         self['identify_depth'] = 0
         self['color_order'] = 0
+        # self['flow_num'] = 0
         
     def filter(self, name, value):
         """Filter for valid diagram property values."""
@@ -1137,6 +1139,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                     self.set_color_basis()
                 if color_order and not self.get('color_matrix'):
                     self.build_color_matrix(color_order*2 - 1)
+                    misc.sprint('i am here')
                 if gen_periferal_diagrams:
                     self.set('include_all_t', include_all_t)
                     self.set('tch_depth', tch_depth)
@@ -1175,8 +1178,10 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             return
 
         col_matrix = self.get('color_matrix')
+        misc.sprint(col_matrix)
 
         if col_matrix:
+            # misc.sprint('col_matrix = true')
             return
 
         logger.info("Building color matrix for %s" % \
@@ -1191,6 +1196,11 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # permutation)
 
         # First figure out maximum Nc power from the color strings
+        misc.sprint(len(self.get('color_flows')))
+        flows = self.get('color_flows')
+        flow_nums = [l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs')]
+        nflows = max(l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs'))
+        misc.sprint(flow_nums)
         Nc_powers = []
         for color_flow in self.get('color_flows'):
             col_str = color_flow.get('color_string').create_copy()
