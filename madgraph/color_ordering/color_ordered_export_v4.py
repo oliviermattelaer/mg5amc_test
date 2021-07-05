@@ -154,6 +154,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # Write the file
         writer.writelines(file)
+        misc.sprint([call for call in helas_calls if call.find('#') != 0])
 
         return len([call for call in helas_calls if call.find('#') != 0])
 
@@ -187,15 +188,15 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # misc.sprint(color_matrix.keys())
         # misc.sprint(flows[0])
         # misc.sprint(flows[0].get('processes')[0])
-        flow_nums = [l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs')]
+        flow_nums = [flows[i].get('processes')[0].get('legs')[0].get('flow_num') for i in range(len(flows))]
         # misc.sprint(flow_nums)
-        nflows = max(l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs'))
+        # nflows = max(l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs'))
         # misc.sprint(nflows)
         # misc.sprint(flows[0].get('processes')[0].get('legs'))
         
 
         # old nflows call
-        # nflows = len(flows)
+        nflows = len(flows)
 
         
         # The permutations with non-zero color matrix elements with
@@ -329,11 +330,13 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Generate the calls to all needed flows, by color order
         flow_call_lines = []
         
+        flow_call_lines.append("IF(ICO.EQ.1) THEN")
         # Write out the calls to the color flows, order by order
         for color_order in range(0, int(min_color_order) - 2, -2):
             # We only want to separate odd orders, since even
             # correspond to singlet gluon contributions only
-            flow_call_lines.append("IF(ICO.EQ.%d) THEN" % \
+            if int(color_order) != 0:
+              flow_call_lines.append("ELSE IF(ICO.EQ.%d) THEN" % \
                                        (1 - (int(color_order) // 2)))
             for iperm, perm in enumerate(needed_perms):
                 # misc.sprint(color_order)
@@ -352,55 +355,19 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 # Now generate the flow calls
                 for iflow, jmp, co in perm_needed_flows[perm]:
                     misc.sprint(iflow,jmp,co, color_order)
-                    # if co < color_order: 
-                    #     continue
-                    flow_call_lines.append(\
-                        "JAMP(%d)=IFERM(%d)*FLOW%s%d(P,NHEL,PERM)" \
-                        % (jmp, iperm+1, me_flag, iflow+1))
-
-            if color_order % 2 == 0:
-                flow_call_lines.append("ENDIF")
-
-        return flow_call_lines
-
-
-    def get_flow_call_lines_temp(self, needed_perms, perm_needed_flows, min_color_order,
-                            me_flag = ''):
-        """Write out the calls to all color flows. Need to multiply by
-        fermion permutation factor for this color flow to get right
-        sign."""
-
-        # Generate the calls to all needed flows, by color order
-        flow_call_lines = []
-        
-        # Write out the calls to the color flows, order by order
-        for color_order in range(0, int(min_color_order) - 2, -2):
-            # We only want to separate odd orders, since even
-            # correspond to singlet gluon contributions only
-            flow_call_lines.append("IF(ICO.EQ.%d) THEN" % \
-                                       (1 - (int(color_order) // 2)))
-            for iperm, perm in enumerate(needed_perms):
-                orders = max([c/2 for (i,j,c) in perm_needed_flows[perm]])
-                # Only include permutations with relevant flows
-                if int(color_order)//2 > orders: continue
-
-                # Set the perm needed in the flow calls
-                flow_call_lines.append("DO I=1,NEXTERNAL")
-                flow_call_lines.append("PERM(I)=PM(PERMS(I,%d))" % \
-                                       (iperm + 1))
-                flow_call_lines.append("ENDDO")
-                # Now generate the flow calls
-                for iflow, jmp, co in perm_needed_flows[perm]:
                     if co < color_order: 
                         continue
                     flow_call_lines.append(\
                         "JAMP(%d)=IFERM(%d)*FLOW%s%d(P,NHEL,PERM)" \
                         % (jmp, iperm+1, me_flag, iflow+1))
 
-            if color_order % 2 == 0:
-                flow_call_lines.append("ENDIF")
+            # if color_order % 2 == 0:
+            #     flow_call_lines.append("ENDIF")
+
+        flow_call_lines.append("ENDIF")
 
         return flow_call_lines
+
 
 
     def get_color_flow_lines(self, row_flow_factors, flow_jamp_dict, min_color_order):
@@ -409,7 +376,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         sign."""
         
         # The color matrix summation lines for the basic color flows
-        color_sum_lines = ["IF(ICO.EQ.0) THEN"]
+        color_sum_lines = ["IF(ICO.EQ.1) THEN"]
         
         # Go through the rows and output the explicit color matrix
         # summation for this line

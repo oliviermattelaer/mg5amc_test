@@ -28,6 +28,7 @@ and amplitude calculations needed to the Behrends-Giele n^3 (or n^4 if
 from __future__ import absolute_import
 import array
 import copy
+import enum
 import fractions
 import itertools
 import logging
@@ -604,6 +605,8 @@ class COHelasFlow(helas_objects.HelasMatrixElement):
         # Collect all wavefunctions and turn into COHelasWavefunctions
         co_wavefunctions = helas_objects.HelasWavefunctionList(\
             [COHelasWavefunction(wf) for wf in self.get_all_wavefunctions()])
+        misc.sprint(len(co_wavefunctions))
+        misc.sprint(len(self.get('diagrams')))
 
         # Same thing for amplitudes
         for diag in self.get('diagrams'):
@@ -1075,6 +1078,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         super(COHelasMatrixElement, self).default_setup()
 
         self['color_flows'] = COHelasFlowList()
+        self['all_color_flows'] = COHelasFlowList()
         self['min_Nc_power'] = 0
         self['permutations'] = []
         self['include_all_t'] = False
@@ -1089,7 +1093,11 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         if name == 'color_flows':
             if not isinstance(value, COHelasFlowList):
                 raise self.PhysicsObjectError("%s is not a valid COHelasFlowList object" % str(value))
-        
+
+        if name == 'all_color_flows':
+            if not isinstance(value, COHelasFlowList):
+                raise self.PhysicsObjectError("%s is not a valid COHelasFlowList object" % str(value))
+
         elif name == 'min_Nc_power':
             if not isinstance(value, int):
                 raise self.PhysicsObjectError("%s is not a valid integer" % str(value))
@@ -1123,18 +1131,36 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 self.get('processes').append(amplitude.get('process'))
                 self.set('has_mirror_process',
                          amplitude.get('has_mirror_process'))
+                i_rel_flow = 0
                 for iflow, flow in enumerate(amplitude.get('color_flows')):
                     if flow.get('process').get('orders')['singlet_QCD'] > \
                             (color_order - 1) * 2:
                         continue
-                    self.get('color_flows').append(COHelasFlow(flow,
+                    self.get('all_color_flows').append(COHelasFlow(flow,
+                                                optimization = optimization,
+                                                gen_color = False,
+                                                decay_ids = decay_ids,
+                                                number = iflow + 1))
+                    if flow.get('process').get('legs')[0].get('flow_num')\
+                            == i_rel_flow + 1:
+                        i_rel_flow += 1
+                        # self.get('color_flows').append(COHelasFlow(flow,
+                        #                            optimization = optimization,
+                        #                            gen_color = False,
+                        #                            decay_ids = decay_ids,
+                        #                            number = iflow + 1))
+                        self.get('color_flows').append(COHelasFlow(flow,
                                                    optimization = optimization,
                                                    gen_color = False,
                                                    decay_ids = decay_ids,
-                                                   number = iflow + 1))
+                                                   number = i_rel_flow))
+                        continue
                 if self.get('color_flows'):
                     self.set('permutations',
                              self.get('color_flows')[0].get('permutations'))
+                if self.get('all_color_flows'):
+                    self.set('permutations',
+                             self.get('all_color_flows')[0].get('permutations'))
                 if color_order and not self.get('color_basis'):
                     self.set_color_basis()
                 if color_order and not self.get('color_matrix'):
@@ -1169,6 +1195,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # Build the color basis
         self.get('color_basis').build()
 
+
     def build_color_matrix(self, color_order):
         """Build the relevant lines of the color matrix, to the order
         in color given in color_order (0 = none, 1 = leading, 
@@ -1197,12 +1224,16 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         # First figure out maximum Nc power from the color strings
         misc.sprint(len(self.get('color_flows')))
-        flows = self.get('color_flows')
-        flow_nums = [l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs')]
-        nflows = max(l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs'))
-        misc.sprint(flow_nums)
+        flows = self.get('all_color_flows')
+        delme = self.combine_flows(flows)
+
+        # flow_nums = [l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs')]
+        # nflows = max(l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs'))
+        # misc.sprint(flow_nums)
+        # rel_flows = self.get_relevant_flows(flows)
         Nc_powers = []
         for color_flow in self.get('color_flows'):
+        # for color_flow in rel_flows:
             col_str = color_flow.get('color_string').create_copy()
             col_str2 = col_str.create_copy()
             # Multiply color string with its complex conjugate
@@ -1239,6 +1270,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         for iperm, perm in enumerate(permutations):
             for iflow, color_flow in enumerate(self.get('color_flows')):
+            # for iflow, color_flow in enumerate(rel_flows):
                 # 1,2,3,4,5 -> 1,2,4,5,3 e.g.
                 perm_replace_dict = \
                           dict(list(zip(self.get('permutations')[0], perm)))
@@ -1267,7 +1299,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                     # Set color matrix entry, if non-zero
                     irow = ibasic
                     icol = iperm * len(self.get('color_flows')) + iflow
-
+                    # icol = iperm * len(rel_flows) + iflow
                     col_matrix[(icol, irow)] = copy.copy(result)
 
                     # For color octets, pick leading order contribution,
@@ -1305,6 +1337,54 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                  ",".join(['%2r'] * len(perms)) + "/") % tuple(int_list))
 
         return "\n".join(perm_line_list)
+
+    def get_relevant_flows(self,flows):
+        """Return a list of all flows minus identical particle permutations.
+        This should return the original list of flows and color objects"""
+        
+        nlegs = len(flows[0].get('processes')[0].get('legs'))
+        misc.sprint(nlegs)
+        rel_flows=[]
+        flow_nums = [flows[i].get('processes')[0].get('legs')[0].get('flow_num') \
+                     for i in range(len(flows))]
+        i_rel_flow = 1
+        for iflow, flow in enumerate(flows):
+            if flows[iflow].get('processes')[0].get('legs')[0].get('flow_num')\
+                   == i_rel_flow:
+                rel_flows.append(flow)
+                i_rel_flow+=1
+                continue
+        # misc.sprint(len(rel_flows))
+
+        return rel_flows
+
+    def combine_flows(self,flows):
+        """Combine vertices, amps, and jamps for permutations belonging to
+        the same flow. These can all then be put in single flow.f file for 
+        faster computation."""
+
+        flow_nums = [flows[i].get('processes')[0].get('legs')[0].get('flow_num') \
+                     for i in range(len(flows))]
+        misc.sprint(flow_nums)
+        flow_copies = copy.copy(flows)
+        misc.sprint(flow_copies[0].get('diagrams')[0].get_sorted_keys())
+        misc.sprint(len(flow_copies[0].get('diagrams')))
+        ndiags = len(flow_copies[0].get('diagrams'))
+        # for flow in flows:
+
+        for iDiag, diag in enumerate(flow_copies[0].get('diagrams')):
+            # misc.sprint(iDiag,diag)
+            for iwf,wf in enumerate(diag.get('wavefunctions')):
+                wf_comp = wf.get('compare_array')
+                misc.sprint(wf_comp)
+
+        comb_ext_wavefunctions = []
+        for iflow, flow in enumerate(flows):
+           pass 
+
+        comb_flows=[]
+
+        return comb_flows
         
     def get_external_wavefunctions(self):
         """Redefine HelasMatrixElement.get_external_wavefunctions"""
