@@ -262,6 +262,21 @@ class COHelasWavefunction(helas_objects.HelasWavefunction):
         numbers.append(self.get('number'))
         return set(numbers)
 
+
+#===============================================================================
+# COHelasWavefunctionList
+#===============================================================================
+class COHelasWavefunctionList(base_objects.PhysicsObjectList):
+    """List of COHelasWavefunction objects
+    """
+
+    def is_valid_element(self, obj):
+        """Test if object obj is a valid COHelasWavefunction for the list."""
+
+        return isinstance(obj, COHelasWavefunction)
+
+
+
 #===============================================================================
 # COHelasAmplitude
 #===============================================================================
@@ -422,6 +437,20 @@ class COHelasAmplitude(helas_objects.HelasAmplitude):
 
         numbers = sum([list(m.get_wf_numbers()) for m in self.get('mothers')], [])
         return set(numbers)
+
+#===============================================================================
+# COHelasAmplitudeList
+#===============================================================================
+class COHelasAmplitudeList(base_objects.PhysicsObjectList):
+    """List of COHelasAmplitude objects
+    """
+
+    def is_valid_element(self, obj):
+        """Test if object obj is a valid COHelasAmplitude for the list."""
+
+        return isinstance(obj, COHelasAmplitude)
+
+
 
 #===============================================================================
 # BGHelasCurrent
@@ -1225,8 +1254,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # First figure out maximum Nc power from the color strings
         misc.sprint(len(self.get('color_flows')))
         flows = self.get('all_color_flows')
-        delme = self.combine_flows(flows)
-
+        # delme = self.combine_flows(flows)
+        delme, delmeToo = self.combine_wfs_amps(flows)
         # flow_nums = [l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs')]
         # nflows = max(l.get('flow_num') for i in range(len(flows)) for l in flows[i].get('processes')[0].get('legs'))
         # misc.sprint(flow_nums)
@@ -1358,6 +1387,65 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         return rel_flows
 
+
+    def combine_wfs_amps(self,flows):
+        """Combine wavefunctions, amps, and jamps for permutations belonging to
+        the same flow. These can all then be put in single flow.f file for 
+        faster computation."""
+
+        flow_nums = [flows[i].get('processes')[0].get('legs')[0].get('flow_num') \
+                     for i in range(len(flows))]
+        nflows = max(flow_nums)
+        flow_copies = copy.copy(flows)
+        
+        wf_comp_array = [[] for i in range(nflows)]
+        wf_nums = [[] for i in range(nflows)]
+        # comb_wfs = [[] for i in range(nflows)]
+        comb_wfs = [COHelasWavefunctionList() for i in range(nflows)]
+        amp_comp_array = [[] for i in range(nflows)]
+        amp_nums = [[] for i in range(nflows)]
+        comb_amps = [[COHelasAmplitudeList()] for i in range(nflows)]
+        for iflow, flow in enumerate(flow_copies):
+            # get which flow.f file this flow belongs to
+            i_rel_flow = flow_nums[iflow] - 1
+
+            # Loop over each diagram and check if we already have 
+            # wavefunction. If we don't, then add to comb_wf.
+            # Check is done by seeing if compare_array is already used.
+            for iDiag, diag in enumerate(flow.get('diagrams')):
+                # misc.sprint(iDiag,diag)
+         
+                # combine wavefunctions
+                for iwf,wf in enumerate(diag.get('wavefunctions')):
+                    wf_comp = wf.get('compare_array')
+                    if wf_comp not in wf_comp_array[i_rel_flow]: 
+                        wf_comp_array[i_rel_flow].append(wf_comp)
+                        if wf.get('number') not in wf_nums[i_rel_flow]:
+                            wf_nums[i_rel_flow].append(wf.get('number'))
+                        else: 
+                            wf.set('number', max(wf_nums[i_rel_flow]) + 1)
+                            wf_nums[i_rel_flow].append(wf.get('number'))
+                        comb_wfs[i_rel_flow].append(wf)
+                        # misc.sprint(wf.get('number'))
+                        misc.sprint(wf_comp,iflow,iDiag,iwf)
+                
+                # combine amplitudes
+                for iamp, amp in enumerate(diag.get('amplitudes')):
+                    amp_comp = amp.get('compare_array')
+                    # misc.sprint(amp.get('number'))
+                    if amp_comp not in amp_comp_array[i_rel_flow]: 
+                        amp_comp_array[i_rel_flow].append(amp_comp)
+                        if amp.get('number') not in amp_nums[i_rel_flow]:
+                            amp_nums[i_rel_flow].append(amp.get('number'))
+                        else: 
+                            # misc.sprint(wf_nums[0][-1])
+                            amp.set('number', amp_nums[i_rel_flow][-1]+1)
+                            # misc.sprint(amp.get('number'))
+                            amp_nums[i_rel_flow].append(amp.get('number'))
+                        comb_amps[i_rel_flow].append(amp)
+
+        return comb_wfs, comb_amps
+
     def combine_flows(self,flows):
         """Combine vertices, amps, and jamps for permutations belonging to
         the same flow. These can all then be put in single flow.f file for 
@@ -1365,18 +1453,77 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         flow_nums = [flows[i].get('processes')[0].get('legs')[0].get('flow_num') \
                      for i in range(len(flows))]
+        nflows = max(flow_nums)
+        misc.sprint(nflows)
         misc.sprint(flow_nums)
         flow_copies = copy.copy(flows)
         misc.sprint(flow_copies[0].get('diagrams')[0].get_sorted_keys())
         misc.sprint(len(flow_copies[0].get('diagrams')))
         ndiags = len(flow_copies[0].get('diagrams'))
-        # for flow in flows:
 
-        for iDiag, diag in enumerate(flow_copies[0].get('diagrams')):
-            # misc.sprint(iDiag,diag)
-            for iwf,wf in enumerate(diag.get('wavefunctions')):
-                wf_comp = wf.get('compare_array')
-                misc.sprint(wf_comp)
+        wf_comp_array = [[] for i in range(nflows)]
+        wf_nums = [[] for i in range(nflows)]
+        # comb_wfs = [[] for i in range(nflows)]
+        comb_wfs = [COHelasWavefunctionList() for i in range(nflows)]
+        # comb_wfs = COHelasWavefunctionList()
+        amp_comp_array = [[] for i in range(nflows)]
+        amp_nums = [[] for i in range(nflows)]
+        comb_amps = [[] for i in range(nflows)]
+        for iflow, flow in enumerate(flow_copies):
+            i_rel_flow = flow.get('processes')[0].get('legs')[0].get('flow_num') - 1
+            misc.sprint(i_rel_flow)
+            for iDiag, diag in enumerate(flow.get('diagrams')):
+                # misc.sprint(diag.get('amplitudes')[0].get('mothers'))
+                misc.sprint(diag.get('amplitudes')[0].get('compare_array'))
+                # misc.sprint(iDiag,diag)
+                for iwf,wf in enumerate(diag.get('wavefunctions')):
+                    wf_comp = wf.get('compare_array')
+                    misc.sprint(type(wf))
+                    if wf_comp not in wf_comp_array[i_rel_flow]: 
+                        wf_comp_array[i_rel_flow].append(wf_comp)
+                        if wf.get('number') not in wf_nums[i_rel_flow]:
+                            wf_nums[i_rel_flow].append(wf.get('number'))
+                        else: 
+                            misc.sprint(wf_nums[0][-1])
+                            wf.set('number', wf_nums[i_rel_flow][-1]+1)
+                            misc.sprint(wf.get('number'))
+                            wf_nums[i_rel_flow].append(wf.get('number'))
+                        comb_wfs[i_rel_flow].append(wf)
+                        # comb_wfs.append(wf)
+                        # misc.sprint(wf.get('number'))
+                        misc.sprint(wf_comp,iflow,iDiag,iwf)
+                # set wavefunctions to comb_wf
+                # misc.sprint(comb_wfs)
+                # diag.set('wavefunctions', comb_wfs)
+                for iamp, amp in enumerate(diag.get('amplitudes')):
+                    amp_comp = amp.get('compare_array')
+                    # misc.sprint(amp.get('number'))
+                    if amp_comp not in amp_comp_array[i_rel_flow]: 
+                        amp_comp_array[i_rel_flow].append(amp_comp)
+                        if amp.get('number') not in amp_nums[i_rel_flow]:
+                            amp_nums[i_rel_flow].append(amp.get('number'))
+                        else: 
+                            # misc.sprint(wf_nums[0][-1])
+                            amp.set('number', amp_nums[i_rel_flow][-1]+1)
+                            # misc.sprint(amp.get('number'))
+                            amp_nums[i_rel_flow].append(amp.get('number'))
+                        comb_amps[i_rel_flow].append(amp)
+                        # misc.sprint(wf.get('number'))
+                        # misc.sprint(wf_comp,iflow,iDiag,iwf)
+                # diag.set('amplitudes', comb_amps)
+            # misc.sprint(comb_wfs)
+            # flow_copies[i_rel_flow].set('wavefunctions', comb_wfs)
+        
+
+        # set new wavefunctions, amplitudes
+        for iflow, flow in enumerate(comb_wfs):
+            wfs = flow_copies[iflow].get('diagrams')[0].get('wavefunctions')
+            flow_copies[iflow].replace_wavefunctions(wfs, comb_wfs[iflow], [],[])
+            misc.sprint(len(flow_copies[iflow].get('diagrams')[0].get('wavefunctions')),len(wfs),len(comb_wfs[iflow]))
+            misc.sprint(flow_copies[iflow].get('diagrams')[0].get('wavefunctions'))
+        misc.sprint(wf_nums,amp_nums)
+        misc.sprint(comb_amps[0][3].get('mothers'))
+
 
         comb_ext_wavefunctions = []
         for iflow, flow in enumerate(flows):
