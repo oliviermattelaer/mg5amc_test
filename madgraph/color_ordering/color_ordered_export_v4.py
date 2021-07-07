@@ -118,7 +118,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # Extract helas calls
         helas_calls = helas_call_writer.get_matrix_element_calls(flow)
-        misc.sprint(helas_calls)
+        misc.sprint(helas_calls, type(helas_calls[0]))
+        helas_calls_2 = self.get_permuted_helas_calls(helas_calls,flow)
         replace_dict['helas_calls'] = "\n".join(helas_calls)
 
         # Extract JAMP lines
@@ -157,6 +158,71 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         misc.sprint([call for call in helas_calls if call.find('#') != 0])
 
         return len([call for call in helas_calls if call.find('#') != 0])
+
+
+    def get_permuted_helas_calls(self, helas_calls, flow):
+        """Function to go over all permutations and output the relevant
+        helas_calls to flow.f"""
+
+        perms = flow.get('permutations')
+        (nexternal, ninitial) = flow.get_nexternal_ninitial()
+        misc.sprint(perms)
+
+        # replace IP(num) with num
+        helas_calls_noIP = [call.replace('IP','') for call in helas_calls]
+        # helas_calls_noIP2 = [re.sub(, call) for call in helas_calls]
+        # TODO: Learn how to REGEX to get rid of everything except the number
+        misc.sprint(helas_calls_noIP)
+
+        # Come up with a list of dictionaries of permutations of wfs, amps, and jamps
+        perm_dicts = {}
+
+        # first go through initial permutation
+        jamp_num = 1
+        wf_dict = {}
+        amp_dict = {}
+        
+        # get wavefunctions from first permutation
+        for wf in flow.get('diagrams')[0].get('wavefunctions'):
+            # if wf.get('state') != 'intermediate':
+                # misc.sprint(wf.get('number'), wf.get('number_external'),wf.get('state'), wf.get_sorted_keys())
+                wf_dict['W(1,'+ str(wf.get('number')) + ')'] = \
+                    'Wn(1,' + str(wf.get('number')) + ')'
+        
+        # get amplitudes from first permutation
+        misc.sprint(flow.get_sorted_keys())
+        for diag in flow.get('diagrams'):
+            for amp in diag.get('amplitudes'):
+                amp_dict['amp(' + str(amp.get('number')) + ')'] = \
+                    'ampn(' + str(amp.get('number')) + ')'
+
+        # add information to dictionary of jamps to wfs, amps
+        perm_dicts[jamp_num] = wf_dict, amp_dict
+
+        # loop through rest of perms
+        for iperm, perm in enumerate(perms):
+            # first perm already done
+            if iperm == 0: continue
+
+            # reset wf and amp dicts
+            wf_dict = {}
+            amp_dict = {}
+
+            # TODO: make code which goes through wfs, then amps, checking for mothers etc.
+            # similar to how I did it in COHelas_ojbects.
+            # Add these to wf_dict, amp_dict, and make sure unique wf/amp nums are given 
+            # for Wn, ampn
+
+            # add dictionaries to jamp dictionary
+            perm_dicts[iperm+1] = wf_dict, amp_dict
+
+        misc.sprint(perm_dicts)
+
+
+
+
+        return 
+
 
     def get_ic_data_line(self, flow):
         """Get the IC line, giving sign for external HELAS wavefunctions"""

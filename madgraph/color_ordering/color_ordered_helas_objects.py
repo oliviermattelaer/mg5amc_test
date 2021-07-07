@@ -1397,15 +1397,24 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                      for i in range(len(flows))]
         nflows = max(flow_nums)
         flow_copies = copy.copy(flows)
+
+        misc.sprint(flow_copies[0].get('base_amplitude').get('diagrams'))
         
         wf_comp_array = [[] for i in range(nflows)]
         wf_nums = [[] for i in range(nflows)]
         # comb_wfs = [[] for i in range(nflows)]
-        comb_wfs = [COHelasWavefunctionList() for i in range(nflows)]
+        comb_wfs = [helas_objects.HelasWavefunctionList() for i in range(nflows)]
         amp_comp_array = [[] for i in range(nflows)]
         amp_nums = [[] for i in range(nflows)]
         comb_amps = [[COHelasAmplitudeList()] for i in range(nflows)]
-        for iflow, flow in enumerate(flow_copies):
+
+        # dictionary for jamps
+        # jamp_dict = [{} for i in range(nflows)]
+        # amps = self.get_color_amplitudes()
+        # misc.sprint(amps)
+
+        # for iflow, flow in enumerate(flow_copies):
+        for iflow, flow in enumerate(flows):
             # get which flow.f file this flow belongs to
             i_rel_flow = flow_nums[iflow] - 1
 
@@ -1413,7 +1422,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             # wavefunction. If we don't, then add to comb_wf.
             # Check is done by seeing if compare_array is already used.
             for iDiag, diag in enumerate(flow.get('diagrams')):
-                # misc.sprint(iDiag,diag)
+                misc.sprint(iDiag)#,diag)
          
                 # combine wavefunctions
                 for iwf,wf in enumerate(diag.get('wavefunctions')):
@@ -1443,6 +1452,15 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                             # misc.sprint(amp.get('number'))
                             amp_nums[i_rel_flow].append(amp.get('number'))
                         comb_amps[i_rel_flow].append(amp)
+                    # jamp_dict[i_rel_flow][1] = amp
+            # misc.sprint(jamp_dict)
+
+        # replace wavefunctions and amps in given flow
+        misc.sprint(type(comb_wfs[0]))
+        flows[0].get('diagrams')[0].set('wavefunctions', comb_wfs[0])
+        flows[1].get('diagrams')[0].set('wavefunctions', comb_wfs[0])
+        flows[2].get('diagrams')[0].set('wavefunctions', comb_wfs[0])
+        misc.sprint(len(flows[0].get('diagrams')[0].get('wavefunctions')))
 
         return comb_wfs, comb_amps
 
