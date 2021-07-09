@@ -102,14 +102,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Extract ngraphs
         ngraphs = flow.get_number_of_amplitudes()
         replace_dict['ngraphs'] = ngraphs
-        misc.sprint(ngraphs)
-
-        # Extract nwavefuncs
-        nwavefuncs = flow.get_number_of_wavefunctions()
-        replace_dict['nwavefuncs'] = nwavefuncs
-        misc.sprint(nwavefuncs)
-        # misc.sprint(flow)
-
+        
         # Extract nperms
         replace_dict['nperms'] = len(flow.get('permutations')) 
 
@@ -119,14 +112,29 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # Extract helas calls
         helas_calls = helas_call_writer.get_matrix_element_calls(flow)
-        misc.sprint(helas_calls, type(helas_calls[0]))
-        helas_calls_2 = self.get_permuted_helas_calls(helas_calls,flow)
         replace_dict['helas_calls'] = "\n".join(helas_calls)
+        
+        # Extract nwavefuncs
+        nwavefuncs = flow.get_number_of_wavefunctions()
+        replace_dict['nwavefuncs'] = nwavefuncs
+        misc.sprint(type(ngraphs), type(nwavefuncs))
+
+        # misc.sprint(flow)
+
+        # Extract new stuff that AL put in after perms
+        helas_calls_2, calls_dict, nwavefuncs, namps = self.get_permuted_helas_calls(helas_calls,flow)
+        replace_dict['helas_calls'] = "\n".join(helas_calls_2)
+        replace_dict['nwavefuncs'] = nwavefuncs
+        replace_dict['ngraphs'] = namps
+
+
 
         # Extract JAMP lines
         jamp_lines, nb_tmp_jamp = self.get_JAMP_lines(flow)
-        misc.sprint(jamp_lines)
-        replace_dict['jamp_lines'] = '\n'.join(jamp_lines)
+        jamp_lines_temp = self.get_permuted_jamp_lines(jamp_lines, calls_dict)
+        misc.sprint(jamp_lines, jamp_lines_temp)
+        # replace_dict['jamp_lines'] = '\n'.join(jamp_lines)
+        replace_dict['jamp_lines'] = '\n'.join(jamp_lines_temp)
         replace_dict['nb_temp_jamp'] = nb_tmp_jamp
         #adding the support for the fake width (forbidding too small width)
         mass_width = flow.get_all_mass_widths()
@@ -174,9 +182,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # replace IP(num) with num
         # TODO: Learn how to REGEX to get rid of everything except the number
-        helas_calls_noIP = [call.replace('IP','') for call in helas_calls]
+        helas_calls = [call.replace('IP','') for call in helas_calls]
         # helas_calls_noIP2 = [re.sub(, call) for call in helas_calls]
-        misc.sprint(helas_calls_noIP)
 
         # Come up with a list of dictionaries of permutations of wfs, amps, and jamps
         perm_dicts = {}
@@ -291,6 +298,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                     if curr_call_less_wf in call:
                         last_wf_call = call.split(',')[-2:]
                         last_wf_call = ','.join(last_wf_call)
+                        # remove extra ) from wf
+                        last_wf_call = last_wf_call[:-1]
                         wf_dict['W(1,' + str(iwf+1) + ')'] = last_wf_call
                         break
                     # else call doesn't exist yet, create it and give wf new number
@@ -362,177 +371,30 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
 
 
-        return helas_calls_permuted
+        return helas_calls_permuted, perm_dicts, nwfs, namps
 
-
-    def get_permuted_helas_calls2(self, helas_calls, flow):
-        """Function to go over all permutations and output the relevant
-        helas_calls to flow.f"""
-
-        perms = flow.get('permutations')
-        nperms = len(perms)
-        (nexternal, ninitial) = flow.get_nexternal_ninitial()
-        misc.sprint(nperms, perms)
-
-        # replace IP(num) with num
-        helas_calls_noIP = [call.replace('IP','') for call in helas_calls]
-        # helas_calls_noIP2 = [re.sub(, call) for call in helas_calls]
-        # TODO: Learn how to REGEX to get rid of everything except the number
-        misc.sprint(helas_calls_noIP)
-
-        # Come up with a list of dictionaries of permutations of wfs, amps, and jamps
-        perm_dicts = {}
-
-        # arrays to keep track of wfs and amps already used
-        wf_comp_array = []
-        wf_nums = []
-        comb_wfs = helas_objects.HelasWavefunctionList()
-        amp_comp_array = []
-        amp_nums = []
-        comb_amps = color_ordered_helas_objects.COHelasAmplitudeList()
-
-
-        # first go through initial permutation
-        jamp_num = 1
-        wf_dict = {}
-        amp_dict = {}
+    def get_permuted_jamp_lines(self, jamp_lines, jamp_dict):
         
-        # get wavefunctions from first permutation
-        for iwf, wf in enumerate(flow.get('diagrams')[0].get('wavefunctions')):
-            wf_dict['W(1,'+ str(wf.get('number')) + ')'] = \
-                    'Wn(1,' + str(wf.get('number')) + ')'
-            # keep track of already used wfs
-            comb_wfs.append(wf)
-            wf_comp_array.append(wf.get('compare_array'))
-            wf_nums.append(wf.get('number'))
-            # helas_calls
+        # get list of jamps
+        jamp_lines_ret = ['JAMP(' + str(i+1) + ')' for i in range(len(jamp_dict))]
         
-        # get amplitudes from first permutation
-        misc.sprint(flow.get_sorted_keys())
-        for diag in flow.get('diagrams'):
-            for amp in diag.get('amplitudes'):
-                amp_dict['amp(' + str(amp.get('number')) + ')'] = \
-                    'ampn(' + str(amp.get('number')) + ')'
-                # keep track of already used amps
-                comb_amps.append(amp)
-                amp_comp_array.append(amp.get('compare_array'))
-                amp_nums.append(amp.get('number'))
+        # loop through jamps and use dictionary to replace amps in amp_sum with 
+        # those from dictionary
+        for ijamp in range(len(jamp_dict)):
+            # get unpermuted amps
+            amp_sum = jamp_lines[0].replace('JAMP(1)','')
+            # get dictionary with amps for this jamp
+            curr_dict = jamp_dict[ijamp + 1]
+            # replace amps with permuted amps
+            for key in curr_dict[1]:
+                val = curr_dict[1][key]
+                if key in amp_sum:
+                    amp_sum = amp_sum.replace(key, val)
+            
+            # now add amp_sum to jamp
+            jamp_lines_ret[ijamp] += amp_sum
 
-        # add information to dictionary of jamps to wfs, amps
-        perm_dicts[jamp_num] = wf_dict, amp_dict
-
-        # loop through rest of perms
-        for iperm, perm in enumerate(perms):
-            # first perm already done
-            if iperm == 0: continue
-            if iperm > 1: continue
-
-            # reset wf and amp dicts
-            wf_dict = {}
-            amp_dict = {}
-
-            # TODO: make code which goes through wfs, then amps, checking for mothers etc.
-            # similar to how I did it in COHelas_ojbects.
-            # Add these to wf_dict, amp_dict, and make sure unique wf/amp nums are given 
-            # for Wn, ampn
-            nwfs = len(flow.get('diagrams')[0].get('wavefunctions'))
-            for iwf, wf in enumerate(flow.get('diagrams')[0].get('wavefunctions')):
-                # first reset external wavefunctions
-                if iwf < nexternal:
-                    # misc.sprint(iwf)
-                    # update dictionary for this jamp
-                    wf_dict['W(1,'+ str(iwf+1) + ')'] = \
-                    'Wn(1,' + str(perm[iwf]) + ')'
-                
-                # update intermediate wavefunctions
-                else:
-                    # first update mothers for a given perm, then check if compare_array
-                    # already exists. If it does, update the wf number. If not, create a 
-                    # new wf number for this wf
-                    misc.sprint(helas_calls[iwf])
-                    for wf_n in wf_dict:
-                        if wf_n in helas_calls[iwf]:
-                            helas_calls[iwf] = helas_calls[iwf].replace(wf_n, wf_dict[wf_n])
-                    # now check end wavefunction to see if it already exists
-                    # Compare the strings without the last wavefunction to see if they exist
-                    misc.sprint(helas_calls[iwf][:-8])
-                    if helas_calls[iwf][:-8] in helas_calls:
-                        pass
-
-                    misc.sprint(helas_calls[iwf])
-
-
-                    # wf_curr = wf.get('current_array')
-                    # wf_ext = wf.get('external_numbers')
-                    wf_comp = wf.get('compare_array')
-                    mothers = wf.get('mothers')
-                    m_curr_array = [m.get('current_array') for m in mothers]
-                    m_ext = [m.get('external_numbers') for m in mothers]
-                    m_ext2 = [m.get('number') for m in mothers]
-                    # misc.sprint(m_ext2)
-                    # misc.sprint(wf_comp, m_curr_array, m_ext)
-                    # update mothers according to perm
-                    # for obj in m_curr_array:
-                    #     if array in obj: misc.sprint(obj)
-
-
-                    # for i in range(len(m_curr_array)):
-                    #     nums = [m_curr_array[i][j] for j in range(len(m_curr_array[i]))]
-                    #     misc.sprint(nums,m_curr_array)
-                    #     if 'intermediate' not in nums:
-                    #         misc.sprint(nums)
-                    #         misc.sprint(perm[nums[0]-1])
-                    #         m_curr_array[i][0] = perm[nums[0]-1]
-                        # else:
-                        #     for j in range(len(m_curr_array[i][0])):
-                        #         misc.sprint(nums[j], m_curr_array[i][j])
-                        #         misc.sprint(nums[j][0], m_curr_array[i][j][0], perm[nums[j][0]-1])
-                        #         m_curr_array[i][j][0] = perm[nums[j][0]-1]
-                        # misc.sprint(type(nums), nums, nums[0])
-                        # m_curr_array[i][0] = perm[num - 1] 
-                    # misc.sprint(m_curr_array)
-                    # for i in range(len(wf_ext)):
-                    #     wf_ext[i] = 1
-                    # for i in range(len(wf_curr[0])):
-                    #     wf_curr[0][i] = 1 
-                        # pass
-                    # wf.set('external_numbers', wf_ext)
-                    # wf.set('current_array', wf_curr)
-                    # for im, mother in enumerate(wf.get('mothers')):
-                    #     mother.set('current_array', m_curr_array[im])
-                    # misc.sprint(wf_comp)
-                    # wf_list = [wfs for wfs in wf_comp]
-                    # if wf_comp not in wf_comp_array: 
-                    #     wf_comp_array.append(wf_comp)
-                    #     if wf.get('number') not in wf_nums:
-                    #         wf_nums.append(wf.get('number'))
-                    #     else: 
-                    #         wf.set('number', max(wf_nums) + 1)
-                    #         wf_nums.append(wf.get('number'))
-                    #     comb_wfs.append(wf)
-                    # else:
-                    #     wf.set('number', wf_comp_array.index(wf_comp))
-                    # misc.sprint(wf.get('number'))
-
-                # for iwf in range(nexternal + 2, nwfs + 1):
-                #     pass
-                
-                # now go through internal wfs, remembering to reset wf number if this wf 
-                # is new
-                
-
-            # add dictionaries to jamp dictionary
-            perm_dicts[iperm + 1] = wf_dict, amp_dict
-
-        misc.sprint(perm_dicts)
-        misc.sprint(wf_comp_array,wf_nums)
-        misc.sprint(amp_comp_array,amp_nums)
-
-
-
-
-        return 
-
+        return jamp_lines_ret
 
     def get_ic_data_line(self, flow):
         """Get the IC line, giving sign for external HELAS wavefunctions"""
