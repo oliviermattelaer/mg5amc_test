@@ -168,7 +168,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         perms = flow.get('permutations')
         nperms = len(perms)
         (nexternal, ninitial) = flow.get_nexternal_ninitial()
-       
+
+   
         misc.sprint(nperms, perms)
 
         # replace IP(num) with num
@@ -185,33 +186,47 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         wf_dict = {}
         amp_dict = {}
 
-        # return variable = list of permuted helas_calls (W->Wn)
-        helas_calls_permuted = copy.copy(helas_calls)
-
         # get wavefunctions from first permutation
         for iwf, wf in enumerate(flow.get('diagrams')[0].get('wavefunctions')):
             wf_dict['W(1,'+ str(wf.get('number')) + ')'] = \
                     'Wn(1,' + str(wf.get('number')) + ')'
-        
+
         # keep track of number of wavefunctions
         nwfs = len(wf_dict)
         misc.sprint(nwfs)
 
-        # replace W -> Wn for first permutation in helas_calls
+        # get helas calls for wfs
+        helas_calls_wfs = copy.copy(helas_calls[:nwfs])
+        nwfs_in_perm = len(helas_calls_wfs)
+        
+        # replace W -> Wn for first permutation in helas_calls_wfs
         for iwf in range(len(flow.get('diagrams')[0].get('wavefunctions'))):
             for wf_n in wf_dict:
-                if wf_n in helas_calls[iwf]:
-                    helas_calls_permuted[iwf] = helas_calls_permuted[iwf].replace(wf_n, wf_dict[wf_n])
+                if wf_n in helas_calls_wfs[iwf]:
+                    helas_calls_wfs[iwf] = helas_calls_wfs[iwf].replace(wf_n, wf_dict[wf_n])
 
         # get amplitudes from first permutation
-        # misc.sprint(flow.get_sorted_keys())
         for diag in flow.get('diagrams'):
             for amp in diag.get('amplitudes'):
-                amp_dict['amp(' + str(amp.get('number')) + ')'] = \
-                    'ampn(' + str(amp.get('number')) + ')'
+                amp_dict['AMP(' + str(amp.get('number')) + ')'] = \
+                    'AMPN(' + str(amp.get('number')) + ')'
+
+        # get helas calls for amps
+        helas_calls_amps = copy.copy(helas_calls[nwfs:])
+        
+        # replace W -> Wn and AMP -> AMPN for first permutation in helas_calls_amps
+        for icall, call in enumerate(helas_calls_amps):
+            if 'CALL' in call:
+                for wf_n in wf_dict:
+                    helas_calls_amps[icall] = helas_calls_amps[icall].\
+                        replace(wf_n, wf_dict[wf_n])
+                for amp_n in amp_dict:
+                    helas_calls_amps[icall] = helas_calls_amps[icall].\
+                        replace(amp_n, amp_dict[amp_n])
 
         # add information to dictionary of jamps to wfs, amps
         perm_dicts[jamp_num] = wf_dict, amp_dict
+
 
         # loop through rest of perms
         for iperm, perm in enumerate(perms):
@@ -222,48 +237,71 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             wf_dict = {}
             amp_dict = {}
 
-            # make a copy of the helas_calls 
-            helas_calls_copy = copy.copy(helas_calls)
-
             # permute wavefunctions by first permuting external particles and adding 
             # these permutations to the dictionary, then for each internal particle
             # replace external particles in helas_call, check if this helas_call 
             # already exists, and add the permutation of the internal particle wavefunction
             # to the dictionary.
-            for iwf, wf in enumerate(flow.get('diagrams')[0].get('wavefunctions')):
-                # first permute external wavefunctions
-                if iwf < nexternal:
-                    # update dictionary for this jamp
-                    wf_dict['W(1,'+ str(iwf+1) + ')'] = \
-                    'Wn(1,' + str(perm[iwf]) + ')'
-                # update internal wavefunctions
-                else:
-                    # loop over wfs already in dictionary and replace with new wf
-                    for wf_n in wf_dict:
-                        if wf_n in helas_calls_copy[iwf]:
-                            helas_calls_copy[iwf] = helas_calls_copy[iwf].\
-                                replace(wf_n, wf_dict[wf_n])
-                    # now go through internal wavefunctions and update their number
-                    if any(helas_calls_copy[iwf][:-8] in call for call in\
-                           helas_calls_permuted):
-                        # find which already-existing wavefunction to permute
-                        # TODO: find which wavefunction it is!!
-                        wf_dict['W(1,'+ str(iwf+1) + ')'] = \
-                              'Wn(1,' + str() + ')'
-                    else:
-                        wf_dict['W(1,'+ str(iwf+1) + ')'] = \
-                              'Wn(1,' + str(nwfs) + ')'
-                        # update total number of wavefunctions
-                        nwfs += 1
-                        
-                        misc.sprint(helas_calls_copy[iwf], helas_calls_permuted)           
 
+            # first permute external wavefunctions and store in dictionary
+            for iwf in range(nexternal):
+                wf_dict['W(1,'+ str(iwf+1) + ')'] = \
+                       'Wn(1,' + str(perm[iwf]) + ')'
+            misc.sprint(perm, wf_dict)
+
+            # make a copy of the helas_calls 
+            helas_calls_copy = copy.copy(helas_calls)
+
+            # now go through internal particles
+            for iwf in range(nexternal, nwfs_in_perm):
+                misc.sprint(iwf, helas_calls_wfs[iwf])
+                # loop over wfs already in dictionary and replace with new wf
+                for wf_n in wf_dict:
+                    if wf_n in helas_calls_copy[iwf]:
+                        helas_calls_copy[iwf] = helas_calls_copy[iwf].\
+                            replace(wf_n, wf_dict[wf_n])
+                
+                # now check if internal wavefunction iwf already exists by checking 
+                # its call. If it doesn't exist, give it a new number and add it to helas_calls_wfs. 
+                # In both cases update the wf dictionary
+                # TODO: make this loop and clean up the old stuff below
+                
+                # get current call minus the last wf
+                last_wf = helas_calls_copy[iwf].split(',')[-2:]
+                last_wf = ','.join(last_wf)
+                curr_call_less_wf = helas_calls_copy[iwf].replace(last_wf,'')
+                # loop over already used calls to see if this call exists
+                for call in helas_calls_wfs[nexternal:]:
+                    # misc.sprint(call)
+                    # if call exists, update dictionary to map to that call
+                    if curr_call_less_wf in call:
+                        last_wf_call = call.split(',')[-2:]
+                        last_wf_call = ','.join(last_wf_call)
+                        wf_dict['W(1,' + str(iwf+1) + ')'] = last_wf_call
+                        break
+                    # else call doesn't exist yet, create it and give wf new number
+                else:
+                    nwfs += 1
+                    iW = 'W(1,' + str(iwf+1) + ')'
+                    iWN = 'Wn(1,' + str(nwfs) + ')'
+                    wf_dict[iW] = iWN
+                    helas_calls_copy[iwf] = helas_calls_copy[iwf].replace(iW,iWN)
+                    helas_calls_wfs.append(helas_calls_copy[iwf])
+
+            # now go through amps and add new amps to dictionary/helas_calls
+        
                     
             # add dictionaries to jamp dictionary
             perm_dicts[iperm + 1] = wf_dict, amp_dict
+        
+        misc.sprint(helas_calls_wfs)
 
 
         misc.sprint(perm_dicts)
+
+        # return variable = list of permuted helas_calls (W->Wn, AMP->AMPN)
+        helas_calls_permuted = []
+
 
 
         return helas_calls_permuted
