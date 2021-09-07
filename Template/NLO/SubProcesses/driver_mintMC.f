@@ -197,11 +197,11 @@ c     Prepare the MINT folding
       ifold(ifold_phi)=iphi_i
       ifold(ifold_yij)=iy_ij
 
-      ! When already done imode0, must set imode3_done to true.
+      ! When already done imode0, must set BornSmearSetup_done to true.
       if (imode.eq.0) then
-         imode3_done=.false.
+         BornSmearSetup_done=.false.
       else
-         imode3_done=.true.
+         BornSmearSetup_done=.true.
       endif
 c*************************************************************
 c     setting of the grids

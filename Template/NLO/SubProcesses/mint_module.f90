@@ -99,7 +99,7 @@ module mint_module
   double precision, dimension(nintegrals,0:maxchannels), public :: ans,unc
   double precision, dimension(:,:,:,:), public, allocatable :: BornSmear
   logical :: only_virt,new_point,pass_cuts_check
-  logical :: imode3_done
+  logical :: BornSmearSetup_done
 
 
 ! private variables
@@ -210,7 +210,8 @@ contains
        enddo
        call get_amount_of_points(enough_points)
        if (.not.enough_points) goto 2
-       if (imode.eq.0 .and. nit.eq.1 .and. double_events .and. (.not.imode3_done)) then
+       if (imode.eq.0 .and. nit.eq.1 .and. double_events .and. &
+            (.not.BornSmearSetup_done)) then
           call check_for_special_channels_loop(channel_loop_done)
           if (.not.channel_loop_done) goto 2
           call combine_results_channels_special_loop
@@ -286,11 +287,11 @@ contains
     else
        if (imode.eq.3) then
           imode=0
-          imode3_done=.true.
+          BornSmearSetup_done=.true.
           ! reset results
           if (double_events) ncalls0=80*ndim*(nchans/3+1)
           call fresh_start
-       elseif (.not.imode3_done) then
+       elseif (.not.BornSmearSetup_done) then
           ncalls0=max(ncalls0,BSpoints_min)
           imode=3
           nit=0

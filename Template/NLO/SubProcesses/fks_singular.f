@@ -3054,7 +3054,7 @@ c
       logical firsttime(fks_configs)
       data firsttime/fks_configs*.true./
 
-      if(.not.imode3_done) then
+      if(.not.BornSmearSetup_done) then
          bornsmear_weight=1d0
          return
       endif
