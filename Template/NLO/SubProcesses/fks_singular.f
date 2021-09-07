@@ -2773,8 +2773,7 @@ c Main loop over contributions. For H-events we have to check explicitly
 c to which contribution we can sum the current contribution (if any),
 c while for the S-events we can sum it to the 'i_soft' one.
       do i=1,icontr
-         if (itype(i).eq.2 .and. (imode.eq.1 .or. imode.eq.2 .or.
-     $        imode.eq.0)) then
+         if (itype(i).eq.2 .and. imode.ne.3) then
             BornSmear_wgt=BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
      $           ,nFKS(i))
             wgts(1,i)=wgts(1,i)*BornSmear_wgt
@@ -3019,14 +3018,7 @@ c
      $        BornSmear(i,j,iFKS_soft,3)+sigint_Born
       endif
 
-c$$$      if (imode.eq.1) then
-c$$$         write (45,*) xi_i_fks_ev,y_ij_fks_ev,sigint,sigint_ABS
-c$$$     $        ,sigint_Born,sigint_noBorn,sigint_ABS_noBorn,sigint_Born
-c$$$     $        ,sigint_Born/BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
-c$$$     $        ,iFKS_soft),iFKS_soft
-c$$$      endif
 
-      
       f(1)=sigint_ABS
       f(2)=sigint
       f(4)=virtual_over_born
@@ -3062,7 +3054,7 @@ c$$$      endif
       logical firsttime(fks_configs)
       data firsttime/fks_configs*.true./
 
-      if(imode.eq.0 .and. (.not.imode3_done)) then
+      if(.not.imode3_done) then
          bornsmear_weight=1d0
          return
       endif
@@ -6077,7 +6069,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
          amp_split_virt(1:amp_split_size)=
      $        amp_split_virt_save(1:amp_split_size)
       endif
-      if ((abrv(1:4).ne.'virt' .and. ickkw.ne.-1) .or. imode.eq.3) then
+      if (abrv(1:4).ne.'virt' .and. ickkw.ne.-1) then
          if (use_poly_virtual) then
             avv_wgt=polyfit(0)*born_wgt
             do iamp=1, amp_split_size

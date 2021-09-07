@@ -146,11 +146,6 @@ c
       call get_user_params(ncalls0,itmax,
      &     ixi_i,iphi_i,iy_ij,SHsep)
 c Only do the reweighting when actually generating the events
-      if (imode.eq.0) then
-         imode3_done=.false.
-      else
-         imode3_done=.true.
-      endif
       if (imode.eq.2) then
          doreweight=do_rwgt_scale.or.do_rwgt_pdf.or.store_rwgt_info
       else
@@ -202,6 +197,12 @@ c     Prepare the MINT folding
       ifold(ifold_phi)=iphi_i
       ifold(ifold_yij)=iy_ij
 
+      ! When already done imode0, must set imode3_done to true.
+      if (imode.eq.0) then
+         imode3_done=.false.
+      else
+         imode3_done=.true.
+      endif
 c*************************************************************
 c     setting of the grids
 c*************************************************************
