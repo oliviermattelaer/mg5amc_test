@@ -93,7 +93,6 @@ c Write the process PID in the log.txt files (i.e., to the screen)
       fks_confs=fks_configs
       allocate(BornSmear(n_BS_yij,n_BS_xi,fks_confs,0:3))
       
-      
       call cpu_time(tBefore)
       fixed_order=.false.
       nlo_ps=.true.
@@ -147,6 +146,11 @@ c
       call get_user_params(ncalls0,itmax,
      &     ixi_i,iphi_i,iy_ij,SHsep)
 c Only do the reweighting when actually generating the events
+      if (imode.eq.0) then
+         imode3_done=.false.
+      else
+         imode3_done=.true.
+      endif
       if (imode.eq.2) then
          doreweight=do_rwgt_scale.or.do_rwgt_pdf.or.store_rwgt_info
       else

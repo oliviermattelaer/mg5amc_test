@@ -1903,7 +1903,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
         #Clean previous results
         self.clean_previous_results(options,p_dirs,folder_names[mode])
 
-        mcatnlo_status = ['Setting up grids', 'Filling BornSmear', 'Computing upper envelope', 'Generating events']
+        mcatnlo_status = ['Setting up grids', 'Computing upper envelope', 'Generating events']
 
 
         if options['reweightonly']:
@@ -1993,11 +1993,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
 
             # Main loop over the three MINT generation steps:
             for mint_step, status in enumerate(mcatnlo_status):
-                if mint_step == 1:
-                    mint_step=3
-                elif mint_step == 2 or mint_step == 3:
-                    mint_step=mint_step-1
-                if options['only_generation'] and mint_step != 2:
+                if options['only_generation'] and mint_step < 2:
                     continue
                 self.update_status(status, level='parton')
                 self.run_all_jobs(jobs_to_run,mint_step,fixed_order=False)
@@ -2196,7 +2192,7 @@ RUN_MODE = %(run_mode)s
 RESTART = %(mint_mode)s
 """ \
               % job
-        elif job['mint_mode'] != 3:
+        else:
             content = \
 """-1 12      ! points, iterations
 %(accuracy)s       ! desired fractional accuracy
@@ -2210,21 +2206,6 @@ RESTART = %(mint_mode)s
 %(run_mode)s        ! all, born, real, virt
 """ \
                     % job
-        else:
-            content = \
-"""25000 1       ! points, iterations
-%(accuracy)s       ! desired fractional accuracy
-1 -0.1     ! alpha, beta for Gsoft
--1 -0.1    ! alpha, beta for Gazi
-1          ! Suppress amplitude (0 no, 1 yes)?
-1          ! Exact helicity sum (0 yes, n = number/event)?
-%(channel)s          ! Enter Configuration Number:
-%(mint_mode)s          ! MINT imode: 0 to set-up grids, 1 to perform integral, 2 generate events
-1 1 1      ! if imode is 1: Folding parameters for xi_i, phi_i and y_ij
-%(run_mode)s        ! all, born, real, virt
-""" \
-                    % job
-
         with open(pjoin(job['dirname'], 'input_app.txt'), 'w') as input_file:
             input_file.write(content)
 
@@ -2671,14 +2652,14 @@ RESTART = %(mint_mode)s
                     # Add the job to the list of jobs that need to be run
                     jobs_new.append(job)
             return jobs_new
-        elif step+1 != 3:
+        elif step+1 <= 2:
             nevents=self.run_card['nevents']
             # Total required accuracy for the upper bounding envelope
             if req_acc<0: 
                 req_acc2_inv=nevents
             else:
                 req_acc2_inv=1/(req_acc*req_acc)
-            if step+1 == 1 or step+1 == 2 or step+1 == 4 :
+            if step+1 == 1 or step+1 == 2 :
                 # determine the req. accuracy for each of the jobs for Mint-step = 1
                 for job in jobs:
                     accuracy=min(math.sqrt(totABS/(req_acc2_inv*job['resultABS'])),0.2)
@@ -2703,12 +2684,7 @@ RESTART = %(mint_mode)s
                     i -= 1
                     jobs[i]['nevents'] += 1
             for job in jobs:
-                if step == 0 :
-                    job['mint_mode']=3 # next step
-                elif step == 3:
-                    job['mint_mode']=1 # next step
-                else:
-                    job['mint_mode']=step+1 # next step
+                job['mint_mode']=step+1 # next step
             return jobs
         else:
             return []
@@ -3195,7 +3171,7 @@ RESTART = %(mint_mode)s
         if mode in ['aMC@NLO', 'aMC@LO', 'noshower', 'noshowerLO']:
             status = ['Determining the number of unweighted events per channel',
                       'Updating the number of unweighted events per channel',
-                      'Summary:','Filled the BornSmear']
+                      'Summary:']
             computed='(computed from LHE events)'
         elif mode in ['NLO', 'LO']:
             status = ['Results after grid setup:','Current results:',

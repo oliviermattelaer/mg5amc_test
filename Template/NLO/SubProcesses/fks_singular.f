@@ -1055,7 +1055,7 @@ c f_* multiplication factors for Born and nbody
       end
 
 
-      subroutine include_multichannel_enhance(imode)
+      subroutine include_multichannel_enhance(i_mode)
       implicit none
       include 'nexternal.inc'
       include 'run.inc'
@@ -1064,7 +1064,7 @@ c f_* multiplication factors for Born and nbody
       double precision xnoborn_cnt,xtot,wgt_c,enhance,enhance_real
      $     ,pas(0:3,nexternal)
       data xnoborn_cnt /0d0/
-      integer inoborn_cnt,i,imode
+      integer inoborn_cnt,i,i_mode
       data inoborn_cnt /0/
       double precision p_born(0:3,nexternal-1)
       common/pborn/    p_born
@@ -1138,7 +1138,7 @@ c Compute the multi-channel enhancement factor 'enhance'.
 c In the case there is the special phase-space mapping for resonances,
 c use the Born computed with those as the mapping.
       enhance_real=1.d0
-      if (granny_is_res .and. imode.eq.2) then
+      if (granny_is_res .and. i_mode.eq.2) then
          if (p_born_ev(0,1).gt.0d0) then
             calculatedBorn=.false.
             pas(0:3,nexternal)=0d0
@@ -1185,15 +1185,15 @@ c Compute the multi-channel enhancement factor 'enhance_real'.
          enhance_real=enhance
       endif
 
-      if (imode.eq.1) then
+      if (i_mode.eq.1) then
          f_b=      f_b      *enhance
          f_nb=     f_nb     *enhance
-      elseif(imode.eq.2) then
+      elseif(i_mode.eq.2) then
          f_r=      f_r      *enhance_real
-      elseif(imode.eq.4) then
+      elseif(i_mode.eq.4) then
          f_MC_S=   f_MC_S   *enhance
          f_MC_H=   f_MC_H   *enhance
-      elseif(imode.eq.3) then
+      elseif(i_mode.eq.3) then
          f_s=      f_s      *enhance
          f_s_MC_S= f_s_MC_S *enhance
          f_S_MC_H= f_S_MC_H *enhance
@@ -2773,7 +2773,8 @@ c Main loop over contributions. For H-events we have to check explicitly
 c to which contribution we can sum the current contribution (if any),
 c while for the S-events we can sum it to the 'i_soft' one.
       do i=1,icontr
-         if (itype(i).eq.2 .and. (imode.eq.1 .or. imode.eq.2)) then
+         if (itype(i).eq.2 .and. (imode.eq.1 .or. imode.eq.2 .or.
+     $        imode.eq.0)) then
             BornSmear_wgt=BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
      $           ,nFKS(i))
             wgts(1,i)=wgts(1,i)*BornSmear_wgt
@@ -3054,15 +3055,28 @@ c$$$      endif
       use mint_module
       implicit none
       include 'nFKSconfigs.inc'
-      integer i,j,iFKS
+      integer i,j,iFKS,iiFKS
       double precision xi,y
       double precision sum_wgts(fks_configs),sum_Born(fks_configs)
       save sum_wgts,sum_Born
       logical firsttime(fks_configs)
       data firsttime/fks_configs*.true./
+
+      if(imode.eq.0 .and. (.not.imode3_done)) then
+         bornsmear_weight=1d0
+         return
+      endif
 c
 c     compute weight normalisation
       if (firsttime(iFKS)) then
+         do iiFKS=1,fks_configs
+            do j=1,n_BS_xi
+               do i=1,n_BS_yij
+                  BornSmear(i,j,iiFKS,0)=
+     &               (BornSmear(i,j,iiFKS,1)-BornSmear(i,j,iiFKS,2))/2d0
+               enddo
+            enddo
+         enddo
          sum_wgts(iFKS)=sum(BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,0))
          sum_Born(iFKS)=sum(BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,3))
 c     check
@@ -3072,6 +3086,7 @@ c     check
          endif
          firsttime(iFKS)=.false.
       endif
+
 c
 c     determine bin corresponding to actual xi and y values
       i=int(n_BS_yij*(y+1d0)/2d0)+1
@@ -6019,8 +6034,9 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       enddo
       
       if (fold.eq.0) then
-         if ((ran2().le.virtual_fraction(ichan) .and.
-     $        abrv(1:3).ne.'nov').or.abrv(1:4).eq.'virt') then
+         if (((ran2().le.virtual_fraction(ichan) .and.
+     $        abrv(1:3).ne.'nov').or.abrv(1:4).eq.'virt')
+     $        .and. imode.ne.3) then
             call cpu_time(tBefore)
             Call BinothLHA(p_born,born_wgt,virt_wgt)
             call cpu_time(tAfter)
@@ -6061,7 +6077,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
          amp_split_virt(1:amp_split_size)=
      $        amp_split_virt_save(1:amp_split_size)
       endif
-      if (abrv(1:4).ne.'virt' .and. ickkw.ne.-1) then
+      if ((abrv(1:4).ne.'virt' .and. ickkw.ne.-1) .or. imode.eq.3) then
          if (use_poly_virtual) then
             avv_wgt=polyfit(0)*born_wgt
             do iamp=1, amp_split_size

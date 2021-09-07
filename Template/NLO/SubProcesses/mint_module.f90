@@ -78,6 +78,7 @@ module mint_module
   integer, parameter, private :: min_it1=5        ! minimal number of iterations in the mint step 1 phase
   integer, parameter, private :: max_points=100000! maximum number of points to trow per iteration if not enough non-zero points can be found.
   integer, parameter, public  :: maxchannels=20 ! set as least as large as in amcatnlo_run_interface
+  integer, parameter, private :: BSpoints_min=10000 ! minimum numbers thrown in the imode=3 iteration to fill the BornSmear grids
   ! Note that the number of intervals in the integration grids, 'nintervals', cannot be arbitrarily large.
   ! It should be equal to
   !     nintervals = min_inter * 2^n,
@@ -98,6 +99,8 @@ module mint_module
   double precision, dimension(nintegrals,0:maxchannels), public :: ans,unc
   double precision, dimension(:,:,:,:), public, allocatable :: BornSmear
   logical :: only_virt,new_point,pass_cuts_check
+  logical :: imode3_done
+
 
 ! private variables
   character(len=13), parameter, dimension(nintegrals), private :: title=(/ &
@@ -207,7 +210,7 @@ contains
        enddo
        call get_amount_of_points(enough_points)
        if (.not.enough_points) goto 2
-       if (imode.eq.0 .and. nit.eq.1 .and. double_events) then
+       if (imode.eq.0 .and. nit.eq.1 .and. double_events .and. (.not.imode3_done)) then
           call check_for_special_channels_loop(channel_loop_done)
           if (.not.channel_loop_done) goto 2
           call combine_results_channels_special_loop
@@ -227,7 +230,7 @@ contains
        call setup_imode_0
     elseif (imode.eq.-1) then
        call setup_imode_m1
-    elseif (imode.eq.1 .or. imode.eq.3) then
+    elseif (imode.eq.1) then
        call setup_imode_1
     endif
     cross_section=ans_chan(0) * wgt_mult
@@ -278,10 +281,27 @@ contains
        call update_integration_grids
     endif
     call check_desired_accuracy(iterations_done)
-    if (.not. iterations_done) then
+    if (.not. iterations_done .and. nit.ne.itmax .and. imode.ne.3) then
        call prepare_next_iteration
     else
-       nit=itmax
+       if (imode.eq.3) then
+          imode=0
+          imode3_done=.true.
+          ! reset results
+          if (double_events) then
+             if (imode.eq.0) nint_used=min_inter ! reset number of intervals
+             ncalls0=80*ndim*(nchans/3+1)
+          endif
+          call reset_mint_grids
+          call reset_MC_grid  ! reset the grid for the integers
+          call setup_common
+       elseif (.not.imode3_done) then
+          ncalls0=max(ncalls0,BSpoints_min)
+          imode=3
+          nit=0
+       else
+          nit=itmax
+       endif
     endif
   end subroutine update_accumulated_results
 
@@ -828,7 +848,7 @@ contains
     implicit none
     call write_channel_info
     nit=nit+1
-    write (*,*) '------- iteration',nit
+    write (*,'(a,i4,a,i2,a)') '------- iteration:',nit,'   (imode:',imode,')'
     call check_evenly_random_numbers
     if (imode.eq.0) then
        call reset_accumulated_grids_for_updating
@@ -967,8 +987,8 @@ contains
     call reset_upper_bounding_envelope
     ans_chan(1:nchans)=ans(1,1:nchans)
     ans_chan(0)=sum(ans(1,1:nchans))
-    if (imode.eq.3) BornSmear(1:n_BS_yij,1:n_BS_xi,1:fks_confs,0:3)=0d0
   end subroutine setup_imode_1
+  
 
   subroutine reset_upper_bounding_envelope
     implicit none
@@ -1003,6 +1023,7 @@ contains
     even_rn=.true.
     min_it=min_it0
     call reset_mint_grids
+    BornSmear(1:n_BS_yij,1:n_BS_xi,1:fks_confs,0:3)=0d0
   end subroutine setup_imode_0
 
   subroutine reset_mint_grids
@@ -1052,28 +1073,18 @@ contains
        do j=0,nintervals
           write (12,*) 'AVE',(xgrid(j,i,kchan),i=1,ndim)
        enddo
-       if (imode.ge.1 .and. .not.imode.eq.3) then
+       if (imode.ge.1) then
           do j=1,nintervals
              write (12,*) 'MAX',(ymax(j,i,kchan),i=1,ndim)
           enddo
        endif
-       if (imode.eq.3) then
-          do iFKS=1,fks_confs
-             do j=1,n_BS_xi
-                do i=1,n_BS_yij
-                   BornSmear(i,j,iFKS,0)=(BornSmear(i,j,iFKS,1)-BornSmear(i,j,iFKS,2))/2d0
-                enddo
-             enddo
+       do iFKS=1,fks_confs
+          do j=1,n_BS_xi
+             write (12,*) 'AVE',(BornSmear(i,j,iFKS,1),i=1,n_BS_yij)
+             write (12,*) 'AVE',(BornSmear(i,j,iFKS,2),i=1,n_BS_yij)
+             write (12,*) 'AVE',(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
           enddo
-       endif
-       if (imode.eq.3 .or. imode.eq.1) then
-          do iFKS=1,fks_confs
-             do j=1,n_BS_xi
-                write (12,*) 'AVE',(BornSmear(i,j,iFKS,0),i=1,n_BS_yij)
-                write (12,*) 'AVE',(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
-             enddo
-          enddo
-       endif
+       enddo
        if (.not.use_poly_virtual) then
           do j=1,nintervals_virt
              do k=0,n_ord_virt
@@ -1115,7 +1126,8 @@ contains
        if (imode.eq.1 .or. imode.eq.2) then
           do iFKS=1,fks_confs
              do j=1,n_BS_xi
-                read (12,*) dummy,(BornSmear(i,j,iFKS,0),i=1,n_BS_yij)
+                read (12,*) dummy,(BornSmear(i,j,iFKS,1),i=1,n_BS_yij)
+                read (12,*) dummy,(BornSmear(i,j,iFKS,2),i=1,n_BS_yij)
                 read (12,*) dummy,(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
              enddo
           enddo
