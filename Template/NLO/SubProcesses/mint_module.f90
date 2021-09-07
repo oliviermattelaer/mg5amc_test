@@ -187,7 +187,7 @@ module mint_module
        &,increase_gen_counters_middle,increase_gen_counters_before &
        &,increase_gen_counters_end,check_upper_bound &
        &,get_random_cell_flat,get_weighted_cell,initialise_mint_gen &
-       &,print_gen_counters
+       &,print_gen_counters,fresh_start
 contains
 
   subroutine mint(fun)
@@ -288,13 +288,8 @@ contains
           imode=0
           imode3_done=.true.
           ! reset results
-          if (double_events) then
-             if (imode.eq.0) nint_used=min_inter ! reset number of intervals
-             ncalls0=80*ndim*(nchans/3+1)
-          endif
-          call reset_mint_grids
-          call reset_MC_grid  ! reset the grid for the integers
-          call setup_common
+          if (double_events) ncalls0=80*ndim*(nchans/3+1)
+          call fresh_start
        elseif (.not.imode3_done) then
           ncalls0=max(ncalls0,BSpoints_min)
           imode=3
@@ -528,14 +523,8 @@ contains
        if (bad_iteration .and. imode.eq.0 .and. double_events) then
 ! 2nd bad iteration is a row. Reset grids
           write (*,*)'2nd bad iteration in a row. Resetting grids and starting from scratch...'
-          if (double_events) then
-             if (imode.eq.0) nint_used=min_inter ! reset number of intervals
-             ncalls0=ncalls0/8   ! Start with larger number
-          endif
-          call reset_mint_grids
-          call reset_MC_grid  ! reset the grid for the integers
-          if (fixed_order) call initplot  ! Also reset all the plots
-          call setup_common
+          call fresh_start
+          if (double_events)ncalls0=ncalls0/8   ! Start with larger number
           bad_iteration=.false.
        else
           bad_iteration=.true.
@@ -545,7 +534,16 @@ contains
     endif
   end subroutine check_fractional_uncertainty
 
-  
+  subroutine fresh_start
+    implicit none
+    if (double_events) then
+       if (imode.eq.0) nint_used=min_inter ! reset number of intervals
+    endif
+    call reset_mint_grids
+    call reset_MC_grid  ! reset the grid for the integers
+    if (fixed_order) call initplot  ! Also reset all the plots
+    call setup_common
+  end subroutine fresh_start
 
   subroutine print_results_current_iteration(efrac)
     implicit none
@@ -1092,7 +1090,7 @@ contains
              enddo
           enddo
        endif
-       if (imode.ge.1 .and. .not.imode.eq.3) then
+       if (imode.ge.1) then
           write (12,*) 'MAX',ymax_virt(kchan)
        endif
        write (12,*) 'SUM',(ans(i,kchan),i=1,nintegrals)
@@ -1118,20 +1116,18 @@ contains
        do j=0,nintervals
           read (12,*) dummy,(xgrid(j,i,kchan),i=1,ndim)
        enddo
-       if (imode.ge.2 .and. .not.imode.eq.3) then
+       if (imode.ge.2) then
           do j=1,nintervals
              read (12,*) dummy,(ymax(j,i,kchan),i=1,ndim)
           enddo
        endif
-       if (imode.eq.1 .or. imode.eq.2) then
-          do iFKS=1,fks_confs
-             do j=1,n_BS_xi
-                read (12,*) dummy,(BornSmear(i,j,iFKS,1),i=1,n_BS_yij)
-                read (12,*) dummy,(BornSmear(i,j,iFKS,2),i=1,n_BS_yij)
-                read (12,*) dummy,(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
-             enddo
+       do iFKS=1,fks_confs
+          do j=1,n_BS_xi
+             read (12,*) dummy,(BornSmear(i,j,iFKS,1),i=1,n_BS_yij)
+             read (12,*) dummy,(BornSmear(i,j,iFKS,2),i=1,n_BS_yij)
+             read (12,*) dummy,(BornSmear(i,j,iFKS,3),i=1,n_BS_yij)
           enddo
-       endif
+       enddo
        if (.not.use_poly_virtual) then
           do j=1,nintervals_virt
              do k=0,n_ord_virt
@@ -1139,7 +1135,7 @@ contains
              enddo
           enddo
        endif
-       if (imode.ge.2 .and. .not.imode.eq.3) then
+       if (imode.ge.2) then
           read (12,*) dummy,ymax_virt(kchan)
        endif
        read (12,*) dummy,(ans(i,kchan),i=1,nintegrals)
