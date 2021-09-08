@@ -83,8 +83,8 @@ C
       INTEGER NB_SPIN_STATE_IN(2)
       COMMON /NB_HEL_STATE/ NB_SPIN_STATE_IN
 
-      INTEGER IMIRROR
-      COMMON/TO_MIRROR/ IMIRROR
+      INTEGER IMIRROR,IPROC
+      COMMON/TO_MIRROR/ IMIRROR,IPROC
 
       DOUBLE PRECISION TMIN_FOR_CHANNEL
       INTEGER SDE_STRAT  ! 1 means standard single diagram enhancement strategy,
@@ -343,10 +343,10 @@ C     Needed for v4 models
       COMPLEX*16 DUM0,DUM1
       DATA DUM0, DUM1/(0D0, 0D0), (1D0, 0D0)/
 
-      DOUBLE PRECISION FK_WZ
       DOUBLE PRECISION FK_ZERO
-      SAVE FK_WZ
+      DOUBLE PRECISION FK_WZ
       SAVE FK_ZERO
+      SAVE FK_WZ
 
       LOGICAL FIRST
       DATA FIRST /.TRUE./
@@ -423,10 +423,11 @@ C     Amplitude(s) for diagram number 5
 C     Amplitude(s) for diagram number 6
       CALL FFV1_2_0(W(1,4),W(1,2),W(1,5),GUZ1,GUZ2,AMP(6))
 C     JAMPs contributing to orders ALL_ORDERS=1
-      JAMP(1,1) = (1D0/6D0)*AMP(1)+(-1)*AMP(2)+(-1)*AMP(3)+(1D0/2D0)
-     $ *AMP(4)
-      JAMP(2,1) = (-1D0/2D0)*AMP(1)+(-1D0/6D0)*AMP(4)+(1)*AMP(5)+(1)
-     $ *AMP(6)
+      JAMP(1,1) = (1.666666666666667D-01)*AMP(1)+(-1.000000000000000D
+     $ +00)*AMP(2)+(-1.000000000000000D+00)*AMP(3)+(5.000000000000000D
+     $ -01)*AMP(4)
+      JAMP(2,1) = (-5.000000000000000D-01)*AMP(1)+(-1.666666666666667D
+     $ -01)*AMP(4)+AMP(5)+AMP(6)
 
       IF(INIT_MODE)THEN
         DO I=1, NGRAPHS

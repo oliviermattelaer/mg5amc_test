@@ -820,7 +820,12 @@ class HelpToCmd(cmd.HelpCmd):
         logger.info(" > (default: True) [Used ONLY for tree-level output with madevent]")
         logger.info(" > set the width to zero for all T-channel propagator --no impact on complex-mass scheme mode")
         logger.info("auto_convert_model <value>",'$MG:color:GREEN')   
-        logger.info(" > (default: False) If set on True any python2 UFO model will be automatically converted to pyton3 format")     
+        logger.info(" > (default: False) If set on True any python2 UFO model will be automatically converted to pyton3 format")   
+        logger.info("nlo_mixed_expansion <value>",'$MG:color:GREEN') 
+        logger.info("deactivates mixed expansion support at NLO, goes back to MG5aMCv2 behavior")
+        logger.info("acknowledged_v3.1_syntax <value>",'$MG:color:GREEN') 
+        logger.info("if set to True allows to use syntax which have change meaning between 3.0 and 3.1 version")
+          
 #===============================================================================
 # CheckValidForCmd
 #===============================================================================
@@ -1531,7 +1536,7 @@ This will take effect only in a NEW terminal
             if not args[1].isdigit():
                 raise self.InvalidCmd('%s values should be a integer' % args[0])
             
-        if args[0] in ['loop_optimized_output', 'loop_color_flows', 'low_mem_multicore_nlo_generation']:
+        if args[0] in ['loop_optimized_output', 'loop_color_flows', 'low_mem_multicore_nlo_generation', 'nlo_mixed_expansion']:
             try:
                 args[1] = banner_module.ConfigFile.format_variable(args[1], bool, args[0])
             except Exception:
@@ -1564,8 +1569,8 @@ This will take effect only in a NEW terminal
         if args[0].lower() in ['ewscheme']:
             if not self._curr_model:
                 raise self.InvalidCmd("ewscheme acts on the current model please load one first.")
-            if args[1] not in ['external']:
-                raise self.InvalidCmd('Only valid ewscheme is "external". To restore default, please re-import the model.')
+            if args[1] not in ['external', 'MZ_MW_alpha']:
+                raise self.InvalidCmd('Only valid ewscheme are "external" and "MZ_MW_alpha". To restore default, please re-import the model.')
 
         if args[0] in ['output_dependencies']:
             if args[1] not in MadGraphCmd._output_dependencies_supported:
@@ -2583,12 +2588,12 @@ class CompleteForCmd(cmd.CompleteCmd):
             if args[1] in ['group_subprocesses', 'complex_mass_scheme',\
                            'loop_optimized_output', 'loop_color_flows',\
                            'include_lepton_initiated_processes',\
-                           'low_mem_multicore_nlo_generation']:
+                           'low_mem_multicore_nlo_generation', 'nlo_mixed_expansion']:
                 return self.list_completion(text, ['False', 'True', 'default'])
             elif args[1] in ['ignore_six_quark_processes']:
                 return self.list_completion(text, list(self._multiparticles.keys()))
             elif args[1].lower() == 'ewscheme':
-                return self.list_completion(text, ["external"])
+                return self.list_completion(text, ["external", "MZ_MW_alpha"])
             elif args[1] == 'gauge':
                 return self.list_completion(text, ['unitary', 'Feynman','default', 'axial'])
             elif args[1] == 'OLP':
@@ -2921,8 +2926,9 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                     'max_t_for_channel',
                     'zerowidth_tchannel',
                     'default_unset_couplings',
+                    'nlo_mixed_expansion'
                     ]
-    _valid_nlo_modes = ['all','real','virt','sqrvirt','tree','noborn','LOonly']
+    _valid_nlo_modes = ['all','real','virt','sqrvirt','tree','noborn','LOonly', 'only']
     _valid_sqso_types = ['==','<=','=','>']
     _valid_amp_so_types = ['=','<=', '==', '>']
     _OLP_supported = ['MadLoop', 'GoSam']
@@ -2974,6 +2980,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                        'output_dependencies':'external',
                        'crash_on_error':False,
                        'auto_convert_model': False,
+                       'acknowledged_v3.1_syntax': False
                        }
 
     options_madgraph= {'group_subprocesses': 'Auto',
@@ -2989,6 +2996,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                           'default_unset_couplings': 99, # 99 means infinity
                           'max_t_for_channel': 99, # means no restrictions
                           'zerowidth_tchannel': True,
+                          'nlo_mixed_expansion':True,
                         }
 
     options_madevent = {'automatic_html_opening':True,
@@ -3600,16 +3608,12 @@ This implies that with decay chains:
                     sum([len(part) for part in
                                         self._curr_model['couplings'].values()])
             keys = list(self._curr_model['couplings'].keys())
-            def key_sort(x, y):
+            def key_sort(x):
                 if ('external',) == x:
                     return -1
-                elif ('external',) == y:
-                    return +1
-                elif  len(x) < len(y):
-                    return -1
                 else:
-                    return 1
-            keys.sort(key_sort)
+                    return len(x)
+            keys.sort(key=key_sort)
             for key in keys:
                 item = self._curr_model['couplings'][key]
                 text += '\ncouplings type: %s\n' % str(key)
@@ -4796,8 +4800,8 @@ This implies that with decay chains:
                             old_name, old_value, name, value)
             if name.endswith('^2'):
                 basename = name[:-2]
-                if basename not in model_orders:
-                    valid = list(model_orders) + coupling_alias.keys()
+                if basename not in list(model_orders) + ['WEIGHTED']:
+                    valid = list(model_orders) +list(coupling_alias.keys()) + ['WEIGHTED']
                     raise self.InvalidCmd("model order %s not valid for this model (valid one are: %s). Please correct" % (name, ', '.join(valid))) 
 
                 if type not in self._valid_sqso_types:
@@ -5927,7 +5931,7 @@ This implies that with decay chains:
                 add_options.remove('--local')
                 logger.warning('you are using a local installer. This is intended for debugging only!')
                 shutil.rmtree(pjoin(MG5DIR,'HEPTools','HEPToolsInstallers'))
-                shutil.copytree(os.path.abspath(pjoin(MG5DIR,os.path.pardir,
+                misc.copytree(os.path.abspath(pjoin(MG5DIR,os.path.pardir,
            'HEPToolsInstallers')),pjoin(MG5DIR,'HEPTools','HEPToolsInstallers'))
 
         # Potential change in naming convention
@@ -5984,6 +5988,8 @@ This implies that with decay chains:
                 fastjet_config  = misc.which(self.options['fastjet'])
                 if fastjet_config:
                     add_options.append('--with_fastjet=%s'%fastjet_config)
+                else:
+                    add_options.append('--with_fastjet')
            
             if self.options['delphes_path'] and os.path.isdir(
                   os.path.normpath(pjoin(MG5DIR,self.options['delphes_path']))):
@@ -6373,10 +6379,13 @@ MG5aMC that supports quadruple precision (typically g++ based on gcc 4.6+).""")
         #check outdated install
         substitution={'Delphes2':'Delphes','pythia-pgs':'pythia8'}
         if args[0] in substitution:
-            logger.warning("Please Note that this package is NOT maintained anymore by their author(s).\n"+\
+            logger.critical("Please Note that this package is NOT maintained anymore by their author(s).\n"+\
                "  You should consider installing and using %s, with:\n"%substitution[args[0]]+
                "   > install %s"%substitution[args[0]])
-
+            ans = self.ask('Do you really want to continue?', 'n', ['y','n'])
+            if ans !='y':
+                return
+            
         try:
             os.system('rm -rf %s' % pjoin(MG5DIR, name))
         except Exception:
@@ -6713,13 +6722,13 @@ os.system('%s  -O -W ignore::DeprecationWarning %s %s --mode={0}' %(sys.executab
             pattern = re.compile(r'''^=== renamed directory \'(?P<orig>[^\']*)\' => \'(?P<new>[^\']*)\'''')
             #= = = renamed directory 'Template' => 'Template/LO'
             for orig, new in pattern.findall(text):
-                shutil.copytree(pjoin(MG5DIR, orig), pjoin(MG5DIR, 'UPDATE_TMP'))
+                misc.copytree(pjoin(MG5DIR, orig), pjoin(MG5DIR, 'UPDATE_TMP'))
                 full_path = os.path.dirname(pjoin(MG5DIR, new)).split('/')
                 for i, name in enumerate(full_path):
                     path = os.path.sep.join(full_path[:i+1])
                     if path and not os.path.isdir(path):
                         os.mkdir(path)
-                shutil.copytree(pjoin(MG5DIR, 'UPDATE_TMP'), pjoin(MG5DIR, new))
+                misc.copytree(pjoin(MG5DIR, 'UPDATE_TMP'), pjoin(MG5DIR, new))
                 shutil.rmtree(pjoin(MG5DIR, 'UPDATE_TMP'))
             # track rename since patch fail to apply those correctly.
             pattern = re.compile(r'''=== renamed file \'(?P<orig>[^\']*)\' => \'(?P<new>[^\']*)\'''')
@@ -6941,7 +6950,7 @@ os.system('%s  -O -W ignore::DeprecationWarning %s %s --mode={0}' %(sys.executab
         signal.alarm(timeout)
         to_update = 0
         try:
-            filetext = six.moves.urllib.request.urlopen('http://madgraph.physics.illinois.edu/mg5amc_build_nb')
+            filetext = six.moves.urllib.request.urlopen('http://madgraph.phys.ucl.ac.be/mg5amc3_build_nb')
             signal.alarm(0)
             text = filetext.read().decode().split('\n')
             web_version = int(text[0].strip())
@@ -7010,14 +7019,14 @@ os.system('%s  -O -W ignore::DeprecationWarning %s %s --mode={0}' %(sys.executab
             fail = 0
             for i in range(data['version_nb'], web_version):
                 try:
-                    filetext = six.moves.urllib.request.urlopen('http://madgraph.phys.ucl.ac.be/patch/build%s.patch' %(i+1))
+                    filetext = six.moves.urllib.request.urlopen('http://madgraph.physics.illinois.edu/patch/build%s.patch' %(i+1))
                 except Exception:
                     print('fail to load patch to build #%s' % (i+1))
                     fail = i
                     break
                 need_binary = apply_patch(filetext)
                 if need_binary:
-                    path = "http://madgraph.phys.ucl.ac.be/binary/binary_file%s.tgz" %(i+1)
+                    path = "http://madgraph.physics.illinois.edu/binary/binary_file%s.tgz" %(i+1)
                     name = "extra_file%i" % (i+1)
                     misc.wget(path, '%s.tgz' % name, cwd=MG5DIR)
                     # Untar the file
@@ -7628,9 +7637,13 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             if log:
                 logger.info('set output information to level: %s' % level)
         elif args[0].lower() == "ewscheme":
-            logger.info("Change EW scheme to %s for the model %s. Note that YOU are responsible of the full validity of the input in that scheme." %\
+            if args[1] == 'external':
+                logger.info("Change EW scheme to %s for the model %s. Note that YOU are responsible of the full validity of the input in that scheme." %\
                                               (self._curr_model.get('name'), args[1]))
-            logger.info("Importing a model will restore the default scheme")
+            else:
+                logger.info("Change EW scheme to %s for the model %s. Note that SM is assume here.")
+            logger.info("Importing a new model will restore the default scheme")
+
             self._curr_model.change_electroweak_mode(args[1])
         elif args[0] == "complex_mass_scheme":
             old = self.options[args[0]]
@@ -7767,6 +7780,8 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
                 logger.warning("Turning off option 'loop_color_flows'"+\
                     " since it is not available for non-optimized loop output.")
                 self.do_set('loop_color_flows False',log=False)
+        elif args[0] == "nlo_mixed_expansion":
+            self.options[args[0]] = banner_module.ConfigFile.format_variable(args[1],bool,args[0])
         elif args[0] == 'loop_color_flows':
             if log:
                     logger.info('set loop color flows to %s' % args[1])
@@ -7890,7 +7905,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             else:
                 raise self.InvalidCmd('expected bool for notification_center')
         # True/False formatting
-        elif args[0] in ['crash_on_error', 'auto_convert_model']:
+        elif args[0] in ['crash_on_error', 'auto_convert_model', 'acknowledged_v3.1_syntax']:
             try:
                 tmp = banner_module.ConfigFile.format_variable(args[1], bool, args[0])
             except Exception:
@@ -8407,7 +8422,8 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             wanted_lorentz = self._curr_matrix_elements.get_used_lorentz()
             wanted_couplings = self._curr_matrix_elements.get_used_couplings()
 
-            if self._export_format == 'madevent' and not 'no_helrecycling' in flaglist:
+            if self._export_format == 'madevent' and not 'no_helrecycling' in flaglist and \
+                not isinstance(self._curr_amps[0], loop_diagram_generation.LoopAmplitude):
                 for (name, flag, out) in wanted_lorentz[:]:
                     if out == 0:
                         newflag = list(flag) + ['P1N']
@@ -8628,9 +8644,6 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             logger.info('Pass to numerical integration for computing the widths:')
         else:            
             logger.info('No need for N body-decay (N>2). Results are in %s' % opts['output'])
-            
-            
-            
             return  decay_info
 
         # Do the MadEvent integration!!
@@ -8659,7 +8672,10 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
                 me_cmd = madevent_interface.MadEventCmd(decay_dir)
                 for name, val in self.options.items():
                     if name in me_cmd.options and me_cmd.options[name] != val:
-                        self.exec_cmd('set %s %s --no_save' % (name, val)) 
+                        try:
+                            me_cmd.exec_cmd('set %s %s --no_save' % (name, val)) 
+                        except madgraph.InvalidCmd:
+                            continue
                 #me_cmd.options.update(self.options)
                 #me_cmd.configure_run_mode(self.options['run_mode'])
                 #self.define_child_cmd_interface(me_cmd, interface=False)

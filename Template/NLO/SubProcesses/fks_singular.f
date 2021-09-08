@@ -152,8 +152,10 @@ C      gluon in the initial state
         alphasbpow = orders(qcd_pos)/2
         if (niglu.ne.0 .or. alphasbpow.ne.0) then
           ! this contribution will end up with one extra power
-          ! of alpha_s
+          ! of alpha_s. Check that we are including the corresponding
+          ! order in the computation, otherwise skip the contribution
           orders(qcd_pos) = orders(qcd_pos) + 2
+          if (orders(qcd_pos).gt.nlo_orders(qcd_pos)) cycle
 
           amp_split_6to5f_muf(orders_to_amp_split_pos(orders)) = 
      &     alphas / 3d0 / pi * TF * dble(niglu) * amp_split(iamp)  
@@ -218,15 +220,12 @@ c value to the list of weights using the add_wgt subroutine
       integer get_orders_tag
       character*4      abrv
       common /to_abrv/ abrv
+      integer iamp_test
       call cpu_time(tBefore)
       if (f_nb.eq.0d0) return
       if (xi_i_hat_ev*xiimax_cnt(0) .gt. xiBSVcut_used) return
       call bornsoftvirtual(p1_cnt(0,1,0),bsv_wgt,virt_wgt,born_wgt)
-      if (ickkw.eq.3 .and. fxfx_exp_rewgt.ne.0d0 .and. abrv.ne.'born') then
-        write(*,*) 'FIX FXFX-MERGING in FKS_EW'
-        stop
-        wgt1=wgt1 - fxfx_exp_rewgt*born_wgt*f_nb/g2/(4d0*pi)
-      elseif (ickkw.eq.-1) then
+      if (ickkw.eq.-1) then
          if (wgtbpower.ne.0) then
             write (*,*) 'ERROR in VETO XSec: bpower should'/
      $           /' be zero (no QCD partons at the'/
@@ -246,6 +245,7 @@ C to make sure that it cannot be incorrectly understood.
         write(*,*) 'FIX VETOXSEC in FKS_EW'
         stop
       endif
+      iamp_test=0
       do iamp=1, amp_split_size
         if (amp_split_wgtnstmp(iamp).eq.0d0.and.
      $      amp_split_wgtwnstmpmur(iamp).eq.0d0.and.
@@ -262,6 +262,19 @@ C to make sure that it cannot be incorrectly understood.
         wgt2=amp_split_wgtwnstmpmur(iamp)*f_nb/g22
         wgt3=amp_split_wgtwnstmpmuf(iamp)*f_nb/g22
         wgt4=amp_split_avv(iamp)*f_nb/g22
+        if (ickkw.eq.3 .and. fxfx_exp_rewgt.ne.0d0
+     &       .and. abrv.ne.'born') then
+! This assumes a single Born order, which must always be the case for
+! FxFx. Explicitly check this just to be sure.
+           iamp_test=iamp_test+1
+           if(iamp_test.ne.1) then
+              write (*,*) "There should only be one possible"/
+     $             /" Born order for FxFx"
+              stop 1
+           endif
+           g2=g**(QCD_power-2)
+           wgt1=wgt1 - fxfx_exp_rewgt*born_wgt*f_nb/g2/(4d0*pi)
+        endif
         call add_wgt(3,orders,wgt1,wgt2,wgt3)
         call add_wgt(15,orders,wgt4,0d0,0d0)
       enddo
@@ -5149,8 +5162,24 @@ c multiplied by 1/x (by 1) for the emitting (non emitting) leg
      #      j_fks.gt.nincoming ) .or.
      #    (xbk(2).gt.1.d0.and.j_fks.eq.1) .or.
      #    (xbk(1).gt.1.d0.and.j_fks.eq.2) )then
-        write(*,*)'Error in get_mc_lum: x_i',xbk(1),xbk(2)
-        stop
+      ! add an extra check on the bjorken x's (relevant for ee
+      ! collisions)
+         if (xbk(1).gt.1d0)then
+            if(xbk(1)-1d0.lt.1d-12) then
+               xbk(1) = 1d0
+            else
+               write(*,*)'Error in get_mc_lum: x_i',xbk(1),xbk(2)
+               stop           
+            endif
+         endif
+         if (xbk(2).gt.1d0)then
+            if(xbk(2)-1d0.lt.1d-12) then
+               xbk(2) = 1d0
+            else
+               write(*,*)'Error in get_mc_lum: x_i',xbk(1),xbk(2)
+               stop           
+            endif
+         endif
       endif
       return
       end

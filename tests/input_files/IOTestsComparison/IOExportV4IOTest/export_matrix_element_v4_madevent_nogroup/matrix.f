@@ -193,7 +193,7 @@ C       Include the Jacobian from helicity sampling
         R=XRAN1(IDUM)*ANS
         SUMHEL=0D0
         DO I=1,NCOMB
-          SUMHEL=SUMHEL+TS(I)
+          SUMHEL=SUMHEL+DABS(TS(I))
           IF(R.LT.SUMHEL)THEN
             WRITE(HEL_BUFF,'(20i5)')(NHEL(II,I),II=1,NEXTERNAL)
             ANS=DSIGN(ANS,TS(I))
@@ -318,8 +318,10 @@ C     Amplitude(s) for diagram number 2
 C     Amplitude(s) for diagram number 3
       CALL FFV1_0(W(1,5),W(1,2),W(1,3),GQQ,AMP(3))
 C     JAMPs contributing to orders ALL_ORDERS=1
-      JAMP(1,1) = (-1*IMAG1)*AMP(1)+(1)*AMP(3)
-      JAMP(2,1) = (1*IMAG1)*AMP(1)+(1)*AMP(2)
+      JAMP(1,1) = ((0.000000000000000D+00,-1.000000000000000D+00))
+     $ *AMP(1)+AMP(3)
+      JAMP(2,1) = ((0.000000000000000D+00,1.000000000000000D+00))
+     $ *AMP(1)+AMP(2)
 
       MATRIX = 0.D0
       DO M = 1, NAMPSO

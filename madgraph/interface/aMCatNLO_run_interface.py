@@ -1464,6 +1464,8 @@ class AskRunNLO(cmd.ControlSwitch):
 class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCmd):
     """The command line processor of MadGraph"""    
     
+
+    LO = False
     # Truth values
     true = ['T','.true.',True,'true']
     # Options and formats available
@@ -1714,7 +1716,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
             name = 'fo_lhe_postprocessing'
             if name in FO_card:
                 self.run_card.set(name, FO_card[name], user=False)
-                        
+
         return super(aMCatNLOCmd,self).do_treatcards(line, amcatnlo)
     
     ############################################################################
@@ -1793,7 +1795,9 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
             self.exec_cmd('reweight -from_cards', postcmd=False)
             self.exec_cmd('decay_events -from_cards', postcmd=False)
             evt_file = pjoin(self.me_dir,'Events', self.run_name, 'events.lhe')
-        
+            if self.run_card['time_of_flight']>=0:
+                self.exec_cmd("add_time_of_flight --threshold=%s" % self.run_card['time_of_flight'] ,postcmd=False)
+
         if not mode in ['LO', 'NLO', 'noshower', 'noshowerLO'] \
                                                       and not options['parton']:
             self.run_mcatnlo(evt_file, options)
@@ -2072,7 +2076,6 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
                 if fixed_order:
                     lch=len(channels)
                     maxchannels=20    # combine up to 20 channels in a single job
-                    if self.run_card['pineappl']: maxchannels=1
                     njobs=(int(lch/maxchannels)+1 if lch%maxchannels!= 0 \
                            else int(lch/maxchannels))
                     for nj in range(1,njobs+1):
@@ -2299,8 +2302,7 @@ RESTART = %(mint_mode)s
             self.write_nevents_unweighted_file(jobs_to_collect_new,jobs_to_collect)
             self.write_nevts_files(jobs_to_run_new)
         else:
-            if fixed_order and (not self.run_card['pineappl']) \
-               and self.run_card['req_acc_FO'] > 0:
+            if fixed_order and self.run_card['req_acc_FO'] > 0:
                 jobs_to_run_new,jobs_to_collect= \
                     self.split_jobs_fixed_order(jobs_to_run_new,jobs_to_collect)
             self.prepare_directories(jobs_to_run_new,mode,fixed_order)
@@ -3083,7 +3085,7 @@ RESTART = %(mint_mode)s
                 # check for PLUGIN format
                 cluster_class = misc.from_plugin_import(self.plugin_path, 
                                             'new_cluster', cluster_name,
-                                            info = 'cluster handling will be done with PLUGIN: %{plug}s' )
+                                            info = 'cluster handling will be done with PLUGIN: %(plug)s' )
                 if cluster_class:
                     self.cluster = cluster_class(**self.options)
         
@@ -3149,7 +3151,7 @@ RESTART = %(mint_mode)s
         for line in proc_card_lines:
             if line.startswith('generate') or line.startswith('add process'):
                 process = process+(line.replace('generate ', '')).replace('add process ','')+' ; '
-        lpp = {0:'l', 1:'p', -1:'pbar', 2:'elastic photon from p', 3:'elastic photon from e'}
+        lpp = {0:'l', 1:'p', -1:'pbar', 2:'elastic photon from p', 3:'e-', 4:'mu-', -3:'e+', -4:'mu+'}
         if self.ninitial == 1:
             proc_info = '\n      Process %s' % process[:-3]
         else:
@@ -4936,6 +4938,7 @@ RESTART = %(mint_mode)s
                 input_files.append(pdfinput)
             input_files.append(pjoin(os.path.dirname(exe), os.path.pardir, 'reweight_xsec_events'))
             input_files.append(pjoin(cwd, os.path.pardir, 'leshouche_info.dat'))
+            input_files.append(pjoin(cwd, os.path.pardir, 'orderstags_glob.dat'))
             input_files.append(args[0])
             output_files.append('%s.rwgt' % os.path.basename(args[0]))
             output_files.append('reweight_xsec_events.output')
@@ -5174,14 +5177,26 @@ RESTART = %(mint_mode)s
 
         # read the run_card to find if lhapdf is used or not
         if self.run_card['pdlabel'] == 'lhapdf' and \
-                (self.banner.get_detail('run_card', 'lpp1') != 0 or \
-                 self.banner.get_detail('run_card', 'lpp2') != 0):
+                (abs(self.banner.get_detail('run_card', 'lpp1')) not in [0, 3, 4] or \
+                 abs(self.banner.get_detail('run_card', 'lpp2')) not in [0, 3, 4]):
 
             self.link_lhapdf(libdir, [pjoin('SubProcesses', p) for p in p_dirs])
             pdfsetsdir = self.get_lhapdf_pdfsetsdir()
             lhaid_list = self.run_card['lhaid']
             self.copy_lhapdf_set(lhaid_list, pdfsetsdir)
 
+        # this is the case of collision with dressed leptons
+        elif abs(self.banner.get_detail('run_card', 'lpp1')) == \
+             abs(self.banner.get_detail('run_card', 'lpp2')) in [3,4]:
+
+            # force not to use LHAPDF in this case
+            if self.run_card['pdlabel'] == 'lhapdf':
+                raise aMCatNLOError('Usage of LHAPDF with dressed-lepton collisions not possible')
+            # copy the files for the chosen density
+            if self.run_card['pdlabel'] in  sum(self.run_card.allowed_lep_densities.values(),[]):
+                self.copy_lep_densities(self.run_card['pdlabel'], sourcedir)
+
+        # bare leptons, or anything else
         else:
             if self.run_card['lpp1'] == 1 == self.run_card['lpp2']:
                 logger.info('Using built-in libraries for PDFs')
