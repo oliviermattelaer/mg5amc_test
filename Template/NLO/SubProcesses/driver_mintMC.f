@@ -198,7 +198,7 @@ c     Prepare the MINT folding
       ifold(ifold_yij)=iy_ij
 
       ! When already done imode0, must set BornSmearSetup_done to true.
-      if (imode.eq.0) then
+      if (imode.eq.0 .or. (.not. IncludeBornSmear)) then
          BornSmearSetup_done=.false.
       else
          BornSmearSetup_done=.true.

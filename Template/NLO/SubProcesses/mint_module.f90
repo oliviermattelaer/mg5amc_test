@@ -100,6 +100,7 @@ module mint_module
   double precision, dimension(:,:,:,:), public, allocatable :: BornSmear
   logical :: only_virt,new_point,pass_cuts_check
   logical :: BornSmearSetup_done
+  logical,parameter :: IncludeBornSmear=.true.
 
 
 ! private variables
@@ -291,7 +292,7 @@ contains
           ! reset results
           if (double_events) ncalls0=80*ndim*(nchans/3+1)
           call fresh_start
-       elseif (.not.BornSmearSetup_done) then
+       elseif (.not.BornSmearSetup_done .and. IncludeBornSmear) then
           ncalls0=max(ncalls0,BSpoints_min)
           imode=3
           nit=0

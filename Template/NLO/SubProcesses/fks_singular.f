@@ -2786,9 +2786,10 @@ c Main loop over contributions. For H-events we have to check explicitly
 c to which contribution we can sum the current contribution (if any),
 c while for the S-events we can sum it to the 'i_soft' one.
       do i=1,icontr
-         if (itype(i).eq.2 .and. imode.ne.3) then
+         if (itype(i).eq.2 .and. BornSmearSetup_done) then
             BornSmear_wgt=BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
-     $           ,nFKS(i))
+c$$$     $           ,nFKS(i))
+     $           ,1)
             wgts(1,i)=wgts(1,i)*BornSmear_wgt
             do j=1,niproc(i)
                parton_iproc(j,i)= parton_iproc(j,i)*BornSmear_wgt
@@ -2938,7 +2939,6 @@ c on the imode we should or should not include the virtual corrections.
       double precision xi_i_fks_ev,y_ij_fks_ev
       double precision p_i_fks_ev(0:3),p_i_fks_cnt(0:3,-2:2)
       common/fksvariables/xi_i_fks_ev,y_ij_fks_ev,p_i_fks_ev,p_i_fks_cnt
-      double precision bornsmear_weight
 
       iFKS_soft=0
       do i=1,icontr
@@ -3023,12 +3023,18 @@ c
       if (imode.eq.3.and.iFKS_soft.ne.0) then
          i=int(n_BS_yij*(y_ij_fks_ev+1d0)/2d0)+1
          j=int(n_BS_xi*xi_i_fks_ev)+1
-         BornSmear(i,j,iFKS_soft,1)=
-     $        BornSmear(i,j,iFKS_soft,1)+sigint_ABS_noBorn
-         BornSmear(i,j,iFKS_soft,2)=
-     $        BornSmear(i,j,iFKS_soft,2)+sigint_noBorn
-         BornSmear(i,j,iFKS_soft,3)=
-     $        BornSmear(i,j,iFKS_soft,3)+sigint_Born
+         BornSmear(i,j,1,1)=
+     $        BornSmear(i,j,1,1)+sigint_ABS_noBorn
+         BornSmear(i,j,1,2)=
+     $        BornSmear(i,j,1,2)+sigint_noBorn
+         BornSmear(i,j,1,3)=
+     $        BornSmear(i,j,1,3)+sigint_Born
+c$$$         BornSmear(i,j,iFKS_soft,1)=
+c$$$     $        BornSmear(i,j,iFKS_soft,1)+sigint_ABS_noBorn
+c$$$         BornSmear(i,j,iFKS_soft,2)=
+c$$$     $        BornSmear(i,j,iFKS_soft,2)+sigint_noBorn
+c$$$         BornSmear(i,j,iFKS_soft,3)=
+c$$$     $        BornSmear(i,j,iFKS_soft,3)+sigint_Born
       endif
 
 
@@ -3060,7 +3066,7 @@ c
       use mint_module
       implicit none
       include 'nFKSconfigs.inc'
-      integer i,j,iFKS,iiFKS
+      integer i,j,iFKS
       double precision xi,y
       double precision sum_wgts(fks_configs),sum_Born(fks_configs)
       save sum_wgts,sum_Born
@@ -3068,20 +3074,16 @@ c
       data firsttime/fks_configs*.true./
 
       if(.not.BornSmearSetup_done) then
-         bornsmear_weight=1d0
-         return
+         write (*,*) 'BornSmear must be setup before '/
+     $        /'calling BornSmear_weight'
+         stop 1
       endif
 c
 c     compute weight normalisation
       if (firsttime(iFKS)) then
-         do iiFKS=1,fks_configs
-            do j=1,n_BS_xi
-               do i=1,n_BS_yij
-                  BornSmear(i,j,iiFKS,0)=
-     &               (BornSmear(i,j,iiFKS,1)-BornSmear(i,j,iiFKS,2))/2d0
-               enddo
-            enddo
-         enddo
+         BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,0)=
+     &        ( BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,1) -
+     &          BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,2)   ) /2d0
          sum_wgts(iFKS)=sum(BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,0))
          sum_Born(iFKS)=sum(BornSmear(1:n_BS_yij,1:n_BS_xi,iFKS,3))
 c     check
