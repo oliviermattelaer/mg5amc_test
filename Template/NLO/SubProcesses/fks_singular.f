@@ -2788,8 +2788,8 @@ c while for the S-events we can sum it to the 'i_soft' one.
       do i=1,icontr
          if (itype(i).eq.2 .and. BornSmearSetup_done) then
             BornSmear_wgt=BornSmear_weight(xi_i_fks_ev,y_ij_fks_ev
-c$$$     $           ,nFKS(i))
-     $           ,1)
+     $           ,nFKS(i))
+c$$$  $           ,1)
             wgts(1,i)=wgts(1,i)*BornSmear_wgt
             do j=1,niproc(i)
                parton_iproc(j,i)= parton_iproc(j,i)*BornSmear_wgt
@@ -2943,10 +2943,10 @@ c on the imode we should or should not include the virtual corrections.
       iFKS_soft=0
       do i=1,icontr
          ! THIS DEFINES iFKS_soft, WHICH IS THE FKS-CONFIGURATION OF THE S-EVENT.
-         iFKS_soft=nFKS(i)
-         if(itype(i).ge.2 .and. itype(i).le.7 .or. itype(i).eq.11 .or.
-     $        itype(i).eq.12.or. itype(i).eq.14 .or. itype(i).eq.15)
-     $        exit
+         if(itype(i).eq.2) then
+            iFKS_soft=nFKS(i)
+            exit
+         endif
       enddo
 
       
@@ -3023,18 +3023,18 @@ c
       if (imode.eq.3.and.iFKS_soft.ne.0) then
          i=int(n_BS_yij*(y_ij_fks_ev+1d0)/2d0)+1
          j=int(n_BS_xi*xi_i_fks_ev)+1
-         BornSmear(i,j,1,1)=
-     $        BornSmear(i,j,1,1)+sigint_ABS_noBorn
-         BornSmear(i,j,1,2)=
-     $        BornSmear(i,j,1,2)+sigint_noBorn
-         BornSmear(i,j,1,3)=
-     $        BornSmear(i,j,1,3)+sigint_Born
-c$$$         BornSmear(i,j,iFKS_soft,1)=
-c$$$     $        BornSmear(i,j,iFKS_soft,1)+sigint_ABS_noBorn
-c$$$         BornSmear(i,j,iFKS_soft,2)=
-c$$$     $        BornSmear(i,j,iFKS_soft,2)+sigint_noBorn
-c$$$         BornSmear(i,j,iFKS_soft,3)=
-c$$$     $        BornSmear(i,j,iFKS_soft,3)+sigint_Born
+c$$$         BornSmear(i,j,1,1)=
+c$$$     $        BornSmear(i,j,1,1)+sigint_ABS_noBorn
+c$$$         BornSmear(i,j,1,2)=
+c$$$     $        BornSmear(i,j,1,2)+sigint_noBorn
+c$$$         BornSmear(i,j,1,3)=
+c$$$     $        BornSmear(i,j,1,3)+sigint_Born
+         BornSmear(i,j,iFKS_soft,1)=
+     $        BornSmear(i,j,iFKS_soft,1)+sigint_ABS_noBorn
+         BornSmear(i,j,iFKS_soft,2)=
+     $        BornSmear(i,j,iFKS_soft,2)+sigint_noBorn
+         BornSmear(i,j,iFKS_soft,3)=
+     $        BornSmear(i,j,iFKS_soft,3)+sigint_Born
       endif
 
 
