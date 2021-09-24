@@ -100,6 +100,7 @@ VVVV5 = Lorentz(name = 'VVVV5',
                 spins = [ 3, 3, 3, 3 ],
                 structure = 'Metric(1,4)*Metric(2,3) - (Metric(1,3)*Metric(2,4))/2. - (Metric(1,2)*Metric(3,4))/2.')
 
+# AL: 4g vertex colour ordered. Extra overall factor of 2 from TR=1/2. Can I find a better wait to include this?
 VVVV6 = Lorentz(name = 'VVVV6',
                 spins = [ 3, 3, 3, 3 ],
-                structure = '2.*Metric(1,3)*Metric(2,4) - (Metric(1,2)*Metric(3,4)) - (Metric(1,4)*Metric(2,3))')
+                structure = '2*(2.*Metric(1,3)*Metric(2,4) - (Metric(1,2)*Metric(3,4)) - (Metric(1,4)*Metric(2,3)))')

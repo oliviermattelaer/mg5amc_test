@@ -418,9 +418,6 @@ class ColorOrderedLeg(base_objects.Leg):
         # For colored particles: {Cycle: (upper, lower)}
         # For color singlets: {}
         self['color_ordering'] = {}
-
-        # Flag to keep track of which flow file to go into
-        self['flow_num'] = {}
     
     def filter(self, name, value):
         """Filter for valid amplitude property values."""
@@ -436,9 +433,8 @@ class ColorOrderedLeg(base_objects.Leg):
     def get_sorted_keys(self):
         """Return particle property names as a nicely sorted list."""
 
-        # had to add flow_num to sorted keys
         return ['id', 'number', 'state', 'from_group',
-                'color_ordering', 'flow_num']
+                'color_ordering']
 
 #===============================================================================
 # ColorOrderedAmplitude
@@ -481,22 +477,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                                 for cf in self.get('color_flows')],[]))
         return super(ColorOrderedAmplitude, self).get(name)
 
-    def track_perms(self, perm_ids):
-        same_perms = [-1]*len(perm_ids)
-        perm_counter = 0
-        for i in range(len(same_perms)):
-            if same_perms[i] != -1: continue
-            same_perms[i] = copy.copy(perm_counter)
-            for j in range(1,len(same_perms)):
-                if perm_ids[j] == perm_ids[i]:
-                    same_perms[j] = same_perms[i]
-            perm_counter+=1
-
-        ### WARNING!! TODO: make this work for same-flav quarks!!!
-        misc.sprint('WARNING: If same-flav quarks track_perms will not work properly. To fix!')
-
-        return same_perms
-
     def generate_diagrams(self, diagram_filter=None):
         """Add singlets for each color octet in model. Setup
         ColorOrderedFlows corresponding to all color flows of this
@@ -509,7 +489,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
         process = self.get('process')
 
         if diagram_filter:
-            raise Exception("no diagram filter allowed in this mode")
+            raise Exeception("no diagram filter allowed in this mode")
         # Check that this is a valid process
         if not process.check_valid_process():
             return base_objects.DiagramList()
@@ -525,7 +505,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
 
         legs = base_objects.LegList([copy.copy(l) for l in \
                                      process.get('legs')])
-        # misc.sprint(legs, 'in generate diagrams')
 
         if not isinstance(process.get('model'), ColorOrderedModel):
             process.set('model', ColorOrderedModel(process.get('model')))
@@ -589,16 +568,12 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
             # Permutations with same flavor ordering as existing perm
             # are kept in same_flavor_perms
             perm_ids = array.array('i', [p[1] for p in perm])
-            # misc.sprint(perm_ids)
             try:
                 ind = good_perm_ids.index(perm_ids)
-                misc.sprint(ind)
                 same_flavor_perms[ind].append([p[0] for p in perm] + \
                                               [last_leg[0][0]] + \
                                               [l[0] for l in singlet_legs])
-
-                # misc.sprint(same_flavor_perms[ind])
-                # continue
+                continue
             except ValueError:
                 pass
             
@@ -622,26 +597,15 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
             same_flavor_perms[len(leg_perms)] = [[p[0] for p in perm] + \
                                                  [last_leg[0][0]] + \
                                                  [l[0] for l in singlet_legs]]
-            # misc.sprint(same_flavor_perms[len(leg_perms)])
-            misc.sprint(same_flavor_perms)
             # Add permutation ids for comparison above
             good_perm_ids.append(perm_ids)
-            misc.sprint(good_perm_ids)
             # Add permutation to accepted permutations
             leg_perms.append(perm)
-
-
-        # get the list of indices showing unique flow.f files
-        # This needs to be put in the correct/logical place
-        flow_nums=self.track_perms(good_perm_ids)
-        misc.sprint(flow_nums)
-
 
         # Create color flow amplitudes corresponding to all resulting
         # permutations
         color_flows = ColorOrderedFlowList()
         colegs = base_objects.LegList([ColorOrderedLeg(l) for l in legs])
-        # misc.sprint(colegs,'in generate diagrams')
 
         # Set color flow flags (color_ordering) so that every
         # chain (3 8 8 .. 8 3bar) has a unique color ordering
@@ -657,7 +621,7 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                 # Keep track of number of triplets
                 ichain = 0
                 ileg = 0
-                # Set color ordering and flow number flags for all colored legs
+                # Set color ordering flags for all colored legs
                 for perm_leg in list(perm) + last_leg:
                     leg = colegs[perm_leg[0]-1]
                     if perm_leg[2] == 3:
@@ -665,7 +629,6 @@ class ColorOrderedAmplitude(diagram_generation.Amplitude):
                         ileg = 0
                     ileg += 1
                     leg.set('color_ordering', {ichain: (ileg, ileg)})
-                    leg.set('flow_num',flow_nums[iperm]+1)
 
                 # Restore initial state leg identities
                 for leg in colegs:
@@ -897,14 +860,11 @@ class ColorOrderedFlow(diagram_generation.Amplitude):
         """Allow color-ordered initialization with Process"""
 
         if isinstance(argument, base_objects.Process):
-            # misc.sprint('isInstance of bases_objects.Process')
             super(ColorOrderedFlow, self).__init__()
             self.set('process', argument)
             # Set max color order for all color ordering groups
             legs = argument.get('legs')
-            misc.sprint(legs)
             groups = set(sum([list(l.get('color_ordering').keys()) for l in legs],[]))
-            misc.sprint(groups)
             self.set('max_color_orders', dict( \
                 [(g, max([l.get('color_ordering')[g][0] for l \
                       in legs if g in l.get('color_ordering')]))\

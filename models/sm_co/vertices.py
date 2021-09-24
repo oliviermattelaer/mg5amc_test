@@ -227,7 +227,7 @@ V_36 = Vertex(name = 'V_36',
 
 V_37 = Vertex(name = 'V_37',
               particles = [ P.g, P.g, P.g, P.g ],
-              color = [ 'Tr(1,2,3,4)' ],
+              color = [ 'Tr(4,3,2,1)' ],
               lorentz = [ L.VVVV6 ],
               couplings = {(0,0):C.GC_12})
 
