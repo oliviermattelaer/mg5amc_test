@@ -132,6 +132,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Extract JAMP lines
         jamp_lines, nb_tmp_jamp = self.get_JAMP_lines(flow)
         jamp_lines_temp = self.get_permuted_jamp_lines(jamp_lines, calls_dict)
+        # Test jamp permutation dict
+        self.get_jamp_dict(calls_dict, flow)
         misc.sprint(jamp_lines, jamp_lines_temp)
         # replace_dict['jamp_lines'] = '\n'.join(jamp_lines)
         replace_dict['jamp_lines'] = '\n'.join(jamp_lines_temp)
@@ -164,7 +166,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # Write the file
         writer.writelines(file)
-        misc.sprint([call for call in helas_calls if call.find('#') != 0])
+        # misc.sprint([call for call in helas_calls if call.find('#') != 0])
 
         return len([call for call in helas_calls if call.find('#') != 0])
 
@@ -387,8 +389,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             curr_dict = jamp_dict[ijamp + 1]
             # replace amps with permuted amps
             for key in curr_dict[1]:
-                misc.sprint(type(key), key, type(amp_sum), amp_sum)
-                misc.sprint(curr_dict)
+                # misc.sprint(type(key), key, type(amp_sum), amp_sum)
+                # misc.sprint(curr_dict)
                 val = curr_dict[1][key]
                 if key in amp_sum:
                     amp_sum = amp_sum.replace(key, val)
@@ -397,6 +399,57 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             jamp_lines_ret[ijamp] += amp_sum
 
         return jamp_lines_ret
+    
+    def get_jamp_dict(self, jamp_dict, flow):
+        (nexternal, ninitial) = flow.get_nexternal_ninitial()
+        perms = flow.get('permutations')
+        nperms = len(flow.get('permutations'))
+
+        # make dict of permuted jamps
+        jamp_perm_dict = {}
+        
+        # loop over permutations/jamps
+        for ijamp in jamp_dict:
+            # make dictionary of external wavefunction permutations
+            w_dict_tmp = {}
+            for ikey, key in enumerate(jamp_dict[ijamp][0]):
+                # only want to track permutations of external particles
+                if ikey >= nexternal: 
+                    continue
+                val = jamp_dict[ijamp][0][key]
+                # get just numbers, not W(1,num) etc.
+                key = int(key[-2])
+                val = int(val[-2])
+                w_dict_tmp[key] = val
+            #     misc.sprint(ijamp,ikey,key, val)
+            # misc.sprint(w_dict_tmp, perms[ijamp-1])
+            # loop over perms for this ijamp to find which corresponds to which jamp
+            jamp_perms_temp = {}
+            # get a list of external particle orders for each jamp
+            ext_nums = []
+            for i in range(nperms):
+                ext_nums_tmp = []
+                for inum in perms[i]:
+                    ext_nums_tmp.append(w_dict_tmp[inum])
+                ext_nums.append(ext_nums_tmp)
+                    
+            
+            # put the list of particle orders into the jamp dictionary
+            ind_list = []
+            for iperm, perm in enumerate(perms):
+                ind_list.append(ext_nums.index(perm)+1)
+                # misc.sprint(iperm, ind_list)
+                jamp_perms_temp[iperm+1] = ind_list[iperm]
+            # misc.sprint(jamp_perms_temp)
+            # misc.sprint(ind_list)
+            # misc.sprint(ijamp-1, perms[ijamp-1])
+            # misc.sprint(ext_nums)
+            jamp_perm_dict[ijamp] = jamp_perms_temp
+        misc.sprint(jamp_perm_dict)
+
+
+
+        return jamp_perm_dict
 
     def get_ic_data_line(self, flow):
         """Get the IC line, giving sign for external HELAS wavefunctions"""
