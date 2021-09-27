@@ -31,7 +31,7 @@ C
 C  
 C LOCAL VARIABLES 
 C  
-      INTEGER NHEL(NEXTERNAL,NCOMB),NTRY
+      INTEGER NHEL(NEXTERNAL,NCOMB),NTRY, JPERM(NPERMS,NPERMS)
       REAL*8 T
       REAL*8 MATRIX
       COMPLEX*16 JAMP(NPERMS)
@@ -41,6 +41,7 @@ C
       DATA GOODHEL/NCOMB*.FALSE./
 %(helicity_lines)s
 %(den_factor_line)s
+%(jamp_perm_lines)s
 
 
 C ----------
@@ -53,7 +54,7 @@ C ----------
                T=0d0
                %(call_flow_lines)s
                DO I=1,ICO
-                  T=T+MATRIX(P , NHEL(1,IHEL), I, JAMP)
+                  T=T+MATRIX(P , NHEL(1,IHEL), I, JPERM, JAMP)
                ENDDO
                ANS=ANS+T
                IF (T .NE. 0D0 .AND. .NOT.    GOODHEL(IHEL)) THEN
@@ -65,7 +66,7 @@ C ----------
       END
        
 C     -----------------------------------
-      REAL*8 FUNCTION MATRIX(P, NHEL, ICO, JAMP)
+      REAL*8 FUNCTION MATRIX(P, NHEL, ICO, JPERM, JAMP)
 C     -----------------------------------
 C
 C Returns amplitude squared summed/avg over colors
@@ -88,7 +89,7 @@ C
 C ARGUMENTS 
 C  
       REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL),ICO
+      INTEGER NHEL(NEXTERNAL),ICO, JPERM(NPERMS,NPERMS)
       COMPLEX*16 JAMP(NPERMS)
 C  
 C LOCAL VARIABLES 

@@ -133,7 +133,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         jamp_lines, nb_tmp_jamp = self.get_JAMP_lines(flow)
         jamp_lines_temp = self.get_permuted_jamp_lines(jamp_lines, calls_dict)
         # Test jamp permutation dict
-        self.get_jamp_dict(calls_dict, flow)
+        self.get_jamp_dict(flow)
         misc.sprint(jamp_lines, jamp_lines_temp)
         # replace_dict['jamp_lines'] = '\n'.join(jamp_lines)
         replace_dict['jamp_lines'] = '\n'.join(jamp_lines_temp)
@@ -400,7 +400,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return jamp_lines_ret
     
-    def get_jamp_dict(self, jamp_dict, flow):
+    def get_jamp_dict(self, flow):
         (nexternal, ninitial) = flow.get_nexternal_ninitial()
         perms = flow.get('permutations')
         nperms = len(flow.get('permutations'))
@@ -409,47 +409,75 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         jamp_perm_dict = {}
         
         # loop over permutations/jamps
-        for ijamp in jamp_dict:
+        for ijamp in range(1,nperms+1):
             # make dictionary of external wavefunction permutations
             w_dict_tmp = {}
-            for ikey, key in enumerate(jamp_dict[ijamp][0]):
-                # only want to track permutations of external particles
-                if ikey >= nexternal: 
-                    continue
-                val = jamp_dict[ijamp][0][key]
-                # get just numbers, not W(1,num) etc.
-                key = int(key[-2])
-                val = int(val[-2])
-                w_dict_tmp[key] = val
-            #     misc.sprint(ijamp,ikey,key, val)
-            # misc.sprint(w_dict_tmp, perms[ijamp-1])
+            for i in range(nexternal):
+                w_dict_tmp[i+1] = perms[ijamp-1][i]
+            # for ikey, key in enumerate(jamp_dict[ijamp][0]):
+            #     # only want to track permutations of external particles
+            #     if ikey >= nexternal: 
+            #         continue
+            #     val = jamp_dict[ijamp][0][key]
+            #     # get just numbers, not W(1,num) etc.
+            #     # first get num)
+            #     key = key.split(',')[1]
+            #     val = val.split(',')[1]
+            #     # now get num
+            #     key = int(key.split(')')[0])
+            #     val = int(val.split(')')[0])
+            #     w_dict_tmp[key] = val
+            #     # misc.sprint(key,val)
+            # misc.sprint(w_dict_tmp)
+
             # loop over perms for this ijamp to find which corresponds to which jamp
             jamp_perms_temp = {}
-            # get a list of external particle orders for each jamp
+            # get a list of external particle orderings for each jamp
             ext_nums = []
             for i in range(nperms):
                 ext_nums_tmp = []
                 for inum in perms[i]:
                     ext_nums_tmp.append(w_dict_tmp[inum])
                 ext_nums.append(ext_nums_tmp)
+            # misc.sprint(ext_nums)
                     
             
-            # put the list of particle orders into the jamp dictionary
+            # put the list of particle orderings into the jamp dictionary
             ind_list = []
             for iperm, perm in enumerate(perms):
                 ind_list.append(ext_nums.index(perm)+1)
                 # misc.sprint(iperm, ind_list)
                 jamp_perms_temp[iperm+1] = ind_list[iperm]
-            # misc.sprint(jamp_perms_temp)
-            # misc.sprint(ind_list)
-            # misc.sprint(ijamp-1, perms[ijamp-1])
-            # misc.sprint(ext_nums)
+
             jamp_perm_dict[ijamp] = jamp_perms_temp
         misc.sprint(jamp_perm_dict)
 
 
+            # misc.sprint(test_dict)
+            # misc.sprint(ijamp)
+            
 
         return jamp_perm_dict
+
+    def get_jamp_data_lines(self, flow):
+        """Get the permutations needed to permute JAMPs"""
+        
+        # get jamp dict to be printed as DATA
+        permuted_jamp_dict = self.get_jamp_dict(flow)
+        nperms = len(permuted_jamp_dict)
+        
+        # return data a list
+        jamp_data_list = []
+
+        for irow in permuted_jamp_dict:
+            # get list of permuted jamps for this row
+            jperm_list = [int(val) for val in permuted_jamp_dict[irow].values()]
+            jamp_data_list.append(\
+                "DATA (JPERM(I, %d),I=1,%d)"  % (irow,nperms)
+                + " /" + ",".join(['%d' % iperm for iperm in jperm_list]) + "/" )
+        misc.sprint(jamp_data_list)
+
+        return jamp_data_list
 
     def get_ic_data_line(self, flow):
         """Get the IC line, giving sign for external HELAS wavefunctions"""
@@ -483,6 +511,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # the basic color flows
         needed_perms = sorted(list(set([icol // nflows for (icol, irow) in \
                                         color_matrix.keys()])))
+        misc.sprint(needed_perms)
         nperms = len(needed_perms)
         all_perms = matrix_element.get('permutations')
 
@@ -525,23 +554,33 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             # (used for the flow call lines generated below)
             if not iflow in [i for (i,n,c) in \
                              perm_needed_flows.setdefault(iperm, [])]:
+                misc.sprint(iperm)
                 jamp += 1
-                perm_needed_flows[iperm].append((iflow, jamp,
+                # perm_needed_flows[iperm].append((iflow, jamp,
+                #                          perm_flow_factors[(iperm, iflow)]))
+                # AL: Keep perm number rather than starting from 1 again
+                perm_needed_flows[iperm].append((iflow, iperm,
                                          perm_flow_factors[(iperm, iflow)]))
                 if iperm == 0: flow_jamp_dict[iflow] = jamp
 
             # Make sure that also the basic flow is included
             if not irow in [i for (i,n,c) in perm_needed_flows[0]]:
                 jamp += 1
-                perm_needed_flows[0].append((irow, jamp, 
+                # perm_needed_flows[0].append((irow, jamp, 
+                #                              perm_flow_factors[(0, irow)]))
+                # AL: Keep perm number rather than starting from 1 again
+                perm_needed_flows[0].append((irow, iperm, 
                                              perm_flow_factors[(0, irow)]))
                 flow_jamp_dict[irow] = jamp
             # Add the factor needed for this JAMP
             row_flow_factors.setdefault(irow, []).append(\
                             (row_Nc,
-                             jamp if iperm > 0 else flow_jamp_dict[iflow],
+                            #  jamp if iperm > 0 else flow_jamp_dict[iflow],
+                             iperm+1,
                              color_matrix.col_matrix_fixed_Nc[(icol, irow)][0],
                              flow_Nc))
+
+        misc.sprint(jamp, needed_perms, perm_needed_flows, row_flow_factors, flow_jamp_dict)
 
         return jamp, needed_perms, perm_needed_flows, row_flow_factors, \
                flow_jamp_dict
@@ -552,11 +591,13 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         all_perms = matrix_element.get('permutations')
         nexternal = len(all_perms[0])
+        misc.sprint(needed_perms)
 
         # The data lines giving the needed permutations
         iperm_line_list = []
         for iperm, perm in enumerate(needed_perms):
             int_list = [iperm+1, nexternal]
+            # int_list = [needed_perms[iperm]+1, nexternal]
             int_list.extend(all_perms[perm])
             iperm_line_list.append(\
                 ("DATA (PERMS(I,%4r),I=1,%d) /" + \
@@ -620,13 +661,17 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return flow_call_lines
 
-    def get_color_flow_lines(self, row_flow_factors, flow_jamp_dict, min_color_order):
+    def get_color_flow_lines(self, row_flow_factors, flow_jamp_dict, min_color_order, flow):
         """Write summation of all color flows. Need to multiply by
         fermion permutation factor for this color flow to get right
         sign."""
         
         # The color matrix summation lines for the basic color flows
         color_sum_lines = []
+
+        nperms = len(flow.get('permutations'))
+
+        misc.sprint(row_flow_factors)
         
         # Go through the rows and output the explicit color matrix
         # summation for this line
@@ -636,6 +681,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             else:
                 color_sum_lines.append("ELSE IF(ICO.EQ.%d) THEN" % \
                                        (1 - (color_order / 2)))
+            # Loop over rows of colour matrix
+            color_sum_lines.append("DO I=1, %d" % nperms)
             for irow in sorted(row_flow_factors.keys()):
                 orders = [n for (i,j,c,n) in row_flow_factors[irow] if \
                           int(n)//2 == int(color_order)//2]
@@ -644,14 +691,15 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 # Get denominator and flows for this color_order
                 den, factor_dict = self.organize_row(row_flow_factors[irow],
                                                      color_order)
+                misc.sprint(factor_dict)
                 
                 color_sum_lines.append(\
-                    'ZTEMP = ZTEMP+%(den)s*JAMP(%(jamp)d)*DCONJG(%(flows)s)' % \
+                    'ZTEMP = ZTEMP+%(den)s*JAMP(JPERM(%(jamp)d,I))*DCONJG(%(flows)s)' % \
                     {'den': self.fraction_to_string(den),
                      'jamp': flow_jamp_dict[irow],
                      'flows': "+".join(['%s*(%s)' % \
                                     (self.fraction_to_string(fact),\
-                                     "+".join(["%d*JAMP(%d)" % i for i in \
+                                     "+".join(["%d*JAMP(JPERM(%d,I))" % i for i in \
                                                factor_dict[fact]])) for fact \
                                     in sorted(list(factor_dict.keys()), reverse=True)])})
                 color_sum_lines[-1] = color_sum_lines[-1].replace('+-1*', '-')
@@ -661,7 +709,9 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 color_sum_lines[-1] = color_sum_lines[-1].replace('+-', '-')
                 color_sum_lines[-1] = color_sum_lines[-1].replace('+1D0*', '+')
                 color_sum_lines[-1] = color_sum_lines[-1].replace('/1*', '*')
-            color_sum_lines.append("ENDIF")
+            color_sum_lines.append("ENDDO")
+            if color_order == min_color_order:
+                color_sum_lines.append("ENDIF")
         return color_sum_lines
 
     @staticmethod
@@ -903,19 +953,23 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         flow_call_lines = self.get_flow_call_lines(needed_perms,perm_needed_flows, 
                                                    min_color_order)
         color_sum_lines = self.get_color_flow_lines(row_flow_factors,
-                                                    flow_jamp_dict, min_color_order)
-        misc.sprint(color_sum_lines)
+                                                    flow_jamp_dict, min_color_order,
+                                                    matrix_element)
+        # misc.sprint(color_sum_lines)
         call_flow_lines = self.get_call_flow_lines(matrix_element)
+        jamp_perm_lines = self.get_jamp_data_lines(matrix_element)
 
 
         replace_dict['flow_perms_data_lines'] = '\n'.join(flow_perms_data_lines)
         replace_dict['flow_iferm_data_line'] = flow_iferm_data_line
         replace_dict['nflowperms'] = nflowperms
         replace_dict['flow_call_lines'] = '\n'.join(flow_call_lines)
+        # AL: replaced color_sum_lines for new version
         replace_dict['color_sum_lines'] = '\n'.join(color_sum_lines)
         replace_dict['nflows'] = nflows
         replace_dict['color_order'] = matrix_element.get('color_order')
         replace_dict['call_flow_lines'] = '\n'.join(call_flow_lines)
+        replace_dict['jamp_perm_lines'] = '\n'.join(jamp_perm_lines)
 
 
         # Extract the info about which particles should be permuted
@@ -1387,13 +1441,17 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                                                    perm_needed_flows, min_color_order,
                                                    me_flag)
         color_sum_lines = self.get_color_flow_lines(row_flow_factors,
-                                                    flow_jamp_dict, min_color_order)
+                                                    flow_jamp_dict, min_color_order,
+                                                    matrix_element)
+        jamp_perm_lines = self.get_jamp_data_lines(matrix_element)
         call_flow_lines = self.get_call_flow_lines(matrix_element)
         replace_dict['flow_perms_data_lines'] = '\n'.join(flow_perms_data_lines)
         replace_dict['flow_iferm_data_line'] = flow_iferm_data_line
         replace_dict['nflowperms'] = nflowperms
         replace_dict['flow_call_lines'] = '\n'.join(flow_call_lines)
+        # AL: replaced color_sum_lines for new version
         replace_dict['color_sum_lines'] = '\n'.join(color_sum_lines)
+        replace_dict['jamp_perm_lines'] = '\n'.join(jamp_perm_lines)
         replace_dict['njamps'] = njamps
         replace_dict['call_flow_lines'] = '\n'.join(call_flow_lines)
 
