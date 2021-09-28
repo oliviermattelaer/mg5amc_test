@@ -221,6 +221,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # keep track of number of amps
         namps = len(amp_dict)
+        misc.sprint(namps)
 
         # get helas calls for amps
         helas_calls_amps = copy.copy(helas_calls[nwfs:])
@@ -332,14 +333,17 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 # get current call minus amp
                 amp = helas_calls_copy[iamp].split(',')[-1]
                 curr_call_less_amp = helas_calls_copy[iamp].replace(amp,'')
-
+                
                 # loop over already used calls to see if this call exists
                 for call in helas_calls_amps_only:
                     # misc.sprint(call)
                     # if call exists, update dictionary to map to that call
                     if curr_call_less_amp in call:
                         amp = call.split(',')[-1]
-                        amp_dict[iamp] = amp
+                        iAMP = 'AMP(' + str(iamp+1) + ')'
+                        iAMPN = amp[:-1]
+                        # amp_dict[iamp] = amp
+                        amp_dict[iAMP] = iAMPN
                         break
                     # else call doesn't exist yet, create it and give amp new number
                 else:
@@ -357,8 +361,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             # add dictionaries to jamp dictionary
             perm_dicts[iperm + 1] = wf_dict, amp_dict
         
-        misc.sprint(helas_calls_wfs)
-        misc.sprint(helas_calls_amps_only)
+        # misc.sprint(helas_calls_wfs)
+        # misc.sprint(helas_calls_amps_only)
 
 
         misc.sprint(perm_dicts)
@@ -376,6 +380,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         return helas_calls_permuted, perm_dicts, nwfs, namps
 
     def get_permuted_jamp_lines(self, jamp_lines, jamp_dict):
+        """return jamp lines after W->WN, AMP -> AMPN permutations"""
         
         # get list of jamps
         jamp_lines_ret = ['JAMP(' + str(i+1) + ')' for i in range(len(jamp_dict))]
@@ -387,6 +392,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             amp_sum = jamp_lines[0].replace('JAMP(1)','')
             # get dictionary with amps for this jamp
             curr_dict = jamp_dict[ijamp + 1]
+            misc.sprint(ijamp, len(jamp_dict), curr_dict)
             # replace amps with permuted amps
             for key in curr_dict[1]:
                 # misc.sprint(type(key), key, type(amp_sum), amp_sum)
@@ -401,6 +407,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         return jamp_lines_ret
     
     def get_jamp_dict(self, flow):
+        """Get dictionary of jamp permutations for a given row of the 
+        colour matrix. I.e., the standard trace basis colour matrix """
         (nexternal, ninitial) = flow.get_nexternal_ninitial()
         perms = flow.get('permutations')
         nperms = len(flow.get('permutations'))
@@ -450,12 +458,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 jamp_perms_temp[iperm+1] = ind_list[iperm]
 
             jamp_perm_dict[ijamp] = jamp_perms_temp
-        misc.sprint(jamp_perm_dict)
-
-
-            # misc.sprint(test_dict)
-            # misc.sprint(ijamp)
-            
+        misc.sprint(jamp_perm_dict)            
 
         return jamp_perm_dict
 
@@ -575,6 +578,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             # Add the factor needed for this JAMP
             row_flow_factors.setdefault(irow, []).append(\
                             (row_Nc,
+                            # AL: Keep perm number rather than starting from 1 again
                             #  jamp if iperm > 0 else flow_jamp_dict[iflow],
                              iperm+1,
                              color_matrix.col_matrix_fixed_Nc[(icol, irow)][0],
