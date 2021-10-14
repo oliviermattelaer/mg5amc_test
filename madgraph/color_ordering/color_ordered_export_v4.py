@@ -178,9 +178,10 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         perms = flow.get('permutations')
         nperms = len(perms)
         (nexternal, ninitial) = flow.get_nexternal_ninitial()
+        flow_num = flow.get('number')
 
    
-        misc.sprint(nperms, perms)
+        misc.sprint(nperms, perms, flow_num)
 
         # replace IP(num) with num
         # TODO: Learn how to REGEX to get rid of everything except the number
@@ -191,7 +192,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         perm_dicts = {}
 
         # first go through initial permutation
-        jamp_num = 1
+        jamp_num = 1 + nperms*(flow_num-1)
+        misc.sprint(jamp_num)
         wf_dict = {}
         amp_dict = {}
 
@@ -359,7 +361,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         
                     
             # add dictionaries to jamp dictionary
-            perm_dicts[iperm + 1] = wf_dict, amp_dict
+            perm_dicts[iperm + 1 + nperms*(flow_num-1)] = wf_dict, amp_dict
         
         # misc.sprint(helas_calls_wfs)
         # misc.sprint(helas_calls_amps_only)
@@ -383,15 +385,22 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         """return jamp lines after W->WN, AMP -> AMPN permutations"""
         
         # get list of jamps
-        jamp_lines_ret = ['JAMP(' + str(i+1) + ')' for i in range(len(jamp_dict))]
+        jamp_lines_ret = ['JAMP(' + str(i) + ')' for i in jamp_dict]
+        misc.sprint(jamp_lines_ret)
         
         # loop through jamps and use dictionary to replace amps in amp_sum with 
         # those from dictionary
-        for ijamp in range(len(jamp_dict)):
+        misc.sprint(jamp_dict)
+        # for ijamp in range(len(jamp_dict)):
+        # counter for jamps in given flow file
+        jcounter = 0
+        for ijamp in jamp_dict:
+            misc.sprint(ijamp)
             # get unpermuted amps
             amp_sum = jamp_lines[0].replace('JAMP(1)','')
             # get dictionary with amps for this jamp
-            curr_dict = jamp_dict[ijamp + 1]
+            # curr_dict = jamp_dict[ijamp + 1]
+            curr_dict = jamp_dict[ijamp]
             misc.sprint(ijamp, len(jamp_dict), curr_dict)
             # replace amps with permuted amps
             for key in curr_dict[1]:
@@ -402,7 +411,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                     amp_sum = amp_sum.replace(key, val)
             
             # now add amp_sum to jamp
-            jamp_lines_ret[ijamp] += amp_sum
+            jamp_lines_ret[jcounter] += amp_sum
+            jcounter +=1
 
         return jamp_lines_ret
     
@@ -467,6 +477,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         
         # get jamp dict to be printed as DATA
         permuted_jamp_dict = self.get_jamp_dict(flow)
+        misc.sprint(permuted_jamp_dict)
         nperms = len(permuted_jamp_dict)
         
         # return data a list
@@ -548,6 +559,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
             iperm = icol // nflows
             # iflow is the flow number (for this permutation)
             iflow = icol % nflows
+            misc.sprint(iflow)
 
             # Calculate Nc for this flow in this row
             row_Nc = max([c.Nc_power for c in color_matrix[(icol, irow)]])
@@ -670,6 +682,9 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         fermion permutation factor for this color flow to get right
         sign."""
         
+        misc.sprint([f.get('number') for f in flow.get('color_flows')])
+        misc.sprint(flow_jamp_dict)
+
         # The color matrix summation lines for the basic color flows
         color_sum_lines = []
 
@@ -692,6 +707,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                           int(n)//2 == int(color_order)//2]
                 # Only include lines with relevant flows
                 if not orders: continue
+                misc.sprint(irow)
                 # Get denominator and flows for this color_order
                 den, factor_dict = self.organize_row(row_flow_factors[irow],
                                                      color_order)
@@ -700,7 +716,8 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 color_sum_lines.append(\
                     'ZTEMP = ZTEMP+%(den)s*JAMP(JPERM(%(jamp)d,I))*DCONJG(%(flows)s)' % \
                     {'den': self.fraction_to_string(den),
-                     'jamp': flow_jamp_dict[irow],
+                     'jamp': irow+1,
+                    #  'jamp': flow_jamp_dict[irow],
                      'flows': "+".join(['%s*(%s)' % \
                                     (self.fraction_to_string(fact),\
                                      "+".join(["%d*JAMP(JPERM(%d,I))" % i for i in \
@@ -1560,7 +1577,7 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
                                          group_number):
 
         matrix_elements = subproc_group.get('matrix_elements')
-
+        
         # First generate all files needed except for the flow files
         export_v4.ProcessExporterFortranMEGroup.\
                       generate_subprocess_directory(self,
