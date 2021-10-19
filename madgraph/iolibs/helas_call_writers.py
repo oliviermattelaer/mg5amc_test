@@ -230,18 +230,20 @@ class HelasCallWriter(base_objects.PhysicsObject):
             return self.get_loop_matrix_element_calls(matrix_element)
         
         me = matrix_element.get('diagrams')
-        matrix_element.reuse_outdated_wavefunctions(me)
+        # matrix_element.reuse_outdated_wavefunctions(me)
 
         res = []
         for diagram in matrix_element.get('diagrams'):
             
-            
+            # misc.sprint([wf.get('number') for wf in diagram.get('wavefunctions')])
             res.extend([ self.get_wavefunction_call(wf) for \
                          wf in diagram.get('wavefunctions') ])
             res.append("# Amplitude(s) for diagram number %d" % \
                        diagram.get('number'))
             for amplitude in diagram.get('amplitudes'):
                 res.append(self.get_amplitude_call(amplitude))
+        # misc.sprint(misc.sprint(res))
+            
 
         return res
 
@@ -280,15 +282,16 @@ class HelasCallWriter(base_objects.PhysicsObject):
 
         try:
             #misc.sprint(wavefunction['number_external'])
+            # misc.sprint(wavefunction.get_call_key())
             call = self["wavefunctions"][wavefunction.get_call_key()](\
                                                                    wavefunction)
         except KeyError as error:
             return ""
-        
         if  self.options['zerowidth_tchannel'] and wavefunction.is_t_channel():
             call, n = re.subn(',\s*fk_(?!ZERO)\w*\s*,', ', ZERO,', str(call), flags=re.I)
             if n:
                 self.width_tchannel_set_tozero = True
+        misc.sprint(call)
         return call
         
 
