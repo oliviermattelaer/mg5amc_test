@@ -25,6 +25,8 @@ C
       PARAMETER (ZERO=0D0)
       COMPLEX*16 IMAG1, ONE
       PARAMETER (IMAG1=(0D0,1D0),ONE=(1d0,0d0))
+      INTEGER    IFERM(NJAMPS)
+%(iferm_lines_all)s
 C  
 C ARGUMENTS 
 C  

@@ -291,7 +291,6 @@ class HelasCallWriter(base_objects.PhysicsObject):
             call, n = re.subn(',\s*fk_(?!ZERO)\w*\s*,', ', ZERO,', str(call), flags=re.I)
             if n:
                 self.width_tchannel_set_tozero = True
-        misc.sprint(call)
         return call
         
 
