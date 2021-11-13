@@ -1633,7 +1633,7 @@ class aMCatNLOCmd(CmdExtended, HelpToCmd, CompleteForCmd, common_run.CommonRunCm
             name = 'fo_lhe_postprocessing'
             if name in FO_card:
                 self.run_card.set(name, FO_card[name], user=False)
-                        
+
         return super(aMCatNLOCmd,self).do_treatcards(line, amcatnlo)
     
     ############################################################################
@@ -2963,7 +2963,7 @@ RESTART = %(mint_mode)s
                 # check for PLUGIN format
                 cluster_class = misc.from_plugin_import(self.plugin_path, 
                                             'new_cluster', cluster_name,
-                                            info = 'cluster handling will be done with PLUGIN: %{plug}s' )
+                                            info = 'cluster handling will be done with PLUGIN: %(plug)s' )
                 if cluster_class:
                     self.cluster = cluster_class(**self.options)
         
@@ -3629,22 +3629,25 @@ RESTART = %(mint_mode)s
                     cwd=pjoin(self.me_dir, 'SubProcesses'), nocompile=options['nocompile'])
         p = misc.Popen(['./collect_events'], cwd=pjoin(self.me_dir, 'SubProcesses'),
                 stdin=subprocess.PIPE, 
-                stdout=open(pjoin(self.me_dir, 'collect_events.log'), 'w'))
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
         if event_norm.lower() == 'sum':
-            p.communicate(input = '1\n'.encode())
+            out, err = p.communicate(input = '1\n'.encode())
         elif event_norm.lower() == 'unity':
-            p.communicate(input = '3\n'.encode())
+            out, err = p.communicate(input = '3\n'.encode())
         elif event_norm.lower() == 'bias':
-            p.communicate(input = '0\n'.encode())
+            out, err = p.communicate(input = '0\n'.encode())
         else:
-            p.communicate(input = '2\n'.encode())
-
+            out, err = p.communicate(input = '2\n'.encode())
+        
+        out = out.decode()
+        data = str(out)
         #get filename from collect events
-        filename = open(pjoin(self.me_dir, 'collect_events.log')).read().split()[-1]
-
+        filename = data.split()[-1].strip().replace('\\n','').replace('"','').replace("'",'')
+        
         if not os.path.exists(pjoin(self.me_dir, 'SubProcesses', filename)):
             raise aMCatNLOError('An error occurred during event generation. ' + \
-                    'The event file has not been created. Check collect_events.log')
+                    'The event file has not been created: \n %s' % data)
         evt_file = pjoin(self.me_dir, 'Events', self.run_name, 'events.lhe.gz')
         misc.gzip(pjoin(self.me_dir, 'SubProcesses', filename), stdout=evt_file)
         if not options['reweightonly']:
@@ -5357,7 +5360,7 @@ RESTART = %(mint_mode)s
             passing_cmd.append(mode)
 
         switch, cmd_switch = self.ask('', '0', [], ask_class = self.action_switcher,
-                              mode=mode, force=force,
+                              mode=mode, force=(force or mode),
                               first_cmd=passing_cmd,
                               return_instance=True)
 

@@ -128,7 +128,6 @@ class DiagramTag(object):
 
     def get_external_numbers(self):
         """Get the order of external particles in this tag"""
-
         return self.tag.get_external_numbers()
 
     def diagram_from_tag(self, model):
@@ -355,6 +354,7 @@ class DiagramTagChainLink(object):
         second entry in the end link tuples)"""
 
         if self.end_link:
+            #misc.sprint(self.links[0][1])
             return [self.links[0][1]]
 
         return sum([l.get_external_numbers() for l in self.links], [])
@@ -385,10 +385,12 @@ class DiagramTagChainLink(object):
                 try:
                     return self.vertex_id[0] < other.vertex_id[0]
                 except TypeError as error:
-                    if error.args == "'<' not supported between instances of 'tuple' and 'str'":
+                    if error.args == ("'<' not supported between instances of 'tuple' and 'str'",):
                         return False
-                    else:
+                    elif error.args == ("'<' not supported between instances of 'str' and 'tuple'",):
                         return True
+                    else:
+                        raise Exception
                     
 
         for i, link in enumerate(self.links):
@@ -574,7 +576,7 @@ class Amplitude(base_objects.PhysicsObject):
                                      process.get('overall_orders')[key])
             except KeyError:
                 process.get('orders')[key] = process.get('overall_orders')[key]
-
+                
         assert model.get('particles'), \
            "particles are missing in model: %s" %  model.get('particles')
 
@@ -642,6 +644,7 @@ class Amplitude(base_objects.PhysicsObject):
             if leg.get('number') == 0:
                 leg.set('number', i + 1)
 
+            
         # Copy leglist from process, so we can flip leg identities
         # without affecting the original process
         leglist = self.copy_leglist(process.get('legs'))

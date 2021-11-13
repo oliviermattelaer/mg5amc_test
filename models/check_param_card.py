@@ -549,7 +549,7 @@ class ParamCard(dict):
     def create_diff(self, new_card):
         """return a text file allowing to pass from this card to the new one
            via the set command"""
-        
+
         diff = ''
         for blockname, block in self.items():
             for param in block:
@@ -888,6 +888,11 @@ class ParamCardMP(ParamCard):
                     value = self[block].get(tuple(lhaid)).value
                 except KeyError:
                     value =defaultcard[block].get(tuple(lhaid)).value
+            elif block == 'loop' and lhaid == [1]:
+                try:
+                    value =defaultcard[block].get(tuple(lhaid)).value
+                except:
+                    value = 9.1188    
             else:
                 value =defaultcard[block].get(tuple(lhaid)).value
             #value = str(value).lower()
