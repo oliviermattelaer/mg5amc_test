@@ -84,8 +84,6 @@ C
       PARAMETER (NEXTERNAL=%(nexternal)d)
       INTEGER    NPERMS
       PARAMETER (NPERMS=%(nperms)d) 
-      INTEGER    NFPERMS
-      PARAMETER (NFPERMS=%(nflowperms)d) 
       INTEGER    NJAMPS
       PARAMETER (NJAMPS=%(njampsAL)d)
       
@@ -100,7 +98,6 @@ C LOCAL VARIABLES
 C  
       INTEGER I,J,PERM(NEXTERNAL)
       COMPLEX*16 ZTEMP
-      INTEGER PMFLOW(NFPERMS,NPERMS)
 
       ZTEMP = (0.D0,0.D0)
 %(color_sum_lines)s

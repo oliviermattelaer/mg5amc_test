@@ -341,8 +341,6 @@ C
 C
 C EXTERNAL FUNCTIONS
 C
-      COMPLEX*16 ONEPERM%(proc_id)s
-      EXTERNAL ONEPERM%(proc_id)s
 
 c     Skip calculating amp2s for PS if secondary flows
 if (first) then
@@ -361,60 +359,6 @@ IF(.NOT.FIRSTFLOW) GOTO 10
       ZTEMP=ZTEMP+ONEPERM%(proc_id)s(P,NHEL,PERM,ICO)
       MATRIX%(proc_id)s=REAL(ZTEMP)
 
-      RETURN
-      END
-      
-C     -----------------------------------------------------
-      COMPLEX*16 FUNCTION ONEPERM%(proc_id)s(P,NHEL,PM,ICO)
-C     -----------------------------------------------------
-C
-C Returns the color flows for a given helicity and permutation, 
-C at color order given by ICO
-C  
-%(process_lines)s
-C  
-      IMPLICIT NONE
-C  
-C CONSTANTS
-C  
-      Include 'nexternal.inc'
-      include 'maxamps.inc'
-      INTEGER    NJAMPS
-      PARAMETER (NJAMPS=%(njamps)d) 
-      INTEGER    NPERMS
-      PARAMETER (NPERMS=%(nflowperms)d)
-C  
-C ARGUMENTS 
-C  
-      REAL*8 P(0:3,NEXTERNAL)
-      INTEGER NHEL(NEXTERNAL)
-      INTEGER PM(NEXTERNAL)
-      INTEGER ICO
-C  
-C GLOBAL VARIABLES
-C  
-    DOUBLE PRECISION AMP2(MAXAMPS), JAMP2(0:MAXFLOW)
-    COMMON/TO_AMPS/  AMP2,       JAMP2
-C  
-C LOCAL VARIABLES 
-C  
-      INTEGER I,J
-      COMPLEX*16 ZTEMP
-      COMPLEX*16 JAMP(NJAMPS)
-      INTEGER PERMS(NEXTERNAL,NPERMS),IFERM(NPERMS),PERM(NEXTERNAL)
-%(flow_perms_data_lines)s
-%(flow_iferm_data_line)s
-C
-C EXTERNAL FUNCTIONS
-C
-%(flow_functions_lines)s
-C  
-C GLOBAL VARIABLES
-C  
-      include 'coupl.inc'
-C ----------
-C BEGIN CODE
-C ----------
 %(flow_call_lines)s
       ZTEMP = (0.D0,0.D0)
 %(color_sum_lines)s
@@ -422,53 +366,10 @@ C ----------
 
 %(jamp2_lines)s
 
+
       RETURN
       END
-
-C     ------------------------------------
-      SUBROUTINE GETPERM%(proc_id)s(IPERM,PERM)
-C     ------------------------------------
-C
-C Gives permutation number IPERM. 
-C Return value is the fermion factor due to PERM
-C  
-%(process_lines)s
-C  
-      IMPLICIT NONE
-C  
-C CONSTANTS
-C  
-      Include 'nexternal.inc'
-C  
-C ARGUMENTS 
-C  
-      INTEGER IPERM,PERM(NEXTERNAL)
-C  
-C LOCAL VARIABLES 
-C  
-      INTEGER I,J,IFLAG
-      LOGICAL OK
-      INTEGER COMP(NEXTERNAL)
-%(comp_data_line)s
-C ----------
-C BEGIN CODE
-C ----------
-      DO I=1,NEXTERNAL
-        PERM(I)=I
-      ENDDO
-      I=1
-      DO WHILE(I.LT.IPERM)
-         CALL IPNEXT(PERM,NEXTERNAL,IFLAG)
-	 OK=.TRUE.
-	 DO J=1,NEXTERNAL
-           IF(COMP(PERM(J)).ne.COMP(J))THEN
-              OK=.FALSE.
-              EXIT
-           ENDIF
-	 ENDDO
-         IF(OK) I=I+1
-      ENDDO
-      END
+      
 
     SUBROUTINE SELECT_COLOR_FLOW(NB_TO_SELECT, FLAT, CHANNEL, NSELPERM, JAC)
     IMPLICIT NONE  

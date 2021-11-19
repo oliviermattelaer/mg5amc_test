@@ -14,6 +14,7 @@
 ################################################################################
 """Classes for writing Helas calls. HelasCallWriter is the base class."""
 from __future__ import absolute_import
+from logging import raiseExceptions
 
 
 import re
@@ -27,6 +28,7 @@ import aloha
 from madgraph import MadGraph5Error
 import madgraph.various.misc as misc
 from six.moves import range
+import madgraph.color_ordering.color_ordered_helas_objects as color_ordered_helas_objects
 
 class HelasWriterError(Exception):
     """Class for the error of this module """
@@ -230,7 +232,8 @@ class HelasCallWriter(base_objects.PhysicsObject):
             return self.get_loop_matrix_element_calls(matrix_element)
         
         me = matrix_element.get('diagrams')
-        # matrix_element.reuse_outdated_wavefunctions(me)
+        if not isinstance(matrix_element,  color_ordered_helas_objects.COHelasFlow):
+            matrix_element.reuse_outdated_wavefunctions(me)
 
         res = []
         for diagram in matrix_element.get('diagrams'):
