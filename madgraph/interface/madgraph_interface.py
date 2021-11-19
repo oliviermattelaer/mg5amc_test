@@ -3402,11 +3402,18 @@ This implies that with decay chains:
             remove_ids = args[remove_index + 1:]
             args = args[:remove_index]
 
+        fake = False
+        if "_" in args:
+            args.remove('_')
+            fake = True
+
         pdg_list = self.extract_particle_ids(args[1:])
         remove_list = self.extract_particle_ids(remove_ids)
         pdg_list = [p for p in pdg_list if p not in remove_list]
 
         self.optimize_order(pdg_list)
+        if fake:
+             pdg_list.append(0)
         self._multiparticles[label] = pdg_list
         if log:
             logger.info("Defined multiparticle %s" % \
@@ -3816,12 +3823,13 @@ This implies that with decay chains:
         if self._multiparticles[key] and \
                isinstance(self._multiparticles[key][0], list):
             return "%s = %s" % (key, "|".join([" ".join([self._curr_model.\
-                                     get('particle_dict')[part_id].get_name() \
+                                     get('particle_dict')[part_id].get_name() 
+                                     if part_id is not 0 else "_"\
                                                      for part_id in id_list]) \
                                   for id_list in self._multiparticles[key]]))
         else:
             return "%s = %s" % (key, " ".join([self._curr_model.\
-                                    get('particle_dict')[part_id].get_name() \
+                                    get('particle_dict')[part_id].get_name() if part_id is not 0 else "_" \
                                     for part_id in self._multiparticles[key]]))
 
     def do_tutorial(self, line):

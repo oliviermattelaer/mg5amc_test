@@ -567,7 +567,7 @@ class Amplitude(base_objects.PhysicsObject):
 
         process = self.get('process')
         model = process.get('model')
-        legs = process.get('legs')
+        legs = [l for l in process.get('legs') if l.get('id') !=0]
         # Make sure orders is the minimum of orders and overall_orders
         for key in process.get('overall_orders').keys():
             try:
@@ -1730,13 +1730,18 @@ class MultiProcess(base_objects.PhysicsObject):
                 # Remove double counting between final states
                 if tuple(tag) in red_fsidlist:
                     continue
-                
+
+                # avoid case without any final state (all pid are 0)
+                if all(p==0 for p in prod):
+                    continue
+
                 red_fsidlist.add(tuple(tag))
                 # Generate leg list for process
                 leg_list = [copy.copy(leg) for leg in islegs]
                 leg_list.extend([\
                         base_objects.Leg({'id':id, 'state': True, 'polarization': fslegs[i]['polarization']}) \
-                        for i,id  in enumerate(prod)])
+                        for i,id  in enumerate(prod) if id!=0])
+                
                 
                 legs = base_objects.LegList(leg_list)
 
