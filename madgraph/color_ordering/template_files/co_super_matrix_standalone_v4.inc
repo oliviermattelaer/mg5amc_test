@@ -1,6 +1,6 @@
-C     -------------------------
-      SUBROUTINE SMATRIX(P,ANS)
-C     -------------------------
+C     ------------------------- 
+         SUBROUTINE SMATRIX(P,ANS)
+C     ------------------------
 C  
 %(info_lines)s
 C 
@@ -26,6 +26,10 @@ C
       PARAMETER (NPERMS=%(nperms)d) 
       INTEGER    NJAMPS
       PARAMETER (NJAMPS=%(njampsAL)d)
+      INTEGER NROWS
+      PARAMETER (NROWS=%(nrows)d)
+      INTEGER NCOLS
+      PARAMETER (NCOLS=%(ncols)d)
 C  
 C ARGUMENTS 
 C  
@@ -41,10 +45,9 @@ C
       LOGICAL GOODHEL(NCOMB)
       DATA NTRY/0/
       DATA GOODHEL/NCOMB*.FALSE./
+
 %(helicity_lines)s
 %(den_factor_line)s
-%(jamp_perm_lines)s
-
 
 C ----------
 C BEGIN CODE
@@ -77,7 +80,27 @@ C
 %(process_lines)s
 C  
       IMPLICIT NONE
-C  
+      INTEGER NROWS
+      PARAMETER (NROWS=%(nrows)d)
+      INTEGER NCOLS
+      PARAMETER (NCOLS=%(ncols)d)
+
+      INTEGER LOC(NCOLS,NROWS)
+      REAL*8 CF(NCOLS,NROWS)
+      
+C 
+
+C LOC DATA LINES
+C
+%(loc_data_lines)s
+
+
+C COLOR DATA
+C
+%(color_data_lines)s
+
+
+
 C CONSTANTS
 C  
       INTEGER    NEXTERNAL

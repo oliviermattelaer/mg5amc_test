@@ -8067,6 +8067,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             self._curr_exporter = export_v4.ExportV4Factory(self, noclean, 
                                              group_subprocesses=group_processes,
                                              cmd_options=line_options)
+            misc.sprint(self._curr_exporter)
         elif options['exporter'] == 'cpp':
             self._curr_exporter = export_cpp.ExportCPPFactory(self, group_subprocesses=group_processes,
                                                               cmd_options=line_options)
@@ -8115,9 +8116,12 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             assert self._curr_exporter.exporter == 'v4'
             self._curr_helas_model = helas_call_writers.FortranHelasCallWriter(self._curr_model)
         elif self.options['color_ordering']:
+            misc.sprint('coloring')
             import madgraph.color_ordering.color_ordered_export_v4 as \
                                        color_ordered_export_v4
+            misc.sprint(self._curr_exporter.exporter )
             assert self._curr_exporter.exporter == 'v4'
+            misc.sprint(self._curr_exporter.exporter )
             self._curr_helas_model = color_ordered_export_v4.COFortranUFOHelasCallWriter(self._curr_model)
         else:
             assert self._curr_exporter.exporter == 'v4'
@@ -8270,6 +8274,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
         if self._export_format == 'madevent':
             calls += self._curr_exporter.export_processes(self._curr_matrix_elements,
                                                          self._curr_helas_model)
+            misc.sprint(_curr_exporter)
             
                 #try:
                 #    cmd.Cmd.onecmd(self, 'history .')

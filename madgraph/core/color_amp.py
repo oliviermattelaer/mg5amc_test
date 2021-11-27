@@ -694,6 +694,7 @@ class ColorMatrix(dict):
         the color matrix"""
 
         den_list = []
+
         for i1 in range(len(self._col_basis1)):
             den_list.append(self.lcmm(*[\
                         self.col_matrix_fixed_Nc[(i1, i2)][0].denominator for \

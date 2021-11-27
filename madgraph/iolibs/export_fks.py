@@ -1768,6 +1768,8 @@ end
 
         logger.info('Creating files in directory %s' % name)
 
+        misc.sprint('loop')
+
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
 
@@ -3618,6 +3620,8 @@ class ProcessOptimizedExporterFortranFKS(loop_exporters.LoopProcessOptimizedExpo
             return 0
 
         logger.info('Creating files in directory %s' % name)
+
+        misc.sprint('whoop')
 
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()

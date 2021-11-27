@@ -476,6 +476,7 @@ class ProcessExporterFortran(VirtualExporter):
     def write_matrix_element_v4(self):
         """Function to write a matrix.f file, for inheritance.
         """
+
         pass
 
     #===========================================================================
@@ -1087,7 +1088,8 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
                                      ','.join([("%.15e" % (int(i)/denominator)).replace('e','d') for i in num_list[k:k + n]])))
                 
                 my_cs.from_immutable(sorted(matrix_element.get('color_basis').keys())[index])
-                ret_list.append("C %s" % repr(my_cs))
+
+
             return ret_list
 
 
@@ -2485,6 +2487,7 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
 
         logger.info('Creating files in directory %s' % dirpath)
 
+
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
 
@@ -3244,6 +3247,7 @@ class ProcessExporterFortranMW(ProcessExporterFortran):
 
         logger.info('Creating files in directory %s' % dirpath)
 
+
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
 
@@ -3349,6 +3353,7 @@ class ProcessExporterFortranMW(ProcessExporterFortran):
 
         replace_dict = {}
 
+
         # Extract version number and date from VERSION file
         info_lines = self.get_mg5_info_lines()
         replace_dict['info_lines'] = info_lines
@@ -3363,6 +3368,7 @@ class ProcessExporterFortranMW(ProcessExporterFortran):
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
         replace_dict['nexternal'] = nexternal
+
 
         # Extract ncomb
         ncomb = matrix_element.get_helicity_combinations()
@@ -3381,6 +3387,8 @@ class ProcessExporterFortranMW(ProcessExporterFortran):
         ngraphs = matrix_element.get_number_of_amplitudes()
         replace_dict['ngraphs'] = ngraphs
 
+
+
         # Extract nwavefuncs
         nwavefuncs = matrix_element.get_number_of_wavefunctions()
         replace_dict['nwavefuncs'] = nwavefuncs
@@ -3388,6 +3396,7 @@ class ProcessExporterFortranMW(ProcessExporterFortran):
         # Extract ncolor
         ncolor = max(1, len(matrix_element.get('color_basis')))
         replace_dict['ncolor'] = ncolor
+
 
         # Extract color data lines
         color_data_lines = self.get_color_data_lines(matrix_element)
@@ -3398,6 +3407,7 @@ class ProcessExporterFortranMW(ProcessExporterFortran):
                     matrix_element)
 
         replace_dict['helas_calls'] = "\n".join(helas_calls)
+
 
         # Extract JAMP lines
         jamp_lines, nb = self.get_JAMP_lines(matrix_element)
@@ -3913,6 +3923,7 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
 
+
         # Add the driver.f 
         ncomb = matrix_element.get_helicity_combinations()
         filename = pjoin(Ppath,'driver.f')
@@ -3928,6 +3939,8 @@ class ProcessExporterFortranME(ProcessExporterFortran):
         calls, ncolor = \
                self.write_matrix_element_v4(writers.FortranWriter(filename),
                       matrix_element, fortran_model, subproc_number = me_number)
+
+
 
         filename = pjoin(Ppath, 'auto_dsig.f')
         self.write_auto_dsig_file(writers.FortranWriter(filename),
@@ -4242,9 +4255,11 @@ class ProcessExporterFortranME(ProcessExporterFortran):
                            proc_id = "", config_map = [], subproc_number = ""):
         """Export a matrix element to a matrix.f file in MG4 madevent format"""
 
+
         if not matrix_element.get('processes') or \
                not matrix_element.get('diagrams'):
             return 0
+
 
         if writer: 
             if not isinstance(writer, writers.FortranWriter):
@@ -5600,6 +5615,7 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
 
         logger.info('Creating files in directory %s' % subprocdir)
 
+
         # Create the matrix.f files, auto_dsig.f files and all inc files
         # for all subprocesses in the group
 
@@ -5621,6 +5637,7 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
         self.write_driver(writers.FortranWriter(filename),ncomb,
                                   n_grouped_proc=len(matrix_elements), v5=self.opt['v5_model'])
 
+
         try:
             self.proc_characteristic['hel_recycling'] = self.opt['hel_recycling']
         except KeyError:
@@ -5630,6 +5647,8 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
                 enumerate(matrix_elements):
             if self.opt['hel_recycling'] and not self.opt['optimization'] and not self.opt['color_ordering']:
                 filename = 'matrix%d_orig.f' % (ime+1)
+
+
                 replace_dict = self.write_matrix_element_v4(None, 
                                 matrix_element,
                                 fortran_model,
@@ -5661,10 +5680,12 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
                 
                 
                 
-                
+            
             else:
                 self.proc_characteristic['hel_recycling'] = False
                 filename = 'matrix%d.f' % (ime+1)
+
+
                 calls, ncolor = \
                    self.write_matrix_element_v4(writers.FortranWriter(filename), 
                                 matrix_element,
@@ -5698,6 +5719,7 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
                 logger.info("Generating Feynman diagrams for " + \
                              matrix_element.get('processes')[0].nice_string())
                 plot.draw()
+
 
         # Extract number of external particles
         (nexternal, ninitial) = matrix_element.get_nexternal_ninitial()
@@ -5797,6 +5819,7 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
         symmetry, perms, ident_perms = \
                   diagram_symmetry.find_symmetry(subproc_group)
 
+
         filename = 'symswap.inc'
         self.write_symswap_file(writers.FortranWriter(filename),
                                 ident_perms)
@@ -5813,7 +5836,6 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
                 misc.sprint(i, sym_fact, nqcd_list[i], nqcd_list[abs(sym_fact)])
                 raise Exception("identical diagram with different QCD powwer")
         
-
         filename = 'symperms.inc'
         self.write_symperms_file(writers.FortranWriter(filename),
                            perms)
@@ -5822,6 +5844,7 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
         #os.system(pjoin('..', '..', 'bin', 'gen_jpeg-pl'))
 
         self.link_files_in_SubProcess(pjoin(pathdir,subprocdir))
+
 
         #import nexternal/leshouch in Source
         ln('nexternal.inc', '../../Source', log=False)
@@ -5842,6 +5865,7 @@ class ProcessExporterFortranMEGroup(ProcessExporterFortranME):
 
         if not tot_calls:
             tot_calls = 0
+
         return tot_calls
 
     #===========================================================================
@@ -7807,6 +7831,8 @@ class ProcessExporterFortranMWGroup(ProcessExporterFortranMW):
 
 
         logger.info('Creating files in directory %s' % subprocdir)
+
+
         Ppath = pjoin(pathdir, subprocdir)
 
         # Create the matrix.f files, auto_dsig.f files and all inc files

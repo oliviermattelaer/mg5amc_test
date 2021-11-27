@@ -47,6 +47,9 @@ from six.moves import range
 from six.moves import zip
 from functools import reduce
 
+import madgraph.color_ordering.List_py.list_fundamental_1qq as list_NLC
+
+
 logger = logging.getLogger('madgraph.color_ordered_amplitudes')
 
 
@@ -1163,11 +1166,26 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # Build the color basis
         self.get('color_basis').build()
 
+
     def build_color_matrix(self, color_order):
         """Build the relevant lines of the color matrix, to the order
         in color given in color_order (0 = none, 1 = leading, 
         2 = 1/Nc^2, etc)"""
         
+        all_jamps_nlc = {}
+
+        nexternal, ninitial = self.get_nexternal_ninitial()
+        list_all = list_NLC.list_jamps('gluon',nexternal,ninitial)
+
+        for i in range(len(list_all)):
+            elem=list_all[i]
+            all_jamps_nlc[i] = elem
+
+        #for l in range(len(all_jamps_nlc)):
+        #    if all_jamps_nlc[l] == test_perm:
+        #        misc.sprint(all_jamps_nlc[l])
+        #        index = l
+    
         if not color_order:
             return
 
@@ -1189,20 +1207,24 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         # First figure out maximum Nc power from the color strings
         Nc_powers = []
+
         for color_flow in self.get('color_flows'):
             col_str = color_flow.get('color_string').create_copy()
             col_str2 = col_str.create_copy()
+
             # Multiply color string with its complex conjugate
             col_str.product(col_str2.complex_conjugate())
             # Create a color factor to store the result and simplify it
             col_fact = color.ColorFactor([col_str])
             result = col_fact.full_simplify()
+
             # result now has all Nc powers
             Nc_powers.extend([cs.Nc_power for cs in result])
 
         # Set min Nc power to max(Nc_powers) - (color_order - 1),
         # i.e., Nc^Nmax for leading, Nc^(Nmax-1) to subleading, etc.
         min_Nc_power = 0
+
         if Nc_powers:
             min_Nc_power = max(Nc_powers) - (color_order - 1)
             self.set('min_Nc_power', min_Nc_power)
@@ -1219,30 +1241,66 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         basic_immutable_factors = []
         # canonical_dict to store previous calculation results
         canonical_dict = {}
+
+### If LC, then only add one permutation
         if color_order == 1:
             permutations = self.get('permutations')[:1]
+### If beyond LC, add ALL permutations
         else:
             permutations = self.get('permutations')
 
-        for iperm, perm in enumerate(permutations):
-            for iflow, color_flow in enumerate(self.get('color_flows')):
-                # 1,2,3,4,5 -> 1,2,4,5,3 e.g.
-                perm_replace_dict = \
-                          dict(list(zip(self.get('permutations')[0], perm)))
-                col_str = color_flow.get('color_string').create_copy()
-                col_str.replace_indices(perm_replace_dict)
-                # Create the immutable string
-                immutable_col_str = col_str.to_immutable()
-                if iperm == 0:
-                    basic_immutable_factors.append((immutable_col_str,
-                                                    col_str.Nc_power))
+        permutations = list_NLC.list_rows('gluons',nexternal,ninitial)
 
+        for iperm, perm in enumerate(permutations):
+        #    canonical_dict = {}
+            basic_immutable_factors = []
+            cols = list_NLC.permutations(perm)
+
+            for iflow, color_flow in enumerate(self.get('color_flows')):
+
+                # 1,2,3,4,5 -> 1,2,4,5,3 e.g.
+            #    perm_replace_dict = \
+            #              dict(list(zip(self.get('permutations')[0], perm)))
+            #    col_str = color_flow.get('color_string').create_copy()
+            #    col_str.replace_indices(perm_replace_dict)
+            #    # Create the immutable string
+            #    immutable_col_str = col_str.to_immutable()
+            #    misc.sprint(immutable_col_str)
+            #    if iperm == 0:
+            #        basic_immutable_factors.append((immutable_col_str,
+            #                                        col_str.Nc_power))
+                
+### TV: New change
+            
+                for icol,next_col in enumerate(cols):
+                    for l in range(len(all_jamps_nlc)):
+                        if all_jamps_nlc[l] == next_col[0]:
+                            index = l
+                #    if next_col[1] == 99: continue
+                    col_str = color_flow.get('color_string').create_copy()
+                    perm_replace_dict = \
+                          dict(list(zip(permutations[0],next_col[0])))
+                    col_str.replace_indices(perm_replace_dict)
+                # Create the immutable string
+                    immutable_col_str = col_str.to_immutable()
+            #    #if iperm == 0:
+            #    misc.sprint((immutable_col_str,col_str.Nc_power))
+                    basic_immutable_factors.append((immutable_col_str,
+                                                    col_str.Nc_power,index))
+
+### 
                 # Create the color matrix element between this entry
                 # and all (previous) entries in the basic flows
-                for ibasic, (basic_string, basic_Nc) in \
-                                             enumerate(basic_immutable_factors):
+
+                for ibasic, (basic_string, basic_Nc,index) in enumerate(basic_immutable_factors):
+                #    misc.sprint(ibasic)
                     Nc_power = min_Nc_power - basic_Nc - col_str.Nc_power
+
                     # Get matrix entry
+            #        misc.sprint(len(canonical_dict))
+            #        misc.sprint(immutable_col_str)
+            #        misc.sprint(basic_string)
+
                     result, result_fixed_Nc = \
                            col_matrix.get_matrix_entry(canonical_dict,
                                                        immutable_col_str,
@@ -1251,33 +1309,48 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                     # Ignore null entries
                     if not result:
                         continue
-                    # Set color matrix entry, if non-zero
-                    irow = ibasic
-                    icol = iperm * len(self.get('color_flows')) + iflow
 
-                    col_matrix[(icol, irow)] = copy.copy(result)
+                    # Set color matrix entry, if non-zero
+                #    irow = ibasic         
+                ### Shouldn't this be 
+                #    ## icol = permutations*iflow + iperm (depends how you order columns)
+                #    icol = iperm * len(self.get('color_flows')) + iflow             
+
+                    irow = iperm * len(self.get('color_flows')) + iflow
+                    icol = ibasic
+
+                    col_matrix[(icol, irow)] = (copy.copy(result),index)
+
+                #    misc.sprint(icol,irow)
+                #    misc.sprint(basic_string)
+                #    misc.sprint(immutable_col_str)
+                #    misc.sprint(col_matrix[(icol, irow)])
 
                     # For color octets, pick leading order contribution,
                     # and multiply by 1-1/Nc^2
-                    if all_octets and color_order == 1:
-                        col_matrix[(icol, irow)][:] = \
-                                      [copy.copy(result[0]),
-                                       copy.copy(result[0])]
-                        col_matrix[(icol, irow)][1].Nc_power -= 2
-                        col_matrix[(icol, irow)][1].coeff *= -1
+
+                #    if all_octets and color_order == 1:
+                #        col_matrix[(icol, irow)][:] = \
+                #                      [copy.copy(result[0]),
+                #                       copy.copy(result[0])]
+                #        col_matrix[(icol, irow)][1].Nc_power -= 2
+                #        col_matrix[(icol, irow)][1].coeff *= -1
 
                     # Account for combined Nc colors for results
-                    for col in col_matrix[(icol, irow)]:
+                    # Include other sources of Nc not coming from the trae cotnraction
+
+                    for col in col_matrix[(icol, irow)][0]:
                         col.Nc_power += basic_Nc + col_str.Nc_power
 
                     col_matrix.col_matrix_fixed_Nc[(icol, irow)] = \
-                                      col_matrix[(icol, irow)].set_Nc(3)
-                    if iperm == 0:
+                                      col_matrix[(icol, irow)][0].set_Nc(3)
+                #    if iperm == 0:
                         # Need also inverse entry
-                        col_matrix[(irow, icol)] = col_matrix[(icol, irow)]
-                        col_matrix.col_matrix_fixed_Nc[(irow, icol)] = \
-                               col_matrix.col_matrix_fixed_Nc[(icol, irow)]
-                
+                #        col_matrix[(irow, icol)] = col_matrix[(icol, irow)]
+                #        col_matrix.col_matrix_fixed_Nc[(irow, icol)] = \
+                #               col_matrix.col_matrix_fixed_Nc[(icol, irow)]
+
+
     def get_external_wavefunctions(self):
         """Redefine HelasMatrixElement.get_external_wavefunctions"""
 
