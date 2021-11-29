@@ -107,8 +107,11 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Extract nperms, perms
         replace_dict['nperms'] = len(flow.get('permutations')) 
         perms = matrix_element.get('permutations')
-        perms = list_NLC.list_jamps('gluons',2,7)
 
+        perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+
+        misc.sprint(perms)
+        misc.sprint('LEN',len(perms))
         # Extract IC data line
         ic_data_line = self.get_ic_data_line(flow)
         replace_dict['ic_data_line'] = ic_data_line
@@ -139,17 +142,16 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                                    *len(matrix_element.get('color_flows'))
 
         # Extract JAMP lines
-        jamp_lines, nb_tmp_jamp = self.get_JAMP_lines(flow)
 
+        jamp_lines, nb_tmp_jamp = self.get_JAMP_lines(flow)
         jamp_lines_temp = self.get_permuted_jamp_lines(jamp_lines, calls_dict)
 
         # Test jamp permutation dict
     #    self.get_jamp_dict(flow)
 
-    #    misc.sprint('\n'.join(jamp_lines))
-    #    replace_dict['jamp_lines'] = '\n'.join(jamp_lines_temp)
+        replace_dict['jamp_lines'] = '\n'.join(jamp_lines_temp)
 
-        replace_dict['jamp_lines'] = '\n'
+
 
         replace_dict['nb_temp_jamp'] = nb_tmp_jamp
         #adding the support for the fake width (forbidding too small width)
@@ -188,6 +190,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
            helas_calls to flow.f"""
 
         nperms = len(perms)
+        misc.sprint(nperms)
         (nexternal, ninitial) = flow.get_nexternal_ninitial()
         flow_num = flow.get('number')
 
@@ -204,7 +207,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # first go through initial permutation
         jamp_num = 1 + nperms*(flow_num-1)
-    #    misc.sprint(jamp_num)
+        misc.sprint(jamp_num)
         wf_dict = {}
         amp_dict = {}
 
@@ -267,6 +270,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # add information to dictionary of jamps to wfs, amps
         perm_dicts[jamp_num] = wf_dict, amp_dict
 
+        misc.sprint(len(perms))
 
         # loop through rest of perms
         for iperm, perm in enumerate(perms):
@@ -377,8 +381,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # misc.sprint(helas_calls_wfs)
         # misc.sprint(helas_calls_amps_only)
 
-
-    #    misc.sprint(perm_dicts)
 
         # return variable = list of permuted helas_calls (W->Wn, AMP->AMPN)
         helas_calls_permuted = []
@@ -818,7 +820,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         #                            in sorted(list(factor_dict.keys()), reverse=True)])})
 
             color_sum_lines.append(\
-                    'ZTEMP = ZTEMP+JAMP(I)*DCONJG(CF(J,I)*JAMP(LOC(J,I)))')
+                    'ZTEMP = ZTEMP+JAMP(I)*DCONJG(SYM*CF(J,I)*JAMP(LOC(J,I)))')
 
             color_sum_lines[-1] = color_sum_lines[-1].replace('+-1*', '-')
             color_sum_lines[-1] = color_sum_lines[-1].replace('+1*', '+')
@@ -877,10 +879,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         col_matrix = matrix_element.get('color_matrix')
 
-        misc.sprint(col_matrix.get_line_denominators())
-
-        misc.sprint(col_matrix.col_matrix_fixed_Nc[(4, 0)][0])
-
         col_length = max(col_matrix.keys())[0]
         row_length = max(col_matrix.keys())[1]
 
@@ -896,9 +894,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                 #ret_list.append("DATA Denom(%i)/%i/" % (index + 1, denominator))
                 # Then write the numerators for the matrix elements
 
-                misc.sprint('in')
                 col_list = [str(float(col_matrix.col_matrix_fixed_Nc[(i, irow)][0])) for i in range(col_length+1)]
-                misc.sprint(col_list)
 
                 ret_list.append("DATA (CF(I,%3r),I=%3r,%3r) /%s/" % \
                                     (irow+1, 1, len(col_list),','.join(col_list)))
@@ -1048,6 +1044,7 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                 helas_call_writer,
                 matrix_element)
 
+        misc.sprint('hello?')
         # Create the flow.ps files for each color flow
         calls = 0
         for flow in matrix_element.get('color_flows'):
@@ -1134,8 +1131,6 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         color_data_lines = self.get_color_data_lines_nlc(matrix_element)
         
-        misc.sprint(color_data_lines)
-
         loc_lines =  self.get_loc_data_lines(matrix_element)
 
         replace_dict['loc_data_lines'] = "\n".join(loc_lines)
@@ -1146,7 +1141,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         replace_dict['color_data_lines'] = "\n".join(color_data_lines)
 
-
+        sym = nexternal -2
+        replace_dict['symmetry'] = self.factorial(sym)
 
         # Extract flow function definition lines
         flow_functions_lines = self.get_flow_functions_lines(matrix_element)
@@ -1162,6 +1158,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
     #    misc.sprint(replace_dict['njampsAL'])
     #    misc.sprint(len(matrix_element.get('color_flows'))   )
     #    misc.sprint(len(matrix_element.get('permutations')))
+
+        misc.sprint(matrix_element.get('diagrams'))
 
         # Extract call lines and color sum lines
 
@@ -1224,6 +1222,15 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         writer.writelines(file)
 
         return 0
+
+    def factorial(self,n):
+
+        factorial = 1
+        if int(n) >= 1:
+          for i in range (1,int(n)+1):
+            factorial = factorial * i
+
+        return factorial
 
 
 #===============================================================================

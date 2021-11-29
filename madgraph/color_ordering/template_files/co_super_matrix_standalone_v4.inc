@@ -87,7 +87,8 @@ C
 
       INTEGER LOC(NCOLS,NROWS)
       REAL*8 CF(NCOLS,NROWS)
-      
+      INTEGER SYM
+      PARAMETER (SYM=%(symmetry)d)
 C 
 
 C LOC DATA LINES

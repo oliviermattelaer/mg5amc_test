@@ -4854,6 +4854,9 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         in argument. The coefficients are given in the format (fermion factor, 
         colorcoeff (frac), imaginary, Nc power). """
 
+
+        misc.sprint('tohoo')
+
         if not color_basis:
             # No color, simply add all amplitudes with correct factor
             # for first color amplitude
@@ -4864,7 +4867,7 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                                     1, False, 0),
                                     amplitude.get('number')))
             return [col_amp]
-
+        misc.sprint('pito')
         # Find leading component
         #color_basis = self.get('color_basis')
         #max_Nc = max(sum([[v[4] for v in val] for val in color_basis.values()],[]),-99)
@@ -4874,14 +4877,20 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         # amplitude numbers
 
         col_amp_list = []
+        misc.sprint('wory')
+
         for i, col_basis_elem in \
                 enumerate(sorted(color_basis.keys())):
 
             col_amp = []
+
             for diag_tuple in color_basis[col_basis_elem]:
                 #Only include leading color contributions
                 if False and diag_tuple[4] < max_Nc: continue
+
+
                 res_amps = [amp for amp in diagrams[diag_tuple[0]].get('amplitudes') if tuple(amp.get('color_indices')) == diag_tuple[1]]
+
                 if not res_amps:
                     raise self.PhysicsObjectError("""No amplitude found for color structure
                             %s and color index chain (%s) (diagram %i)""" % \

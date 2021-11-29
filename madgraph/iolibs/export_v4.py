@@ -1364,9 +1364,15 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
 
         # Let the user call get_JAMP_lines directly from a MatrixElement or from
         # the color amplitudes lists.
+
+        misc.sprint('Im here')
+
         if(isinstance(col_amps,helas_objects.HelasMatrixElement)):
+            misc.sprint('what')
             color_amplitudes=col_amps.get_color_amplitudes()
+
         elif(isinstance(col_amps,list)):
+            misc.sprint('bhut')
             if(col_amps and isinstance(col_amps[0],list)):
                 color_amplitudes=col_amps
             else:
@@ -1376,6 +1382,12 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
 
         all_element = {}
         res_list = []
+
+
+        misc.sprint('twotwo')
+
+        misc.sprint(len(color_amplitudes))
+        
         for i, coeff_list in enumerate(color_amplitudes):
             # It might happen that coeff_list is empty if this function was
             # called from get_JAMP_lines_split_order (i.e. if some color flow
@@ -1388,6 +1400,7 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
             # arbitrarly long lines.
             first=True
             n = (len(coeff_list)+1 if split<=0 else split) 
+
             while coeff_list!=[]:
                 coefs=coeff_list[:n]
                 coeff_list=coeff_list[n:]
@@ -2697,7 +2710,10 @@ CF2PY CHARACTER*20, intent(out) :: PREFIX(%(nb_me)i)
         if len(split_orders)==0:
             replace_dict['nSplitOrders']=''
             # Extract JAMP lines
+            #misc.sprint(matrix_element.get('diagrams'))
+
             jamp_lines, nb_tmp_jamp = self.get_JAMP_lines(matrix_element)
+
             # Consider the output of a dummy order 'ALL_ORDERS' for which we
             # set all amplitude order to weight 1 and only one squared order
             # contribution which is of course ALL_ORDERS=2.
