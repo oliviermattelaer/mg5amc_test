@@ -1365,14 +1365,11 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         # Let the user call get_JAMP_lines directly from a MatrixElement or from
         # the color amplitudes lists.
 
-        misc.sprint('Im here')
 
         if(isinstance(col_amps,helas_objects.HelasMatrixElement)):
-            misc.sprint('what')
             color_amplitudes=col_amps.get_color_amplitudes()
 
         elif(isinstance(col_amps,list)):
-            misc.sprint('bhut')
             if(col_amps and isinstance(col_amps[0],list)):
                 color_amplitudes=col_amps
             else:
@@ -1384,9 +1381,6 @@ param_card.inc: ../Cards/param_card.dat\n\t../bin/madevent treatcards param\n'''
         res_list = []
 
 
-        misc.sprint('twotwo')
-
-        misc.sprint(len(color_amplitudes))
         
         for i, coeff_list in enumerate(color_amplitudes):
             # It might happen that coeff_list is empty if this function was
@@ -7719,13 +7713,19 @@ def ExportV4Factory(cmd, noclean, output_type='default', group_subprocesses=True
            'sa_symmetry':False, 
            'model': cmd._curr_model.get('name')})
 
+
     if cmd.options['color_ordering']:
         import madgraph.color_ordering.color_ordered_export_v4 as \
                                        color_ordered_export_v4
         #cmd._curr_helas_model = \
         #    color_ordered_export_v4.COFortranUFOHelasCallWriter(cmd._curr_model)
+        
         if cmd._export_format in ['standalone', 'matrix']:
+
+            reduced_rows = cmd.options['reduced_rows']
+
             return color_ordered_export_v4.ProcessExporterFortranCOSA(cmd._export_dir, opt)
+
         elif cmd._export_format in ['madevent'] and group_subprocesses:
             return color_ordered_export_v4.\
                    ProcessExporterFortranCOMEGroup(cmd._export_dir, opt)

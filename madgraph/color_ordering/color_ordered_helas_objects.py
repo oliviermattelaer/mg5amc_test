@@ -1175,7 +1175,14 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         all_jamps_nlc = {}
 
         nexternal, ninitial = self.get_nexternal_ninitial()
-        list_all = list_NLC.list_jamps('gluon',nexternal,ninitial)
+
+        reduced_rows = True
+
+        if reduced_rows:
+            list_all = list_NLC.list_jamps('gluon',nexternal,ninitial)
+        else:
+            list_all = list_NLC.list_jamps_all_rows('gluon',nexternal,ninitial)
+
 
         for i in range(len(list_all)):
             elem=list_all[i]
@@ -1193,6 +1200,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         if col_matrix:
             return
+            
 
         logger.info("Building color matrix for %s" % \
                      self.get('processes')[0].nice_string().\
@@ -1249,7 +1257,11 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         else:
             permutations = self.get('permutations')
 
-        permutations = list_NLC.list_rows('gluons',nexternal,ninitial)
+        if reduced_rows:
+            permutations = list_NLC.list_rows('gluons',nexternal,ninitial)
+        else: 
+            permutations = list_NLC.all_perms('gluons',nexternal,ninitial)
+
 
         for iperm, perm in enumerate(permutations):
         #    canonical_dict = {}
@@ -1324,7 +1336,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 #    misc.sprint(icol,irow)
                 #    misc.sprint(basic_string)
                 #    misc.sprint(immutable_col_str)
-                #    misc.sprint(col_matrix[(icol, irow)])
+                #    misc.sprint(col_matrix[(icol, irow)][0].set_Nc(3))
 
                     # For color octets, pick leading order contribution,
                     # and multiply by 1-1/Nc^2
@@ -1344,11 +1356,13 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
                     col_matrix.col_matrix_fixed_Nc[(icol, irow)] = \
                                       col_matrix[(icol, irow)][0].set_Nc(3)
+
                 #    if iperm == 0:
                         # Need also inverse entry
                 #        col_matrix[(irow, icol)] = col_matrix[(icol, irow)]
                 #        col_matrix.col_matrix_fixed_Nc[(irow, icol)] = \
                 #               col_matrix.col_matrix_fixed_Nc[(icol, irow)]
+
 
 
     def get_external_wavefunctions(self):

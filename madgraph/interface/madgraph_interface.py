@@ -2905,6 +2905,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
     _set_options = ['group_subprocesses',
                     'ignore_six_quark_processes',
                     'stdout_level',
+                    'reduced_rows',
                     'color_ordering',
                     'optimization',
                     'fortran_compiler',
@@ -2977,6 +2978,7 @@ class MadGraphCmd(HelpToCmd, CheckValidForCmd, CompleteForCmd, CmdExtended):
                           'low_mem_multicore_nlo_generation': False,
                           'complex_mass_scheme': False,
                           'gauge':'unitary',
+                          'reduced_rows': True,
                           'color_ordering': 0,
                           'optimization': 1,
                           'stdout_level':None,
@@ -7809,6 +7811,11 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             if self.options['color_ordering'] > 0:
                 #self.do_set('group_subprocesses False')
                 self.do_set('optimization 3')
+
+    #    elif args[0] == "reduced_rows":
+    #        reduced_rows = self.options["reduced_rows"]
+    #        misc.sprint(reduced_rows)
+
         elif args[0] == "optimization":
             self.options[args[0]] = int(args[1])
         
@@ -8067,7 +8074,6 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             self._curr_exporter = export_v4.ExportV4Factory(self, noclean, 
                                              group_subprocesses=group_processes,
                                              cmd_options=line_options)
-            misc.sprint(self._curr_exporter)
         elif options['exporter'] == 'cpp':
             self._curr_exporter = export_cpp.ExportCPPFactory(self, group_subprocesses=group_processes,
                                                               cmd_options=line_options)
@@ -8115,14 +8121,14 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
         elif self._model_v4_path:
             assert self._curr_exporter.exporter == 'v4'
             self._curr_helas_model = helas_call_writers.FortranHelasCallWriter(self._curr_model)
+
         elif self.options['color_ordering']:
-            misc.sprint('coloring')
             import madgraph.color_ordering.color_ordered_export_v4 as \
                                        color_ordered_export_v4
-            misc.sprint(self._curr_exporter.exporter )
+            reduced_rows = self.options['reduced_rows']
             assert self._curr_exporter.exporter == 'v4'
-            misc.sprint(self._curr_exporter.exporter )
             self._curr_helas_model = color_ordered_export_v4.COFortranUFOHelasCallWriter(self._curr_model)
+
         else:
             assert self._curr_exporter.exporter == 'v4'
             options = {'zerowidth_tchannel': True}
@@ -8144,6 +8150,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
             the appropriate value if the MG5 option 'group_subprocesses' was set
             to 'Auto'."""
 
+
             if self._export_format in ['standalone_msP', 'standalone_msF', 'standalone_mw']:
                 to_distinguish = []
                 for part in self._curr_model.get('particles'):
@@ -8156,6 +8163,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
 
             cpu_time1 = time.time()
             ndiags = 0
+
             if not self._curr_matrix_elements.get_matrix_elements():
                 if group_processes:
                     cpu_time1 = time.time()
@@ -8212,7 +8220,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
                         uid += 1 # update the identification number
                         for me in group.get('matrix_elements'):
                             me.get('processes')[0].set('uid', uid)
-                else:
+                else:                
                     if self.options['color_ordering']:
                         if self._export_format == 'madevent':
                             gen_periferal_diagrams = True
@@ -8223,6 +8231,7 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
                                self._curr_amps,
                                color_order = self.options['color_ordering'],
                                optimization = self.options['optimization'],
+                               reduced_rows = self.options['reduced_rows'],
                                gen_periferal_diagrams = gen_periferal_diagrams)
                         
                     else: # Not grouped subprocesses
@@ -8274,7 +8283,6 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
         if self._export_format == 'madevent':
             calls += self._curr_exporter.export_processes(self._curr_matrix_elements,
                                                          self._curr_helas_model)
-            misc.sprint(_curr_exporter)
             
                 #try:
                 #    cmd.Cmd.onecmd(self, 'history .')

@@ -4855,8 +4855,6 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         colorcoeff (frac), imaginary, Nc power). """
 
 
-        misc.sprint('tohoo')
-
         if not color_basis:
             # No color, simply add all amplitudes with correct factor
             # for first color amplitude
@@ -4867,7 +4865,6 @@ class HelasMatrixElement(base_objects.PhysicsObject):
                                     1, False, 0),
                                     amplitude.get('number')))
             return [col_amp]
-        misc.sprint('pito')
         # Find leading component
         #color_basis = self.get('color_basis')
         #max_Nc = max(sum([[v[4] for v in val] for val in color_basis.values()],[]),-99)
@@ -4877,7 +4874,6 @@ class HelasMatrixElement(base_objects.PhysicsObject):
         # amplitude numbers
 
         col_amp_list = []
-        misc.sprint('wory')
 
         for i, col_basis_elem in \
                 enumerate(sorted(color_basis.keys())):
@@ -5754,7 +5750,8 @@ class HelasMultiProcess(base_objects.PhysicsObject):
         identifying processes with identical matrix elements, as
         defined by HelasMatrixElement.__eq__. Returns a
         HelasMatrixElementList and an amplitude map (used by the
-        SubprocessGroup functionality). decay_ids is a list of decayed
+        
+         functionality). decay_ids is a list of decayed
         particle ids, since those should not be combined even if
         matrix element is identical. 
         The compute_loop_nc sets wheter independent tracking of Nc power coming

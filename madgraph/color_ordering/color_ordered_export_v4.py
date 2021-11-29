@@ -108,10 +108,14 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         replace_dict['nperms'] = len(flow.get('permutations')) 
         perms = matrix_element.get('permutations')
 
-        perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+        reduced_rows = True
 
-        misc.sprint(perms)
-        misc.sprint('LEN',len(perms))
+
+        if reduced_rows:
+            perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+        else:
+            perms = list_NLC.list_jamps_all_rows('gluons',nexternal,ninitial)
+
         # Extract IC data line
         ic_data_line = self.get_ic_data_line(flow)
         replace_dict['ic_data_line'] = ic_data_line
@@ -126,7 +130,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         replace_dict['nwavefuncs'] = nwavefuncs
 
         # Extract fermion permutation factors
-        iferm_lines = self.get_all_iferm_lines(matrix_element)
+        iferm_lines = self.get_all_iferm_lines(matrix_element,nexternal,ninitial)
         replace_dict['iferm_lines_all'] = iferm_lines
         # misc.sprint(iferm_lines)
 
@@ -140,6 +144,15 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # Extract number of jamps
         replace_dict['njampsAL'] = len(matrix_element.get('permutations'))\
                                    *len(matrix_element.get('color_flows'))
+
+        
+        if reduced_rows:
+            njamps = len(list_NLC.list_jamps('gluon',nexternal,ninitial))
+        else:
+            njamps = len(list_NLC.list_jamps_all_rows('gluon',nexternal,ninitial))
+
+        replace_dict['njampsAL'] = njamps
+
 
         # Extract JAMP lines
 
@@ -190,7 +203,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
            helas_calls to flow.f"""
 
         nperms = len(perms)
-        misc.sprint(nperms)
         (nexternal, ninitial) = flow.get_nexternal_ninitial()
         flow_num = flow.get('number')
 
@@ -207,7 +219,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         # first go through initial permutation
         jamp_num = 1 + nperms*(flow_num-1)
-        misc.sprint(jamp_num)
         wf_dict = {}
         amp_dict = {}
 
@@ -270,7 +281,6 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # add information to dictionary of jamps to wfs, amps
         perm_dicts[jamp_num] = wf_dict, amp_dict
 
-        misc.sprint(len(perms))
 
         # loop through rest of perms
         for iperm, perm in enumerate(perms):
@@ -444,7 +454,11 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
     #    misc.sprint(perms)
     #    misc.sprint(nperms)
 
-        perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+        if reduced_rows:
+            perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+        else:
+            perms = list_NLC.list_jamps_all_rows('gluons',nexternal,ninitial)
+
         nperms = len(perms)
 
     #    misc.sprint(perms)
@@ -679,12 +693,20 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         return iperm_line_list
 
-    def get_all_iferm_lines(self, matrix_element):
+    def get_all_iferm_lines(self, matrix_element,nexternal,ninitial):
         """Get the fermion factors for the needed permutations"""
 
         # The data line for iferm
         iferm_list = []
-        all_perms = matrix_element.get('permutations')
+
+
+        reduced_rows = True
+
+        if reduced_rows:
+            all_perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+        else:
+            all_perms = matrix_element.get('permutations')
+
         external_fermions = [i for (i,w) in enumerate(matrix_element.\
                              get_external_wavefunctions()) if w.is_fermion()]
         
@@ -848,6 +870,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
 
         col_length = max(col_matrix.keys())[0]
         row_length = max(col_matrix.keys())[1]
+
 
         if not matrix_element.get('color_matrix'):
             return ["DATA Denom(1)/1/", "DATA (LOC(i,1),i=1,1) /1/"]
@@ -1044,7 +1067,6 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                 helas_call_writer,
                 matrix_element)
 
-        misc.sprint('hello?')
         # Create the flow.ps files for each color flow
         calls = 0
         for flow in matrix_element.get('color_flows'):
@@ -1135,13 +1157,24 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         replace_dict['loc_data_lines'] = "\n".join(loc_lines)
 
-        replace_dict['nrows'] = len(list_NLC.list_rows('gluons',nexternal,ninitial))
+        reduced_rows = True
+
+        if reduced_rows:
+            nrows = len(list_NLC.list_rows('gluons',nexternal,ninitial))
+        else:
+            nrows = len(list_NLC.all_perms('gluons',nexternal,ninitial))
+
+        replace_dict['nrows'] = nrows
         cols = list_NLC.permutations(list_NLC.list_rows('gluons',nexternal,ninitial)[0])
         replace_dict['ncols'] = len(cols)
 
         replace_dict['color_data_lines'] = "\n".join(color_data_lines)
 
-        sym = nexternal -2
+        if reduced_rows:
+            sym = nexternal -2
+        else:
+            sym = 1
+
         replace_dict['symmetry'] = self.factorial(sym)
 
         # Extract flow function definition lines
@@ -1153,13 +1186,20 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         # Extract total number of Jamps
         replace_dict['njampsAL'] = len(matrix_element.get('permutations'))\
-                                 *len(matrix_element.get('color_flows'))    
+                                 *len(matrix_element.get('color_flows'))
+
+        if reduced_rows:
+            njamps = len(list_NLC.list_jamps('gluon',nexternal,ninitial))
+        else:
+            njamps = len(list_NLC.list_jamps_all_rows('gluon',nexternal,ninitial))
+
+        replace_dict['njampsAL'] = njamps
+
 
     #    misc.sprint(replace_dict['njampsAL'])
     #    misc.sprint(len(matrix_element.get('color_flows'))   )
     #    misc.sprint(len(matrix_element.get('permutations')))
 
-        misc.sprint(matrix_element.get('diagrams'))
 
         # Extract call lines and color sum lines
 

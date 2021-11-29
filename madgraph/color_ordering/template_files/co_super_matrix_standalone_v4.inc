@@ -58,9 +58,9 @@ C ----------
              IF (GOODHEL(IHEL) .OR. NTRY .LT. 2) THEN
                T=0d0
                %(call_flow_lines)s
-               DO I=1,ICO
-                  T=T+MATRIX(P , NHEL(1,IHEL), I, JPERM, JAMP)
-               ENDDO
+               I=2
+               T=T+MATRIX(P , NHEL(1,IHEL), I, JPERM, JAMP)
+          
                ANS=ANS+T
                IF (T .NE. 0D0 .AND. .NOT.    GOODHEL(IHEL)) THEN
                    GOODHEL(IHEL)=.TRUE.
