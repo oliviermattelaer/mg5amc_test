@@ -178,6 +178,8 @@ class ProcessExporterFortran(VirtualExporter):
         if opt:
             self.opt.update(opt)
         self.cmd_options = self.opt['output_options']
+
+        self.cmd_options_red = self.opt['reduced_rows']
         
         #place holder to pass information to the run_interface
         self.proc_characteristic = banner_mod.ProcCharacteristic()
@@ -7723,6 +7725,7 @@ def ExportV4Factory(cmd, noclean, output_type='default', group_subprocesses=True
         if cmd._export_format in ['standalone', 'matrix']:
 
             reduced_rows = cmd.options['reduced_rows']
+            misc.sprint(reduced_rows)
 
             return color_ordered_export_v4.ProcessExporterFortranCOSA(cmd._export_dir, opt)
 

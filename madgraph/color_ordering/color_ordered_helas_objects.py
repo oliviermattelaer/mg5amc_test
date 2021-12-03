@@ -1136,7 +1136,8 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
                 if color_order and not self.get('color_basis'):
                     self.set_color_basis()
                 if color_order and not self.get('color_matrix'):
-                    self.build_color_matrix(color_order*2 - 1)
+                    reduced_rows = False
+                    self.build_color_matrix(color_order*2 - 1, reduced_rows)
                 if gen_periferal_diagrams:
                     self.set('include_all_t', include_all_t)
                     self.set('tch_depth', tch_depth)
@@ -1166,8 +1167,7 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         # Build the color basis
         self.get('color_basis').build()
 
-
-    def build_color_matrix(self, color_order):
+    def build_color_matrix(self, color_order, reduced_rows):
         """Build the relevant lines of the color matrix, to the order
         in color given in color_order (0 = none, 1 = leading, 
         2 = 1/Nc^2, etc)"""
@@ -1176,13 +1176,29 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         nexternal, ninitial = self.get_nexternal_ninitial()
 
-        reduced_rows = True
+        # Check if this is an all-octet amplitude
+        process = self.get('processes')[0]
+        model = process.get('model')
+        colors = [model.get_particle(l.get('id')).get('color') for l in \
+                  process.get('legs') if \
+                  model.get_particle(l.get('id')).get('color') != 1]
+        all_octets = (set(colors) == set([8]))
 
+        ## Check if 1qq or 2qq amplitudes
+        quarks = []
+        for i,c in enumerate(list(colors)):
+            if (c == 3):
+                quarks.append(i)
+
+        misc.sprint(quarks)
+
+        type = 'gluons'
         if reduced_rows:
-            list_all = list_NLC.list_jamps('gluon',nexternal,ninitial)
+            list_all = list_NLC.list_jamps(quarks,nexternal,ninitial)
         else:
-            list_all = list_NLC.list_jamps_all_rows('gluon',nexternal,ninitial)
+            list_all = list_NLC.list_jamps_all_rows(type,nexternal,ninitial)
 
+        misc.sprint('after')
 
         for i in range(len(list_all)):
             elem=list_all[i]
@@ -1200,7 +1216,6 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
 
         if col_matrix:
             return
-            
 
         logger.info("Building color matrix for %s" % \
                      self.get('processes')[0].nice_string().\
@@ -1237,14 +1252,6 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
             min_Nc_power = max(Nc_powers) - (color_order - 1)
             self.set('min_Nc_power', min_Nc_power)
 
-        # Check if this is an all-octet amplitude
-        process = self.get('processes')[0]
-        model = process.get('model')
-        colors = [model.get_particle(l.get('id')).get('color') for l in \
-                  process.get('legs') if \
-                  model.get_particle(l.get('id')).get('color') != 1]
-        all_octets = (set(colors) == set([8]))
-        
         # The col_basis will contain the basis strings for the basic flows
         basic_immutable_factors = []
         # canonical_dict to store previous calculation results
@@ -1257,10 +1264,12 @@ class COHelasMatrixElement(helas_objects.HelasMatrixElement):
         else:
             permutations = self.get('permutations')
 
+        misc.sprint(permutations)
+
         if reduced_rows:
-            permutations = list_NLC.list_rows('gluons',nexternal,ninitial)
+            permutations = list_NLC.list_rows(quarks,nexternal,ninitial)
         else: 
-            permutations = list_NLC.all_perms('gluons',nexternal,ninitial)
+            permutations = list_NLC.all_perms(quarks,nexternal,ninitial)
 
 
         for iperm, perm in enumerate(permutations):

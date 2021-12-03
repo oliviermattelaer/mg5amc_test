@@ -75,6 +75,7 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
                not flow.get('diagrams'):
             return 0
 
+
         if not isinstance(writer, writers.FortranWriter):
             raise writers.FortranWriter.FortranWriterError(\
                 "writer not FortranWriter")
@@ -108,11 +109,12 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         replace_dict['nperms'] = len(flow.get('permutations')) 
         perms = matrix_element.get('permutations')
 
-        reduced_rows = True
+        reduced_rows = self.cmd_options_red
 
+        quarks = []
 
         if reduced_rows:
-            perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+            perms = list_NLC.list_jamps(quarks,nexternal,ninitial)
         else:
             perms = list_NLC.list_jamps_all_rows('gluons',nexternal,ninitial)
 
@@ -145,11 +147,12 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         replace_dict['njampsAL'] = len(matrix_element.get('permutations'))\
                                    *len(matrix_element.get('color_flows'))
 
+        quarks=[]
         
         if reduced_rows:
-            njamps = len(list_NLC.list_jamps('gluon',nexternal,ninitial))
+            njamps = len(list_NLC.list_jamps(quarks,nexternal,ninitial))
         else:
-            njamps = len(list_NLC.list_jamps_all_rows('gluon',nexternal,ninitial))
+            njamps = len(list_NLC.list_jamps_all_rows('gluons',nexternal,ninitial))
 
         replace_dict['njampsAL'] = njamps
 
@@ -454,8 +457,10 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
     #    misc.sprint(perms)
     #    misc.sprint(nperms)
 
+        quarks=[]
+
         if reduced_rows:
-            perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+            perms = list_NLC.list_jamps(quarks,nexternal,ninitial)
         else:
             perms = list_NLC.list_jamps_all_rows('gluons',nexternal,ninitial)
 
@@ -699,11 +704,11 @@ class ProcessExporterFortranCO(export_v4.ProcessExporterFortran):
         # The data line for iferm
         iferm_list = []
 
+        reduced_rows = self.cmd_options_red
 
-        reduced_rows = True
-
+        quarks=[]
         if reduced_rows:
-            all_perms = list_NLC.list_jamps('gluons',nexternal,ninitial)
+            all_perms = list_NLC.list_jamps(quarks,nexternal,ninitial)
         else:
             all_perms = matrix_element.get('permutations')
 
@@ -1029,6 +1034,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         cwd = os.getcwd()
 
+        reduced_rows = self.cmd_options_red
+
         # Create the directory PN_xx_xxxxx in the specified path
         dirpath = os.path.join(self.dir_path, 'SubProcesses', \
                        "P%s" % matrix_element.get('processes')[0].shell_string())
@@ -1108,6 +1115,8 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
         """Export a matrix element to a matrix.f file in standalone
         color ordered amplitude format"""
 
+        reduced_rows = self.cmd_options_red
+
         if not matrix_element.get('processes') \
                or not isinstance(matrix_element,
                               color_ordered_helas_objects.COHelasMatrixElement) \
@@ -1157,15 +1166,20 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
 
         replace_dict['loc_data_lines'] = "\n".join(loc_lines)
 
-        reduced_rows = True
+        reduced_rows = self.cmd_options_red
+
+        quarks = []
 
         if reduced_rows:
-            nrows = len(list_NLC.list_rows('gluons',nexternal,ninitial))
+            nrows = len(list_NLC.list_rows(quarks,nexternal,ninitial))
+            misc.sprint('donedone')
         else:
             nrows = len(list_NLC.all_perms('gluons',nexternal,ninitial))
 
         replace_dict['nrows'] = nrows
-        cols = list_NLC.permutations(list_NLC.list_rows('gluons',nexternal,ninitial)[0])
+        cols = list_NLC.permutations(list_NLC.list_rows(quarks,nexternal,ninitial)[0])
+        misc.sprint('rtrt')
+
         replace_dict['ncols'] = len(cols)
 
         replace_dict['color_data_lines'] = "\n".join(color_data_lines)
@@ -1189,9 +1203,9 @@ class ProcessExporterFortranCOSA(export_v4.ProcessExporterFortranSA,
                                  *len(matrix_element.get('color_flows'))
 
         if reduced_rows:
-            njamps = len(list_NLC.list_jamps('gluon',nexternal,ninitial))
+            njamps = len(list_NLC.list_jamps(quarks,nexternal,ninitial))
         else:
-            njamps = len(list_NLC.list_jamps_all_rows('gluon',nexternal,ninitial))
+            njamps = len(list_NLC.list_jamps_all_rows('gluons',nexternal,ninitial))
 
         replace_dict['njampsAL'] = njamps
 
@@ -1283,6 +1297,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
 
     matrix_file = "co_super_matrix_madevent_v4.inc"
 
+    misc.sprint('in COME')
 
     #===========================================================================
     # generate_subprocess_directory_v4 
@@ -1613,6 +1628,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         """Export a matrix element to a matrix.f file in MadEvent
         color ordered amplitude format"""
 
+        misc.sprint('writing ME')
 
         if not matrix_element.get('processes') \
                or not isinstance(matrix_element,
@@ -1626,6 +1642,8 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
 
         # Set lowercase/uppercase Fortran code
         writers.FortranWriter.downcase = False
+
+        misc.sprint('before replace')
 
         replace_dict = {}
 
@@ -1719,6 +1737,9 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                                                              me_flag)
         replace_dict['flow_functions_lines'] = flow_functions_lines
 
+
+        misc.sprint('exytracying')
+
         # Extract nperms
         replace_dict['nperms'] = len(matrix_element.get('permutations'))        
 
@@ -1728,6 +1749,7 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
                 flow_jamp_dict = self.get_flow_info(matrix_element)
         nflowperms = len(needed_perms)
 
+        misc.sprint('flow perms')
 
         flow_perms_data_lines = self.get_perm_lines(matrix_element,
                                                     needed_perms)
@@ -1741,6 +1763,8 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         color_sum_lines = self.get_color_flow_lines(row_flow_factors,
                                                     flow_jamp_dict, min_color_order,
                                                     matrix_element)
+
+        misc.sprint('color sum after')
 
     #    jamp_perm_lines = self.get_jamp_data_lines(matrix_element)
 
@@ -1758,11 +1782,12 @@ class ProcessExporterFortranCOME(export_v4.ProcessExporterFortranME,
         replace_dict['njamps'] = njamps
         replace_dict['call_flow_lines'] = '\n'.join(call_flow_lines)
 
+        misc.sprint('after')
 
         # Extract JAMP2 summation lines, using only leading color flows
         nflows, jamp2_lines = self.get_jamp2_lines(matrix_element,
                                                    perm_needed_flows)
-        nflows = 1
+    #    nflows = 1
     #    jamp2_lines = '\n'
         replace_dict['nflows'] = nflows
         replace_dict['jamp2_lines'] = '\n'.join(jamp2_lines)
@@ -1858,6 +1883,8 @@ class ProcessExporterFortranCOMEGroup(export_v4.ProcessExporterFortranMEGroup,
 
     matrix_file = "co_super_matrix_madevent_group_v4.inc"
 
+
+    misc.sprint('in COMEGROUP')
     #===========================================================================
     # generate_subprocess_directory_v4
     #===========================================================================
