@@ -1090,16 +1090,20 @@ class MadSpinInterface(extended_cmd.Cmd):
                     if tot_width:
                         br = decay_file.cross / tot_width
                 elif  self.options['new_wgt'] == 'cross-section':
-                    if self.options["run_card"] and self.run_card['bias_module'] != 'None':
-                        norm = self.run_card['event_norm']
-                        if norm == "sum":
-                            br /= (decay_file.cross/len(decay_file))
-                        elif norm == "average":
-                            br /= decay_file.cross
-                        elif norm == "unitary":
-                            br *= 1
-                        else:
-                            raise Exception
+                    if self.options["run_card"]:
+                        if not hasattr(self, 'run_card'):
+                            misc.sprint(self.options["run_card"])
+                            self.run_card = banner.RunCardLO(self.options["run_card"])
+                        if self.run_card['bias_module'] != 'None':
+                            norm = self.run_card['event_norm']
+                            if norm == "sum":
+                                br /= (decay_file.cross/len(decay_file))
+                            elif norm == "average":
+                                br /= decay_file.cross
+                            elif norm == "unitary":
+                                br *= 1
+                            else:
+                                raise Exception
 
 
                 # ok start the procedure
