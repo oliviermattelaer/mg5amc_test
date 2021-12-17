@@ -32,7 +32,7 @@ c      integer mapconfig(0:lmaxconfigs)
       double precision prmass(-nexternal:0,N_MAX_CG)
       double precision prwidth(-nexternal:0,N_MAX_CG)
       integer pow(-nexternal:0,N_MAX_CG)
-      double precision qmass(-nexternal:0),qwidth(-nexternal:0),jac
+      double precision qmass(-nexternal:0),qwidth(-nexternal:0),jac,jac_inv
       double precision M_PROD, M_FULL
       logical notpass
       integer counter,mode,nbpoints, counter2, counter3
@@ -45,25 +45,18 @@ c      integer mapconfig(0:lmaxconfigs)
 
       ! variables to keep track of the vegas numbers for the production part
       logical keep_inv(-nexternal:-1),no_gen
-      integer ivar
-      double precision fixedinv(-nexternal:0)
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
       double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
       double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
-      common /to_fixed_kin/keep_inv,no_gen, ivar, fixedinv,
-     & phi_tchan,m2_tchan,cosphi_schan, phi_schan 
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
 
        double precision BWcut, maxBW
        common /to_BWcut/BWcut, maxBW
 
        integer frame_id
        common /to_me_frame/frame_id
-
-c Conflicting BW stuff
-      integer cBW_level_max,cBW(-nexternal:-1),cBW_level(-nexternal:-1)
-      double precision cBW_mass(-nexternal:-1,-1:1),
-     &     cBW_width(-nexternal:-1,-1:1)
-      common/c_conflictingBW/cBW_mass,cBW_width,cBW_level_max,cBW
-     $     ,cBW_level
 
 
       DOUBLE PRECISION AMP2(n_max_cg)
@@ -159,12 +152,6 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccc
       include 'props_production.inc'
 
 
-      ! do not consider the case of conflicting BW
-      do i = -nexternal, -1
-         cBW(i)=0
-         cBW_level(i)=0
-      enddo
-
 cccccccccccccccccccccccccccccccccccccccccccccccccccc
 c   III. compute production matrix element         c 
 cccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -186,14 +173,34 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccc
          enddo
       enddo
 
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c   V. load topology for the whole event select                c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+
+      jac_inv=1d0
+      x_fix=0d0
+      qwidth=0d0
+      ifix=0
+
+      write (44,*)'inv'
+      call generate_momenta_conf_inv(jac_inv,x_fix,itree,qmass
+     $     ,qwidth,p)
+      write (44,*) 'x_fix',x_fix(1:5)
+      do i=1,5
+         if (x_fix(i).ne.x_fix(i) .or. x_fix(i).le.0d0 .or.
+     $        x_fix(i).ge.1d0) then
+            write (*,*) 'ERROR in x_fix',x_fix(1:5)
+            stop 1
+         endif
+      enddo
+
+      
+      call set_parameters(p,Ecollider)
+      
       do i=-nexternal_prod+3,-1
          qmass(i)=prmass(i,iconfig)
          qwidth(i)=prwidth(i,iconfig)
       enddo
-
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-c   V. load topology for the whole event select                c
-cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
        call  merge_itree(itree,qmass,qwidth, p,map_external2res)
        !write(*,*) keep_inv(-5)
@@ -203,8 +210,8 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
  
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c   VIa. Calculate the max. weight                                      c
-ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
 
       if (mode.eq.1) then
 
@@ -219,6 +226,7 @@ c        max_jac=0d0
         do i=1,nbpoints
            jac=1d0
            ivar=0
+           ifix=0
            no_gen=.false.
            do j = 1, 3*(nexternal-nexternal_prod)
               call  ntuple(x(j),0d0,1d0,j,1)
@@ -262,12 +270,11 @@ c           enddo
            call  boost_to_frame(pfull, frame_id, P2)
            call SMATRIX(P2,M_full)
 
-           call  boost_to_frame_prod(pprod, frame_id,nexternal_prod, P2)
+c$$$           call  boost_to_frame_prod(pprod, frame_id,nexternal_prod, P2)
+           call  boost_to_frame_prod(p, frame_id,nexternal_prod, P2)
            call SMATRIX_PROD(P2,M_prod)
 
-
-
-           weight=M_full*jac/M_prod
+           weight=M_full*jac/(M_prod*jac_inv)
            if (weight.gt.maxweight) then
             maxweight=weight
 c            max_m=M_full
@@ -335,6 +342,7 @@ c        initialize the helicity amps
            counter=counter+1
            jac=1d0
            ivar=0
+           ifix=0
            no_gen=.false.
            do i = 1, 3*(nexternal-nexternal_prod)+1
               call  ntuple(x(i),0d0,1d0,i,1)
@@ -373,12 +381,43 @@ c        initialize the helicity amps
            call  boost_to_frame(pfull, frame_id, P2)
            call SMATRIX(P2,M_full)
 
+c$$$           write (44,*) ''
+c$$$           write (44,*) 'pfull'
+c$$$           do i=1,nexternal
+c$$$              write (44,*) i,pfull(0:3,i),sqrt(max(dot(pfull(0,i)
+c$$$     $             ,pfull(0,i)),0d0))
+c$$$           enddo
+c$$$           write (44,*)sqrt(max(dot(pfull(0:3,3)+pfull(0:3,4)
+c$$$     $          ,pfull(0:3,3)+pfull(0:3,4)),0d0)),
+c$$$     $      sqrt(max(dot(pfull(0:3,5)+pfull(0:3,6)
+c$$$     $          ,pfull(0:3,5)+pfull(0:3,6)),0d0))
+c$$$           
+c$$$           do i=1,nexternal
+c$$$              write (44,*) i,p2(0:3,i),sqrt(max(dot(pfull(0,i),pfull(0
+c$$$     $             ,i)),0d0))
+c$$$           enddo
+           
 
-           call  boost_to_frame_prod(pprod, frame_id,nexternal_prod, P2)
+c$$$           call  boost_to_frame_prod(pprod, frame_id,nexternal_prod, P2)
+c$$$           call SMATRIX_PROD(P2,M_prod)
+           call  boost_to_frame_prod(p, frame_id,nexternal_prod, P2)
            call SMATRIX_PROD(P2,M_prod)
 
+c$$$           write (44,*) 'pprod'
+c$$$           do i=1,nexternal_prod
+c$$$              write (44,*) i,pprod(0:3,i),sqrt(max(dot(pprod(0,i)
+c$$$     $             ,pprod(0,i)),0d0))
+c$$$           enddo
+c$$$           do i=1,nexternal_prod
+c$$$              write (44,*) i,p2(0:3,i),sqrt(max(dot(pprod(0,i),pprod(0
+c$$$     $             ,i)),0d0))
+c$$$           enddo
+c$$$           write (44,*) 'p'
+c$$$           do i=1,nexternal_prod
+c$$$              write (44,*) i,p(0:3,i),sqrt(max(dot(p(0,i),p(0,i)),0d0))
+c$$$           enddo
 
-           weight=M_full*jac/M_prod
+           weight=M_full*jac/(M_prod*jac_inv)
 
            if (weight.gt.x(3*(nexternal-nexternal_prod)+1)*maxweight) notpass=.false.
         enddo
@@ -394,6 +433,7 @@ c
              m(indices_mc_masses(k))=values_mc_masses(k)
           enddo
           ivar=0
+          ifix=0
           call generate_momenta_conf(jac,x,itree,qmass,qwidth,ptrial,pprod,map_external2res) 
           
           if (jac.lt.0d0) then
@@ -428,6 +468,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
            jac=1d0
            ivar=0
+           ifix=0
            no_gen=.false.
 
          notpass=.true.
@@ -649,12 +690,12 @@ c
 c     common
       ! variables to keep track of the vegas numbers for the production part
       logical keep_inv(-nexternal:-1),no_gen
-      integer ivar
-      double precision fixedinv(-nexternal:0)
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
       double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
       double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
-      common /to_fixed_kin/keep_inv,no_gen, ivar, fixedinv,
-     & phi_tchan,m2_tchan,cosphi_schan, phi_schan 
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
 
        ! variables associate with the PS generation
        double precision totmassin, totmass
@@ -976,12 +1017,12 @@ c common
 
       ! variables to keep track of the vegas numbers for the production part
       logical keep_inv(-nexternal:-1),no_gen
-      integer ivar
-      double precision fixedinv(-nexternal:0)
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
       double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
       double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
-      common /to_fixed_kin/keep_inv,no_gen, ivar, fixedinv,
-     & phi_tchan,m2_tchan,cosphi_schan, phi_schan 
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
 
 c     
        ! variables associate with the PS generation
@@ -991,11 +1032,6 @@ c
        common /to_topo/
      & totmassin, totmass,shat, sqrtshat, stot,y, m,
      & nbranch, ns_channel,nt_channel, pos_pz
-
-
-c Masses of particles. Should be filled in setcuts.f
-      double precision pmass(nexternal)
-      common /to_mass/pmass
 
 c local
       integer  mapext2res(nexternal_prod) ! map (index in production) -> index in the full structure
@@ -1022,15 +1058,8 @@ c parameters
       data firsttime/.true./
       double precision zero
       parameter (zero=0d0)
-c Conflicting BW stuff
-      integer cBW_level_max,cBW(-nexternal:-1),cBW_level(-nexternal:-1)
-      double precision cBW_mass(-nexternal:-1,-1:1),
-     &     cBW_width(-nexternal:-1,-1:1)
-      common/c_conflictingBW/cBW_mass,cBW_width,cBW_level_max,cBW
-     $     ,cBW_level
-
-       double precision BWcut, maxBW
-       common /to_BWcut/BWcut, maxBW
+      double precision BWcut, maxBW
+      common /to_BWcut/BWcut, maxBW
 
       pass=.true.
 
@@ -1038,7 +1067,6 @@ c Conflicting BW stuff
 c
       xjac=1d0
       xpswgt=1d0
-
 
 c     STEP 1: generate the initial momenta
 
@@ -1113,11 +1141,11 @@ c
 
 c    STEP 2:  generate all the invariant masses of the s-channels
       call generate_inv_mass_sch(ns_channel,itree,m,sqrtshat
-     &     ,totmass,qwidth,qmass,cBW,cBW_mass,cBW_width,s,x,xjac,pass)
+     &     ,totmass,qwidth,qmass,s,x,xjac,pass)
 
       !write(*,*) 'jac s-chan ', xjac
       if (.not.pass) then
-        jac=-1d0
+         jac=-1d0
         return
       endif
 
@@ -1184,12 +1212,12 @@ c
       !include 'genps.inc'
       include 'nexternal.inc'
       integer nbranch,nt_channel,ionebody
-      double precision M(-nexternal:nexternal),x(36)
+      double precision M(-nexternal:nexternal),x(36),x1
       double precision s(-nexternal:nexternal)
       double precision pb(0:3,-nexternal:nexternal)
       integer itree(2,-nexternal:-1)
       double precision xjac0,xpswgt0
-      logical pass,one_body
+      logical pass
 c
       double precision one
       parameter (one=1d0)
@@ -1202,28 +1230,35 @@ c
 
       ! variables to keep track of the vegas numbers for the production part
       logical keep_inv(-nexternal:-1),no_gen
-      integer ivar
-      double precision fixedinv(-nexternal:0)
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
       double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
       double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
-      common /to_fixed_kin/keep_inv,no_gen, ivar, fixedinv,
-     & phi_tchan,m2_tchan,cosphi_schan, phi_schan 
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
 
       pass=.true.
 
       do i = -nbranch+nt_channel+(nincoming-1),-1
-         if (keep_inv(i).or.no_gen) then 
-           costh=cosphi_schan(i)
-           phi=phi_schan(i)
-         else    
-           ivar=ivar+1
-           costh= 2d0*x(ivar)-1d0
-           ivar=ivar+1
-           phi  = 2d0*pi*x(ivar)
-           phi_schan(i)=phi
-           cosphi_schan(i)=costh
-           xjac0 = xjac0 * 4d0*pi
+         if (keep_inv(i).or.no_gen) then
+            ifix=ifix+1
+            x1=x_fix(ifix)
+         else
+            ivar=ivar+1
+            x1=x(ivar)
          endif
+         costh= 2d0*x1-1d0
+         xjac0 = xjac0 * 2d0
+         if (keep_inv(i).or.no_gen) then
+            ifix=ifix+1
+            x1=x_fix(ifix)
+         else
+            ivar=ivar+1
+            x1=x(ivar)
+         endif
+         phi  = 2d0*pi*x1
+         xjac0 = xjac0 * 2d0*pi
+
          xa2 = m(itree(1,i))*m(itree(1,i))/s(i)
          xb2 = m(itree(2,i))*m(itree(2,i))/s(i)
          if (m(itree(1,i))+m(itree(2,i)) .ge. m(i)) then
@@ -1231,25 +1266,9 @@ c
             pass=.false.
             return
          endif
-
-c         write(*,*) i
-c         write(*,*) sqrt(s(i))
-c         write(*,*) m(itree(1,i))
-c         write(*,*) m(itree(2,i))
-c         write(*,*)  xa2, xb2
-
-         if (.not.keep_inv(i).and..not.no_gen) then 
-           xpswgt0 = xpswgt0*.5D0*PI*SQRT(LAMBDA(ONE,XA2,XB2))/(4.D0*PI)
-         endif
-c         write(*,*)  xpswgt0
-
+         xpswgt0 = xpswgt0*.5D0*PI*SQRT(LAMBDA(ONE,XA2,XB2))/(4.D0*PI)
          call mom2cx(m(i),m(itree(1,i)),m(itree(2,i)),costh,phi,
      &        pb(0,itree(1,i)),pb(0,itree(2,i)))
-c          write(*,*) 'i ', i
-c         write(*,*) 'costh, phi ', costh,phi
-c         write(*,*) 'm init ', m(i)
-c          write(*,*) (pb(j,itree(1,i)), j=0,3)
-c          write(*,*) (pb(j,itree(2,i)), j=0,3)
 c If there is an extremely large boost needed here, skip the phase-space point
 c because of numerical stabilities.
          if (dsqrt(abs(dot(pb(0,i),pb(0,i))))/pb(0,i) 
@@ -1260,28 +1279,14 @@ c because of numerical stabilities.
          else
             call boostx(pb(0,itree(1,i)),pb(0,i),pb(0,itree(1,i)))
             call boostx(pb(0,itree(2,i)),pb(0,i),pb(0,itree(2,i)))
-c          write(*,*) (pb(j,itree(1,i)), j=0,3)
-c          write(*,*) (pb(j,itree(2,i)), j=0,3)
          endif
       enddo
-c
-c
-c Special phase-space fix for the one_body
-c      if (one_body) then
-c Factor due to the delta function in dphi_1
-c         xpswgt0=pi/m(ionebody)
-c Kajantie s normalization of phase space (compensated below in flux)
-c         xpswgt0=xpswgt0/(2*pi)
-c         do i=0,3
-c            pb(i,3) = pb(i,1)+pb(i,2)
-c         enddo
-c      endif
       return
       end
 
 
       subroutine generate_inv_mass_sch(ns_channel,itree,m,sqrtshat
-     &     ,totmass,qwidth,qmass,cBW,cBW_mass,cBW_width,s,x,xjac0,pass)
+     &     ,totmass,qwidth,qmass,s,x,xjac0,pass)
       implicit none
       real*8 pi
       parameter (pi=3.1415926535897932d0)
@@ -1292,7 +1297,7 @@ c      endif
       double precision sqrtshat,  m(-nexternal:nexternal)
       integer  ns_channel
       double precision qmass(-nexternal:0),qwidth(-nexternal:0)
-      double precision x(36)
+      double precision x(36),x1
       double precision s(-nexternal:nexternal)
       double precision xjac0
       integer itree(2,-nexternal:-1)
@@ -1302,19 +1307,16 @@ c      endif
       double precision xbwmass3,bwfunc
       external xbwmass3,bwfunc
       logical pass
-      integer cBW_level_max,cBW(-nexternal:-1),cBW_level(-nexternal:-1)
-      double precision cBW_mass(-nexternal:-1,-1:1),
-     &     cBW_width(-nexternal:-1,-1:1)
-      double precision b(-1:1),x0
+      double precision a,b,x0
 
       ! variables to keep track of the vegas numbers for the production part
       logical keep_inv(-nexternal:-1),no_gen
-      integer ivar
-      double precision fixedinv(-nexternal:0)
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
       double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
       double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
-      common /to_fixed_kin/keep_inv,no_gen, ivar, fixedinv,
-     & phi_tchan,m2_tchan,cosphi_schan, phi_schan 
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
 
        double precision BWcut, maxBW
        common /to_BWcut/BWcut, maxBW
@@ -1323,9 +1325,12 @@ c      endif
       totalmass=totmass
       do i = -1,-ns_channel,-1
 c Generate invariant masses for all s-channel branchings of the Born
-         if (keep_inv(i).or.no_gen) then 
-            s(i)=fixedinv(i)
-            goto 503
+         if (keep_inv(i).or.no_gen) then
+            ifix=ifix+1
+            x1=x_fix(ifix)
+         else
+            ivar=ivar+1
+            x1=x(ivar)
          endif
          smin = (m(itree(1,i))+m(itree(2,i)))**2
          smax = (sqrtshat-totalmass+sqrt(smin))**2
@@ -1334,110 +1339,27 @@ c Generate invariant masses for all s-channel branchings of the Born
             write(*,*)smin,smax,i
             stop
          endif
-         ivar=ivar+1
 c Choose the appropriate s given our constraints smin,smax
          if(qwidth(i).ne.0.d0)then
 c Breit Wigner
-            if (cBW(i).eq.1 .and.
-     &          cBW_width(i,1).gt.0d0 .and. cBW_width(i,-1).gt.0d0) then
-c     conflicting BW on both sides
-               do j=-1,1,2
-                  b(j)=(cBW_mass(i,j)-qmass(i))/
-     &                 (qwidth(i)+cBW_width(i,j))
-                  b(j)=qmass(i)+b(j)*qwidth(i)
-                  b(j)=b(j)**2
-               enddo
-               if (x(ivar).lt.1d0/3d0) then
-                  x0=3d0*x(ivar)
-                  s(i)=(b(-1)-smin)*x0+smin
-                  xjac0=3d0*xjac0*(b(-1)-smin)
-               elseif (x(ivar).gt.1d0/3d0 .and. x(ivar).lt.2d0/3d0) then
-                  x0=3d0*x(ivar)-1d0
-                  xm02=qmass(i)**2
-                  bwmdpl=b(1)-xm02
-                  bwmdmn=xm02-b(-1)
-                  bwfmpl=atan(bwmdpl/(qmass(i)*qwidth(i)))
-                  bwfmmn=atan(bwmdmn/(qmass(i)*qwidth(i)))
-                  bwdelf=(bwfmpl+bwfmmn)/pi
-                  s(i)=xbwmass3(x0,xm02,qwidth(i),bwdelf
-     &                 ,bwfmmn)
-                  xjac0=3d0*xjac0*bwdelf/bwfunc(s(i),xm02,qwidth(i))
-               else
-                  x0=3d0*x(ivar)-2d0
-                  s(i)=(smax-b(1))*x0+b(1)
-                  xjac0=3d0*xjac0*(smax-b(1))
-               endif
-            elseif (cBW(i).eq.1.and.cBW_width(i,1).gt.0d0) then
-c     conflicting BW with alternative mass larger
-               b(1)=(cBW_mass(i,1)-qmass(i))/
-     &              (qwidth(i)+cBW_width(i,1))
-               b(1)=qmass(i)+b(1)*qwidth(i)
-               b(1)=b(1)**2
-               if (x(ivar).lt.0.5d0) then
-                  x0=2d0*x(ivar)
-                  xm02=qmass(i)**2
-                  bwmdpl=b(1)-xm02
-                  bwmdmn=xm02-smin
-                  bwfmpl=atan(bwmdpl/(qmass(i)*qwidth(i)))
-                  bwfmmn=atan(bwmdmn/(qmass(i)*qwidth(i)))
-                  bwdelf=(bwfmpl+bwfmmn)/pi
-                  s(i)=xbwmass3(x0,xm02,qwidth(i),bwdelf
-     &                 ,bwfmmn)
-                  xjac0=2d0*xjac0*bwdelf/bwfunc(s(i),xm02,qwidth(i))
-               else
-                  x0=2d0*x(ivar)-1d0
-                  s(i)=(smax-b(1))*x0+b(1)
-                  xjac0=2d0*xjac0*(smax-b(1))
-               endif
-            elseif (cBW(i).eq.1.and.cBW_width(i,-1).gt.0d0) then
-c     conflicting BW with alternative mass smaller
-               b(-1)=(cBW_mass(i,-1)-qmass(i))/
-     &              (qwidth(i)+cBW_width(i,-1)) ! b(-1) is negative here
-               b(-1)=qmass(i)+b(-1)*qwidth(i)
-               b(-1)=b(-1)**2
-               if (x(ivar).lt.0.5d0) then
-                  x0=2d0*x(ivar)
-                  s(i)=(b(-1)-smin)*x0+smin
-                  xjac0=2d0*xjac0*(b(-1)-smin)
-               else
-                  x0=2d0*x(ivar)-1d0
-                  xm02=qmass(i)**2
-                  bwmdpl=smax-xm02
-                  bwmdmn=xm02-b(-1)
-                  bwfmpl=atan(bwmdpl/(qmass(i)*qwidth(i)))
-                  bwfmmn=atan(bwmdmn/(qmass(i)*qwidth(i)))
-                  bwdelf=(bwfmpl+bwfmmn)/pi
-                  s(i)=xbwmass3(x0,xm02,qwidth(i),bwdelf
-     &                 ,bwfmmn)
-                  xjac0=2d0*xjac0*bwdelf/bwfunc(s(i),xm02,qwidth(i))
-               endif
-            else
-c     normal BW
-               ! P.A.: introduce the BWcutoff here
-               smax=min(smax,(qmass(i)+BWcut*qwidth(i))**2 )
-               smin=max(smin,(qmass(i)-BWcut*qwidth(i))**2 )
+            ! P.A.: introduce the BWcutoff here
+            smax=min(smax,(qmass(i)+BWcut*qwidth(i))**2 )
+            smin=max(smin,(qmass(i)-BWcut*qwidth(i))**2 )
 
-               xm02=qmass(i)**2
-               bwmdpl=smax-xm02
-               bwmdmn=xm02-smin
-               bwfmpl=atan(bwmdpl/(qmass(i)*qwidth(i)))
-               bwfmmn=atan(bwmdmn/(qmass(i)*qwidth(i)))
-               bwdelf=(bwfmpl+bwfmmn)/pi
-               s(i)=xbwmass3(x(ivar),xm02,qwidth(i),bwdelf
-     &              ,bwfmmn)
+            A=atan((qmass(i)-smin/qmass(i))/qwidth(i))
+            B=atan((qmass(i)-smax/qmass(i))/qwidth(i))
+            s(i)=qmass(i)*(qmass(i)-qwidth(i)*tan(A-(A-B)*x1))
+            xjac0=xjac0*qmass(i)*qwidth(i)*(A-B)/(cos(A-(A-B)*x1))**2
 
-               if (s(i).gt.smax.or.s(i).lt.smin) then
-                  xjac0=-1d0
-                  pass=.false.
-                  return
-               endif
-
-               xjac0=xjac0*bwdelf/bwfunc(s(i),xm02,qwidth(i))
-               !write(*,*) i , sqrt(s(i))
+            if (s(i).gt.smax.or.s(i).lt.smin) then
+               xjac0=-1d0
+               pass=.false.
+               return
             endif
+
          else
 c not a Breit Wigner
-            s(i) = (smax-smin)*x(ivar)+smin
+            s(i) = (smax-smin)*x1+smin
             xjac0 = xjac0*(smax-smin)
          endif
 
@@ -1452,7 +1374,6 @@ c If numerical inaccuracy, quit loop
             pass=.false.
             return
          endif
-         fixedinv(i)=s(i)
 c
 c     fill masses, update totalmass
 c
@@ -1486,7 +1407,7 @@ c with the s channel decay sequence
       !include 'genps.inc'
       include 'nexternal.inc'
       double precision xjac0,xpswgt0
-      double precision M(-nexternal:nexternal),x(36)
+      double precision M(-nexternal:nexternal),x(36),x1
       double precision s(-nexternal:nexternal)
       double precision pb(0:3,-nexternal:nexternal)
       integer itree(2,-nexternal:-1)
@@ -1501,12 +1422,12 @@ c
 
       ! variables to keep track of the vegas numbers for the production part
       logical keep_inv(-nexternal:-1),no_gen
-      integer ivar
-      double precision fixedinv(-nexternal:0)
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
       double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
       double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
-      common /to_fixed_kin/keep_inv,no_gen, ivar, fixedinv,
-     & phi_tchan,m2_tchan,cosphi_schan, phi_schan 
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
 
 c 
       pass=.true.
@@ -1530,14 +1451,15 @@ c of the t-channel line.
             return
          endif
          if (keep_inv(ibranch).or.no_gen) then
-            m(ibranch-1)=m2_tchan(ibranch)
+            ifix=ifix+1
+            x1=x_fix(ifix)
          else
             ivar=ivar+1
-            m(ibranch-1)=dsqrt((smax-smin)*
-     &        x(ivar))
-            m2_tchan(ibranch)=m(ibranch-1)
-            xjac0 = xjac0*(smax-smin)
+            x1=x(ivar)
          endif
+         m(ibranch-1)=dsqrt((smax-smin)*x1)
+         m2_tchan(ibranch)=m(ibranch-1)
+         xjac0 = xjac0*(smax-smin)
          if (m(ibranch-1)**2.lt.smin.or.m(ibranch-1)**2.gt.smax
      &        .or.m(ibranch-1).ne.m(ibranch-1)) then
             xjac0=-1d0
@@ -1568,30 +1490,42 @@ c     M(ibranch-1) is the mass of P2  (all the remaining particles)
          m12 = m(itree(2,ibranch))**2
          mnq = m(ibranch-1)**2
          call yminmax(s1,t,m12,ma2,mbq,mnq,tmin,tmax)
-         tmax_temp = tmax
+c$$$         write (44,*) s1,m12,ma2,mbq,mnq,tmin,tmax
          if (keep_inv(ibranch).or.no_gen) then
-             t = fixedinv(ibranch) 
-         else 
-             ivar=ivar+1
-             t=(tmax_temp-tmin)*x(ivar)+tmin
-             fixedinv(ibranch)=t 
-             xjac0=xjac0*(tmax_temp-tmin)
+            ifix=ifix+1
+            x1=x_fix(ifix)
+         else
+            ivar=ivar+1
+            x1=x(ivar)
          endif
 
+         t=-tmax+x1*(-tmin+tmax)
+         xjac0=xjac0*(-tmin+tmax)
+
+         t=-t
+         
          if (t .lt. tmin .or. t .gt. tmax) then
             xjac0=-3d0
+            write (44,*) 't-chan fail',t,tmin,tmax
             pass=.false.
             return
          endif
+
          if (keep_inv(ibranch).or.no_gen) then
-            phi=phi_tchan(ibranch)
+            ifix=ifix+1
+            x1=x_fix(ifix)
          else
             ivar=ivar+1
-            phi = 2d0*pi*x(ivar)
-            phi_tchan(ibranch)=phi
-            xjac0 = xjac0*2d0*pi
+            x1=x(ivar)
          endif
+         
+         phi = 2d0*pi*x1
+         phi_tchan(ibranch)=phi
+         xjac0 = xjac0*2d0*pi
 
+
+c$$$         write (44,*) 'f',ibranch,t,phi
+         
 c Finally generate the momentum. The call is of the form
 c pa+pb -> p1+ p2; t=(pa-p1)**2;   pr = pa-p1
 c gentcms(pa,pb,t,phi,m1,m2,p1,pr) 
@@ -1605,9 +1539,9 @@ c
             pass=.false.
             return
          endif
-         if (.not.keep_inv(ibranch).and..not.no_gen) then
+
          xpswgt0 = xpswgt0/(4d0*dsqrt(lambda(s1,ma2,mbq)))
-         endif
+
       enddo
 c We need to get the momentum of the last external particle.  This
 c should just be the sum of p(0,2) and the remaining momentum from our
@@ -2060,3 +1994,634 @@ c         write(*,*) 'cluster.f: uncompressed code ',i,' is ',ids(i)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      subroutine generate_momenta_conf_inv(jac,x,itree,qmass
+     $     ,qwidth,p)
+c
+c x(1)...x(ndim-5) --> invariant mass & angles for the Born
+c x(ndim-4) --> tau_born
+c x(ndim-3) --> y_born
+c x(ndim-2) --> xi_i_fks
+c x(ndim-1) --> y_ij_fks
+c x(ndim) --> phi_i
+c
+      implicit none
+c$$$      include 'genps.inc'
+      include 'nexternal_prod.inc'
+      include 'nexternal.inc'
+c$$$      include 'run.inc'
+c arguments
+      double precision jac,x(36),p(0:3,nexternal_prod)
+      integer itree(2,-nexternal:-1)
+      double precision qmass(-nexternal_prod:0),qwidth(-nexternal_prod:0)
+c common
+c     Arguments have the following meanings:
+c     -2 soft-collinear, incoming leg, - direction as in FKS paper
+c     -1 collinear, incoming leg, - direction as in FKS paper
+c     0 soft
+c     1 collinear
+c     2 soft-collinear
+      logical softtest,colltest
+      common/sctests/softtest,colltest
+      integer iconfig0,iconfigsave
+      common/ciconfig0/iconfig0
+      save iconfigsave
+      double precision xbjrk_ev(2),xbjrk_cnt(2,-2:2)
+      common/cbjorkenx/xbjrk_ev,xbjrk_cnt
+c local
+      integer i
+      double precision pb(0:3, -nexternal_prod:nexternal_prod),xjac0,tau_born
+     $     ,ycm_born,ycmhat ,shat_born,sqrtshat_born,S(
+     $     -nexternal_prod:nexternal_prod),dot
+      external dot
+      logical pass
+c external
+      double precision lambda
+      external lambda
+c parameters
+      logical fks_as_is
+      parameter (fks_as_is=.false.)
+      real*8 pi
+      parameter (pi=3.1415926535897932d0)
+      logical firsttime
+      data firsttime/.true./
+      double precision zero
+      parameter (zero=0d0)
+c Common block with granny information
+      logical granny_is_res
+      integer igranny,iaunt
+      logical granny_chain(-nexternal_prod:nexternal_prod)
+     &     ,granny_chain_real_final(-nexternal_prod:nexternal_prod)
+      common /c_granny_res/igranny,iaunt,granny_is_res,granny_chain
+     &     ,granny_chain_real_final
+      integer i_fks,j_fks
+      common/fks_indices/i_fks,j_fks
+! variables associate with the PS generation
+      double precision totmassin, totmass
+      double precision shat, sqrtshat, stot, y, m(-nexternal:nexternal)
+      integer nbranch, ns_channel,nt_channel,pos_pz
+      common /to_topo/
+     &     totmassin, totmass,shat, sqrtshat, stot,y, m,
+     &     nbranch, ns_channel,nt_channel, pos_pz
+      
+      pb(0:3,1:nexternal_prod)=p(0:3,1:nexternal_prod)
+      pass=.true.
+      xjac0=jac
+
+      nbranch=nexternal_prod - 2
+      ns_channel=1
+      do while(itree(1,-ns_channel).ne.1 .and. itree(1,-ns_channel).ne.2
+     $     .and. ns_channel.lt.nbranch)
+!   m(-ns_channel)=0d0
+         ns_channel=ns_channel+1
+      enddo
+      ns_channel=ns_channel - 1
+      nt_channel=nbranch-ns_channel-1
+c If no t-channles, ns_channels is one less, because we want to exclude
+c the s-channel p1+p2
+      if (nt_channel .eq. 0 .and. nincoming_prod .eq. 2) then
+         ns_channel=ns_channel-1
+      endif
+
+      totmass=0d0
+      do i=1,nexternal_prod
+         m(i)=sqrt(max(dot(pb(0,i),pb(0,i)),0d0))
+         if (i.gt.nincoming) totmass=totmass+m(i)
+      enddo
+      s(-nbranch) = shat
+      m(-nbranch) = sqrtshat
+      pb(0,-nbranch)= m(-nbranch)
+      pb(1,-nbranch)= 0d0
+      pb(2,-nbranch)= 0d0
+      pb(3,-nbranch)= 0d0
+c     
+c Generate Born-level momenta
+c
+c Start by generating all the invariant masses of the s-channels
+      call generate_inv_mass_sch_inv(ns_channel,itree,m,sqrtshat
+     $     ,totmass,qwidth,qmass,s,x,xjac0,pass,pb)
+
+      if (.not.pass) goto 222
+c If only s-channels, also set the p1+p2 s-channel
+      if (nt_channel .eq. 0 .and. nincoming_prod .eq. 2) then
+         s(-nbranch+1)=s(-nbranch) 
+         m(-nbranch+1)=m(-nbranch)       !Basic s-channel has s_hat 
+         pb(0,-nbranch+1) = m(-nbranch+1)!and 0 momentum
+         pb(1,-nbranch+1) = 0d0
+         pb(2,-nbranch+1) = 0d0
+         pb(3,-nbranch+1) = 0d0
+      endif
+c
+c     Next do the T-channel branchings
+c
+      if (nt_channel.ne.0) then
+         call generate_t_channel_branchings_inv(ns_channel,nbranch,itree
+     $        ,m,s,x,pb,xjac0,pass)
+         if (.not.pass) goto 222
+      endif
+c
+c     Now generate momentum for all intermediate and final states
+c     being careful to calculate from more massive to less massive states
+c     so the last states done are the final particle states.
+c
+      call fill_momenta_inv(nbranch,nt_channel,x,itree,m
+     $     ,s,pb,xjac0,pass)
+      if (.not.pass) goto 222
+
+      jac=xjac0
+
+      return
+ 222  continue
+      jac=-222
+      return
+      end
+
+      
+      subroutine generate_inv_mass_sch_inv(ns_channel,itree,m
+     $     ,sqrtshat_born,totmass,qwidth,qmass,s ,x,xjac0,pass,pb)
+      implicit none
+c$$$      include 'genps.inc'
+      include 'nexternal_prod.inc'
+      include 'nexternal.inc'
+      integer ns_channel
+      double precision qmass(-nexternal_prod:0),qwidth(-nexternal_prod:0)
+      double precision M(-nexternal:nexternal),x(36)
+      double precision s(-nexternal_prod:nexternal_prod)
+      double precision sqrtshat_born,totmass,xjac0,ptemp(0:3),pb(0:3,
+     $     -nexternal_prod:nexternal_prod)
+      integer itree(2,-nexternal:-1)
+      integer i,j,ii,order(-nexternal_prod:0)
+      double precision smin,smax,totalmass,dot,A,B
+      external dot
+      logical pass
+      ! variables to keep track of the vegas numbers for the production part
+      logical keep_inv(-nexternal:-1),no_gen
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
+      double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
+      double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
+      pass=.true.
+      totalmass=totmass
+      do ii = -1,-ns_channel,-1
+c$$$c Randomize the order with which to generate the s-channel masses:
+c$$$         call sChan_order(ns_channel,order)
+c$$$         i=order(ii)
+         i=ii
+c     Generate invariant masses for all s-channel branchings of the Born
+         smin = (m(itree(1,i))+m(itree(2,i)))**2
+         smax = (sqrtshat_born-totalmass+sqrt(smin))**2
+         if(smax.lt.smin.or.smax.lt.0.d0.or.smin.lt.0.d0)then
+            write(*,*)'Error #13 in genps_fks_inverse.f'
+            write(*,*)smin,smax,i
+            stop
+         endif
+
+         do j=0,3
+            ptemp(j) = pb(j,itree(1,i))+pb(j,itree(2,i))
+         enddo
+         s(i)=dot(ptemp,ptemp)
+
+         if(qwidth(i).ne.0.d0)then
+c Breit Wigner
+            A=atan((qmass(i)-smin/qmass(i))/qwidth(i))
+            B=atan((qmass(i)-smax/qmass(i))/qwidth(i))
+            ifix=ifix+1
+            x(ifix)=(A-atan((qmass(i)-s(i)/qmass(i))/qwidth(i)))/(A-B)
+            xjac0=xjac0*qmass(i)*qwidth(i)*(A-B)/(cos(A-(A-B)*x(i)))**2
+         else
+c not a Breit Wigner
+            A=smax-smin
+            B=smin
+            ifix=ifix+1
+            x(ifix)=(s(i)-B)/A
+            xjac0=xjac0*A
+         endif
+         
+c
+c     fill masses, update totalmass
+c
+         m(i) = sqrt(s(i))
+         totalmass=totalmass+m(i)- m(itree(1,i))-m(itree(2,i))
+c     Now lets fill in this props momentum (in frame that p is given)
+         do j=0,3
+            pb(j,i)=pb(j,itree(1,i))+pb(j,itree(2,i))
+         enddo
+      enddo
+      return
+      end
+
+      subroutine generate_t_channel_branchings_inv(ns_channel,nbranch
+     $     ,itree,m,s,x,pb,xjac0,pass)
+c First we need to determine the energy of the remaining particles this
+c is essentially in place of the cos(theta) degree of freedom we have
+c with the s channel decay sequence
+      implicit none
+      real*8 pi
+      parameter (pi=3.1415926535897932d0)
+c$$$      include 'genps.inc'
+      include 'nexternal_prod.inc'
+      include 'nexternal.inc'
+      double precision xjac0
+      double precision M(-nexternal:nexternal),x(36)
+      double precision s(-nexternal_prod:nexternal_prod)
+      double precision pb(0:3,-nexternal_prod:nexternal_prod),ptemp(0:3)
+      integer itree(2,-nexternal:-1)
+      integer ns_channel,nbranch
+      logical pass
+c
+      double precision totalmass,smin,smax,s1,ma2,mbq,m12,mnq,tmin,tmax
+     &     ,t,phi,dum,dum3(-1:1),tm,tiny
+      parameter (tiny=1d-8)
+      integer i,ibranch,idim
+      double precision lambda,dot
+      external lambda,dot
+      ! variables to keep track of the vegas numbers for the production part
+      logical keep_inv(-nexternal:-1),no_gen
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
+      double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
+      double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
+c 
+      pass=.true.
+      totalmass=0d0
+      ptemp(0:3)=0d0
+      do ibranch = -ns_channel-1,-nbranch,-1
+         totalmass=totalmass+m(itree(2,ibranch))
+         do i=0,3
+            ptemp(i)=ptemp(i)+pb(i,itree(2,ibranch))
+            pb(i,ibranch)=pb(i,itree(1,ibranch))-pb(i,itree(2,ibranch))
+         enddo
+      enddo
+      m(-ns_channel-1) = dsqrt(S(-nbranch))
+c     
+c Choose invariant masses of the pseudoparticles obtained by taking together
+c all final-state particles or pseudoparticles found from the current 
+c t-channel propagator down to the initial-state particle found at the end
+c of the t-channel line.
+      do ibranch = -ns_channel-1,-nbranch+2,-1
+         totalmass=totalmass-m(itree(2,ibranch))
+         smin = totalmass**2                    
+         smax = (m(ibranch) - m(itree(2,ibranch)))**2
+         if (smin .gt. smax) then
+            write (*,*) 'smin greater than smax in inverse PS'
+            xjac0=-3d0
+            pass=.false.
+            return
+         endif
+         idim=(nbranch-1+(-ibranch)*2)
+         do i=0,3
+            ptemp(i)=ptemp(i)-pb(i,itree(2,ibranch))
+         enddo
+         s1=dot(ptemp,ptemp)
+
+         ifix=ifix+1
+         x(ifix)=(s1-smin)/(smax-smin)
+         xjac0=xjac0*(smax-smin)
+         
+         m(ibranch-1)=sqrt(s1)
+      enddo
+c     
+c Set m(-nbranch) equal to the mass of the particle or pseudoparticle P
+c attached to the vertex (P,t,p2), with t being the last t-channel propagator
+c in the t-channel line, and p2 the incoming particle opposite to that from
+c which the t-channel line starts
+      m(-nbranch) = m(itree(2,-nbranch))
+c
+c     Now perform the t-channel decay sequence. Most of this comes from: 
+c     Particle Kinematics Chapter 6 section 3 page 166
+c
+c     From here, on we can just pretend this is a 2->2 scattering with
+c     Pa                    + Pb     -> P1          + P2
+c     p(0,itree(ibranch,1)) + p(0,2) -> p(0,ibranch)+ p(0,itree(ibranch,2))
+c     M(ibranch) is the total mass available (Pa+Pb)^2
+c     M(ibranch-1) is the mass of P2  (all the remaining particles)
+c
+      do ibranch=-ns_channel-1,-nbranch+1,-1
+         s1  = m(ibranch)**2    !Total mass available
+         ma2 = m(2)**2
+         mbq = dot(pb(0,itree(1,ibranch)),pb(0,itree(1,ibranch)))
+         m12 = m(itree(2,ibranch))**2
+         mnq = m(ibranch-1)**2
+         call yminmax(s1,t,m12,ma2,mbq,mnq,tmin,tmax)
+c$$$         write (44,*) s1,m12,ma2,mbq,mnq,tmin,tmax
+
+         tm=-dot(pb(0,ibranch),pb(0,ibranch))
+         
+         ifix=ifix+1
+         x(ifix)=(tm+tmax)/(tmax-tmin)
+         xjac0=xjac0*(tmax-tmin)
+
+         t=-tm
+         if (t .lt. tmin .or. t .gt. tmax) then
+            write (*,*) "WARNING #35 in genps_fks_inverse.f",t,tmin,tmax
+            xjac0=-3d0
+            pass=.false.
+            return
+         endif
+         if (xjac0 .lt. 0d0) then
+            write(*,*) 'Failed gentcms_inv1',ibranch,xjac0
+            pass=.false.
+            return
+         endif
+
+         call gentcms_inv(pb(0,itree(1,ibranch)),pb(0,2),t,phi,
+     &        m(itree(2,ibranch)),m(ibranch-1),pb(0,itree(2,ibranch)),
+     &        pb(0,ibranch),xjac0)
+c
+         if (xjac0 .lt. 0d0) then
+            write(*,*) 'Failed gentcms_inv2',ibranch,xjac0
+            pass=.false.
+            return
+         endif
+         ifix=ifix+1
+         x(ifix) = phi / (2d0 * pi)
+         xjac0 = xjac0*2d0*pi
+         xjac0 = xjac0/(4d0*dsqrt(lambda(s1,ma2,mbq)))
+
+
+c$$$         write (44,*) 'i',ibranch,t,phi
+
+         
+         if (xjac0 .lt. 0d0) then
+            write(*,*) 'Failed gentcms_inv3',ibranch,xjac0
+            pass=.false.
+            return
+         endif
+      enddo
+      return
+      end
+
+
+
+
+      subroutine gentcms_inv(pa,pb,t,phi,m1,m2,p1,pr,jac)
+c*************************************************************************
+c     Returns phi given momentum of particles a, b, and 1
+c     Generates 4 momentum for particle 1, and remainder pr
+c     given the values t
+c     Assuming incoming particles with momenta pa, pb
+c     And outgoing particles with mass m1,m2
+c     s = (pa+pb)^2  t=(pa-p1)^2
+c*************************************************************************
+      implicit none
+      double precision t,phi,m1,m2               !inputs
+      double precision pa(0:3),pb(0:3),jac
+      double precision p1(0:3),pr(0:3)           !outputs
+      double precision ptot(0:3),pa_cms(0:3)
+      double precision esum,ed,pp,md2,ma2,pt,ptotm(0:3)
+      double precision p1x(0:3)
+      integer i
+      double precision dot
+      do i=0,3
+         ptot(i)  = pa(i)+pb(i)
+         if (i .gt. 0) then
+            ptotm(i) = -ptot(i)
+         else
+            ptotm(i) = ptot(i)
+         endif
+      enddo
+      ma2 = dot(pa,pa)
+      call boostx(pa,ptotm,pa_cms)
+      call boostx(p1,ptotm,p1x)
+      call rotxxx_inv(p1x,pa_cms,p1x)          !Rotate back to pa_cms frame
+c
+c     determine magnitude of p1 in cms frame (from dhelas routine mom2cx)
+c
+      ESUM = sqrt(max(0d0,dot(ptot,ptot)))
+      if (esum .eq. 0d0) then
+         jac=-8d0             !Failed esum must be > 0
+         return
+      endif
+      MD2=(M1-M2)*(M1+M2)
+      ED=MD2/ESUM
+      IF (M1*M2.EQ.0.) THEN
+         PP=(ESUM-ABS(ED))*0.5d0
+      ELSE
+         PP=(MD2/ESUM)**2-2.0d0*(M1**2+M2**2)+ESUM**2
+         if (pp .gt. 0) then
+            PP=SQRT(pp)*0.5d0
+         else
+            write(*,*) 'Error creating momentum in gentcms',pp
+            jac=-1
+            return
+         endif
+      ENDIF
+c
+c     Energy of pa in pa+pb cms system
+c
+      call boostx(pa,ptotm,pa_cms)
+      pt = dsqrt(max(pp*pp-p1x(3)*p1x(3),0d0))
+      if (pt .le. 0d0) then
+         phi = 0d0
+      else
+         phi = acos(p1x(1)/pt)
+         if (p1x(2) .lt. 0d0) phi=-phi
+         if (phi .lt. 0d0) phi = phi + 4d0*acos(0d0)
+      endif
+      end
+
+
+
+      subroutine fill_momenta_inv(nbranch,nt_channel
+     $     ,x,itree,m,s,pb,xjac0,pass)
+      implicit none
+      real*8 pi
+      parameter (pi=3.1415926535897932d0)
+c$$$      include 'genps.inc'
+      include 'nexternal_prod.inc'
+      include 'nexternal.inc'
+      integer nbranch,nt_channel
+      double precision M(-nexternal:nexternal),x(36)
+      double precision s(-nexternal_prod:nexternal_prod)
+      double precision pb(0:3,-nexternal_prod:nexternal_prod)
+      integer itree(2,-nexternal:-1)
+      double precision xjac0
+      logical pass
+c
+      double precision one
+      parameter (one=1d0)
+      double precision costh,phi,xa2,xb2
+      integer i,ix
+      double precision lambda,dot
+      external lambda,dot
+      double precision vtiny
+      parameter (vtiny=1d-12)
+      ! variables to keep track of the vegas numbers for the production part
+      logical keep_inv(-nexternal:-1),no_gen
+      integer ivar,ifix
+      double precision fixedinv(-nexternal:0),x_fix(36)
+      double precision phi_tchan(-nexternal:0),m2_tchan(-nexternal:0)
+      double precision cosphi_schan(-nexternal:0), phi_schan(-nexternal:0)
+      common /to_fixed_kin/keep_inv,no_gen, ivar,ifix, fixedinv,
+     & phi_tchan,m2_tchan,cosphi_schan, phi_schan ,x_fix
+c
+      pass=.true.
+      do i = -nbranch+nt_channel+(nincoming_prod-1),-1
+         ix = nbranch+(-i-1)*2+(2-nincoming_prod)
+         if (nt_channel .eq. 0) ix=ix-1
+         xjac0 = xjac0 * 4d0*pi
+         xa2 = m(itree(1,i))*m(itree(1,i))/s(i)
+         xb2 = m(itree(2,i))*m(itree(2,i))/s(i)
+         if (m(itree(1,i))+m(itree(2,i)) .ge. m(i)) then
+            write (*,*) 'Wrong masses in inverse PS'
+            xjac0=-8
+            pass=.false.
+            return
+         endif
+         xjac0 = xjac0*.5D0*PI*SQRT(LAMBDA(ONE,XA2,XB2))/(4.D0*PI)
+         call mom2cx_inv(m(i),m(itree(1,i)),m(itree(2,i)),costh,phi,
+     &        pb(0,itree(1,i)),pb(0,itree(2,i)))
+         ifix=ifix+1
+         x(ifix) = 0.5d0*(1d0+costh)
+         ifix=ifix+1
+         x(ifix) = phi / (2d0*pi)
+       enddo
+c
+      return
+      end
+
+
+
+
+
+      subroutine mom2cx_inv(esum,mass1,mass2,costh1,phi1,pa,pb)
+c
+c     Basically inverse of mom2cx. Returns costh1 and phi1
+c
+c input:
+c       real    esum           : energy sum of particle 1 and 2
+c       real    mass1          : mass            of particle 1
+c       real    mass2          : mass            of particle 2
+c       real    pa(0:3)        : four-momentum of particle 1
+c       real    pb(0:3)        : four-momentum of particle 2
+c
+c output:
+c       real    costh1         : cos(theta)      of particle 1
+c       real    phi1           : azimuthal angle of particle 1
+c     
+      implicit none
+      double precision p1(0:3),p2(0:3),
+     &     esum,mass1,mass2,costh1,phi1,md2,ed,pp,sinth1
+      double precision pboost(0:3), pa(0:3),pb(0:3)
+      integer i
+
+      double precision rZero, rHalf, rOne, rTwo
+      parameter( rZero = 0.0d0, rHalf = 0.5d0 )
+      parameter( rOne = 1.0d0, rTwo = 2.0d0 )
+      do i=0,3
+         pboost(i)=+pa(i)+pb(i)
+         pboost(i)=-pboost(i)
+      enddo
+      pboost(0)=-pboost(0)
+      call boostx(pa,pboost,p1)
+      call boostx(pb,pboost,p2)
+      md2 = (mass1-mass2)*(mass1+mass2)
+      ed = md2/esum
+      if ( mass1*mass2.eq.rZero ) then
+         pp = (esum-abs(ed))*rHalf
+      else
+         pp = sqrt((md2/esum)**2-rTwo*(mass1**2+mass2**2)+esum**2)*rHalf
+      endif
+      costh1 = p1(3)/pp
+      sinth1 = sqrt((rOne-costh1)*(rOne+costh1))
+      if (sinth1 .gt. 0d0) then
+         phi1 = acos(p1(1)/(pp*sinth1))
+         if (p1(2) .lt. 0d0) then
+            phi1 = -phi1
+            if (phi1 .lt. 0d0) then
+               phi1 = phi1 + 4d0 * acos(0d0)
+            endif
+         endif
+      else
+         phi1 = 0d0
+      endif
+      return
+      end
+
+
+
+
+      subroutine rotxxx_inv(p,q , prot)
+c------------------------------------------------------------------------
+c
+c     This routine is the inverse of rotxxx(p,q,rot)
+c
+c This subroutine performs the spacial rotation of a four-momentum.
+c the momentum p is assumed to be given in the frame where the spacial
+c component of q points the positive z-axis.  prot is the momentum p
+c rotated to the frame where q is given.
+c
+c input:
+c       real    p(0:3)         : four-momentum p in q(1)=q(2)=0 frame
+c       real    q(0:3)         : four-momentum q in the rotated frame
+c
+c output:
+c       real    prot(0:3)      : four-momentum p in the rotated frame
+c-----------------------------------------------------------------------     
+      implicit none
+      double precision p(0:3),q(0:3),prot(0:3),qt2,qt,psgn,qq,p1
+      double precision rZero, rOne, dot
+      parameter( rZero = 0.0d0, rOne = 1.0d0 )
+      double precision cx, cy, sx, sy, p2
+      external dot
+      prot(0) = p(0)
+      qt2 = q(1)**2 + q(2)**2
+      if ( qt2.eq.rZero ) then
+         if ( q(3).eq.rZero ) then
+            prot(1) = p(1)
+            prot(2) = p(2)
+            prot(3) = p(3)
+         else
+            psgn = dsign(rOne,q(3))
+            prot(1) = p(1)*psgn
+            prot(2) = p(2)*psgn
+            prot(3) = p(3)*psgn
+         endif
+      else
+         qq = sqrt(qt2+q(3)**2)
+         qt = sqrt(qt2)
+         p1 = p(1)
+         p2 = p(2)
+         cx = q(1)/qt
+         sx = q(2)/qt
+         cy = q(3) / qq
+         sy = qt / qq
+         sy=-sy
+         sx=-sx
+         prot(1) =  cx*cy*p1 -sx*cy*p2 +sy*p(3)
+         prot(2) =    +sx*p1    +cx*p2 
+         prot(3) = -sy*cx*p1 +sx*sy*p2 +cy*p(3)
+      endif
+      return
+      end
+
+      
