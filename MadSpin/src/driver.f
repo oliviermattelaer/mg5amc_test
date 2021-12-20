@@ -1457,7 +1457,7 @@ c of the t-channel line.
             ivar=ivar+1
             x1=x(ivar)
          endif
-         m(ibranch-1)=dsqrt((smax-smin)*x1)
+         m(ibranch-1)=dsqrt((smax-smin)*x1+smin)
          m2_tchan(ibranch)=m(ibranch-1)
          xjac0 = xjac0*(smax-smin)
          if (m(ibranch-1)**2.lt.smin.or.m(ibranch-1)**2.gt.smax
