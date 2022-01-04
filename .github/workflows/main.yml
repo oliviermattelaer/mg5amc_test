@@ -43,7 +43,7 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: bzr branch
-        run:  bzr branch http://bazaar.launchpad.net/~maddevelopers/mg5amcnlo/bzr_from_git_test ~/bzr_from_git_test || (cd ~/bzr_from_git_test && bzr pull)"
+        run:  bzr branch http://bazaar.launchpad.net/~maddevelopers/mg5amcnlo/bzr_from_git_test ~/bzr_from_git_test || (cd ~/bzr_from_git_test && bzr pull)
 
       # Runs a set of commands using the runners shell
       - name: move data from git to bzr
