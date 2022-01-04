@@ -23,10 +23,6 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      # Runs a single command using the runners shell
-      - name: install bzr
-        run: sudo apt-get install bzr
-        
       - name: identify to launchpad
         run: |
            mkdir ~/.ssh/
@@ -48,11 +44,11 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: bzr branch
-        run:  bzr branch http://bazaar.launchpad.net/~maddevelopers/mg5amcnlo/bzr_from_git_test /home/runner/work/bzr_from_git_test
+        run:  bzr branch http://bazaar.launchpad.net/~maddevelopers/mg5amcnlo/bzr_from_git_test ~/bzr_from_git_test
 
       # Runs a set of commands using the runners shell
       - name: move data from git to bzr
-        run: cp -r $GITHUB_WORKSPACE/* /home/runner/work/bzr_from_git_test/
+        run: cp -r $GITHUB_WORKSPACE/* ~/bzr_from_git_test/
    
       # Runs a set of commands using the runners shell
       - name: commit to bzr
