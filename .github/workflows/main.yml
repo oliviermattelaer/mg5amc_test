@@ -41,6 +41,8 @@ jobs:
           bzr lp-login
           bzr --version 
           python --version
+	  echo  $GITHUB_WORKSPACE
+	  pwd
 
 
       # Runs a set of commands using the runners shell
