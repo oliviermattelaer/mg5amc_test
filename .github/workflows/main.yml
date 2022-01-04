@@ -52,7 +52,7 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: commit to bzr
         run: |	   
-           cd /home/runner/work/bzr_from_git_test
+           cd ~/bzr_from_git_test
            brz whoami "github bot <olivier.mattelaer@uclouvain.be>"
            bzr commit -m "automatic commit from git"
       # Runs a set of commands using the runners shell
