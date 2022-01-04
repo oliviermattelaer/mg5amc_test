@@ -41,7 +41,7 @@ jobs:
           bzr lp-login
           bzr --version 
           python --version
-          ssh -v mattelaer-bot@bazaar.launchpad.net
+          ssh -v mattelaer-bot@bazaar.launchpad.net hostname
 
 
       # Runs a set of commands using the runners shell
