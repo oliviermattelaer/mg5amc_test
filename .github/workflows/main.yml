@@ -46,7 +46,7 @@ jobs:
            bzr branch lp:~maddevelopers/mg5amcnlo/bzr_from_git_test
            cp -r $GITHUB_WORKSPACE bzr_from_git_test
            cd bzr_from_git_test
-	   
+   
       # Runs a set of commands using the runners shell
       - name: commit to bzr
         run: |	   
