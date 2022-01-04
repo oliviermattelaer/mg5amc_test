@@ -41,7 +41,7 @@ jobs:
            cp -r $GITHUB_WORKSPACE bzr_from_git_test
            cd bzr_from_git_test
            bzr commit -m "automatic commit from git"
-	   bzr launchpad-login
-	   echo "done so far"
+           bzr launchpad-login
+           echo "done so far"
            bzr push :parent
 
