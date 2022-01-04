@@ -31,6 +31,7 @@ jobs:
         run: |
            mkdir ~/.ssh/
            cp $GITHUB_WORKSPACE/.github/workflows/launchpad ~/.ssh/id_rsa
+	   chmod 700 ~/.ssh/id_rsa
            bzr launchpad-login mattelaer-bot
  
       - name: check identify to launchpad
