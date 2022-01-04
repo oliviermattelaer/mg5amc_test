@@ -40,10 +40,11 @@ jobs:
         run: bzr launchpad-login
 
       # Runs a set of commands using the runners shell
-      - name: copy launchpad directory
-        run: |
-           bzr launchpad-login mattelaer-bot
-           bzr branch lp:~maddevelopers/mg5amcnlo/bzr_from_git_test
+      - name: bzr branch
+        run:  bzr branch lp:~maddevelopers/mg5amcnlo/bzr_from_git_test
+
+      # Runs a set of commands using the runners shell
+      - name: move data from git to bzr
            cp -r $GITHUB_WORKSPACE bzr_from_git_test
            cd bzr_from_git_test
    
