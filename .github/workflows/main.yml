@@ -41,7 +41,7 @@ jobs:
           bzr lp-login
           bzr --version 
           python --version
-	  echo  $GITHUB_WORKSPACE
+          echo  $GITHUB_WORKSPACE
 	  pwd
 
 
