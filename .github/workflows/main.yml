@@ -42,7 +42,7 @@ jobs:
           bzr --version 
           python --version
           echo  $GITHUB_WORKSPACE
-	  pwd
+          pwd
 
 
       # Runs a set of commands using the runners shell
