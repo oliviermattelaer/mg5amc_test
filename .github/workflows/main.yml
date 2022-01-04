@@ -51,7 +51,7 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: move data from git to bzr
-        run: cp -r $GITHUB_WORKSPACE /home/runner/work/bzr_from_git_test
+        run: cp -r $GITHUB_WORKSPACE/* /home/runner/work/bzr_from_git_test/
    
       # Runs a set of commands using the runners shell
       - name: commit to bzr
