@@ -35,9 +35,6 @@ Type "tutorial MadLoop" for a tutorial on MadLoop for learning how to output
 standalone codes for loop process evaluation for given PS points.
 
 
-To run using the Template bin/newprocess_mg5 script
----------------------------------------------------
-Not available anymore (since v2.0.0).
-But you can still run MadGraph5_aMC@NLO by doing the following:
-./bin/mg5_aMC proc_card.dat
+To script MadGraph5_aMC@NLO
+-------------------------------
 
