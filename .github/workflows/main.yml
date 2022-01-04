@@ -47,17 +47,16 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: bzr branch
-        run:  bzr branch http://bazaar.launchpad.net/~maddevelopers/mg5amcnlo/bzr_from_git_test
+        run:  bzr branch http://bazaar.launchpad.net/~maddevelopers/mg5amcnlo/bzr_from_git_test /home/runner/work/bzr_from_git_test
 
       # Runs a set of commands using the runners shell
       - name: move data from git to bzr
-        run: |
-           cp -r $GITHUB_WORKSPACE bzr_from_git_test
-           cd bzr_from_git_test
+        run: cp -r $GITHUB_WORKSPACE /home/runner/work/bzr_from_git_test
    
       # Runs a set of commands using the runners shell
       - name: commit to bzr
         run: |	   
+           cd /home/runner/work/bzr_from_git_test
            bzr commit -m "automatic commit from git"
            bzr launchpad-login
            echo "done so far"
