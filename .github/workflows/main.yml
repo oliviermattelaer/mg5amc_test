@@ -37,7 +37,7 @@ jobs:
         run: bzr launchpad-login mattelaer-bot -v
 
       - name: check identify to launchpad is preserve
-        run: bzr launchpad-login
+        run: bzr lp-login
 
       # Runs a set of commands using the runners shell
       - name: bzr branch
