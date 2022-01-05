@@ -7,7 +7,10 @@ on:
   # Triggers the workflow on push or pull request events but only for the 3.4.0 branch
   push:
     branches: [ git_test ]
-
+    paths-ignore:
+      - 'docs/**'
+      - '.github/**'
+      
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
