@@ -37,4 +37,12 @@ standalone codes for loop process evaluation for given PS points.
 
 To script MadGraph5_aMC@NLO
 -------------------------------
-
+you can include all the interactive command into a single file and run it like
+./bin/mg5_aMC PATH_TO_FILE
+one example of file is the following
+import model sm
+generate p p > t t~, ( t > w+ b, w+ > all all ),  ( t~ > w- b~, w- > all all )
+output
+launch
+set mt scan:[160,170,180]
+set wt auto
