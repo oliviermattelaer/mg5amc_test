@@ -40,7 +40,7 @@ jobs:
 
       # Runs a set of commands using the runners shell
       - name: bzr branch
-        run:  bzr branch lp:~maddevelopers/mg5amcnlo/3.3.1_lo_vectorization ~/bzr_from_3.3.1_lo_vectorization || (cd ~/bzr_from_3.3.1_lo_vectorization && bzr pull && bzr revert)
+        run:  bzr branch lp:~maddevelopers/mg5amcnlo/3.1.1_lo_vectorization ~/bzr_from_3.3.1_lo_vectorization || (cd ~/bzr_from_3.3.1_lo_vectorization && bzr pull && bzr revert)
 
       # Runs a set of commands using the runners shell
       - name: get commit message
