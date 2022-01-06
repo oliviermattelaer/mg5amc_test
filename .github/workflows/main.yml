@@ -13,6 +13,9 @@ on:
       
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+  env:
+    commitmsg: ${{ github.event.head_commit.message }}
+    commitmsg2: ${{ github.event.commits[0].message }}
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -45,11 +48,8 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: get commit message
         run: |
-             cd $GITHUB_WORKSPACE
-             export commitmsg="${{ github.event.head_commit.message }}"
              echo $commitmsg
-             export commitmsg="${{ github.event.commits[0].message }}"
-             echo $commitmsg
+             echo $commitmsg2
 
      
       # Runs a set of commands using the runners shell
