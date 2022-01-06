@@ -51,9 +51,7 @@ jobs:
      
       # Runs a set of commands using the runners shell
       - name: move data from git to bzr
-        run: |
-             diff $GITHUB_WORKSPACE/ ~/bzr_from_3.1.1_lo_vectorization
-             cp -r $GITHUB_WORKSPACE/* ~/bzr_from_3.1.1_lo_vectorization
+        run:  cp -r $GITHUB_WORKSPACE/* ~/bzr_from_3.1.1_lo_vectorization
    
       # Runs a set of commands using the runners shell
       - name: commit to bzr
