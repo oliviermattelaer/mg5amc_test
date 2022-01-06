@@ -8534,6 +8534,11 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
                 self._curr_exporter.convert_model(self._curr_model, 
                                                wanted_lorentz,
                                                wanted_couplings)
+                if self._me_curr_exporter:
+                    self._me_curr_exporter.convert_model(self._curr_model, 
+                                               wanted_lorentz,
+                                               wanted_couplings)
+
         
         # move the old options to the flaglist system.
         if nojpeg:
