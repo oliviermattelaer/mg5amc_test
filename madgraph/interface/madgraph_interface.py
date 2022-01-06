@@ -8158,6 +8158,8 @@ in the MG5aMC option 'samurai' (instead of leaving it to its default 'auto')."""
         
         if options['output'] == 'Template':
             self._curr_exporter.copy_template(self._curr_model)
+            if self._me_curr_exporter:
+                self._me_curr_exporter.copy_template(self._curr_model)
         elif options['output'] == 'dir' and not os.path.isdir(self._export_dir):
             os.makedirs(self._export_dir)
 
