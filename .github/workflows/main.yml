@@ -43,14 +43,14 @@ jobs:
         run:  bzr branch lp:~maddevelopers/mg5amcnlo/3.1.1_lo_vectorization ~/bzr_from_3.1.1_lo_vectorization || (cd ~/bzr_from_3.1.1_lo_vectorization && bzr pull && bzr revert)
 
       # Runs a set of commands using the runners shell
-      - name: get commit message
-        run: |
-             cd $GITHUB_WORKSPACE
-             ls -a
-             pwd
-             git status
-             export commitmsg=`git log -1 --pretty=%B`
-             echo $commitmsg
+#      - name: get commit message
+#        run: |
+#             cd $GITHUB_WORKSPACE
+#             ls -a
+#             pwd
+#             git status
+#             export commitmsg=`git log -1 --pretty=%B`
+#             echo $commitmsg
      
       # Runs a set of commands using the runners shell
       - name: move data from git to bzr
@@ -61,7 +61,7 @@ jobs:
         run: |
            cd ~/bzr_from_3.1.1_lo_vectorization
            bzr whoami "github bot <olivier.mattelaer@uclouvain.be>"
-           bzr commit -m "${commitmsg}"
+           bzr commit -m "${{ github.event.head_commit.message }}"
       # Runs a set of commands using the runners shell
       - name: push to bazaar
         run: |
