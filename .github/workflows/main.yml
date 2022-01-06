@@ -46,6 +46,9 @@ jobs:
       - name: get commit message
         run: |
              cd $GITHUB_WORKSPACE
+             ls -a
+             pwd
+             git status
              export commitmsg=`git log -1 --pretty=%B`
              echo $commitmsg
      
