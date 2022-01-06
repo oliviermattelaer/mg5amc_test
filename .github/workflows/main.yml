@@ -58,7 +58,7 @@ jobs:
         run: |
            cd ~/bzr_from_3.1.1_lo_vectorization
            bzr whoami "github bot <olivier.mattelaer@uclouvain.be>"
-           bzr commit -m '${commitmsg}'
+           bzr commit -m "${commitmsg}"
       # Runs a set of commands using the runners shell
       - name: push to bazaar
         run: |
