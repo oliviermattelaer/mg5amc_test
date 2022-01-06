@@ -62,8 +62,8 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: push to bazaar
         run: |
-           cd ~/bzr_from_git_test
+           cd ~/bzr_from_3.1.1_lo_vectorization
            bzr launchpad-login
            echo "done so far"
-           bzr push lp:~maddevelopers/mg5amcnlo/bzr_from_git_test
+           bzr push lp:~maddevelopers/mg5amcnlo/3.1.1_lo_vectorization
 
