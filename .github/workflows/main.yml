@@ -3,10 +3,10 @@
 name: sync with bazaar
 
 # Controls when the workflow will run
+#    branches: [ 3.3.1_lo_vectorization ]
 on:
   # Triggers the workflow on push or pull request events but only for the 3.4.0 branch
   push:
-    branches: [ 3.3.1_lo_vectorization ]
     paths-ignore:
       - 'docs/**'
       - '.github/**'
@@ -46,8 +46,8 @@ jobs:
       - name: get commit message
         run: |
              cd $GITHUB_WORKSPACE
-	     export commitmsg=`git log -1 --pretty=%B`
-	     
+             export commitmsg=`git log -1 --pretty=%B`
+     
       # Runs a set of commands using the runners shell
       - name: move data from git to bzr
         run: cp -r $GITHUB_WORKSPACE/* ~/bzr_from_git_test/
