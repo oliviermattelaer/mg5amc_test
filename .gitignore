@@ -1,0 +1,12 @@
+*.pyc
+*~
+*/__pycache__/
+cmd*
+PROC*
+MG5_debug
+ME5_debug
+debug
+Template/LO/Source/make_opts
+models/*/*.pkl
+input/mg5_configuration.txt
+py.py
