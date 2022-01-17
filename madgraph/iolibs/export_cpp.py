@@ -1413,6 +1413,14 @@ class OneProcessExporterGPU(OneProcessExporterCPP):
         files.ln(pjoin(self.path, 'gcheck_sa.cu'), self.path, 'check_sa.cc')
         files.ln(pjoin(self.path, 'gCPPProcess.cu'), self.path, 'CPPProcess.cc')
         
+    def generate_process_files_madevent(self, proc_id, config_map, subproc_number):
+        
+        self.generate_process_files() # temporary ...
+        misc.sprint(proc_id)
+        misc.sprint(config_map)
+        misc.sprint(subproc_number)
+        raise Exception
+
     def edit_check_sa(self):
         
         template = open(pjoin(self.template_path,'gpu','check_sa.cu'),'r').read()
