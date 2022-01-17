@@ -82,10 +82,10 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      - name: check slurm support
+      - name: running unittest
         run: |
              cd $GITHUB_WORKSPACE/
-             srun ./tests/test_manager.py -t 0   
+             srun -t 1:00:00 ./tests/test_manager.py -t 0   
              export data=`cat tests/status`
              if [ "$data" = "0" ]; then
                 exit 0

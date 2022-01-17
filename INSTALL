@@ -54,9 +54,12 @@ Note that most of the output (including madevent/aMCatNLO)
 are not compatible with Windows. We do recomend to use unix subsystem.
 The old cygwin was never supported.
 
-For Post-processing:
-====================
+For Post-processing/optional package:
+=====================================
 
 From MG5aMC, you can run a lot of post-processing script to plot, shower,
 decay, ... your generated sample. Those tools need to be installed in
-advance via the MG5aMC terminal thanks to the "install" command 
+advance via the MG5aMC terminal thanks to the "install" command.
+If some of those packages are already present, you can edit the file
+./input/mg5_configuration.txt to uncomment the associated line and
+indicate the path to the package.
