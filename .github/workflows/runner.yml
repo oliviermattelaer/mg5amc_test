@@ -51,9 +51,9 @@ jobs:
        - name: check connection
          run: ssh lemaitre3 srun hostname
        - name: create check script
-         run: echo "export status=\"first\"; while [ ! \"$status\" = \"\" ]; do  export status=`squeue -u omatt | grep runner`; echo $status; sleep 60; done" | ssh lemaitre3 "cat > testrunner.sh"
-       - name: start runner 
-         run: ssh lemaitre3 ' | ssh user@remotehost -T "cat > /remotefile.txt"
+         run: echo "export status=\"first\"; while [ ! \"\$status\" = \"\" ]; do  export status=`squeue -u omatt | grep runner`; echo $status; sleep 60; done" | ssh lemaitre3 "cat > testrunnermg.sh"
+       - name: wait that no runnner is running
+         run: ssh lemaitre3 bash testrunnermg.sh
 
          
     startlm3runner:
