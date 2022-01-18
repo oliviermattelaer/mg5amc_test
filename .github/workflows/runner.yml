@@ -96,5 +96,5 @@ jobs:
           if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
        
        - name: stop runner
-          run: ssh lemaitre3 scancel ${{needs.getslurmid.outputs.output1}}
+         run: ssh lemaitre3 scancel ${{needs.getslurmid.outputs.output1}}
     
