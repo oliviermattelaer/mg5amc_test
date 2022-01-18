@@ -39,5 +39,7 @@ jobs:
             IdentityFile ~/.ssh/id_rsa.ceci
             ProxyJump gwceci
           if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
+       - name: check key
+         run: md5sum ~/.ssh/id_rsa.ceci
        - name: check connection
-         run: ssh lemaitre3 hostname
+         run: ssh -vvv lemaitre3 hostname
