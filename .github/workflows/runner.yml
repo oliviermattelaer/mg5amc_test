@@ -26,6 +26,7 @@ jobs:
           known_hosts: |
            gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
            lemaitre3.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKe01E26qJYGysz3Cgp8upzHaUJYvoIBzkWlRTfYt2yP
+           lemaitre3,130.104.1.207 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNiz3FYBVj9qu3DfunHx5UKgW1+LR1rI4y3iMXMhLw+xm2eRXj6ksn24C1Z5tHEpeJrawIghBOrTE/G96bcDqdU=
           config: |
            Host *
             ServerAliveInterval 300
