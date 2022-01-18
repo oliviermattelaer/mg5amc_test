@@ -58,9 +58,8 @@ jobs:
       steps:
        - name: hostname check
          run: hostname
-         
-     deleterunner:
-       depend: testrunner
+    deleterunner:
+       needs: testrunner
        runs-on: lemaitre3
        steps:
         - name: stop runner
