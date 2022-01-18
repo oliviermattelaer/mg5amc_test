@@ -63,5 +63,5 @@ jobs:
        runs-on: lemaitre3
        steps:
         - name: stop runner
-          run: scancel
+          run: scancel ${SLURM_JOB_ID}
     
