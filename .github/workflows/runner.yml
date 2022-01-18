@@ -76,7 +76,7 @@ jobs:
             ProxyJump gwceci
           if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
        - name: start runner 
-         run: ssh lemaitre3 srun -t 1:00:00 -J runner_mg5amc ./actions-runner/run.sh || echo "runner terminated"
+         run: ssh lemaitre3 srun --dependency=singleton -t 1:00:00 -J runner_mg5amc ./actions-runner/run.sh || echo "runner terminated"
 
 
     getslurmid:
