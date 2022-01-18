@@ -20,25 +20,24 @@ on:
       steps:
        - name: Install SSH key
          uses: shimataro/ssh-key-action@v2
-      with:
-         key: ${{ secrets.CECI_KEY}}
-         name: id_rsa.ceci # optional
-         known_hosts: gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
-         config: |
-    Host *
-      ServerAliveInterval 300
-      ServerAliveCountMax 2
-    Host gwceci
-#    IdentitiesOnly yes
-      Hostname gwceci.cism.ucl.ac.be
-      User omatt
-      ForwardAgent yes
-      IdentityFile ~/.ssh/id_rsa.ceci
-    Host dragon2 hmem lemaitre3 hercules dragon1 vega nic4 manneback mb zenobe nic5 ingrid zenobe
-     User omatt
-     ForwardAgent yes
-     IdentityFile ~/.ssh/id_rsa.ceci
-     ProxyJump gwceci
-    if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
-- name: check connection
-  run: ssh lemaitre3 hostname
+         with:
+          key: ${{ secrets.CECI_KEY}}
+          name: ~/.ssh/id_rsa.ceci # optional
+          known_hosts: gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
+          config: |
+           Host *
+            ServerAliveInterval 300
+            ServerAliveCountMax 2
+           Host gwceci
+            Hostname gwceci.cism.ucl.ac.be
+            User omatt
+            ForwardAgent yes
+            IdentityFile ~/.ssh/id_rsa.ceci
+           Host dragon2 hmem lemaitre3 hercules dragon1 vega nic4 manneback mb zenobe nic5 ingrid zenobe
+            User omatt
+            ForwardAgent yes
+            IdentityFile ~/.ssh/id_rsa.ceci
+            ProxyJump gwceci
+          if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
+       - name: check connection
+         run: ssh lemaitre3 hostname
