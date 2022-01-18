@@ -65,12 +65,12 @@ jobs:
        - name: hostname check
          run: hostname
 
-  stoplm3runner:
-    runs-on: ubuntu-latest
-    needs: [getslurmid,actualwork]
-    steps:
-      - run: echo ${{needs.getslurmid.outputs.output1}}
-      - name: Install SSH key
+    stoplm3runner:
+      runs-on: ubuntu-latest
+      needs: [getslurmid,actualwork]
+      steps:
+       - run: echo ${{needs.getslurmid.outputs.output1}}
+       - name: Install SSH key
          uses: shimataro/ssh-key-action@v2
          with:
           key: ${{ secrets.CECI_KEY}}
@@ -95,6 +95,6 @@ jobs:
             ProxyJump gwceci
           if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
        
-        - name: stop runner
+       - name: stop runner
           run: ssh lemaitre3 scancel ${{needs.getslurmid.outputs.output1}}
     
