@@ -62,6 +62,8 @@ jobs:
          run: echo "::set-output name=test::${SLURM_JOB_ID}"
        
     actualwork:
+     runs-on: lemaitre3
+     steps:
        - name: hostname check
          run: hostname
 
