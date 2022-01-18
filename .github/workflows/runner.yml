@@ -43,5 +43,9 @@ jobs:
           if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
        - name: check key
          run: md5sum ~/.ssh/id_rsa.ceci
+       - name: check know host
+         run: cat ~/.ssh/know_host
+       - name: check config
+         run: cat ~/.ssh/config
        - name: check connection
          run: ssh -vvv lemaitre3 hostname
