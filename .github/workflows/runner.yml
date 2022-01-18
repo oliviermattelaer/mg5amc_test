@@ -54,7 +54,6 @@ jobs:
          run: ssh lemaitre3 srun -t 1:00:00 ./actions-runner/run.sh
 
     testrunner:
-      needs: startconnection
       runs-on: lemaitre3
       steps:
        - name: hostname check
