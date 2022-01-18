@@ -51,7 +51,7 @@ jobs:
        - name: check connection
          run: ssh lemaitre3 srun hostname
        - name: start runner 
-         run: ssh lemaitre3 srun -t 1:00:00 ./actions-runner/run.sh
+         run: ssh lemaitre3 srun -t 1:00:00 ./actions-runner/run.sh || echo "runner terminated"
 
     getslurmid:
       runs-on: lemaitre3
