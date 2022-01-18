@@ -41,19 +41,9 @@ jobs:
             ForwardAgent yes
             IdentityFile ~/.ssh/id_rsa.ceci
             ProxyJump gwceci
-          if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
-       - name: check key
-         run: md5sum ~/.ssh/id_rsa.ceci
-       - name: check know host
-         run: cat ~/.ssh/known_hosts
-       - name: check config
-         run: cat ~/.ssh/config
-       - name: check connection
-         run: ssh lemaitre3 srun hostname
-       - name: create check script
-         run: echo "export status=\"first\"; while [ ! \"\$status\" = \"\" ]; do  export status=`squeue -u omatt | grep runner`; echo $status; sleep 60; done" | ssh lemaitre3 "cat > testrunnermg.sh"
+          if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)    
        - name: wait that no runnner is running
-         run: ssh lemaitre3 bash testrunnermg.sh
+         run: ssh lemaitre3 sbatch --dependency=singleton -J runner_mg5amc -t 01:00 hostname
 
          
     startlm3runner:
@@ -85,14 +75,6 @@ jobs:
             IdentityFile ~/.ssh/id_rsa.ceci
             ProxyJump gwceci
           if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
-       - name: check key
-         run: md5sum ~/.ssh/id_rsa.ceci
-       - name: check know host
-         run: cat ~/.ssh/known_hosts
-       - name: check config
-         run: cat ~/.ssh/config
-       - name: check connection
-         run: ssh lemaitre3 srun hostname
        - name: start runner 
          run: ssh lemaitre3 srun -t 1:00:00 -J runner_mg5amc ./actions-runner/run.sh || echo "runner terminated"
 
