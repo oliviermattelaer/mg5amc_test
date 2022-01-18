@@ -1,0 +1,44 @@
+name: start runner on cluster
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the 3.4.0 branch
+  push:
+    branches: [ git_test ]
+    paths-ignore:
+      - 'docs/**'
+      - '.github/**'  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+  # A workflow run is made up of one or more jobs that can run sequentially or in parallel
+  jobs:
+    # This workflow contains a single job called "build"
+    startconnection:
+    # The type of runner that the job will run on
+      runs-on: ubuntu-latest
+      steps:
+       - name: Install SSH key
+         uses: shimataro/ssh-key-action@v2
+      with:
+         key: ${{ secrets.CECI_KEY}}
+         name: id_rsa.ceci # optional
+         known_hosts: gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
+         config: |
+    Host *
+      ServerAliveInterval 300
+      ServerAliveCountMax 2
+    Host gwceci
+#    IdentitiesOnly yes
+      Hostname gwceci.cism.ucl.ac.be
+      User omatt
+      ForwardAgent yes
+      IdentityFile ~/.ssh/id_rsa.ceci
+    Host dragon2 hmem lemaitre3 hercules dragon1 vega nic4 manneback mb zenobe nic5 ingrid zenobe
+     User omatt
+     ForwardAgent yes
+     IdentityFile ~/.ssh/id_rsa.ceci
+     ProxyJump gwceci
+    if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
+- name: check connection
+  run: ssh lemaitre3 hostname
