@@ -49,4 +49,4 @@ jobs:
        - name: check config
          run: cat ~/.ssh/config
        - name: check connection
-         run: ssh -vvv lemaitre3 hostname
+         run: ssh -vvv lemaitre3 srunn hostname
