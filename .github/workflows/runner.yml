@@ -44,7 +44,7 @@ jobs:
        - name: check key
          run: md5sum ~/.ssh/id_rsa.ceci
        - name: check know host
-         run: cat ~/.ssh/know_host
+         run: cat ~/.ssh/known_hosts
        - name: check config
          run: cat ~/.ssh/config
        - name: check connection
