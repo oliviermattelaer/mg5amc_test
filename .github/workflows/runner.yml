@@ -23,7 +23,9 @@ jobs:
          with:
           key: ${{ secrets.CECI_KEY}}
           name: id_rsa.ceci # optional
-          known_hosts: gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
+          known_hosts: |
+           gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
+           lemaitre3.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKe01E26qJYGysz3Cgp8upzHaUJYvoIBzkWlRTfYt2yP
           config: |
            Host *
             ServerAliveInterval 300
