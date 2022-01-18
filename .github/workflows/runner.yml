@@ -53,15 +53,48 @@ jobs:
        - name: start runner 
          run: ssh lemaitre3 srun -t 1:00:00 ./actions-runner/run.sh
 
-    testrunner:
+    getslurmid:
       runs-on: lemaitre3
+      outputs:
+        output1: ${{ steps.step1.outputs.test }}
       steps:
+       - id: step1
+         run: echo "::set-output name=test::${SLURM_JOB_ID}"
+       
+    actualwork:
        - name: hostname check
          run: hostname
-    deleterunner:
-       needs: testrunner
-       runs-on: lemaitre3
-       steps:
+
+  stoplm3runner:
+    runs-on: ubuntu-latest
+    needs: [getslurmid,actualwork]
+    steps:
+      - run: echo ${{needs.getslurmid.outputs.output1}}
+      - name: Install SSH key
+         uses: shimataro/ssh-key-action@v2
+         with:
+          key: ${{ secrets.CECI_KEY}}
+          name: id_rsa.ceci # optional
+          known_hosts: |
+           gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
+           lemaitre3.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKe01E26qJYGysz3Cgp8upzHaUJYvoIBzkWlRTfYt2yP
+           lemaitre3,130.104.1.207 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNiz3FYBVj9qu3DfunHx5UKgW1+LR1rI4y3iMXMhLw+xm2eRXj6ksn24C1Z5tHEpeJrawIghBOrTE/G96bcDqdU=
+          config: |
+           Host *
+            ServerAliveInterval 300
+            ServerAliveCountMax 2
+           Host gwceci
+            Hostname gwceci.cism.ucl.ac.be
+            User omatt
+            ForwardAgent yes
+            IdentityFile ~/.ssh/id_rsa.ceci
+           Host dragon2 hmem lemaitre3 hercules dragon1 vega nic4 manneback mb zenobe nic5 ingrid zenobe
+            User omatt
+            ForwardAgent yes
+            IdentityFile ~/.ssh/id_rsa.ceci
+            ProxyJump gwceci
+          if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)
+       
         - name: stop runner
-          run: scancel ${SLURM_JOB_ID}
+          run: ssh lemaitre3 scancel ${{needs.getslurmid.outputs.output1}}
     
