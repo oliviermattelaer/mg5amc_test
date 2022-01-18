@@ -58,7 +58,7 @@ jobs:
          
     startlm3runner:
     # The type of runner that the job will run on
-      needs:[checklm3runnerstatus]
+      needs: checklm3runnerstatus 
       runs-on: ubuntu-latest
       steps:
        - name: Install SSH key
