@@ -1,4 +1,7 @@
 name: "setup ssh for cluster connection"
+
+description: "setup openssh for cluster connection"
+
 inputs:
   sshkey:
     description: "ssh key to connect to cluster"
