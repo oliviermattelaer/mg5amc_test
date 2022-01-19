@@ -91,6 +91,7 @@ jobs:
         
     actualwork:
       runs-on: lemaitre3
+      needs: checklm3runnerstatus 
       name: A job to say hello
       steps:
         - uses: actions/checkout@v2
