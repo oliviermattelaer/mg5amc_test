@@ -87,13 +87,11 @@ jobs:
       steps:
        - id: step1
          run: echo "::set-output name=test::${SLURM_JOB_ID}"
-       
-    actualwork:
-     needs: checklm3runnerstatus
-     runs-on: lemaitre3
-     steps:
-       - name: hostname check
-         run: hostname
+    
+    reusableworkflow:
+      uses: .github/workflows/tests.yml@main
+      with:
+        server: lemaitre3
 
     stoplm3runner:
       runs-on: ubuntu-latest
