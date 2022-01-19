@@ -35,9 +35,9 @@ jobs:
         - name: setup ssh
           uses: ./.github/clustersetup
           with:
-          ssh_key: ${{ secrets.CECI_KEY }}
+           ssh_key: ${{ secrets.CECI_KEY }}
         - name: start runner 
-         run: ssh lemaitre3 srun --dependency=singleton -t 1:00:00 -J runner_mg5amc ./actions-runner/run.sh || echo "runner terminated"
+          run: ssh lemaitre3 srun --dependency=singleton -t 1:00:00 -J runner_mg5amc ./actions-runner/run.sh || echo "runner terminated"
 
 
     getslurmid:
