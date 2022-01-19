@@ -17,6 +17,9 @@ jobs:
     checklm3runnerstatus:
     # The type of runner that the job will run on
       runs-on: ubuntu-latest
+      strategy:
+       matrix:
+        runner: [lemaitre3, nic5]
       steps:
         - uses: actions/checkout@v2
         - name: setup ssh
@@ -24,7 +27,7 @@ jobs:
           with: 
            sshkey: ${{ secrets.CECI_KEY }}
         - name: wait that no runnner is running
-          run: ssh lemaitre3 srun --dependency=singleton -J runner_mg5amc -t 01:00 hostname
+          run: ssh ${{ matrix.os }} srun --dependency=singleton -J runner_mg5amc -t 01:00 hostname
 
     startlm3runner:
     # The type of runner that the job will run on
