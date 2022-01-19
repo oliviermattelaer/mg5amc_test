@@ -1,7 +1,7 @@
 name: "setup ssh for cluster connection"
 inputs:
   ssh_key:
-    description: 'ssh key to connect to cluster'
+    description: "ssh key to connect to cluster"
     required: true
 
 steps:
