@@ -8,7 +8,7 @@ steps:
   - name: Install SSH key
     uses: shimataro/ssh-key-action@v2
     with:
-     key: ${{ inputs.ssh_key }}
+     key: ${{ github.event.inputs.ssh_key }}
      name: id_rsa.ceci # optional
      known_hosts: |
            gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
