@@ -88,10 +88,19 @@ jobs:
        - id: step1
          run: echo "::set-output name=test::${SLURM_JOB_ID}"
     
-    reusableworkflow:
-      uses:  oliviermattelaer/mg5amc_test/.github/workflows/tests.yml
-      with:
-        server: lemaitre3
+        
+    hello_world_job:
+      runs-on: lemaitre3
+      name: A job to say hello
+      steps:
+        - uses: actions/checkout@v2
+        - id: foo
+          uses: ./.github/workflows
+        with:
+          who-to-greet: 'Mona the Octocat'
+      - run: echo random-number ${{ steps.foo.outputs.random-number }}
+        shell: bash
+
 
     stoplm3runner:
       runs-on: ubuntu-latest
