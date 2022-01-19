@@ -1,0 +1,13 @@
+name: test the actual application
+on:
+  workflow_call:
+    inputs:
+      cluster:
+        required: true
+        type: string
+  jobs:
+  hostname_test:
+    runs-on: ${{ inputs.cluster }}
+    steps:
+       - name: hostname check
+         run: hostname
