@@ -27,7 +27,7 @@ jobs:
           with: 
            sshkey: ${{ secrets.CECI_KEY }}
         - name: wait that no runnner is running
-          run: ssh ${{ matrix.os }} srun --dependency=singleton -J runner_mg5amc -t 01:00 hostname
+          run: ssh ${{ matrix.runner }} srun --dependency=singleton -J runner_mg5amc -t 01:00 hostname
 
     startlm3runner:
     # The type of runner that the job will run on
