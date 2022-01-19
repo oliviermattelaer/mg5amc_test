@@ -89,7 +89,7 @@ jobs:
          run: echo "::set-output name=test::${SLURM_JOB_ID}"
     
     reusableworkflow:
-      uses: .github/workflows/tests.yml@main
+      uses:  oliviermattelaer/mg5amc_test/.github/workflows/tests.yml
       with:
         server: lemaitre3
 
