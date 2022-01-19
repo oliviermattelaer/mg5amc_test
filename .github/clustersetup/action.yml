@@ -9,16 +9,16 @@ inputs:
 runs:
   using: "composite"
   steps:
-   - name: Install SSH key
+  - name: Install SSH key
     uses: shimataro/ssh-key-action@v2
     with:
-     key: ${{ inputs.sshkey }}
-     name: id_rsa.ceci # optional
-     known_hosts: |
+      key: ${{ inputs.sshkey }}
+      name: id_rsa.ceci # optional
+      known_hosts: |
            gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
            lemaitre3.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKe01E26qJYGysz3Cgp8upzHaUJYvoIBzkWlRTfYt2yP
            lemaitre3,130.104.1.207 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNiz3FYBVj9qu3DfunHx5UKgW1+LR1rI4y3iMXMhLw+xm2eRXj6ksn24C1Z5tHEpeJrawIghBOrTE/G96bcDqdU=
-     config: |
+      config: |
            Host *
             ServerAliveInterval 300
             ServerAliveCountMax 2
@@ -32,4 +32,4 @@ runs:
             ForwardAgent yes
             IdentityFile ~/.ssh/id_rsa.ceci
             ProxyJump gwceci
-     if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)    
+      if_key_exists: ignore # replace / ignore / fail; optional (defaults to fail)    
