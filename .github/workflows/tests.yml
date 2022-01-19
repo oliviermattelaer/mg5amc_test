@@ -5,7 +5,7 @@ on:
       cluster:
         required: true
         type: string
-  jobs:
+jobs:
   hostname_test:
     runs-on: ${{ inputs.cluster }}
     steps:
