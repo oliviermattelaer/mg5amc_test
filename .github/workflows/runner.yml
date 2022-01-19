@@ -89,7 +89,7 @@ jobs:
          run: echo "::set-output name=test::${SLURM_JOB_ID}"
     
         
-    hello_world_job:
+    actualwork:
       runs-on: lemaitre3
       name: A job to say hello
       steps:
