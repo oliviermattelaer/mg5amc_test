@@ -18,7 +18,7 @@ runs:
            gwceci.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBlvDUHE7OlmvDCJy9QSKjqfeJ/CYAhT2PU2zYoFRkT   
            lemaitre3.cism.ucl.ac.be ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKe01E26qJYGysz3Cgp8upzHaUJYvoIBzkWlRTfYt2yP
            lemaitre3,130.104.1.207 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNiz3FYBVj9qu3DfunHx5UKgW1+LR1rI4y3iMXMhLw+xm2eRXj6ksn24C1Z5tHEpeJrawIghBOrTE/G96bcDqdU=
-	   nic5,nic5.segi.ulg.ac.be ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAADdoDT+Vh/tGac7RzkKAUvPWQrwH7aOfRX32C+CXHF2ebuXPmayrq3jZSWItrEaAnxpwJWwRCN6HIjihqHSg1dMgA5GRBjNrKCWoirTRJR/6WMTWHrRS5ZQG5xrKgKQdAMiJtjukUd85t5jz7PJSn7KWKrI9AoM+Y2UN4ZpgodXF5jOQ==  
+           nic5,nic5.segi.ulg.ac.be ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAADdoDT+Vh/tGac7RzkKAUvPWQrwH7aOfRX32C+CXHF2ebuXPmayrq3jZSWItrEaAnxpwJWwRCN6HIjihqHSg1dMgA5GRBjNrKCWoirTRJR/6WMTWHrRS5ZQG5xrKgKQdAMiJtjukUd85t5jz7PJSn7KWKrI9AoM+Y2UN4ZpgodXF5jOQ==  
       config: |
            Host *
             ServerAliveInterval 300
