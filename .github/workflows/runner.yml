@@ -17,10 +17,6 @@ jobs:
     checklm3runnerstatus:
     # The type of runner that the job will run on
       runs-on: ubuntu-latest
-      strategy:
-       fail-fast: false
-       matrix:
-        runner: [lemaitre3]
       steps:
         - uses: actions/checkout@v2
         - name: setup ssh
@@ -28,7 +24,7 @@ jobs:
           with: 
            sshkey: ${{ secrets.CECI_KEY }}
         - name: wait that no runnner is running
-          run: ssh ${{ matrix.runner }} srun --dependency=singleton -J runner_mg5amc -t 01:00 hostname
+          run: ssh lemaitre3 srun --dependency=singleton -J runner_mg5amc -t 01:00 -p debug,batch hostname
 
     startlm3runner:
     # The type of runner that the job will run on
@@ -53,8 +49,9 @@ jobs:
        - id: step1
          run: echo "::set-output name=test::${SLURM_JOB_ID}"
        - id: check_secret
-         run: echo ${{ secrets.CECI_KEY }}
-    
+         run: echo ${{ secrets.MYNAME }}
+       - id: check_secret2	 
+         run: echo MATTELAER
         
     actualwork:
       runs-on: lemaitre3
