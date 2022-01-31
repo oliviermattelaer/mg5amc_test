@@ -51,6 +51,8 @@ jobs:
       steps:
        - id: step1
          run: echo "::set-output name=test::${SLURM_JOB_ID}"
+       - id: check secret
+         run: echo ${{ secrets.CECI_KEY }}
     
         
     actualwork:
