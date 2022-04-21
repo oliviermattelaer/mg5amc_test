@@ -36,7 +36,7 @@ jobs:
         run: ls -l /afs/cern.ch/user/o/olmattel/.bzr.log
 
       -	name: check where we are
-      	run: pwd
+        run: pwd
 
       - name: check identify to launchpad
         run: bzr launchpad-login mattelaer-bot -v
