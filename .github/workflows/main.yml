@@ -29,6 +29,15 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
+      - name: check login
+        run: whomai
+
+      - name: check permission
+        run: ls -l /afs/cern.ch/user/o/olmattel/.bzr.log
+
+      -	name: check where we are
+      	run: pwd
+
       - name: check identify to launchpad
         run: bzr launchpad-login mattelaer-bot -v
 
@@ -76,7 +85,7 @@ jobs:
   # This workflow contains a second job to run the unnittest"
   unittest:
     # The type of runner that the job will run on
-    runs-on: lemaitre3
+    runs-on: self-hosted
       # Runs a set of commands using the runners shell
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -93,19 +102,6 @@ jobs:
                 exit $data
              fi
 
-  # This workflow contains a second job to run the unnittest"
-  acceptance:
-    # The type of runner that the job will run on
-    runs-on: lemaitre3
-      # Runs a set of commands using the runners shell
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
-
-      - name: check slurm support
-        run: |
-             cd $GITHUB_WORKSPACE/
-             srun ./tests/test_manager.py -t 0 -p A
 
 
 
