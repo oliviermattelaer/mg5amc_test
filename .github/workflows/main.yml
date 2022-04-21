@@ -34,8 +34,8 @@ jobs:
 
       - name: check permission
         run: ls -l /afs/cern.ch/user/o/olmattel/.bzr.log
-
-      -	name: check where we are
+      
+      - name: check where we are
         run: pwd
 
       - name: check identify to launchpad
